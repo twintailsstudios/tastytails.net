@@ -1,0 +1,27 @@
+{
+  "name": "tastytails",
+  "version": "0.1.0",
+  "description": "A game where you eat your friends",
+  "main": "src/",
+  "scripts": {
+    "start": "node src/",
+    "test": "mocha"
+  },
+  "keywords": [
+    "game"
+  ],
+  "author": "Shelly <senshellshark@gmail.com>",
+  "license": "ISC",
+  "babel": {
+    "presets": [
+      "latest"
+    ]
+  },
+  "dependencies": {
+    "babel-preset-latest": "^6.24.1",
+    "babel-register": "^6.26.0",
+    "express": "^4.16.3",
+    "socket.io": "^2.1.1",
+    "vector2d": "^3.0.0"
+  }
+}
