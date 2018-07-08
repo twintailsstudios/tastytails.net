@@ -1,4 +1,4 @@
-import game from '../controllers/game'
+import game from '../managers/game'
 import Character from './character'
 
 export default class PlayerCharacter extends Character {
