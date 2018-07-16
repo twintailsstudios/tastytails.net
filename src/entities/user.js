@@ -1,4 +1,4 @@
-import PlayerCharacter from './playerCharacter'
+import PlayerCharacter from './player-character'
 
 export default class User {
 

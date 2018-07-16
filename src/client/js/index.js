@@ -1,6 +1,7 @@
 import preload from './preload.js'
 import create from './create.js'
 import update from './update.js'
+import resize from './resize.js'
 
 let socket = io();
 
@@ -14,10 +15,15 @@ let config = {
   scene: {
     preload: preload,
     create: create,
-    update: update
+    update: update,
+    resize: resize
   }
 }
 
 let game = new Phaser.Game(config)
+
+window.addEventListener('resize', function (event) {
+  game.resize(window.innerWidth, window.innerHeight)
+}, false)
 
 export { game }
