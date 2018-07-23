@@ -12,8 +12,8 @@ export default class Character {
   set velocity (vector) {
     let limit = this.velocityLimiter
     this._veloctiy = new Vector(
-      vector.abs().x < limit.x ? vector.abs().x : limit.x,
-      vector.abs().y < limit.y ? vector.abs().y : limit.y)
+      Math.abs(vector.x) < limit.x ? Math.abs(vector.x) : limit.x,
+      Math.abs(vector.y) < limit.y ? Math.abs(vector.y) : limit.y)
   }
 
   get velocity () {

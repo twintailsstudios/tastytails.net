@@ -25,15 +25,15 @@ io.on('connection', socket => {
     game.chat.add(new Message(author, data.type, data.content))
   })
 
-  socket.on('position feed', (data) => {
+  socket.on('update velocity', (data) => {
     if (!!data.velocity) {
       console.log('character moved!')
-      user.character.velocity = velocity
-      socket.broadcast.emit('position feed', {id: socket.id, velocity})
+      user.character.velocity = data.velocity
+      socket.broadcast.emit('update velocity', {id: socket.id, velocity: data.velocity})
     }
   })
 
-  socket.on('position ping', (data) => {
+  socket.on('update position', (data) => {
     if (!!data.position) {
       // ...
     }

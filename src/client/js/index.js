@@ -22,9 +22,18 @@ let config = {
 
 let game = new Phaser.Game(config)
 
+// Here we make an entities array, this is where our character objects will go.
+// They get instantiated in the create.js
 game.entities = {
-  characters: []
+  characters: [],
+  playerCharacter: null
 }
+
+game.state = {
+  isChatting: false
+}
+
+game.key = {}
 
 window.addEventListener('resize', function (event) {
   game.resize(window.innerWidth, window.innerHeight)
