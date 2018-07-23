@@ -7,7 +7,7 @@ const path = require('path')
 
 const game = require('./managers/game').default
 
-const PlayerCharacter = require('./entities/playerCharacter').default
+const PlayerCharacter = require('./entities/player-character').default
 const Message = require('./entities/message').default
 
 const port = 3000
@@ -16,7 +16,8 @@ app.use('/', express.static(path.join(__dirname, 'client')))
 
 io.on('connection', socket => {
   console.log('user connected', socket.id)
-  game.user.add(socket.id)
+  let user = game.user.add(socket.id)
+  socket.broadcast.emit('player join', {id: socket.id, skin: user.character.skin, position: user.character.position})
 
   socket.on('message', (data) => {
     let author = game.user.all[socket.id]
@@ -25,11 +26,17 @@ io.on('connection', socket => {
   })
 
   socket.on('position feed', (data) => {
-
+    if (!!data.velocity) {
+      console.log('character moved!')
+      user.character.velocity = velocity
+      socket.broadcast.emit('position feed', {id: socket.id, velocity})
+    }
   })
 
   socket.on('position ping', (data) => {
-
+    if (!!data.position) {
+      // ...
+    }
   })
 
   socket.on('disconnect', () => {

@@ -22,8 +22,12 @@ let config = {
 
 let game = new Phaser.Game(config)
 
+game.entities = {
+  characters: []
+}
+
 window.addEventListener('resize', function (event) {
   game.resize(window.innerWidth, window.innerHeight)
 }, false)
 
-export { game }
+export { game, socket }

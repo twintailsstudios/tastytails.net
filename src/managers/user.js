@@ -5,7 +5,9 @@ export default {
   _users: {},
 
   add (socketid) {
-    this._users[socketid] = new User(socketid)
+    let user = new User(socketid)
+    this._users[socketid] = user
+    return user
   },
 
   get all () {

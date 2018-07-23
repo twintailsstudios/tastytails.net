@@ -1,24 +1,28 @@
+import Entity from './entity.js'
 
-export default new Phaser.Class({
+export default class Character extends Entity {
 
-  Extends: Phaser.GameObjects.Image,
-
-  initialize: function Character (scene) {
+  constructor (id, position, scene) {
+    super(position)
     this.skin = ''
-    this.setSize(32, 32, true)
-  },
+    this.updateId = id
+    this.sprite = scene.add.graphics()
+    this.sprite.fillStyle(0xFF2233)
+    this.sprite.fillRect(0, 0, 16, 16)
+    this.sprite.setPosition(position.x, position.y)
+  }
 
-  positionPing: function (position) {
-    this.setPosition(position.x, position.y)
-  },
+  positionPing (position) {
+    this.sprite.setPosition(position.x, position.y)
+  }
 
-  positionFeed: function (velocity) {
-    this.xSpeed = velocity.x
-    this.ySpeed = velocity.y
-  },
+  positionFeed (velocity) {
+    this.sprite.xSpeed = velocity.x
+    this.sprite.ySpeed = velocity.y
+  }
 
-  update: function (time, delta) {
+  update () {
 
   }
 
-})
+}
