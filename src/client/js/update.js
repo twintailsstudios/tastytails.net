@@ -13,25 +13,25 @@ export default function () {
   }
 
   if (key.up.isDown || key.w.isDown) {
-    let velocity = {y: -1}
+    let velocity = {y: -160}
     playerCharacter.updateVelocity(velocity)
     socket.emit('update velocity', {id: socket.id, velocity})
   }
 
   if (key.down.isDown || key.s.isDown) {
-    let velocity = {y: 1}
+    let velocity = {y: 160}
     playerCharacter.updateVelocity(velocity)
     socket.emit('update velocity', {id: socket.id, velocity})
   }
 
   if (key.left.isDown || key.a.isDown) {
-    let velocity = {x: -1}
+    let velocity = {x: -160}
     playerCharacter.updateVelocity(velocity)
     socket.emit('update velocity', {id: socket.id, velocity})
   }
 
   if (key.right.isDown || key.d.isDown) {
-    let velocity = {x: 1}
+    let velocity = {x: 160}
     playerCharacter.updateVelocity(velocity)
     socket.emit('update velocity', {id: socket.id, velocity})
   }
