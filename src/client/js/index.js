@@ -10,7 +10,10 @@ let config = {
   width: window.innerWidth,
   height: window.innerHeight,
   physics: {
-    default: 'arcade'
+    default: 'arcade',
+		arcade: {
+			debug: true
+    }
   },
   scene: {
     preload: preload,

@@ -5,6 +5,8 @@ class playerSprite {
 
   constructor(scene) {
     this.container = scene.add.container()
+    //I think the green "playerHead" part should be using the names of sprites
+    //pulled from preload.js like I'm doing on line 37 and 38?
     this.head = scene.physics.add.sprite(0, 0, 'playerHead');
     this.body = scene.physics.add.sprite(0, 0, 'playerBody');
     this.tail = scene.physics.add.sprite(0, 0, 'playerTail');
@@ -29,8 +31,11 @@ export default class Character extends Entity {
     this.updateId = id
 
     this.sprite = scene.add.graphics()
-    this.sprite.fillStyle(0xFF2233)
-    this.sprite.fillRect(0, 0, 16, 16)
+    //this.sprite.fillStyle(0xFF2233)
+    //this.sprite.fillRect(0, 0, 16, 16)
+    //this is pulling the sprites listed in the preload.js file instead of a red square
+    this.sprite.scene.physics.add.sprite(75, 75, 'dudeheadpurple');
+    this.sprite.scene.physics.add.sprite(75, 75, 'dudebody');
     this.sprite.setPosition(position.x, position.y)
     this.sprite.container = scene.add.container()
     this.sprite.container.add([this.sprite])
