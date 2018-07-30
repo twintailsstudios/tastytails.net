@@ -1,5 +1,6 @@
 import preload from './preload.js'
 import create from './create.js'
+import ui from './ui.js'
 import update from './update.js'
 import resize from './resize.js'
 
@@ -18,6 +19,7 @@ let config = {
   scene: {
     preload: preload,
     create: create,
+    ui: ui,
     update: update,
     resize: resize
   }

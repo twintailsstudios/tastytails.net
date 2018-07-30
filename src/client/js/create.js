@@ -10,7 +10,7 @@ export default function () {
   let entities = game.entities
   let characters = entities.characters
   let playerCharacter = entities.playerCharacter
-
+  console.log('Create Started');
   //Loads the json  file and also the map tileset
    const map = this.make.tilemap({key: 'level_2'});
    const tileset = map.addTilesetImage('spritesheet');

@@ -27,7 +27,7 @@ io.on('connection', socket => {
 
   socket.on('update velocity', (data) => {
     if (!!data.velocity) {
-      console.log('character moved!')
+      console.log('character moved! data.velocity = ', data.velocity);
       user.character.velocity = data.velocity
       socket.broadcast.emit('update velocity', {id: socket.id, velocity: data.velocity})
     }
