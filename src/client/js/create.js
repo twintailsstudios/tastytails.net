@@ -1,16 +1,23 @@
 import { game, socket } from './index.js'
 import resize from './resize.js'
 import Character from './entities/character.js'
+import ui from './ui.js'
 
 // Up here we are importing the game object from ./index.js
-
-export default function () {
-
+var create = new Phaser.Class({
+  Extends: Phaser.Scene,
+  initialize: function create() {
+  ////active is set to false here, so it waits for a command to launch////
+  Phaser.Scene.call(this, {key: 'create', active: false});
+  this.pic;
+  },
+  create() {
   let scene = this
   let entities = game.entities
   let characters = entities.characters
   let playerCharacter = entities.playerCharacter
   console.log('Create Started');
+
   //Loads the json  file and also the map tileset
    const map = this.make.tilemap({key: 'level_2'});
    const tileset = map.addTilesetImage('spritesheet');
@@ -26,6 +33,7 @@ export default function () {
    const ground2_layer = map.createStaticLayer('blocked2', tileset, 0, 0);
 
    //defines the height that each map layer is displayed at and what tile IDs player can collide with
+
    roof2_layer.depth = 4;
    roof2_layer.setCollision(-1);
    roof_layer.depth = 3;
@@ -41,6 +49,7 @@ export default function () {
    ground_layer.setCollisionFromCollisionGroup();
    //makes all the objects you can't walk through
    //blocked = this.physics.add.staticGroup();
+
 
   game.key = {
     up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
@@ -85,4 +94,6 @@ export default function () {
 
   this.events.on('resize', resize, this)
 
-}
+  }
+});
+export default create;

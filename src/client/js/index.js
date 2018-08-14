@@ -16,13 +16,13 @@ let config = {
 			debug: true
     }
   },
-  scene: {
-    preload: preload,
-    create: create,
-    ui: ui,
-    update: update,
-    resize: resize
-  }
+  scene: [
+    preload,
+    create,
+    ui,
+    update,
+    resize
+  ]
 }
 
 let game = new Phaser.Game(config)
