@@ -1,4 +1,4 @@
-import { game, socket } from './index.js'
+import { Game, socket } from './index.js'
 
 var ui = new Phaser.Class({
   Extends: Phaser.Scene,

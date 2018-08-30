@@ -38,7 +38,7 @@ preload() {
 	//loads sprite files to be used for players
   //this.load.spritesheet('emptyplayer', 'assets/spritesheets/emptyplayer.png', {frameWidth: 32, frameHeight: 48});
 	this.load.spritesheet('dude', 'assets/spritesheets/dude.png', {frameWidth: 32, frameHeight: 48});
-	//this.load.spritesheet('dude2', 'assets/spritesheets/dude2.png', {frameWidth: 32, frameHeight: 48});
+	this.load.spritesheet('otherPlayer', 'assets/spritesheets/dude2.png', {frameWidth: 32, frameHeight: 48});
 	this.load.spritesheet('dudebody', 'assets/spritesheets/dudebody.png', {frameWidth: 32, frameHeight: 48});
 	this.load.spritesheet('dudeheadpurple', 'assets/spritesheets/dudeheadpurple.png', {frameWidth: 32, frameHeight: 48});
 	this.load.spritesheet('dudeheadgreen', 'assets/spritesheets/dudeheadgreen.png', {frameWidth: 32, frameHeight: 48});
@@ -62,7 +62,7 @@ preload() {
 create() {
 this.scene.launch('create');
 this.scene.launch('ui');
-this.scene.launch('update');
+//this.scene.launch('update');
 }
 });
 export default preload;

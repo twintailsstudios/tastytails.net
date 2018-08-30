@@ -1,6 +1,8 @@
-import { game } from '../index.js'
-import Entity from './entity.js'
 
+import { Game } from '../index.js'
+import Entity from './entity.js'
+let character = null;
+/*
 class playerSprite {
 
   constructor(scene) {
@@ -39,7 +41,7 @@ export default class Character extends Entity {
     this.sprite.setPosition(position.x, position.y)
     this.sprite.container = scene.add.container()
     this.sprite.container.add([this.sprite])
-    /* */
+
     // this.sprite = new playerSprite(scene)
   }
 
@@ -49,6 +51,8 @@ export default class Character extends Entity {
   }
 
   updateVelocity (velocity) {
+    console.log("updateVelocity called successfully");
+    //playerSprite.this.head = velocity;
     this.sprite.container.xSpeed = velocity.x || this.sprite.container.xSpeed
     this.sprite.container.ySpeed = velocity.y || this.sprite.container.ySpeed
   }
@@ -58,3 +62,5 @@ export default class Character extends Entity {
   }
 
 }
+*/
+export default character;
