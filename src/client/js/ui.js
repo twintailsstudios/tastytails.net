@@ -1,9 +1,9 @@
-import { Game, socket } from './index.js'
+import { game, socket } from './index.js'
 
 var ui = new Phaser.Class({
   Extends: Phaser.Scene,
   initialize: function ui() {
-  ////active is set to false here, so it waits for a command to launch////
+  //active is set to false here, so it waits for a command to launch from preload.js
   Phaser.Scene.call(this, {key: 'ui', active: false});
   this.pic;
   },
@@ -128,6 +128,7 @@ var ui = new Phaser.Class({
     clothesButton.on('pointerdown', function () {
       //let tabDisplay = this.add.image(81, 792, 'clothesavatar').setScrollFactor(0);
       clothesButton.tint = 0x0000FF;
+      console.log('test variable is: ', test);
     });
   }
 });

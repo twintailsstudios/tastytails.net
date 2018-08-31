@@ -1,5 +1,5 @@
 
-import { Game } from '../index.js'
+import { game } from '../index.js'
 import Entity from './entity.js'
 let character = null;
 /*

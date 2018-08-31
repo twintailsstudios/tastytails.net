@@ -21,8 +21,8 @@ io.on('connection', function (socket) {
   console.log('a user connected: ', socket.id);
   // create a new player and add it to our players object
   players[socket.id] = {
-    x: Math.floor(Math.random() * 700) + 50,
-    y: Math.floor(Math.random() * 500) + 50,
+    x: 4820,
+    y: 5020,
     playerId: socket.id,
   };
   // send the players object to the new player
@@ -42,6 +42,7 @@ io.on('connection', function (socket) {
   socket.on('playerMovement', function (movementData) {
     players[socket.id].x = movementData.x;
     players[socket.id].y = movementData.y;
+    console.log('Player ID: ', socket.id, '     X: ', Math.round(movementData.x), '     Y: ', Math.round(movementData.y));
     // emit a message to all players about the player that moved
     socket.broadcast.emit('playerMoved', players[socket.id]);
   });

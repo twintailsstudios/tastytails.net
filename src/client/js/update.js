@@ -1,9 +1,9 @@
-import { Game, socket } from './index.js'
+import { game, socket } from './index.js'
 
 var update = new Phaser.Class({
   Extends: Phaser.Scene,
   initialize: function update() {
-  ////active is set to false here, so it waits for a command to launch////
+  //active is set to false here, so it waits for a command to launch from preload.js
   Phaser.Scene.call(this, {key: 'update', active: false});
   this.pic;
   },
@@ -39,7 +39,6 @@ update() {
 
 
 
-    this.physics.world.wrap(this.avatar, 5);
 
     // emit player movement
     var x = this.avatar.x;

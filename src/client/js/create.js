@@ -1,4 +1,4 @@
-import { Game, socket } from './index.js'
+import { game, socket } from './index.js'
 import resize from './resize.js'
 import Character from './entities/character.js'
 import ui from './ui.js'
@@ -7,11 +7,13 @@ import ui from './ui.js'
 var create = new Phaser.Class({
   Extends: Phaser.Scene,
   initialize: function create() {
-    ////active is set to false here, so it waits for a command to launch////
+    //active is set to false here, so it waits for a command to launch from preload.js
     Phaser.Scene.call(this, {key: 'create', active: false});
     this.pic;
   },
   create() {
+    let test = 1
+    console.log('test variable is: ', test);
     var self = this;
     this.socket = io();
     this.otherPlayers = this.physics.add.group();
@@ -76,28 +78,11 @@ var create = new Phaser.Class({
     ground_layer.setCollisionFromCollisionGroup();
     //makes all the objects you can't walk through
     let blocked = this.physics.add.staticGroup();
-    //let cam1 = this.cameras.main.setSize(920, 920).startFollow(self.avatar).setName('Camera 1');
 
-    /*
-    game.key = {
-      up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
-      down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
-      left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
-      right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
-      w: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      a: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-      s: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-      d: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-    }
-
-
-    entities.playerCharacter = new Character(socket.id, {x: 50, y: 50}, scene)
-    let cam1 = this.cameras.main.setSize(920, 920).startFollow(entities.playerCharacter.sprite.container).setName('Camera 1');
-    console.log(game)*/
 
     function addPlayer(self, playerInfo) {
       self.avatar = self.physics.add.image(playerInfo.x, playerInfo.y, 'dude').setOrigin(0.5, 0.5);
-
+        let cam1 = self.cameras.main.setSize(920, 920).startFollow(self.avatar).setName('Camera 1');
       self.avatar.setDrag(100);
       //self.avatar.setAngularDrag(100);
       self.avatar.setMaxVelocity(200);
@@ -105,8 +90,9 @@ var create = new Phaser.Class({
       self.avatar.setOffset(11, 40);
       self.avatar.setBounce(0.0);
       self.avatar.setCollideWorldBounds(false);
+
       //gives physics to local player so that they will obey blocked objects
-      //game.physics.add.collider(self.avatar, ground_layer);
+      self.physics.add.collider(self.avatar, ground_layer);
     };
 
     function addOtherPlayers(self, playerInfo) {
@@ -119,11 +105,8 @@ var create = new Phaser.Class({
   },
 
   update() {
-    //console.log(this.avatar);
-    //console.log(game.key);
-    //console.log('Update Started');
+
     if (this.avatar) {
-      //console.log('this.avatar is true');
       if (this.cursors.left.isDown) {
         this.avatar.setVelocityX(-150);
         this.avatar.setVelocityY(0);
@@ -150,7 +133,6 @@ var create = new Phaser.Class({
 
 
 
-      this.physics.world.wrap(this.avatar, 5);
 
       // emit player movement
       var x = this.avatar.x;
