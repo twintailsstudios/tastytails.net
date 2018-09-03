@@ -19,6 +19,10 @@ app.use('/', express.static(path.join(__dirname, 'client')))
 
 io.on('connection', function (socket) {
   console.log('a user connected: ', socket.id);
+  socket.on('join', (data)=>{
+    socket.join(data.room);
+    io.in(data.room).emit('message', `New User Joined ${data.room} root!`);
+  });
   // create a new player and add it to our players object
   players[socket.id] = {
     x: 4820,
@@ -35,6 +39,7 @@ io.on('connection', function (socket) {
     console.log('user disconnected: ', socket.id);
     delete players[socket.id];
     // emit a message to all players to remove this player
+    io.emit('message', 'User Disconnected');
     io.emit('disconnect', socket.id);
   });
 
@@ -47,9 +52,10 @@ io.on('connection', function (socket) {
     socket.broadcast.emit('playerMoved', players[socket.id]);
   });
   socket.on('message', (data) => {
-  let author = game.user.all[socket.id]
-  let type = (data.type === 'ooc' || data.type === 'rp' ? data.type : null)
-  game.chat.add(new Message(author, data.type, data.content))
+  io.in(data.room).emit('message', data.msg);
+  //let author = game.user.all[socket.id]
+  //let type = (data.type === 'ooc' || data.type === 'rp' ? data.type : null)
+  //game.chat.add(new Message(author, data.type, data.content))
 });
 
 });
