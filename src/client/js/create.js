@@ -12,8 +12,6 @@ var create = new Phaser.Class({
     this.pic;
   },
   create() {
-    let test = 1
-    console.log('test variable is: ', test);
     var self = this;
     this.socket = io();
     this.otherPlayers = this.physics.add.group();

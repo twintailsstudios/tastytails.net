@@ -10,22 +10,36 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
         integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
   <style>
+
+    #chat-container {
+      position:absolute;
+      right:10px;
+      top:435px;
+      bottom:10px;
+      left:960px
+    }
+
     form {
       padding: 30px;
       position: fixed;
       bottom: 0;
-      width: 100%;
+      width: 48%;
       padding-right: 10px;
-      padding-left:1250px;
+      padding-left: 0px;
     }
 
     #messages {
       list-style-type: none;
       margin: 0;
       padding: 0;
-      width: 100%;
-      padding-left:960px;
-      padding-top:500px;
+      width: 960px;
+      height: 415px;
+      border: 1px solid;
+      padding-right: 10px;
+      padding-left:0px;
+      padding-top:0px;
+      overflow-x: hidden;
+      overflow-y:scroll;
     }
 
     #messages li {
@@ -39,21 +53,23 @@
   </style>
 </head>
 <body>
-  <div class="container-fluid">
-    <div class="row">
-      <ul id="messages"></ul>
-    </div>
-    <div class="row">
-      <div class="col-xs-12">
-        <form id="message-form" action="">
-          <div class="input-group">
-            <input id="m" autocomplete="off" type="text" class="form-control" placeholder="Message....."
-                  aria-label="Message...">
-            <span class="input-group.btn">
-              <button class="btn btn-success" type"submit">Send!</button>
-            </span>
-          </div>
-        </form>
+  <div id="chat-container">
+    <div class="container-fluid">
+      <div class="row">
+        <ul id="messages"></ul>
+      </div>
+      <div class="row">
+        <div class="col-xs-12">
+          <form id="message-form" action="">
+            <div class="input-group">
+                <input id="m" autocomplete="off" type="text" class="form-control" placeholder="Message....."
+                    aria-label="Message...">
+                    <span class="input-group.btn">
+                      <button class="btn btn-success" type"submit">Send!</button>
+                    </span>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -74,9 +90,11 @@
         crossorigin="anonymous"></script>
 
       <script src="/socket.io/socket.io.js"></script>
+
       <script>
         var socket = io();
       </script>
+
       <script>
       const room = 'localchat';
 
