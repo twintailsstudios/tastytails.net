@@ -53,6 +53,7 @@
   </style>
 </head>
 <body>
+
   <div id="chat-container">
     <div class="container-fluid">
       <div class="row">
@@ -111,7 +112,11 @@
       });
 
       socket.on('message', (msg) =>{
+        const isScrolledToBottom = messages.scrollHeight - messages.clientHeight <= messages.scrollTop + 1;
         $('#messages').append($('<li>').text(msg));
+        if (isScrolledToBottom) {
+          messages.scrollTop = messages.scrollHeight - messages.clientHeight;
+        }
       })
     </script>
 

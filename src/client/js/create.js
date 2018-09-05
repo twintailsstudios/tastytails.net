@@ -108,26 +108,27 @@ var create = new Phaser.Class({
       if (this.cursors.left.isDown) {
         this.avatar.setVelocityX(-150);
         this.avatar.setVelocityY(0);
-        console.log('Left arrow key pressed.');
+        //console.log('Left arrow key pressed.');
       }
       else if (this.cursors.right.isDown) {
         this.avatar.setVelocityX(150);
         this.avatar.setVelocityY(0);
-        console.log('Right arrow key pressed.');
+        //console.log('Right arrow key pressed.');
       }
       else if (this.cursors.up.isDown) {
         this.avatar.setVelocityY(-150);
         this.avatar.setVelocityX(0);
-        console.log('up arrow key pressed.');
+        //console.log('up arrow key pressed.');
       }
       else if (this.cursors.down.isDown) {
         this.avatar.setVelocityY(150);
         this.avatar.setVelocityX(0);
-        console.log('Down arrow key pressed.');
+        //console.log('Down arrow key pressed.');
       }
       else {
         this.avatar.setVelocity(0);
       }
+
 
 
 
