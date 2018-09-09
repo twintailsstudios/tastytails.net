@@ -43,7 +43,8 @@ var create = new Phaser.Class({
     });
     this.cursors = this.input.keyboard.createCursorKeys();
 
-    //this detects if the game has been clicked so as to move the focus off of the chat div and back onto the game, allowing players to move again
+    //this detects if the game has been clicked so as to move the focus off of the chat div and back onto the game
+    //allowing players to move again
     this.input.on('pointerdown', function (pointer) {
 
         document.getElementById('phaserApp').focus();
