@@ -42,6 +42,16 @@ var create = new Phaser.Class({
       });
     });
     this.cursors = this.input.keyboard.createCursorKeys();
+
+    //this detects if the game has been clicked so as to move the focus off of the chat div and back onto the game, allowing players to move again
+    this.input.on('pointerdown', function (pointer) {
+
+        document.getElementById('phaserApp').focus();
+        console.log('phaser game was clicked');
+
+    }, this);
+
+
     const game = this;
     console.log('Create Started');
 
@@ -104,31 +114,51 @@ var create = new Phaser.Class({
 
   update() {
 
-    if (this.avatar) {
-      if (this.cursors.left.isDown) {
-        this.avatar.setVelocityX(-150);
-        this.avatar.setVelocityY(0);
-        //console.log('Left arrow key pressed.');
-      }
-      else if (this.cursors.right.isDown) {
-        this.avatar.setVelocityX(150);
-        this.avatar.setVelocityY(0);
-        //console.log('Right arrow key pressed.');
-      }
-      else if (this.cursors.up.isDown) {
-        this.avatar.setVelocityY(-150);
-        this.avatar.setVelocityX(0);
-        //console.log('up arrow key pressed.');
-      }
-      else if (this.cursors.down.isDown) {
-        this.avatar.setVelocityY(150);
-        this.avatar.setVelocityX(0);
-        //console.log('Down arrow key pressed.');
-      }
-      else {
-        this.avatar.setVelocity(0);
-      }
+    //makes phaser stop listening for keyboard inputs when user is focused on the chat div
+    if (chatFocused == false) {
+      this.input.keyboard.addKey(this.cursors.up);
+      this.input.keyboard.addKey(this.cursors.down);
+      this.input.keyboard.addKey(this.cursors.left);
+      this.input.keyboard.addKey(this.cursors.right);
+      this.input.keyboard.addKey(this.cursors.space);
+      //console.log('keyboard enabled');
+    }
+    else {
+      this.input.keyboard.removeKey(this.cursors.up);
+      this.input.keyboard.removeKey(this.cursors.down);
+      this.input.keyboard.removeKey(this.cursors.left);
+      this.input.keyboard.removeKey(this.cursors.right);
+      this.input.keyboard.removeKey(this.cursors.space);
+      //console.log('keyboard disabled');
+    }
 
+    if (this.avatar) {
+      //makes it so that variables left, right, up, and down are not checked for while undefined when user is focused on chat div
+      if (chatFocused == false) {
+        if (this.cursors.left.isDown) {
+          this.avatar.setVelocityX(-150);
+          this.avatar.setVelocityY(0);
+          //console.log('Left arrow key pressed.');
+        }
+        else if (this.cursors.right.isDown) {
+          this.avatar.setVelocityX(150);
+          this.avatar.setVelocityY(0);
+          //console.log('Right arrow key pressed.');
+        }
+        else if (this.cursors.up.isDown) {
+          this.avatar.setVelocityY(-150);
+          this.avatar.setVelocityX(0);
+          //console.log('up arrow key pressed.');
+        }
+        else if (this.cursors.down.isDown) {
+          this.avatar.setVelocityY(150);
+          this.avatar.setVelocityX(0);
+          //console.log('Down arrow key pressed.');
+        }
+        else {
+          this.avatar.setVelocity(0);
+        }
+      }
 
 
 

@@ -50,9 +50,15 @@
       color: white;
       background: gray;
     }
+
+
   </style>
+
 </head>
 <body>
+
+  <div id="phaserApp" tabindex="0">
+  </div>
 
   <div id="chat-container">
     <div class="container-fluid">
@@ -96,8 +102,10 @@
         var socket = io();
       </script>
 
+
       <script>
       const room = 'localchat';
+      let chatFocused = false;
 
 
       $('form').submit(()=>{
@@ -118,6 +126,22 @@
           messages.scrollTop = messages.scrollHeight - messages.clientHeight;
         }
       })
+    </script>
+    <script>
+      setInterval("myFunction()", 1);
+
+      function myFunction() {
+        let phaserApp = document.getElementById("phaserApp");
+          phaserApp.onfocus = function(){
+            chatFocused = false;
+            console.log('ChatFocused = ', chatFocused);
+          }
+          phaserApp.onblur = function(){
+            //when you stop focusingon it
+            chatFocused = true;
+            console.log('ChatFocused = ', chatFocused);
+          }
+        }
     </script>
 
   </body>

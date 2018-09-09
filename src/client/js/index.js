@@ -12,6 +12,7 @@ let config = {
   parent: 'phaser-example',
   width: 1921,//window.innerWidth,
   height: 1041,//window.innerHeight,
+  parent: 'phaserApp',
   physics: {
     default: 'arcade',
 		arcade: {
