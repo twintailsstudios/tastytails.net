@@ -2,7 +2,11 @@ import { game, socket } from './index.js'
 import resize from './resize.js'
 import Character from './entities/character.js'
 import ui from './ui.js'
-
+var avatarSelected = false;
+let avatarInfo = {
+  head:"head1",
+  body:"body1"
+};
 // Up here we are importing the game object from ./index.js
 var create = new Phaser.Class({
   Extends: Phaser.Scene,
@@ -13,6 +17,7 @@ var create = new Phaser.Class({
   },
   create() {
     var self = this;
+
     this.socket = io();
     this.otherPlayers = this.physics.add.group();
     this.socket.on('currentPlayers', function (players) {
@@ -41,6 +46,14 @@ var create = new Phaser.Class({
         }
       });
     });
+    this.socket.on('avatarSelection', function (playerInfo) {
+      self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+        if (playerInfo.playerId === otherPlayer.playerId) {
+          //playerInfo.head.add.image(playerInfo.head);
+          console.log('otherPlayer in avatarSelection set to: ', playerInfo);
+        }
+      });
+    });
     this.cursors = this.input.keyboard.createCursorKeys();
 
     //this detects if the game has been clicked so as to move the focus off of the chat div and back onto the game
@@ -48,7 +61,7 @@ var create = new Phaser.Class({
     this.input.on('pointerdown', function (pointer) {
 
         document.getElementById('phaserApp').focus();
-        console.log('phaser game was clicked');
+        //console.log('phaser game was clicked');
 
     }, this);
 
@@ -89,23 +102,98 @@ var create = new Phaser.Class({
     let blocked = this.physics.add.staticGroup();
 
 
+    //creating the avatar selection screen
     function addPlayer(self, playerInfo) {
-      self.avatar = self.physics.add.image(playerInfo.x, playerInfo.y, 'dude').setOrigin(0.5, 0.5);
-        let cam1 = self.cameras.main.setSize(920, 920).startFollow(self.avatar).setName('Camera 1');
-      self.avatar.setDrag(100);
-      //self.avatar.setAngularDrag(100);
-      self.avatar.setMaxVelocity(200);
-      self.avatar.setSize(8, 8);
-      self.avatar.setOffset(11, 40);
-      self.avatar.setBounce(0.0);
-      self.avatar.setCollideWorldBounds(false);
 
+      //predefining variables
+      if (avatarSelected == false) {
+        var characterSelect = null;
+        var headSelect1 = null;
+        var headSelect2 = null;
+        var headSelect3 = null;
+
+        console.log(playerInfo.playerId, 'is creating their avatar...');
+
+        //creates background menu image for selectable options to sit on top of
+        characterSelect = self.add.image(450, 500, 'characterselect').setScrollFactor(0);
+        characterSelect.depth = 9;
+
+        //creates a clickable purple head for character customization
+        headSelect1 = self.add.image(600, 380, 'headselectpurple').setScrollFactor(0);
+    		headSelect1.depth = 10;
+    		headSelect1.setInteractive();
+    		headSelect1.on('pointerdown', function () {
+			     avatarInfo.head = 'dudeheadpurple';
+           createSprite();
+           console.log(playerInfo.playerId, 'Selected the purple head');
+		    });
+
+        //creates a clickable green head for character customization
+        headSelect2 = self.add.image(650, 380, 'headselectgreen').setScrollFactor(0);
+    		headSelect2.depth = 10;
+    		headSelect2.setInteractive();
+    		headSelect2.on('pointerdown', function () {
+			     avatarInfo.head = 'dudeheadgreen';
+           createSprite();
+           console.log(playerInfo.playerId, 'Selected the green head');
+		    });
+
+        //creates a clickable blue head for character customization
+        headSelect3 = self.add.image(700, 380, 'headselectblue').setScrollFactor(0);
+    		headSelect3.depth = 10;
+    		headSelect3.setInteractive();
+    		headSelect3.on('pointerdown', function () {
+			    avatarInfo.head = 'dudeheadblue';
+          createSprite();
+          console.log(playerInfo.playerId, 'Selected the blue head');
+		    });
+
+        //destroys the character selection menu after a sprite head is selected
+        function createSprite (){
+          let avatar = {};
+          if(avatarInfo.head)avatar.head = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.head).setOrigin(0.5, 0.5);
+          if(avatarInfo.body)avatar.body = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.body).setOrigin(0.5, 0.5);
+
+            self.socket.emit('avatarSelected', { head: avatar.head, body: avatar.body });
+
+          headSelect1.destroy();
+          headSelect2.destroy();
+          headSelect3.destroy();
+          characterSelect.destroy();
+          self.avatar = avatar;
+          applyPhysics();
+          avatarSelected = true;
+        }
+      }
+      if (avatarSelected == false) {
+        //self.avatar = self.physics.add.image(playerInfo.x, playerInfo.y, 'emptyplayer').setOrigin(0.5, 0.5);
+        self.avatar2 = self.physics.add.image(playerInfo.x, playerInfo.y, 'dudebody').setOrigin(0.5, 0.5);
+      }
+      function applyPhysics () {
+        //console.log('applyPhysics function called');
+        let newSprite;
+        //self.physics.add.group();
+        let cam1 = self.cameras.main.setSize(920, 920).startFollow(self.avatar.head).setName('Camera 1');
+        //physics for head
+        self.avatar.head.setMaxVelocity(200);
+        self.avatar.head.setSize(8, 8);
+        self.avatar.head.setOffset(11, 40);
+        self.avatar.head.setCollideWorldBounds(false);
+        //gives physics to local player so that they will obey blocked objects
+        self.physics.add.collider(self.avatar.head, ground_layer);
+      }
+      //physics for body
+      self.avatar2.setMaxVelocity(200);
+      self.avatar2.setSize(8, 8);
+      self.avatar2.setOffset(11, 40);
+      self.avatar2.setCollideWorldBounds(false);
       //gives physics to local player so that they will obey blocked objects
-      self.physics.add.collider(self.avatar, ground_layer);
+      self.physics.add.collider(self.avatar2, ground_layer);
+
     };
 
     function addOtherPlayers(self, playerInfo) {
-      const otherPlayer = self.add.sprite(playerInfo.x, playerInfo.y, 'dude').setOrigin(0.5, 0.5);
+      const otherPlayer = self.add.sprite(playerInfo.x, playerInfo.y, avatarInfo.head).setOrigin(0.5, 0.5);
 
       otherPlayer.playerId = playerInfo.playerId;
       self.otherPlayers.add(otherPlayer);
@@ -135,46 +223,58 @@ var create = new Phaser.Class({
 
     if (this.avatar) {
       //makes it so that variables left, right, up, and down are not checked for while undefined when user is focused on chat div
-      if (chatFocused == false) {
-        if (this.cursors.left.isDown) {
-          this.avatar.setVelocityX(-150);
-          this.avatar.setVelocityY(0);
-          //console.log('Left arrow key pressed.');
-        }
-        else if (this.cursors.right.isDown) {
-          this.avatar.setVelocityX(150);
-          this.avatar.setVelocityY(0);
-          //console.log('Right arrow key pressed.');
-        }
-        else if (this.cursors.up.isDown) {
-          this.avatar.setVelocityY(-150);
-          this.avatar.setVelocityX(0);
-          //console.log('up arrow key pressed.');
-        }
-        else if (this.cursors.down.isDown) {
-          this.avatar.setVelocityY(150);
-          this.avatar.setVelocityX(0);
-          //console.log('Down arrow key pressed.');
-        }
-        else {
-          this.avatar.setVelocity(0);
+      if (avatarSelected == true) {
+        if (chatFocused == false) {
+          if (this.cursors.left.isDown) {
+            this.avatar.head.setVelocityX(-150);
+            this.avatar.head.setVelocityY(0);
+            this.avatar2.setVelocityX(-150);
+            this.avatar2.setVelocityY(0);
+            //console.log('Left arrow key pressed.');
+          }
+          else if (this.cursors.right.isDown) {
+            this.avatar.head.setVelocityX(150);
+            this.avatar.head.setVelocityY(0);
+            this.avatar2.setVelocityX(150);
+            this.avatar2.setVelocityY(0);
+            //console.log('Right arrow key pressed.');
+          }
+          else if (this.cursors.up.isDown) {
+            this.avatar.head.setVelocityY(-150);
+            this.avatar.head.setVelocityX(0);
+            this.avatar2.setVelocityY(-150);
+            this.avatar2.setVelocityX(0);
+            //console.log('up arrow key pressed.');
+          }
+          else if (this.cursors.down.isDown) {
+            this.avatar.head.setVelocityY(150);
+            this.avatar.head.setVelocityX(0);
+            this.avatar2.setVelocityY(150);
+            this.avatar2.setVelocityX(0);
+            //console.log('Down arrow key pressed.');
+          }
+          else {
+            this.avatar.head.setVelocity(0);
+            this.avatar2.setVelocity(0);
+          }
         }
       }
-
 
 
 
       // emit player movement
-      var x = this.avatar.x;
-      var y = this.avatar.y;
-      if (this.avatar.oldPosition && (x !== this.avatar.oldPosition.x || y !== this.avatar.oldPosition.y)) {
-        this.socket.emit('playerMovement', { x: this.avatar.x, y: this.avatar.y });
+      if (avatarSelected == true) {
+        var x = this.avatar.head.x;
+        var y = this.avatar.head.y;
+        if (this.avatar.head.oldPosition && (x !== this.avatar.head.oldPosition.x || y !== this.avatar.head.oldPosition.y)) {
+          this.socket.emit('playerMovement', { x: this.avatar.head.x, y: this.avatar.head.y });
+        }
+        // save old position data
+        this.avatar.head.oldPosition = {
+          x: this.avatar.head.x,
+          y: this.avatar.head.y,
+        };
       }
-      // save old position data
-      this.avatar.oldPosition = {
-        x: this.avatar.x,
-        y: this.avatar.y,
-      };
     }
   }
 });

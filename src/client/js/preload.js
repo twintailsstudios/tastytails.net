@@ -2,7 +2,7 @@
 var preload = new Phaser.Class({
   Extends: Phaser.Scene,
   initialize: function preload() {
-  ////active is set to false here, so it waits for a command to launch////
+  ////active is set to false here, so it waits for a command to launch
   Phaser.Scene.call(this, {key: 'preload', active: true});
   this.pic;
   },
@@ -36,7 +36,7 @@ preload() {
   //This loads the map json file that says what coordinates have what pictures
   this.load.tilemapTiledJSON('level_2', 'assets/tilemaps/level2.json');
 	//loads sprite files to be used for players
-  //this.load.spritesheet('emptyplayer', 'assets/spritesheets/emptyplayer.png', {frameWidth: 32, frameHeight: 48});
+  this.load.spritesheet('emptyplayer', 'assets/spritesheets/emptyplayer.png', {frameWidth: 32, frameHeight: 48});
 	this.load.spritesheet('dude', 'assets/spritesheets/dude.png', {frameWidth: 32, frameHeight: 48});
 	this.load.spritesheet('otherPlayer', 'assets/spritesheets/dude2.png', {frameWidth: 32, frameHeight: 48});
 	this.load.spritesheet('dudebody', 'assets/spritesheets/dudebody.png', {frameWidth: 32, frameHeight: 48});
@@ -44,7 +44,7 @@ preload() {
 	this.load.spritesheet('dudeheadgreen', 'assets/spritesheets/dudeheadgreen.png', {frameWidth: 32, frameHeight: 48});
 	this.load.spritesheet('dudeheadblue', 'assets/spritesheets/dudeheadblue.png', {frameWidth: 32, frameHeight: 48});
 
-  //preloading menu assets////
+  //preloading menu assets
   this.load.image('menuframe', 'assets/images/menuframe.png', {frameWidth: 1921, frameHeight: 1041});
   this.load.image('numberbutton', 'assets/images/numberbutton.png');
   this.load.image('looktab', 'assets/images/looktab.png');
@@ -58,6 +58,13 @@ preload() {
   this.load.image('optionstab', 'assets/images/optionstab.png');
   this.load.image('optionsdisplay', 'assets/images/optionsdisplay.png');
   this.load.image('clothesavatar', 'assets/images/clothesavatar.png');
+
+  //preloading character select asets
+  this.load.image('loginbutton', 'assets/images/loginbutton.png');
+  this.load.image('characterselect', 'assets/images/characterselect.png');
+  this.load.image('headselectpurple', 'assets/images/headselectpurple.png');
+  this.load.image('headselectgreen', 'assets/images/headselectgreen.png');
+  this.load.image('headselectblue', 'assets/images/headselectblue.png');
 },
 create() {
 this.scene.launch('create');

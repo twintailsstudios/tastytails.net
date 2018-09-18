@@ -51,6 +51,15 @@ io.on('connection', function (socket) {
     // emit a message to all players about the player that moved
     socket.broadcast.emit('playerMoved', players[socket.id]);
   });
+
+  socket.on('avatarSelected', function (avatarSave) {
+    players[socket.id].head = avatarSave.head;
+    players[socket.id].body = avatarSave.body;
+    console.log('avatar.head = ', avatarSave.head);
+    // emit a message to all players about the updated player avatar
+    socket.broadcast.emit('avatarSelection', players[socket.id]);
+  });
+
   socket.on('message', (data) => {
   io.in(data.room).emit('message', data.msg);
   //let author = game.user.all[socket.id]

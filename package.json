@@ -1,7 +1,7 @@
 {
   "name": "tastytails",
   "version": "0.1.0",
-  "description": "A game where you eat your friends",
+  "description": "A game where you play with your friends",
   "main": "src/",
   "scripts": {
     "start": "node src/",
