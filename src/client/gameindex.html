@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Tasty Tails</title>
-    <link rel="stylesheet" type="text/css" href="/css/normalize.css" />
-    <link rel="stylesheet" type="text/css" href="/css/index.css" />
 
-    <meta charset="UTF-8">
-    <title>Chatting with people you can see</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
-        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-    <style>
+<head>
+  <title>Tasty Tails</title>
+  <link rel="stylesheet" type="text/css" href="/css/normalize.css" />
+  <link rel="stylesheet" type="text/css" href="/css/index.css" />
 
-      #chat-container {
+  <meta charset="UTF-8">
+  <title>Chatting with people you can see</title>
+  <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" -->
+  <!-- integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous"> -->
+  <style>
+
+    #chat-container {
         position:absolute;
         right:10px;
         top:435px;
@@ -51,100 +52,92 @@
         background: gray;
       }
     </style>
-  </head>
+</head>
 
-  <body>
+<body>
 
-    <div id="phaserApp" tabindex="0">
-    </div>
+  <div id="phaserApp" tabindex="0">
+  </div>
 
-    <div id="chat-container">
-      <div class="container-fluid">
-        <div class="row">
-          <ul id="messages"></ul>
-        </div>
-        <div class="row">
-          <div class="col-xs-12">
-            <form id="message-form" action="">
-              <div class="input-group">
-                  <input id="m" autocomplete="off" type="text" class="form-control" placeholder="Message....."
-                      aria-label="Message...">
-                      <span class="input-group.btn">
-                        <button class="btn btn-success" type"submit">Send!</button>
-                      </span>
-              </div>
-            </form>
-          </div>
+  <div id="chat-container">
+    <div class="container-fluid">
+      <div class="row">
+        <ul id="messages"></ul>
+      </div>
+      <div class="row">
+        <div class="col-xs-12">
+          <form id="message-form" action="">
+            <div class="input-group">
+              <input id="m" autocomplete="off" type="text" class="form-control" placeholder="Message....." aria-label="Message...">
+              <span class="input-group.btn">
+                <button class="btn btn-success" type"submit">Send!</button>
+              </span>
+            </div>
+          </form>
         </div>
       </div>
     </div>
+  </div>
 
 
 
-    <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.min.js"></script>
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="/js/index.js" type="module"></script>
+  <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/index.js" type="module"></script>
+
+  <script>
+    var socket = io();
+  </script>
 
 
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
-        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
-        crossorigin="anonymous">
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
-        integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
-        crossorigin="anonymous">
-    </script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"
-        integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
-        crossorigin="anonymous">
-    </script>
+  <script>
 
-    <script>
-      var socket = io();
-    </script>
+    const room = 'localchat';
+    let chatFocused = false;
 
+    const form = document.querySelector("form");
+    const chat = document.querySelector("#m");
+    const messages = document.querySelector("#messages");
+    form.onsubmit = (event) => {
+      event.preventDefault();
+      msg = chat.value;
+      socket.emit('message', { msg, room });
+      chat.value = "";
+      return false;
+    };
 
-    <script>
-      const room = 'localchat';
-      let chatFocused = false;
+    socket.on('connect', () => {
+      socket.emit('join', { room: room });
+    });
 
+    socket.on('message', (msg) => {
+      const isScrolledToBottom = messages.scrollHeight - messages.clientHeight <= messages.scrollTop + 1;
+      let li = document.createElement("li");
+      li.innerHTML = msg;
+      messages.appendChild(li);
+      if (isScrolledToBottom) {
+        messages.scrollTop = messages.scrollHeight - messages.clientHeight;
+      }
+    })
+  </script>
 
-      $('form').submit(()=>{
-        let msg= $('#m').val();
-        socket.emit('message', {msg, room});
-        $('#m').val('');
-        return false;
-      });
+  <script>
+    setInterval("myFunction()", 1);
 
-      socket.on('connect', ()=> {
-        socket.emit('join', {room: room});
-      });
+    function myFunction() {
+      let phaserApp = document.getElementById("phaserApp");
+      phaserApp.onfocus = function () {
+        chatFocused = false;
+        //console.log('ChatFocused = ', chatFocused);
+      }
+      phaserApp.onblur = function () {
+        //when you stop focusingon it
+        chatFocused = true;
+        //console.log('ChatFocused = ', chatFocused);
+      }
+    }
+  </script>
 
-      socket.on('message', (msg) =>{
-        const isScrolledToBottom = messages.scrollHeight - messages.clientHeight <= messages.scrollTop + 1;
-        $('#messages').append($('<li>').text(msg));
-        if (isScrolledToBottom) {
-          messages.scrollTop = messages.scrollHeight - messages.clientHeight;
-        }
-      })
-    </script>
+</body>
 
-    <script>
-      setInterval("myFunction()", 1);
-
-      function myFunction() {
-        let phaserApp = document.getElementById("phaserApp");
-          phaserApp.onfocus = function(){
-            chatFocused = false;
-            //console.log('ChatFocused = ', chatFocused);
-          }
-          phaserApp.onblur = function(){
-            //when you stop focusingon it
-            chatFocused = true;
-            //console.log('ChatFocused = ', chatFocused);
-          }
-        }
-    </script>
-
-  </body>
 </html>
