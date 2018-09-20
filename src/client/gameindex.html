@@ -14,20 +14,34 @@
 
     #chat-container {
         position:absolute;
-        right:15px;
-        top:430px;
-        bottom:10px;
-        left:960px;
+        right:1%;
+        top:45.9%;
+        bottom:1%;
+        left:50.25%;
       }
 
       form {
-        padding: 30px;
         position: absolute;
-        bottom: 0;
-        width: 98%;
-        padding-right: 10px;
-        padding-left: 0px;
-        background-color:black;
+        top: 83.5%;
+        bottom:0%;
+        width: 100%;
+      }
+
+      .input-group {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+
+      #m {
+        position: absolute;
+        width: 93.5%;
+        height: 100%;
+      }
+
+      #btn {
+        position: relative;
+        left: 94.1%;
       }
 
       #messages {
@@ -37,17 +51,17 @@
         width: 100%;
         height:83%;
         padding: 0;
-
         border: 1px solid;
-        padding-right: 10px;
-        padding-left:0px;
-        padding-top:0px;
+        padding-right: 1%;
+        padding-left:0%;
+        padding-top:0%;
         overflow-x: hidden;
         overflow-y:scroll;
       }
 
       #messages li {
         padding: 5px 10px;
+        overflow-y: visible;
       }
 
       #messages li:nth-child(even){
@@ -71,9 +85,9 @@
         <div class="col-xs-12">
           <form id="message-form" action="">
             <div class="input-group">
-              <input id="m" autocomplete="off" type="text" class="form-control" placeholder="Message....." aria-label="Message...">
+              <textarea id="m" autocomplete="off" class="form-control" placeholder="message" aria-label="message"></textarea>
               <span class="input-group.btn">
-                <button class="btn btn-success" type"submit">Send!</button>
+                <button id="btn" onclick="javascript:alert('just press the enter key for now...button doesn't work')">Send!</button>
               </span>
             </div>
           </form>
@@ -92,22 +106,34 @@
     var socket = io();
   </script>
 
+  <script>
+  var input = document.getElementById("m");
+  input.addEventListener("keyup", function(event) {
+    event.preventDefault();
+    if (event.keyCode === 13) {
+        form.onsubmit
+    }
+  });
+</script>
+
 
   <script>
 
     const room = 'localchat';
-    let chatFocused = false;
+    let chatFocused = true;
 
     const form = document.querySelector("form");
     const chat = document.querySelector("#m");
     const messages = document.querySelector("#messages");
-    form.onsubmit = (event) => {
-      event.preventDefault();
-      msg = chat.value;
-      socket.emit('message', { msg, room });
-      chat.value = "";
-      return false;
-    };
+    chat.addEventListener("keyup", function (event) {
+      if (event.shiftKey) return;
+      else if (event.keyCode === 13) {
+        event.preventDefault();
+        msg = chat.value;
+        socket.emit('message', { msg, room });
+        chat.value = "";
+      }
+    });
 
     socket.on('connect', () => {
       socket.emit('join', { room: room });
