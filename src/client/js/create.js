@@ -32,6 +32,15 @@ var create = new Phaser.Class({
     this.socket.on('newPlayer', function (playerInfo) {
       addOtherPlayers(self, playerInfo);
     });
+    this.socket.on('avatarSelection', function (playerInfo) {
+      self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+        if (playerInfo.playerId === otherPlayer.playerId) {
+          addOtherPlayers(self, playerInfo);
+          //playerInfo.head.add.image(playerInfo.head);
+          console.log('otherPlayer in avatarSelection set to: ', playerInfo.head);
+        }
+      });
+    });
     this.socket.on('disconnect', function (playerId) {
       self.otherPlayers.getChildren().forEach(function (otherPlayer) {
         if (playerId === otherPlayer.playerId) {
@@ -46,14 +55,7 @@ var create = new Phaser.Class({
         }
       });
     });
-    this.socket.on('avatarSelection', function (playerInfo) {
-      self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-        if (playerInfo.playerId === otherPlayer.playerId) {
-          //playerInfo.head.add.image(playerInfo.head);
-          console.log('otherPlayer in avatarSelection set to: ', playerInfo);
-        }
-      });
-    });
+
     this.cursors = this.input.keyboard.createCursorKeys();
 
     //this detects if the game has been clicked so as to move the focus off of the chat div and back onto the game
@@ -193,7 +195,8 @@ var create = new Phaser.Class({
     };
 
     function addOtherPlayers(self, playerInfo) {
-      const otherPlayer = self.add.sprite(playerInfo.x, playerInfo.y, avatarInfo.head).setOrigin(0.5, 0.5);
+      console.log('addOtherPlayer function called and playerInfo.head = ', playerInfo.head);
+      const otherPlayer = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.head).setOrigin(0.5, 0.5);
 
       otherPlayer.playerId = playerInfo.playerId;
       self.otherPlayers.add(otherPlayer);
