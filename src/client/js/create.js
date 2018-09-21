@@ -126,6 +126,7 @@ var create = new Phaser.Class({
     		headSelect1.setInteractive();
     		headSelect1.on('pointerdown', function () {
 			     avatarInfo.head = 'dudeheadpurple';
+           self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
            createSprite();
            console.log(playerInfo.playerId, 'Selected the purple head');
 		    });
@@ -136,6 +137,7 @@ var create = new Phaser.Class({
     		headSelect2.setInteractive();
     		headSelect2.on('pointerdown', function () {
 			     avatarInfo.head = 'dudeheadgreen';
+           self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
            createSprite();
            console.log(playerInfo.playerId, 'Selected the green head');
 		    });
@@ -146,6 +148,7 @@ var create = new Phaser.Class({
     		headSelect3.setInteractive();
     		headSelect3.on('pointerdown', function () {
 			    avatarInfo.head = 'dudeheadblue';
+          self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
           createSprite();
           console.log(playerInfo.playerId, 'Selected the blue head');
 		    });
@@ -156,7 +159,7 @@ var create = new Phaser.Class({
           if(avatarInfo.head)avatar.head = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.head).setOrigin(0.5, 0.5);
           if(avatarInfo.body)avatar.body = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.body).setOrigin(0.5, 0.5);
 
-            self.socket.emit('avatarSelected', { head: avatar.head, body: avatar.body });
+            //self.socket.emit('avatarSelected', { head: avatar.head, body: avatar.body });
 
           headSelect1.destroy();
           headSelect2.destroy();
