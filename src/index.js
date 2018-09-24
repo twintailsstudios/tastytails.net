@@ -55,7 +55,7 @@ io.on('connection', function (socket) {
   socket.on('avatarSelected', function (avatarSave) {
     players[socket.id].head = avatarSave.head;
     players[socket.id].body = avatarSave.body;
-    console.log('avatar.head = ', avatarSave.head);
+    console.log('Player ID: ', socket.id, 'has chosen: ', '\n', 'avatar.head = ', avatarSave.head, '\n', 'avatar.body = ', avatarSave.body);
     // emit a message to all players about the updated player avatar
     socket.broadcast.emit('avatarSelection', players[socket.id]);
   });

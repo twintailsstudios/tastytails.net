@@ -4,8 +4,8 @@ import Character from './entities/character.js'
 import ui from './ui.js'
 var avatarSelected = false;
 let avatarInfo = {
-  head:"head1",
-  body:"body1"
+  head:"emptyplayer",
+  body:"emptyplayer"
 };
 // Up here we are importing the game object from ./index.js
 var create = new Phaser.Class({
@@ -37,13 +37,14 @@ var create = new Phaser.Class({
         if (playerInfo.playerId === otherPlayer.playerId) {
           addOtherPlayers(self, playerInfo);
           //playerInfo.head.add.image(playerInfo.head);
-          console.log('otherPlayer in avatarSelection set to: ', playerInfo.head);
+          console.log('otherPlayer in avatarSelection set to: ', playerInfo.head, 'and ', playerInfo.body);
         }
       });
     });
     this.socket.on('disconnect', function (playerId) {
       self.otherPlayers.getChildren().forEach(function (otherPlayer) {
         if (playerId === otherPlayer.playerId) {
+          console.log('Player ID: ', socket.id, 'disconnected');
           otherPlayer.destroy();
         }
       });
@@ -66,7 +67,6 @@ var create = new Phaser.Class({
         //console.log('phaser game was clicked');
 
     }, this);
-
 
     const game = this;
     console.log('Create Started');
@@ -116,42 +116,84 @@ var create = new Phaser.Class({
 
         console.log(playerInfo.playerId, 'is creating their avatar...');
 
+        var input = document.getElementById("head1");
+        input.addEventListener("click", function(event) {
+          event.preventDefault();
+          purpleHeadSelected();
+        });
+        var input = document.getElementById("head2");
+        input.addEventListener("click", function(event) {
+          event.preventDefault();
+          greenHeadSelected();
+        });
+        var input = document.getElementById("head3");
+        input.addEventListener("click", function(event) {
+          event.preventDefault();
+          blueHeadSelected();
+        });
+        var input = document.getElementById("body1");
+        input.addEventListener("click", function(event) {
+          event.preventDefault();
+          bodySelected();
+        });
+        var input = document.getElementById("logInBttn");
+        input.addEventListener("click", function(event) {
+          event.preventDefault();
+          logInBttnSelected();
+          //blueHeadSelected();
+        });
+
         //creates background menu image for selectable options to sit on top of
         characterSelect = self.add.image(450, 500, 'characterselect').setScrollFactor(0);
         characterSelect.depth = 9;
 
         //creates a clickable purple head for character customization
-        headSelect1 = self.add.image(600, 380, 'headselectpurple').setScrollFactor(0);
+        /*headSelect1 = self.add.image(600, 380, 'headselectpurple').setScrollFactor(0);
     		headSelect1.depth = 10;
-    		headSelect1.setInteractive();
-    		headSelect1.on('pointerdown', function () {
+    		headSelect1.setInteractive();*/
+    		//headSelect1.on('pointerdown',
+        function purpleHeadSelected() {
 			     avatarInfo.head = 'dudeheadpurple';
            self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
-           createSprite();
+           //createSprite();
            console.log(playerInfo.playerId, 'Selected the purple head');
-		    });
+		    };
 
         //creates a clickable green head for character customization
-        headSelect2 = self.add.image(650, 380, 'headselectgreen').setScrollFactor(0);
+        /*headSelect2 = self.add.image(650, 380, 'headselectgreen').setScrollFactor(0);
     		headSelect2.depth = 10;
     		headSelect2.setInteractive();
-    		headSelect2.on('pointerdown', function () {
+    		headSelect2.on('pointerdown', */
+        function greenHeadSelected() {
 			     avatarInfo.head = 'dudeheadgreen';
            self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
-           createSprite();
+           //createSprite();
            console.log(playerInfo.playerId, 'Selected the green head');
-		    });
+		    };
 
         //creates a clickable blue head for character customization
-        headSelect3 = self.add.image(700, 380, 'headselectblue').setScrollFactor(0);
+        /*headSelect3 = self.add.image(700, 380, 'headselectblue').setScrollFactor(0);
     		headSelect3.depth = 10;
     		headSelect3.setInteractive();
-    		headSelect3.on('pointerdown', function () {
+    		headSelect3.on('pointerdown', */
+        function blueHeadSelected() {
 			    avatarInfo.head = 'dudeheadblue';
           self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
-          createSprite();
+          //createSprite();
           console.log(playerInfo.playerId, 'Selected the blue head');
-		    });
+		    };
+        function bodySelected() {
+			     avatarInfo.body = 'dudebody';
+           self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
+           //createSprite();
+           console.log(playerInfo.playerId, 'Selected body');
+		    };
+        function logInBttnSelected() {
+			     //avatarInfo.body = 'dudebody';
+           //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
+           createSprite();
+           console.log('log in button clicked');
+		    };
 
         //destroys the character selection menu after a sprite head is selected
         function createSprite (){
@@ -160,10 +202,11 @@ var create = new Phaser.Class({
           if(avatarInfo.body)avatar.body = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.body).setOrigin(0.5, 0.5);
 
             //self.socket.emit('avatarSelected', { head: avatar.head, body: avatar.body });
-
-          headSelect1.destroy();
-          headSelect2.destroy();
-          headSelect3.destroy();
+          document.getElementById('phaserApp').focus();
+          document.getElementById('characterSelect').style.display = "none"
+          //headSelect1.destroy();
+          //headSelect2.destroy();
+          //headSelect3.destroy();
           characterSelect.destroy();
           self.avatar = avatar;
           applyPhysics();
@@ -172,7 +215,7 @@ var create = new Phaser.Class({
       }
       if (avatarSelected == false) {
         //self.avatar = self.physics.add.image(playerInfo.x, playerInfo.y, 'emptyplayer').setOrigin(0.5, 0.5);
-        self.avatar2 = self.physics.add.image(playerInfo.x, playerInfo.y, 'dudebody').setOrigin(0.5, 0.5);
+        //self.avatar2 = self.physics.add.image(playerInfo.x, playerInfo.y, 'dudebody').setOrigin(0.5, 0.5);
       }
       function applyPhysics () {
         //console.log('applyPhysics function called');
@@ -186,19 +229,21 @@ var create = new Phaser.Class({
         self.avatar.head.setCollideWorldBounds(false);
         //gives physics to local player so that they will obey blocked objects
         self.physics.add.collider(self.avatar.head, ground_layer);
+        //physics for body
+        self.avatar.body.setMaxVelocity(200);
+        self.avatar.body.setSize(8, 8);
+        self.avatar.body.setOffset(11, 40);
+        self.avatar.body.setCollideWorldBounds(false);
+        //gives physics to local player so that they will obey blocked objects
+        self.physics.add.collider(self.avatar.body, ground_layer);
+
       }
-      //physics for body
-      self.avatar2.setMaxVelocity(200);
-      self.avatar2.setSize(8, 8);
-      self.avatar2.setOffset(11, 40);
-      self.avatar2.setCollideWorldBounds(false);
-      //gives physics to local player so that they will obey blocked objects
-      self.physics.add.collider(self.avatar2, ground_layer);
+
 
     };
 
     function addOtherPlayers(self, playerInfo) {
-      console.log('addOtherPlayer function called and playerInfo.head = ', playerInfo.head);
+      //console.log('addOtherPlayer function called and playerInfo.head = ', playerInfo.head, 'and, ', playerInfo.body);
       const otherPlayer = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.head).setOrigin(0.5, 0.5);
 
       otherPlayer.playerId = playerInfo.playerId;
@@ -234,34 +279,34 @@ var create = new Phaser.Class({
           if (this.cursors.left.isDown) {
             this.avatar.head.setVelocityX(-150);
             this.avatar.head.setVelocityY(0);
-            this.avatar2.setVelocityX(-150);
-            this.avatar2.setVelocityY(0);
+            this.avatar.body.setVelocityX(-150);
+            this.avatar.body.setVelocityY(0);
             //console.log('Left arrow key pressed.');
           }
           else if (this.cursors.right.isDown) {
             this.avatar.head.setVelocityX(150);
             this.avatar.head.setVelocityY(0);
-            this.avatar2.setVelocityX(150);
-            this.avatar2.setVelocityY(0);
+            this.avatar.body.setVelocityX(150);
+            this.avatar.body.setVelocityY(0);
             //console.log('Right arrow key pressed.');
           }
           else if (this.cursors.up.isDown) {
             this.avatar.head.setVelocityY(-150);
             this.avatar.head.setVelocityX(0);
-            this.avatar2.setVelocityY(-150);
-            this.avatar2.setVelocityX(0);
+            this.avatar.body.setVelocityY(-150);
+            this.avatar.body.setVelocityX(0);
             //console.log('up arrow key pressed.');
           }
           else if (this.cursors.down.isDown) {
             this.avatar.head.setVelocityY(150);
             this.avatar.head.setVelocityX(0);
-            this.avatar2.setVelocityY(150);
-            this.avatar2.setVelocityX(0);
+            this.avatar.body.setVelocityY(150);
+            this.avatar.body.setVelocityX(0);
             //console.log('Down arrow key pressed.');
           }
           else {
             this.avatar.head.setVelocity(0);
-            this.avatar2.setVelocity(0);
+            this.avatar.body.setVelocity(0);
           }
         }
       }
