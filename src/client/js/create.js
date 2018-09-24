@@ -140,18 +140,9 @@ var create = new Phaser.Class({
         input.addEventListener("click", function(event) {
           event.preventDefault();
           logInBttnSelected();
-          //blueHeadSelected();
         });
 
-        //creates background menu image for selectable options to sit on top of
-        characterSelect = self.add.image(450, 500, 'characterselect').setScrollFactor(0);
-        characterSelect.depth = 9;
 
-        //creates a clickable purple head for character customization
-        /*headSelect1 = self.add.image(600, 380, 'headselectpurple').setScrollFactor(0);
-    		headSelect1.depth = 10;
-    		headSelect1.setInteractive();*/
-    		//headSelect1.on('pointerdown',
         function purpleHeadSelected() {
 			     avatarInfo.head = 'dudeheadpurple';
            self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
@@ -159,11 +150,7 @@ var create = new Phaser.Class({
            console.log(playerInfo.playerId, 'Selected the purple head');
 		    };
 
-        //creates a clickable green head for character customization
-        /*headSelect2 = self.add.image(650, 380, 'headselectgreen').setScrollFactor(0);
-    		headSelect2.depth = 10;
-    		headSelect2.setInteractive();
-    		headSelect2.on('pointerdown', */
+
         function greenHeadSelected() {
 			     avatarInfo.head = 'dudeheadgreen';
            self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
@@ -171,11 +158,7 @@ var create = new Phaser.Class({
            console.log(playerInfo.playerId, 'Selected the green head');
 		    };
 
-        //creates a clickable blue head for character customization
-        /*headSelect3 = self.add.image(700, 380, 'headselectblue').setScrollFactor(0);
-    		headSelect3.depth = 10;
-    		headSelect3.setInteractive();
-    		headSelect3.on('pointerdown', */
+
         function blueHeadSelected() {
 			    avatarInfo.head = 'dudeheadblue';
           self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
@@ -189,34 +172,25 @@ var create = new Phaser.Class({
            console.log(playerInfo.playerId, 'Selected body');
 		    };
         function logInBttnSelected() {
-			     //avatarInfo.body = 'dudebody';
-           //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
            createSprite();
            console.log('log in button clicked');
 		    };
 
-        //destroys the character selection menu after a sprite head is selected
         function createSprite (){
           let avatar = {};
-          if(avatarInfo.head)avatar.head = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.head).setOrigin(0.5, 0.5);
-          if(avatarInfo.body)avatar.body = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.body).setOrigin(0.5, 0.5);
+          if(avatarInfo.head)avatar.head = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.head);
+          if(avatarInfo.body)avatar.body = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.body);
 
-            //self.socket.emit('avatarSelected', { head: avatar.head, body: avatar.body });
           document.getElementById('phaserApp').focus();
           document.getElementById('characterSelect').style.display = "none"
-          //headSelect1.destroy();
-          //headSelect2.destroy();
-          //headSelect3.destroy();
-          characterSelect.destroy();
+
+
           self.avatar = avatar;
           applyPhysics();
           avatarSelected = true;
         }
       }
-      if (avatarSelected == false) {
-        //self.avatar = self.physics.add.image(playerInfo.x, playerInfo.y, 'emptyplayer').setOrigin(0.5, 0.5);
-        //self.avatar2 = self.physics.add.image(playerInfo.x, playerInfo.y, 'dudebody').setOrigin(0.5, 0.5);
-      }
+
       function applyPhysics () {
         //console.log('applyPhysics function called');
         let newSprite;
@@ -244,10 +218,14 @@ var create = new Phaser.Class({
 
     function addOtherPlayers(self, playerInfo) {
       //console.log('addOtherPlayer function called and playerInfo.head = ', playerInfo.head, 'and, ', playerInfo.body);
-      const otherPlayer = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.head).setOrigin(0.5, 0.5);
+      const otherPlayerHead = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.head);
+      const otherPlayerBody = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.body);
 
-      otherPlayer.playerId = playerInfo.playerId;
-      self.otherPlayers.add(otherPlayer);
+
+      otherPlayerHead.playerId = playerInfo.playerId;
+      otherPlayerBody.playerId= playerInfo.playerId;
+      self.otherPlayers.add(otherPlayerHead);
+      self.otherPlayers.add(otherPlayerBody);
     };
     //this.events.on('resize', resize, this)
   },
