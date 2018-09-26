@@ -45,7 +45,8 @@ var create = new Phaser.Class({
       self.otherPlayers.getChildren().forEach(function (otherPlayer) {
         if (playerId === otherPlayer.playerId) {
           console.log('Player ID: ', socket.id, 'disconnected');
-          otherPlayer.destroy();
+          otherPlayerHead.destroy();
+          otherPlayerBody.destroy();
         }
       });
     });
@@ -65,8 +66,87 @@ var create = new Phaser.Class({
 
         document.getElementById('phaserApp').focus();
         //console.log('phaser game was clicked');
-
     }, this);
+
+
+
+
+
+
+
+
+
+
+    //creating clickable UI buttons
+
+    var input = document.getElementById("lookTab");
+    input.addEventListener("click", function(event) {
+      event.preventDefault();
+      console.log('Look tab was clicked!');
+      document.getElementById("lookDisplay").style.display = "block";
+
+      document.getElementById("itemsDisplay").style.display = "none";
+      document.getElementById("spellsDisplay").style.display = "none";
+      document.getElementById("mapDisplay").style.display = "none";
+      document.getElementById("optionsDisplay").style.display = "none";
+    });
+    var input = document.getElementById("itemsTab");
+    input.addEventListener("click", function(event) {
+      event.preventDefault();
+      console.log('items tab was clicked!');
+      document.getElementById("itemsDisplay").style.display = "block";
+
+      document.getElementById("lookDisplay").style.display = "none";
+      document.getElementById("spellsDisplay").style.display = "none";
+      document.getElementById("mapDisplay").style.display = "none";
+      document.getElementById("optionsDisplay").style.display = "none";
+    });
+    var input = document.getElementById("spellsTab");
+    input.addEventListener("click", function(event) {
+      event.preventDefault();
+      console.log('spells tab was clicked!');
+      document.getElementById("spellsDisplay").style.display = "block";
+
+      document.getElementById("lookDisplay").style.display = "none";
+      document.getElementById("itemsDisplay").style.display = "none";
+      document.getElementById("mapDisplay").style.display = "none";
+      document.getElementById("optionsDisplay").style.display = "none";
+    });
+    var input = document.getElementById("mapTab");
+    input.addEventListener("click", function(event) {
+      event.preventDefault();
+      console.log('map tab was clicked!');
+      document.getElementById("mapDisplay").style.display = "block";
+
+      document.getElementById("lookDisplay").style.display = "none";
+      document.getElementById("itemsDisplay").style.display = "none";
+      document.getElementById("spellsDisplay").style.display = "none";
+      document.getElementById("optionsDisplay").style.display = "none";
+    });
+    var input = document.getElementById("optionsTab");
+    input.addEventListener("click", function(event) {
+      event.preventDefault();
+      console.log('options tab was clicked!');
+      document.getElementById("optionsDisplay").style.display = "block";
+
+      document.getElementById("lookDisplay").style.display = "none";
+      document.getElementById("itemsDisplay").style.display = "none";
+      document.getElementById("spellsDisplay").style.display = "none";
+      document.getElementById("mapDisplay").style.display = "none";
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     const game = this;
     console.log('Create Started');
@@ -119,26 +199,37 @@ var create = new Phaser.Class({
         var input = document.getElementById("head1");
         input.addEventListener("click", function(event) {
           event.preventDefault();
+          document.getElementById("head1").style.backgroundColor = "green";
+          document.getElementById("head2").style.backgroundColor = "transparent";
+          document.getElementById("head3").style.backgroundColor = "transparent";
           purpleHeadSelected();
         });
         var input = document.getElementById("head2");
         input.addEventListener("click", function(event) {
           event.preventDefault();
+          document.getElementById("head1").style.backgroundColor = "transparent";
+          document.getElementById("head2").style.backgroundColor = "green";
+          document.getElementById("head3").style.backgroundColor = "transparent";
           greenHeadSelected();
         });
         var input = document.getElementById("head3");
         input.addEventListener("click", function(event) {
           event.preventDefault();
+          document.getElementById("head1").style.backgroundColor = "transparent";
+          document.getElementById("head2").style.backgroundColor = "transparent";
+          document.getElementById("head3").style.backgroundColor = "green";
           blueHeadSelected();
         });
         var input = document.getElementById("body1");
         input.addEventListener("click", function(event) {
           event.preventDefault();
+          document.getElementById("body1").style.backgroundColor = "green";
           bodySelected();
         });
         var input = document.getElementById("logInBttn");
         input.addEventListener("click", function(event) {
           event.preventDefault();
+          document.getElementById("logInBttn").style.backgroundColor = "green";
           logInBttnSelected();
         });
 
@@ -183,6 +274,8 @@ var create = new Phaser.Class({
 
           document.getElementById('phaserApp').focus();
           document.getElementById('characterSelect').style.display = "none"
+          document.getElementById('characterSelectBackground').style.display = "none"
+
 
 
           self.avatar = avatar;

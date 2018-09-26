@@ -15,7 +15,7 @@ preload() {
   let progressBar = this.add.graphics();
 		let progressBarHolder = this.add.graphics();
 		progressBarHolder.fillStyle(0x222222, 0.8);
-		progressBarHolder.fillRect(735, 270, 320, 50);
+		progressBarHolder.fillRect(335, 170, 320, 50);
 		/* //This seems to tick through individual files, which isn't so useful.
 		boot.load.on('fileprogress', function (file, value) {
 			console.log("File progress event: ", file, ", ", value);
@@ -24,7 +24,7 @@ preload() {
 		this.load.on('progress', function (ratio) {
 			progressBar.clear();
 			progressBar.fillStyle(0xffffff, 1);
-			progressBar.fillRect(745, 280, 300 * ratio, 30);
+			progressBar.fillRect(345, 180, 300 * ratio, 30);
 		});
 
 		this.load.on('complete', function () {
