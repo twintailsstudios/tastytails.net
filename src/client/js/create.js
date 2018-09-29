@@ -1,7 +1,7 @@
 import { game, socket } from './index.js'
-import resize from './resize.js'
-import Character from './entities/character.js'
-import ui from './ui.js'
+//import resize from './resize.js'
+//import Character from './entities/character.js'
+//import ui from './ui.js'
 var avatarSelected = false;
 let avatarInfo = {
   head:"emptyplayer",
@@ -83,7 +83,6 @@ var create = new Phaser.Class({
     input.addEventListener("click", function(event) {
       event.preventDefault();
       console.log('Look tab was clicked!');
-      console.log(playerInfo.username);
       document.getElementById("lookDisplay").style.display = "block";
 
       document.getElementById("itemsDisplay").style.display = "none";
@@ -323,7 +322,7 @@ var create = new Phaser.Class({
 
 
       otherPlayerHead.playerId = playerInfo.playerId;
-      otherPlayerBody.playerId= playerInfo.playerId;
+      otherPlayerBody.playerId = playerInfo.playerId;
       self.otherPlayers.add(otherPlayerHead);
       self.otherPlayers.add(otherPlayerBody);
     };

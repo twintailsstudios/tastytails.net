@@ -7,7 +7,7 @@ const path = require('path')
 
 const game = require('./managers/game').default
 
-const PlayerCharacter = require('./entities/player-character').default
+//const PlayerCharacter = require('./entities/player-character').default
 const Message = require('./entities/message').default
 
 var players = {};
@@ -63,8 +63,12 @@ io.on('connection', function (socket) {
   });
 
   socket.on('message', (data) => {
+    console.log('players variable = ', players);
+    //console.log('socket.id variable = ', socket.id);
+    //console.log('players[socket.id] variable = ', players[socket.id]);
+    console.log(players[socket.id].username);
   io.in(data.room).emit('message', data.msg, players[socket.id]);
-  console.log(players[socket.id].username);
+
   //let author = game.user.all[socket.id]
   //let type = (data.type === 'ooc' || data.type === 'rp' ? data.type : null)
   //game.chat.add(new Message(author, data.type, data.content))

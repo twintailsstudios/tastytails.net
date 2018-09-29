@@ -1,8 +1,8 @@
 import preload from './preload.js';
 import create from './create.js';
-import ui from './ui.js';
-import update from './update.js';
-import resize from './resize.js';
+//import ui from './ui.js';
+//import update from './update.js';
+//import resize from './resize.js';
 //import character from './entities/character.js';
 
 let socket = io();
@@ -22,9 +22,9 @@ let config = {
   scene: [
     preload,
     create,
-    ui,
-    update,
-    resize
+    //ui,
+    //update,
+    //resize
   ]
 };
 
