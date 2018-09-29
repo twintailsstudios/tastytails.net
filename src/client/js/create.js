@@ -37,7 +37,7 @@ var create = new Phaser.Class({
         if (playerInfo.playerId === otherPlayer.playerId) {
           addOtherPlayers(self, playerInfo);
           //playerInfo.head.add.image(playerInfo.head);
-          console.log('otherPlayer in avatarSelection set to: ', playerInfo.head, 'and ', playerInfo.body);
+          console.log(playerInfo.playerId, 'chose username: ', playerInfo.username, 'Set head to: ', playerInfo.head, 'and body to: ', playerInfo.body);
         }
       });
     });
@@ -83,6 +83,7 @@ var create = new Phaser.Class({
     input.addEventListener("click", function(event) {
       event.preventDefault();
       console.log('Look tab was clicked!');
+      console.log(playerInfo.username);
       document.getElementById("lookDisplay").style.display = "block";
 
       document.getElementById("itemsDisplay").style.display = "none";
@@ -230,13 +231,16 @@ var create = new Phaser.Class({
         input.addEventListener("click", function(event) {
           event.preventDefault();
           document.getElementById("logInBttn").style.backgroundColor = "green";
+          playerInfo.username = document.getElementById("uN").value;
+          console.log(playerInfo.username);
           logInBttnSelected();
         });
 
 
         function purpleHeadSelected() {
 			     avatarInfo.head = 'dudeheadpurple';
-           self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
+           playerInfo.username = document.getElementById("uN").value;
+           self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username });
            //createSprite();
            console.log(playerInfo.playerId, 'Selected the purple head');
 		    };
@@ -244,7 +248,8 @@ var create = new Phaser.Class({
 
         function greenHeadSelected() {
 			     avatarInfo.head = 'dudeheadgreen';
-           self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
+           playerInfo.username = document.getElementById("uN").value;
+           self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username });
            //createSprite();
            console.log(playerInfo.playerId, 'Selected the green head');
 		    };
@@ -252,13 +257,15 @@ var create = new Phaser.Class({
 
         function blueHeadSelected() {
 			    avatarInfo.head = 'dudeheadblue';
-          self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
+          playerInfo.username = document.getElementById("uN").value;
+          self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username });
           //createSprite();
           console.log(playerInfo.playerId, 'Selected the blue head');
 		    };
         function bodySelected() {
 			     avatarInfo.body = 'dudebody';
-           self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body });
+           playerInfo.username = document.getElementById("uN").value;
+           self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username });
            //createSprite();
            console.log(playerInfo.playerId, 'Selected body');
 		    };

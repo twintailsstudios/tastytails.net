@@ -211,6 +211,14 @@
         display: none;
       }
 
+  #usernameInput {
+    position: absolute;
+    background-color: pink;
+    right: 60%;
+    left: 5%;
+    top: 20%;
+    bottom: 15%;
+  }
 
 
 
@@ -235,6 +243,11 @@
         <div id="logInBttn">
           <center>Click to <br> Log in</center>
         </div>
+        <div id="usernameInput">
+              Input username here: <input id="uN" type="text" autocomplete="off" class="form-control" placeholder="username" aria-label="username"></input>
+        </div>
+
+      </div>
     </div>
 
     <div id="menu" tabindex="1">
@@ -319,6 +332,15 @@
     }
   });
 </script>
+<script>
+var input = document.getElementById("usernameInput");
+input.addEventListener("keyup", function(event) {
+  event.preventDefault();
+  if (event.keyCode === 13) {
+      form.onsubmit
+  }
+});
+</script>
 
 <!--<script>
 var input = document.getElementById("headSelect");
@@ -355,7 +377,8 @@ input.addEventListener("click", function(event) {
     socket.on('message', (msg) => {
       const isScrolledToBottom = messages.scrollHeight - messages.clientHeight <= messages.scrollTop + 1;
       let li = document.createElement("li");
-      li.innerHTML = msg;
+      //console.log(playerInfo.username);
+      li.innerHTML =  msg;
       messages.appendChild(li);
       if (isScrolledToBottom) {
         messages.scrollTop = messages.scrollHeight - messages.clientHeight;

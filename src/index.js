@@ -28,6 +28,7 @@ io.on('connection', function (socket) {
     x: 4820,
     y: 5020,
     playerId: socket.id,
+    //username: null,
   };
   // send the players object to the new player
   socket.emit('currentPlayers', players);
@@ -47,7 +48,7 @@ io.on('connection', function (socket) {
   socket.on('playerMovement', function (movementData) {
     players[socket.id].x = movementData.x;
     players[socket.id].y = movementData.y;
-    console.log('Player ID: ', socket.id, '     X: ', Math.round(movementData.x), '     Y: ', Math.round(movementData.y));
+    console.log('Player ID: ', socket.id, '     X: ', Math.round(players[socket.id].x), '     Y: ', Math.round(players[socket.id].y));
     // emit a message to all players about the player that moved
     socket.broadcast.emit('playerMoved', players[socket.id]);
   });
@@ -55,13 +56,15 @@ io.on('connection', function (socket) {
   socket.on('avatarSelected', function (avatarSave) {
     players[socket.id].head = avatarSave.head;
     players[socket.id].body = avatarSave.body;
-    console.log('Player ID: ', socket.id, 'has chosen: ', '\n', 'avatar.head = ', avatarSave.head, '\n', 'avatar.body = ', avatarSave.body);
+    players[socket.id].username = avatarSave.username;
+    console.log('Player ID: ', socket.id, 'has chosen: ', '\n', 'username = ', players[socket.id].username, '\n', 'avatar.head = ', players[socket.id].head, '\n', 'avatar.body = ', players[socket.id].body);
     // emit a message to all players about the updated player avatar
     socket.broadcast.emit('avatarSelection', players[socket.id]);
   });
 
   socket.on('message', (data) => {
-  io.in(data.room).emit('message', data.msg);
+  io.in(data.room).emit('message', data.msg, players[socket.id]);
+  console.log(players[socket.id].username);
   //let author = game.user.all[socket.id]
   //let type = (data.type === 'ooc' || data.type === 'rp' ? data.type : null)
   //game.chat.add(new Message(author, data.type, data.content))
