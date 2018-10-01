@@ -5,7 +5,12 @@ import create from './create.js';
 //import resize from './resize.js';
 //import character from './entities/character.js';
 
-let socket = io();
+
+//let socket = io();
+//console.log('js/index.js file socket connection = ', socket);
+//this.socket = socket;
+
+
 
 let config = {
   type: Phaser.AUTO,
@@ -47,4 +52,4 @@ window.addEventListener('resize', function (event) {
   game.resize(window.innerWidth, window.innerHeight)
 }, false)
 */
-export { game, socket }
+export { game }; //socket
