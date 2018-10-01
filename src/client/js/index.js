@@ -6,9 +6,10 @@ import create from './create.js';
 //import character from './entities/character.js';
 
 
-//let socket = io();
-//console.log('js/index.js file socket connection = ', socket);
-//this.socket = socket;
+
+let socket = io();
+console.log('js/index.js file socket connection = ', socket);
+
 
 
 
@@ -52,4 +53,4 @@ window.addEventListener('resize', function (event) {
   game.resize(window.innerWidth, window.innerHeight)
 }, false)
 */
-export { game }; //socket
+export { game, socket };

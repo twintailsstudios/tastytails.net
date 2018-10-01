@@ -1,4 +1,5 @@
-import { game } from './index.js'//socket
+import { game, socket } from './index.js'
+//import things from "./index.js"
 //import resize from './resize.js'
 //import Character from './entities/character.js'
 //import ui from './ui.js'
@@ -19,8 +20,8 @@ var create = new Phaser.Class({
     var self = this;
 
     this.socket = io();
-    //this.socket = socket
     console.log('js/create.js file socket connection = ', this.socket);
+
     this.otherPlayers = this.physics.add.group();
     this.socket.on('currentPlayers', function (players) {
       Object.keys(players).forEach(function (id) {
