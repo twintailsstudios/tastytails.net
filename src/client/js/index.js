@@ -7,8 +7,8 @@ import create from './create.js';
 
 
 
-let socket = io();
-console.log('js/index.js file socket connection = ', socket);
+//let socket = io();
+//console.log('js/index.js file socket connection = ', socket);
 
 
 
@@ -53,4 +53,4 @@ window.addEventListener('resize', function (event) {
   game.resize(window.innerWidth, window.innerHeight)
 }, false)
 */
-export { game, socket };
+export { game };//, socket

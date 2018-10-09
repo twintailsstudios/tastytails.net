@@ -1,13 +1,55 @@
-import { game, socket } from './index.js'
+import { game } from './index.js'//, socket
 //import things from "./index.js"
 //import resize from './resize.js'
 //import Character from './entities/character.js'
 //import ui from './ui.js'
 var avatarSelected = false;
+
 let avatarInfo = {
   head:"emptyplayer",
   body:"emptyplayer"
 };
+//var socket = io();
+//console.log('js/create.js file socket connection = ', socket);
+
+
+
+
+
+
+
+
+
+
+/*var input = document.getElementById("m");
+input.addEventListener("keyup", function(event) {
+  event.preventDefault();
+  if (event.keyCode === 13) {
+      form.onsubmit
+  }
+});
+var input = document.getElementById("usernameInput");
+input.addEventListener("keyup", function(event) {
+  event.preventDefault();
+  if (event.keyCode === 13) {
+      form.onsubmit
+  }
+});*/
+
+// This is the code for the chat box
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Up here we are importing the game object from ./index.js
 var create = new Phaser.Class({
   Extends: Phaser.Scene,
@@ -18,13 +60,14 @@ var create = new Phaser.Class({
   },
   create() {
     var self = this;
-
     this.socket = io();
-    console.log('js/create.js file socket connection = ', this.socket);
+    console.log('self.socket.id = ', this.socket.id);
+
 
     this.otherPlayers = this.physics.add.group();
     this.socket.on('currentPlayers', function (players) {
       Object.keys(players).forEach(function (id) {
+        console.log(players[id].playerId);
         if (players[id].playerId === self.socket.id) {
           addPlayer(self, players[id]);
         } else {
@@ -47,7 +90,7 @@ var create = new Phaser.Class({
     this.socket.on('disconnect', function (playerId) {
       self.otherPlayers.getChildren().forEach(function (otherPlayer) {
         if (playerId === otherPlayer.playerId) {
-          console.log('Player ID: ', socket.id, 'disconnected');
+          console.log('Player ID: ', self.socket.id, 'disconnected');
           otherPlayerHead.destroy();
           otherPlayerBody.destroy();
         }
@@ -62,6 +105,7 @@ var create = new Phaser.Class({
     });
 
     this.cursors = this.input.keyboard.createCursorKeys();
+    //this.input.mouse.disableContextMenu();
 
     //this detects if the game has been clicked so as to move the focus off of the chat div and back onto the game
     //allowing players to move again
@@ -70,6 +114,61 @@ var create = new Phaser.Class({
         document.getElementById('phaserApp').focus();
         //console.log('phaser game was clicked');
     }, this);
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const room = 'localchat';
+
+    const form = document.querySelector("form");
+    const chat = document.querySelector("#m");
+    const messages = document.querySelector("#messages");
+    chat.addEventListener("keyup", function (event) {
+      if (event.shiftKey) return;
+      else if (event.keyCode === 13) {
+        event.preventDefault();
+        let msg = chat.value;
+        self.socket.emit('message', { msg, room });
+        chat.value = "";
+      }
+    });
+
+    this.socket.on('connect', () => {
+      this.socket.emit('join', { room: room });
+    });
+
+    this.socket.on('message', (msg, playerInfo) => {
+      const isScrolledToBottom = messages.scrollHeight - messages.clientHeight <= messages.scrollTop + 1;
+      let li = document.createElement("li");
+      console.log(playerInfo);
+      li.innerHTML =  playerInfo+": "+msg;
+      messages.appendChild(li);
+      if (isScrolledToBottom) {
+        messages.scrollTop = messages.scrollHeight - messages.clientHeight;
+      }
+    })
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -202,6 +301,7 @@ var create = new Phaser.Class({
         var input = document.getElementById("head1");
         input.addEventListener("click", function(event) {
           event.preventDefault();
+          console.log('clicked in create!');
           document.getElementById("head1").style.backgroundColor = "green";
           document.getElementById("head2").style.backgroundColor = "transparent";
           document.getElementById("head3").style.backgroundColor = "transparent";
@@ -319,6 +419,7 @@ var create = new Phaser.Class({
     };
 
     function addOtherPlayers(self, playerInfo) {
+      console.log("addOtherPlayers called");
       //console.log('addOtherPlayer function called and playerInfo.head = ', playerInfo.head, 'and, ', playerInfo.body);
       const otherPlayerHead = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.head);
       const otherPlayerBody = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.body);
@@ -336,6 +437,7 @@ var create = new Phaser.Class({
 
     //makes phaser stop listening for keyboard inputs when user is focused on the chat div
     if (chatFocused == false) {
+      //console.log('chatFocused = ', chatFocused);
       this.input.keyboard.addKey(this.cursors.up);
       this.input.keyboard.addKey(this.cursors.down);
       this.input.keyboard.addKey(this.cursors.left);
@@ -344,6 +446,7 @@ var create = new Phaser.Class({
       //console.log('keyboard enabled');
     }
     else {
+      //console.log('chatFocused = ', chatFocused);
       this.input.keyboard.removeKey(this.cursors.up);
       this.input.keyboard.removeKey(this.cursors.down);
       this.input.keyboard.removeKey(this.cursors.left);
@@ -409,4 +512,5 @@ var create = new Phaser.Class({
     }
   }
 });
+
 export default create;

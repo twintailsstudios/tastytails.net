@@ -1,396 +1,350 @@
 <!DOCTYPE html>
 <html>
 
-<head>
-  <title>Tasty Tails</title>
-  <link rel="stylesheet" type="text/css" href="/css/normalize.css" />
-  <link rel="stylesheet" type="text/css" href="/css/index.css" />
+  <head>
+    <title>Tasty Tails</title>
+    <link rel="stylesheet" type="text/css" href="/css/normalize.css" />
+    <link rel="stylesheet" type="text/css" href="/css/index.css" />
 
-  <meta charset="UTF-8">
-  <title>Chatting with people you can see</title>
-  <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" -->
-  <!-- integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous"> -->
-  <style>
-  h1 {
-    color:white;
-    background-color: blue;
-  }
-  #characterSelectBackground {
-    width:100%;
-    height:100%;
-    background-color: black;
-  }
-  #characterSelect {
-    /**display: none;*/
-    position: absolute;
-    background-color: grey;
-    border: solid;
-    border-width: 5px;
-    right:53%;
-    top:28%;
-    bottom:32%;
-    left:1%;
-
-  }
-  #headSelect {
-    position: absolute;
-    background-color: white;
-    right:3%;
-    top:17%;
-    bottom:70%;
-    left:50%;
-  }
-    #head1 {
+    <meta charset="UTF-8">
+    <title>Chatting with people you can see</title>
+    <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" -->
+    <!-- integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous"> -->
+    <style>
+    h1 {
+      color:white;
+      background-color: blue;
+    }
+    #characterSelectBackground {
+      width:100%;
+      height:100%;
+      background-color: black;
+    }
+    #characterSelect {
+      /**display: none;*/
       position: absolute;
+      background-color: grey;
       border: solid;
-      right:90%;
-      top:2%;
-      bottom:1%;
+      border-width: 5px;
+      right:53%;
+      top:28%;
+      bottom:32%;
       left:1%;
-      -webkit-transition-duration: 0.4s; /* Safari */
-      transition-duration: 0.4s;
-      cursor: pointer;
-    }
-    #head1:hover {
-      background-color: grey;
-      color: white;
-    }
-    #head2 {
-      position: absolute;
-      border: solid;
-      right:80%;
-      top:2%;
-      bottom:1%;
-      left:11%;
-    }
-    #head2:hover {
-      background-color: grey;
-      color: white;
-    }
-    #head3 {
-      position: absolute;
-      border: solid;
-      right:70%;
-      top:2%;
-      bottom:1%;
-      left:21%;
-    }
-    #head3:hover {
-      background-color: grey;
-      color: white;
-    }
 
-  #bodySelect {
+    }
+    #headSelect {
       position: absolute;
       background-color: white;
       right:3%;
-      top:34%;
-      bottom:53%;
+      top:17%;
+      bottom:70%;
       left:50%;
-  }
-    #body1 {
-      position: absolute;
-      border: solid;
-      right:90%;
-      top:2%;
-      bottom:1%;
-      left:1%;
     }
-    #body1:hover {
+      #head1 {
+        position: absolute;
+        border: solid;
+        right:90%;
+        top:2%;
+        bottom:1%;
+        left:1%;
+        -webkit-transition-duration: 0.4s; /* Safari */
+        transition-duration: 0.4s;
+        cursor: pointer;
+      }
+      #head1:hover {
+        background-color: grey;
+        color: white;
+      }
+      #head2 {
+        position: absolute;
+        border: solid;
+        right:80%;
+        top:2%;
+        bottom:1%;
+        left:11%;
+      }
+      #head2:hover {
+        background-color: grey;
+        color: white;
+      }
+      #head3 {
+        position: absolute;
+        border: solid;
+        right:70%;
+        top:2%;
+        bottom:1%;
+        left:21%;
+      }
+      #head3:hover {
+        background-color: grey;
+        color: white;
+      }
+
+    #bodySelect {
+        position: absolute;
+        background-color: white;
+        right:3%;
+        top:34%;
+        bottom:53%;
+        left:50%;
+    }
+      #body1 {
+        position: absolute;
+        border: solid;
+        right:90%;
+        top:2%;
+        bottom:1%;
+        left:1%;
+      }
+      #body1:hover {
+        background-color: grey;
+        color: white;
+      }
+
+    #logInBttn {
+      position: absolute;
+      background-color: white;
+      border: solid;
+      border-width: 5px;
+      right:44.3%;
+      top:85%;
+      bottom:2%;
+      left:44.3%;
+    }
+    #logInBttn:hover {
       background-color: grey;
       color: white;
     }
 
-  #logInBttn {
-    position: absolute;
-    background-color: white;
-    border: solid;
-    border-width: 5px;
-    right:44.3%;
-    top:85%;
-    bottom:2%;
-    left:44.3%;
-  }
-  #logInBttn:hover {
-    background-color: grey;
-    color: white;
-  }
-
-  #menu {
-    position: absolute;
-    background-color: black;
-    /*opacity: 0.2;*/
-    right:.5%;
-    top:0%;
-    bottom:55%;
-    left:50%;
-  }
-    #lookTab {
+    #menu {
       position: absolute;
-      background-color: white;
-      border: solid;
-      right:84.5%;
+      background-color: black;
+      /*opacity: 0.2;*/
+      right:.5%;
       top:0%;
-      bottom:93%;
-      left:.5%;
+      bottom:55%;
+      left:50%;
     }
-    #itemsTab {
-      position: absolute;
-      background-color: white;
-      border: solid;
-      right:70%;
-      top:0%;
-      bottom:93%;
-      left:15%;
-    }
-    #spellsTab {
-      position: absolute;
-      background-color: white;
-      border: solid;
-      right:55.5%;
-      top:0%;
-      bottom:93%;
-      left:29.5%;
-    }
-    #mapTab {
-      position: absolute;
-      background-color: white;
-      border: solid;
-      right:41.2%;
-      top:0%;
-      bottom:93%;
-      left:44%;
-    }
-    #optionsTab {
-      position: absolute;
-      background-color: white;
-      border: solid;
-      right:27%;
-      top:0%;
-      bottom:93%;
-      left:58.5%;
-    }
-
-    #menuDisplay {
-      position: absolute;
-      background-color: white;
-      border: solid;
-      right:0%;
-      top:7%;
-      bottom:0%;
-      left:0%;
-    }
-      #lookDisplay {
+      #lookTab {
         position: absolute;
-        width: 100%;
-        height:100%;
-        display: none;
+        background-color: white;
+        border: solid;
+        right:84.5%;
+        top:0%;
+        bottom:93%;
+        left:.5%;
       }
-      #itemsDisplay {
+      #itemsTab {
         position: absolute;
-        width: 100%;
-        height:100%;
-        display: none;
+        background-color: white;
+        border: solid;
+        right:70%;
+        top:0%;
+        bottom:93%;
+        left:15%;
       }
-      #spellsDisplay {
+      #spellsTab {
         position: absolute;
-        width: 100%;
-        height:100%;
-        display: none;
+        background-color: white;
+        border: solid;
+        right:55.5%;
+        top:0%;
+        bottom:93%;
+        left:29.5%;
       }
-      #mapDisplay {
+      #mapTab {
         position: absolute;
-        width: 100%;
-        height:100%;
-        display: none;
+        background-color: white;
+        border: solid;
+        right:41.2%;
+        top:0%;
+        bottom:93%;
+        left:44%;
       }
-      #optionsDisplay {
+      #optionsTab {
         position: absolute;
-        width: 100%;
-        height:100%;
-        display: none;
+        background-color: white;
+        border: solid;
+        right:27%;
+        top:0%;
+        bottom:93%;
+        left:58.5%;
       }
 
-  #usernameInput {
-    position: absolute;
-    background-color: pink;
-    right: 60%;
-    left: 5%;
-    top: 20%;
-    bottom: 15%;
-  }
+      #menuDisplay {
+        position: absolute;
+        background-color: white;
+        border: solid;
+        right:0%;
+        top:7%;
+        bottom:0%;
+        left:0%;
+      }
+        #lookDisplay {
+          position: absolute;
+          width: 100%;
+          height:100%;
+          display: none;
+        }
+        #itemsDisplay {
+          position: absolute;
+          width: 100%;
+          height:100%;
+          display: none;
+        }
+        #spellsDisplay {
+          position: absolute;
+          width: 100%;
+          height:100%;
+          display: none;
+        }
+        #mapDisplay {
+          position: absolute;
+          width: 100%;
+          height:100%;
+          display: none;
+        }
+        #optionsDisplay {
+          position: absolute;
+          width: 100%;
+          height:100%;
+          display: none;
+        }
+
+    #usernameInput {
+      position: absolute;
+      background-color: pink;
+      right: 60%;
+      left: 5%;
+      top: 20%;
+      bottom: 15%;
+    }
 
 
 
-  </style>
-</head>
+    </style>
+  </head>
 
-<body>
+  <body>
 
-  <div id="phaserApp" tabindex="0">
-    <div id="characterSelectBackground" tabindex="1">
-    </div>
-    <div id="characterSelect" tabindex="1">
-        <center><h1>Create a Character</h1></center>
-        <div id="headSelect">
-          <div id= "head1"><center><img src="assets/images/headselectpurple.png" alt="Purple_Head"></center></div>
-          <div id= "head2"><center><img src="assets/images/headselectgreen.png" alt="Green_Head"></center></div>
-          <div id= "head3"><center><img src="assets/images/headselectblue.png" alt="Blue_Head"></center></div>
-        </div>
-        <div id="bodySelect">
-          <div id= "body1"><center><img src="assets/images/body.png" alt="Body"></center></div>
-        </div>
-        <div id="logInBttn">
-          <center>Click to <br> Log in</center>
-        </div>
-        <div id="usernameInput">
-              Input username here: <input id="uN" type="text" autocomplete="off" class="form-control" placeholder="username" aria-label="username"></input>
-        </div>
-
+    <div id="phaserApp" tabindex="0">
+      <div id="characterSelectBackground" tabindex="1">
       </div>
-    </div>
+      <div id="characterSelect" tabindex="1">
+          <center><h1>Create a Character</h1></center>
+          <div id="headSelect">
+            <div id= "head1"><center><img src="assets/images/headselectpurple.png" alt="Purple_Head"></center></div>
+            <div id= "head2"><center><img src="assets/images/headselectgreen.png" alt="Green_Head"></center></div>
+            <div id= "head3"><center><img src="assets/images/headselectblue.png" alt="Blue_Head"></center></div>
+          </div>
+          <div id="bodySelect">
+            <div id= "body1"><center><img src="assets/images/body.png" alt="Body"></center></div>
+          </div>
+          <div id="logInBttn">
+            <center>Click to <br> Log in</center>
+          </div>
+          <div id="usernameInput">
+                Input username here: <input id="uN" type="text" autocomplete="off" class="form-control" placeholder="username" aria-label="username"></input>
+          </div>
 
-    <div id="menu" tabindex="1">
-      <div id="lookTab">
-        Look
-      </div>
-      <div id="itemsTab">
-        Items
-      </div>
-      <div id="spellsTab">
-        Spells
-      </div>
-      <div id="mapTab">
-        Map
-      </div>
-      <div id="optionsTab">
-        Options
-      </div>
-
-      <div id="menuDisplay">
-        <div id="lookDisplay">
-          you are in the look tab
         </div>
-        <div id="itemsDisplay">
-          you are in the items tab
-        </div>
-        <div id="spellsDisplay">
-          you are in the spells tab
-        </div>
-        <div id="mapDisplay">
-          you are in the map tab
-        </div>
-        <div id="optionsDisplay">
-          you are in the options tab
-        </div>
-
-
-
-
       </div>
-    </div>
-  </div>
+
+      <div id="menu" tabindex="1">
+        <div id="lookTab">
+          Look
+        </div>
+        <div id="itemsTab">
+          Items
+        </div>
+        <div id="spellsTab">
+          Spells
+        </div>
+        <div id="mapTab">
+          Map
+        </div>
+        <div id="optionsTab">
+          Options
+        </div>
+
+        <div id="menuDisplay">
+          <div id="lookDisplay">
+            you are in the look tab
+          </div>
+          <div id="itemsDisplay">
+            you are in the items tab
+          </div>
+          <div id="spellsDisplay">
+            you are in the spells tab
+          </div>
+          <div id="mapDisplay">
+            you are in the map tab
+          </div>
+          <div id="optionsDisplay">
+            you are in the options tab
+          </div>
 
 
 
-  <div id="chat-container">
-    <div class="container-fluid">
-      <div class="row">
-        <ul id="messages"></ul>
-      </div>
-      <div class="row">
-        <div class="col-xs-12">
-          <form id="message-form" action="">
-            <div class="input-group">
-              <textarea id="m" autocomplete="off" class="form-control" placeholder="message" aria-label="message"></textarea>
-              <span class="input-group.btn">
-                <button id="btn" onclick="javascript:alert('just press the enter key for now...button doesn't work')">Send!</button>
-              </span>
-            </div>
-          </form>
+
         </div>
       </div>
     </div>
-  </div>
 
 
 
-  <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.min.js"></script>
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/index.js" type="module"></script>
-
-  <script>
-    var socket = io();
-    console.log('gameindex.html file socket connection = ', socket);
-  </script>
-
-  <script>
-  var input = document.getElementById("m");
-  input.addEventListener("keyup", function(event) {
-    event.preventDefault();
-    if (event.keyCode === 13) {
-        form.onsubmit
-    }
-  });
-</script>
-<script>
-var input = document.getElementById("usernameInput");
-input.addEventListener("keyup", function(event) {
-  event.preventDefault();
-  if (event.keyCode === 13) {
-      form.onsubmit
-  }
-});
-</script>
-
-<!--<script>
-var input = document.getElementById("headSelect");
-input.addEventListener("click", function(event) {
-  event.preventDefault();
-  console.log('hello');
-  purpleHeadSelected();
-});
-</script> -->
+    <div id="chat-container">
+      <div class="container-fluid">
+        <div class="row">
+          <ul id="messages"></ul>
+        </div>
+        <div class="row">
+          <div class="col-xs-12">
+            <form id="message-form" action="">
+              <div class="input-group">
+                <textarea id="m" autocomplete="off" class="form-control" placeholder="message" aria-label="message"></textarea>
+                <span class="input-group.btn">
+                  <button id="btn" onclick="javascript:alert('just press the enter key for now...button doesn't work')">Send!</button>
+                </span>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
 
 
-  <script>
 
-    const room = 'localchat';
-    let chatFocused = true;
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/index.js" type="module"></script>
 
-    const form = document.querySelector("form");
-    const chat = document.querySelector("#m");
-    const messages = document.querySelector("#messages");
-    chat.addEventListener("keyup", function (event) {
-      if (event.shiftKey) return;
-      else if (event.keyCode === 13) {
-        event.preventDefault();
-        msg = chat.value;
-        socket.emit('message', { msg, room });
-        chat.value = "";
+    <!--<script>
+      var socket = io();
+      console.log('gameindex.html file socket connection = ', socket);
+    </script>-->
+
+    <!--<script>
+    var input = document.getElementById("m");
+    input.addEventListener("keyup", function(event) {
+      event.preventDefault();
+      if (event.keyCode === 13) {
+          form.onsubmit
       }
     });
-
-    socket.on('connect', () => {
-      socket.emit('join', { room: room });
-    });
-
-    socket.on('message', (msg) => {
-      const isScrolledToBottom = messages.scrollHeight - messages.clientHeight <= messages.scrollTop + 1;
-      let li = document.createElement("li");
-      //console.log(playerInfo.username);
-      li.innerHTML =  msg;
-      messages.appendChild(li);
-      if (isScrolledToBottom) {
-        messages.scrollTop = messages.scrollHeight - messages.clientHeight;
+    </script>-->
+    <!--<script>
+    var input = document.getElementById("usernameInput");
+    input.addEventListener("keyup", function(event) {
+      event.preventDefault();
+      if (event.keyCode === 13) {
+          form.onsubmit
       }
-    })
-  </script>
-
-  <script>
-    setInterval("myFunction()", 1);
-
-    function myFunction() {
+    });
+    </script>-->
+    <script>
+      var chatFocused = true;
+      //this is the code to determine wether the game or the chat is in focus
       let phaserApp = document.getElementById("phaserApp");
       phaserApp.onfocus = function () {
         chatFocused = false;
@@ -401,9 +355,15 @@ input.addEventListener("click", function(event) {
         chatFocused = true;
         //console.log('ChatFocused = ', chatFocused);
       }
-    }
-  </script>
+    </script>
+    <!--<script>
+    var input = document.getElementById("head1");
+      input.addEventListener("click", function(event) {
+        event.preventDefault();
+        console.log('click!');
+        });
+    </script>-->
 
-</body>
+  </body>
 
 </html>

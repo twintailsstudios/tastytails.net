@@ -63,11 +63,11 @@ io.on('connection', function (socket) {
   });
 
   socket.on('message', (data) => {
-    console.log('players variable = ', players);
+    //console.log('players variable = ', players);
     //console.log('socket.id variable = ', socket.id);
     //console.log('players[socket.id] variable = ', players[socket.id]);
     console.log(players[socket.id].username);
-  io.in(data.room).emit('message', data.msg, players[socket.id]);
+  io.in(data.room).emit('message', data.msg, players[socket.id].username);
 
   //let author = game.user.all[socket.id]
   //let type = (data.type === 'ooc' || data.type === 'rp' ? data.type : null)
