@@ -220,7 +220,39 @@
       bottom: 15%;
     }
 
-
+    .container {
+      height:100%;
+      margin: 0;
+      padding: 0;
+      font-family: verdana;
+      font-size: 10px;
+    }
+    .context-menu {
+      background: #f6f6f6;
+      width: 200px;
+      height: auto;
+      box-shadow: 0 0 20px 0 #ccc;
+      position: absolute;
+      display: none;
+    }
+    .context-menu ul {
+      list-style: none;
+      padding: 5px 0px 5px 0px;
+    }
+    .context-menu ul li:not(.separator) {
+      padding: 10px 5px 10px 5px;
+      border-left: 4px solid transparent;
+      cursor: pointer;
+    }
+    .context-menu ul li:hover {
+      background: #eee;
+      border-left: 4px solid #666;
+    }
+    .separator {
+      height: 1px;
+      background: #dedede;
+      margin: 2px 0px 2px 0px;
+    }
 
     </style>
   </head>
@@ -228,6 +260,21 @@
   <body>
 
     <div id="phaserApp" tabindex="0">
+
+      <!--Right Click Custom Menu-->
+      <div class="container" oncontextmenu="return showContextMenu(event);">
+        <div id="contextMenu" class="context-menu">
+          <ul>
+            <li>Examine</li>
+            <li class="separator"></li>
+            <li>Copy</li>
+            <li>Cut</li>
+            <li>Paste</li>
+          </ul>
+      </div>
+      </div>
+
+      <!--Character Select Menu-->
       <div id="characterSelectBackground" tabindex="1">
       </div>
       <div id="characterSelect" tabindex="1">
@@ -250,6 +297,7 @@
         </div>
       </div>
 
+      <!--Tab UI Menu-->
       <div id="menu" tabindex="1">
         <div id="lookTab">
           Look
@@ -292,7 +340,7 @@
     </div>
 
 
-
+    <!--Chat Box-->
     <div id="chat-container">
       <div class="container-fluid">
         <div class="row">
@@ -319,29 +367,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/index.js" type="module"></script>
 
-    <!--<script>
-      var socket = io();
-      console.log('gameindex.html file socket connection = ', socket);
-    </script>-->
-
-    <!--<script>
-    var input = document.getElementById("m");
-    input.addEventListener("keyup", function(event) {
-      event.preventDefault();
-      if (event.keyCode === 13) {
-          form.onsubmit
-      }
-    });
-    </script>-->
-    <!--<script>
-    var input = document.getElementById("usernameInput");
-    input.addEventListener("keyup", function(event) {
-      event.preventDefault();
-      if (event.keyCode === 13) {
-          form.onsubmit
-      }
-    });
-    </script>-->
+    <!--Checks if the game is focusedm or the chat is focused-->
     <script>
       var chatFocused = true;
       //this is the code to determine wether the game or the chat is in focus
@@ -355,14 +381,28 @@
         chatFocused = true;
         //console.log('ChatFocused = ', chatFocused);
       }
+
+      window.onclick = hideContextMenu;
+      window.onkeydown = listenKeys;
+      var contextMenu = document.getElementById('contextMenu');
+      function showContextMenu (event) {
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = event.clientX + 'px';
+        contextMenu.style.top = event.clientY + 'px';
+        return false;
+      }
+
+      function hideContextMenu () {
+        contextMenu.style.display = 'none';
+
+      }
+      function listenKeys (event) {
+        var keyCode = event.which || event.keyCode;
+        if(keyCode == 27){
+          hideContextMenu();
+        }
+      }
     </script>
-    <!--<script>
-    var input = document.getElementById("head1");
-      input.addEventListener("click", function(event) {
-        event.preventDefault();
-        console.log('click!');
-        });
-    </script>-->
 
   </body>
 

@@ -114,6 +114,12 @@ var create = new Phaser.Class({
         document.getElementById('phaserApp').focus();
         //console.log('phaser game was clicked');
     }, this);
+    if (avatarSelected == true) {
+      console.log('sprite clicking conditions are true');
+      self.avatar.on('pointerdown', function (pointer){
+      console.log('sprite was clicked');
+      });
+    }
 
 
 
@@ -150,7 +156,12 @@ var create = new Phaser.Class({
       const isScrolledToBottom = messages.scrollHeight - messages.clientHeight <= messages.scrollTop + 1;
       let li = document.createElement("li");
       console.log(playerInfo);
-      li.innerHTML =  playerInfo+": "+msg;
+      if (playerInfo) {
+        li.innerHTML = playerInfo.bold()+": "+msg;
+      }
+      else {
+        li.innerHTML = msg;
+      }
       messages.appendChild(li);
       if (isScrolledToBottom) {
         messages.scrollTop = messages.scrollHeight - messages.clientHeight;
@@ -301,7 +312,6 @@ var create = new Phaser.Class({
         var input = document.getElementById("head1");
         input.addEventListener("click", function(event) {
           event.preventDefault();
-          console.log('clicked in create!');
           document.getElementById("head1").style.backgroundColor = "green";
           document.getElementById("head2").style.backgroundColor = "transparent";
           document.getElementById("head3").style.backgroundColor = "transparent";
