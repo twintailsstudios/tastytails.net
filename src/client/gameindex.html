@@ -259,10 +259,11 @@
 
   <body>
 
-    <div id="phaserApp" tabindex="0">
+    <div id="phaserApp" tabindex="0" oncontextmenu="return showContextMenu(event);">
 
       <!--Right Click Custom Menu-->
-      <div class="container" oncontextmenu="return showContextMenu(event);">
+
+
         <div id="contextMenu" class="context-menu">
           <ul>
             <li>Examine</li>
@@ -271,8 +272,8 @@
             <li>Cut</li>
             <li>Paste</li>
           </ul>
-      </div>
-      </div>
+        </div>
+
 
       <!--Character Select Menu-->
       <div id="characterSelectBackground" tabindex="1">
@@ -363,7 +364,7 @@
 
 
 
-    <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.13.0/dist/phaser.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/index.js" type="module"></script>
 

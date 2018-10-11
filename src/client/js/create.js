@@ -114,13 +114,32 @@ var create = new Phaser.Class({
         document.getElementById('phaserApp').focus();
         //console.log('phaser game was clicked');
     }, this);
-    if (avatarSelected == true) {
-      console.log('sprite clicking conditions are true');
-      self.avatar.on('pointerdown', function (pointer){
+
+    var sprite = self.physics.add.image(4823, 5020, 'clothesavatar').setInteractive();//this.add.sprite(4823, 5020, 'clothesavatar').setInteractive();
+
+    sprite.depth = 4;
+    //if (avatarSelected == true) {
+      sprite.on('pointerdown', function (pointer){
+        this.setTint(0xff0000);
       console.log('sprite was clicked');
       });
-    }
-
+    //}
+    function clickFunction(self, playerInfo, avatar, pointer) {
+      /*avatar.body.on('pointerdown', function (pointer){
+        if (pointer.rightButtonDown())
+        {
+          avatar.head.setTint(0xff0000);
+          avatar.body.setTint(0xff0000);
+          console.log('sprite was Right clicked');
+        }
+        else
+        {
+          avatar.head.setTint(0x0000ff);
+          avatar.body.setTint(0x0000ff);
+          console.log('sprite was Left clicked');
+        }
+      });*/
+    };
 
 
 
@@ -388,8 +407,24 @@ var create = new Phaser.Class({
 
         function createSprite (){
           let avatar = {};
-          if(avatarInfo.head)avatar.head = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.head);
-          if(avatarInfo.body)avatar.body = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.body);
+          if(avatarInfo.head)avatar.head = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.head).setInteractive();
+          if(avatarInfo.body)avatar.body = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.body).setInteractive();
+
+          avatar.body.on('pointerdown', function (pointer){
+            //clickFunction();
+            if (pointer.rightButtonDown())
+            {
+              avatar.head.setTint(0xff0000);
+              avatar.body.setTint(0xff0000);
+              console.log('sprite was Right clicked');
+            }
+            else
+            {
+              avatar.head.setTint(0x0000ff);
+              avatar.body.setTint(0x0000ff);
+              console.log('sprite was Left clicked');
+            }
+          });
 
           document.getElementById('phaserApp').focus();
           document.getElementById('characterSelect').style.display = "none"
