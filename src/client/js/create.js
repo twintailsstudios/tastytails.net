@@ -152,6 +152,8 @@ var create = new Phaser.Class({
 
 
 
+
+    //Chat box
     const room = 'localchat';
 
     const form = document.querySelector("form");
@@ -416,7 +418,10 @@ var create = new Phaser.Class({
             {
               avatar.head.setTint(0xff0000);
               avatar.body.setTint(0xff0000);
-              console.log('sprite was Right clicked');
+              console.log(playerInfo.username);
+              const lookTab = document.getElementById("lookDisplay")
+              lookDisplay.innerHTML = 'NAME: '+playerInfo.username
+              //console.log('sprite was Right clicked');
             }
             else
             {
@@ -465,15 +470,37 @@ var create = new Phaser.Class({
 
     function addOtherPlayers(self, playerInfo) {
       console.log("addOtherPlayers called");
+      console.log('addOtherPlayers function username = ', playerInfo.username);
       //console.log('addOtherPlayer function called and playerInfo.head = ', playerInfo.head, 'and, ', playerInfo.body);
-      const otherPlayerHead = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.head);
-      const otherPlayerBody = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.body);
+      const otherPlayerHead = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.head).setInteractive();
+      const otherPlayerBody = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.body).setInteractive();
 
 
       otherPlayerHead.playerId = playerInfo.playerId;
       otherPlayerBody.playerId = playerInfo.playerId;
       self.otherPlayers.add(otherPlayerHead);
       self.otherPlayers.add(otherPlayerBody);
+
+
+        otherPlayerBody.on('pointerdown', function (pointer){
+        //clickFunction();
+        if (pointer.rightButtonDown())
+        {
+          otherPlayerHead.setTint(0xff0000);
+          otherPlayerBody.setTint(0xff0000);
+          console.log(playerInfo.username);
+          const lookTab = document.getElementById("lookDisplay")
+          lookDisplay.innerHTML = 'NAME: '+playerInfo.username
+          console.log('OtherPlayer was Right clicked');
+        }
+        else
+        {
+          otherPlayerHead.setTint(0x0000ff);
+          otherPlayerBody.setTint(0x0000ff);
+          console.log('OtherPlayer was Left clicked');
+        }
+      });
+
     };
     //this.events.on('resize', resize, this)
   },
