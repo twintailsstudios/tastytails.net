@@ -43,6 +43,10 @@ preload() {
 	this.load.spritesheet('dudeheadpurple', 'assets/spritesheets/dudeheadpurple.png', {frameWidth: 32, frameHeight: 48});
 	this.load.spritesheet('dudeheadgreen', 'assets/spritesheets/dudeheadgreen.png', {frameWidth: 32, frameHeight: 48});
 	this.load.spritesheet('dudeheadblue', 'assets/spritesheets/dudeheadblue.png', {frameWidth: 32, frameHeight: 48});
+  this.load.spritesheet('testBody', 'assets/spritesheets/testBody.png', {frameWidth: 32, frameHeight: 96});
+  this.load.spritesheet('testFur', 'assets/spritesheets/testFur.png', {frameWidth: 32, frameHeight: 96});
+  this.load.spritesheet('testBody02', 'assets/spritesheets/testBody_02.png', {frameWidth: 32, frameHeight: 96});
+  this.load.spritesheet('testFur02', 'assets/spritesheets/testFur_02.png', {frameWidth: 32, frameHeight: 96});
 
   //preloading menu assets
   this.load.image('menuframe', 'assets/images/menuframe.png', {frameWidth: 1921, frameHeight: 1041});

@@ -57,7 +57,9 @@ io.on('connection', function (socket) {
     players[socket.id].head = avatarSave.head;
     players[socket.id].body = avatarSave.body;
     players[socket.id].username = avatarSave.username;
-    console.log('Player ID: ', socket.id, 'has chosen: ', '\n', 'username = ', players[socket.id].username, '\n', 'avatar.head = ', players[socket.id].head, '\n', 'avatar.body = ', players[socket.id].body);
+    players[socket.id].headColor = avatarSave.headColor;
+    players[socket.id].bodyColor = avatarSave.bodyColor;
+    console.log('Player ID: ', socket.id, 'has chosen: ', '\n', 'username = ', players[socket.id].username, '\n', 'avatar.head = ', players[socket.id].head, '\n', 'avatar.body = ', players[socket.id].body,  '\n', 'Head Color = ', players[socket.id].headColor, '\n', 'Body Color =', players[socket.id].bodyColor);
     // emit a message to all players about the updated player avatar
     socket.broadcast.emit('avatarSelection', players[socket.id]);
   });
