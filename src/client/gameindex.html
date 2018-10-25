@@ -161,10 +161,6 @@
         bottom:5%;
         left:71%;
       }
-      #speciesSelectionWindow {
-        -webkit-filter : hue-rotate(180deg);
-        filter : hue-rotate(180deg);
-      }
 
     #logInBttn {
       position: absolute;
@@ -180,13 +176,26 @@
       background-color: grey;
       color: white;
     }
-    #usernameInput {
+    #preview {
       position: absolute;
       background-color: pink;
       right: 32.5%;
       left: 32.5%;
       top: 20%;
       bottom: 15%;
+    }
+
+    #playerInformation {
+      position: absolute;
+      background-color: aqua;
+      right: 2%;
+      left: 70%;
+      top: 20%;
+      bottom: 15%;
+    }
+    #descriptionInput{
+      position: absolute;
+      top: 10%;
     }
 
     #menu {
@@ -327,18 +336,15 @@
     <div id="phaserApp" tabindex="0" oncontextmenu="return showContextMenu(event);">
 
       <!--Right Click Custom Menu-->
-        <div id="contextMenu" class="context-menu">
-          <ul>
-            <li>Examine</li>
-            <li class="separator"></li>
-            <li>Copy</li>
-            <li>Cut</li>
-            <li>Paste</li>
-          </ul>
-        </div>
-
-
-
+      <div id="contextMenu" class="context-menu">
+        <ul>
+          <li id="examineItem">Examine</li>
+          <li class="separator"></li>
+          <li>Copy</li>
+          <li>Cut</li>
+          <li>Paste</li>
+        </ul>
+      </div>
     </div>
 
     <!--Character Select Menu-->
@@ -363,10 +369,17 @@
       <div id="logInBttn">
         <center>Click to <br> Log in</center>
       </div>
-      <div id="usernameInput">
-          Input username here: <input id="uN" type="text" autocomplete="off" class="form-control" placeholder="username" aria-label="username"></input>
+      <div id="preview">
           <div id= "charPreview"><center><img id='speciesSelectionWindow' src="assets/images/testBody_02.png" alt="Purple_Head"></center></div>
           <div id= "charPreview"><center><img id='bodySelectionWindow' src="assets/images/testFur_02.png" alt="Purple_Head"></center></div>
+      </div>
+      <div id="playerInformation">
+        <div id="usernameInput">
+          Input username here: <input id="uN" type="text" autocomplete="off" class="form-control" placeholder="username" aria-label="username"></input>
+        </div>
+        <div id="descriptionInput">
+          Input Character Description here: <br> (not functional yet) <br> <textarea id="descrip" autocomplete="off" class="form-control" placeholder="description" aria-label="description"></textarea>
+        </div>
       </div>
     </div>
 
@@ -425,7 +438,7 @@
               <div class="input-group">
                 <textarea id="m" autocomplete="off" class="form-control" placeholder="message" aria-label="message"></textarea>
                 <span class="input-group.btn">
-                  <button id="btn" onclick="javascript:alert('just press the enter key for now...button doesn't work')">Send!</button>
+                  <button id="btn" type="button" onclick="alertFunction()">Send!</button>
                 </span>
               </div>
             </form>
@@ -442,6 +455,9 @@
 
     <!--Checks if the game is focusedm or the chat is focused-->
     <script>
+    function alertFunction() {
+      alert("this button does not work right now... Just press the ENTER key to send your message.");
+    }
       var chatFocused = true;
       //this is the code to determine wether the game or the chat is in focus
       let phaserApp = document.getElementById("phaserApp");

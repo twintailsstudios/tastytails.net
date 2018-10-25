@@ -28,7 +28,7 @@ input.addEventListener("keyup", function(event) {
       form.onsubmit
   }
 });
-var input = document.getElementById("usernameInput");
+var input = document.getElementById("preview");
 input.addEventListener("keyup", function(event) {
   event.preventDefault();
   if (event.keyCode === 13) {
@@ -132,6 +132,12 @@ var create = new Phaser.Class({
         }
       });*/
     };
+    var input = document.getElementById("examineItem");
+    input.addEventListener("click", function(event) {
+      event.preventDefault();
+      console.log('examineItem was clicked');
+      console.log(playerInfo.username);
+    });
 
 
 
@@ -348,7 +354,7 @@ var create = new Phaser.Class({
           if (speciesSelect == 2) {
             console.log('value 2 = green');
             speciesLable.innerHTML = '<center>Species2</center>'
-            document.getElementById('speciesSelectionWindow').src = "assets/images/testBody_02.png";
+            document.getElementById('speciesSelectionWindow').src = "assets/images/testBody.png";
             greenHeadSelected();
           }
           if (speciesSelect == 3) {
@@ -410,8 +416,8 @@ var create = new Phaser.Class({
           if (bodySelect == 2) {
             console.log('value 2 = green');
             bodyLable.innerHTML = '<center>Secondary Fur Pattern Color2</center>'
-            document.getElementById('bodySelectionWindow').src = "assets/images/testFur_02.png";
-            bodySelected();
+            document.getElementById('bodySelectionWindow').src = "assets/images/testFur.png";
+            bodySelected2();
           }
           if (bodySelect == 3) {
             console.log('value 3 = blue');
@@ -446,17 +452,26 @@ var create = new Phaser.Class({
 
 
 
-        /*var input = document.getElementById("body1");
-        input.addEventListener("click", function(event) {
-          event.preventDefault();
-          document.getElementById("body1").style.backgroundColor = "green";
-          bodySelected();
-        });*/
+
         var input = document.getElementById("logInBttn");
         input.addEventListener("click", function(event) {
           event.preventDefault();
+          if (bodySelect == 0) {
+            document.getElementById("bodyLable").style.color = "red";
+            logInBttn.innerHTML = '<center>Click to <br> Log in <br> (Missing Fur Pattern Selection)</center>'
+          }
+          if (speciesSelect == 0) {
+            document.getElementById("speciesLable").style.color = "red";
+            logInBttn.innerHTML = '<center>Click to <br> Log in <br> (Missing Species Selection)</center>'
+          }
+
           document.getElementById("logInBttn").style.backgroundColor = "green";
           playerInfo.username = document.getElementById("uN").value;
+          if (playerInfo.username == '') {
+            document.getElementById("usernameInput").style.color = "red";
+            logInBttn.innerHTML = '<center>Click to <br> Log in <br> (Missing Username Selection)</center>'
+            return;
+          }
           logInBttnSelected();
         });
 
@@ -464,6 +479,7 @@ var create = new Phaser.Class({
         function purpleHeadSelected() {
 			     avatarInfo.head = 'testBody';
            playerInfo.username = document.getElementById("uN").value;
+           playerInfo.descrip = document.getElementById("descrip")
            playerInfo.headColor = document.getElementById("myColor1").value;
            //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username, headColor: playerInfo.headColor });
            console.log(playerInfo.playerId, 'Selected the purple head');
@@ -476,6 +492,7 @@ var create = new Phaser.Class({
         function greenHeadSelected() {
 			     avatarInfo.head = 'testBody02';
            playerInfo.username = document.getElementById("uN").value;
+           playerInfo.descrip = document.getElementById("descrip")
            playerInfo.headColor = document.getElementById("myColor1").value;
            //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username, headColor: playerInfo.headColor });
            console.log(playerInfo.playerId, 'Selected the green head');
@@ -487,36 +504,58 @@ var create = new Phaser.Class({
         function blueHeadSelected() {
 			    avatarInfo.head = 'testBody';
           playerInfo.username = document.getElementById("uN").value;
+          playerInfo.descrip = document.getElementById("descrip")
           playerInfo.headColor = document.getElementById("myColor1").value;
           //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username });
           console.log(playerInfo.playerId, 'Selected the blue head');
           console.log('selected head color = ', playerInfo.headColor);
           //createSprite();
 		    };
+
+
         function bodySelected() {
 			     avatarInfo.body = 'testFur02';
            playerInfo.username = document.getElementById("uN").value;
+           playerInfo.descrip = document.getElementById("descrip")
            playerInfo.bodyColor = document.getElementById("myColor2").value;
            //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username });
            console.log(playerInfo.playerId, 'Selected body');
            console.log('selected body color = ', playerInfo.bodyColor);
            //createSprite();
 		    };
+
+
+        function bodySelected2() {
+			     avatarInfo.body = 'testFur';
+           playerInfo.username = document.getElementById("uN").value;
+           playerInfo.descrip = document.getElementById("descrip")
+           playerInfo.bodyColor = document.getElementById("myColor2").value;
+           //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username });
+           console.log(playerInfo.playerId, 'Selected body');
+           console.log('selected body color = ', playerInfo.bodyColor);
+           //createSprite();
+		    };
+
+
         function noBodySelected() {
 			     avatarInfo.body = 'emptyplayer';
            playerInfo.username = document.getElementById("uN").value;
+           playerInfo.descrip = document.getElementById("descrip")
            playerInfo.bodyColor = document.getElementById("myColor2").value;
            //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username });
            console.log(playerInfo.playerId, 'Selected body');
            console.log('selected body color = ', playerInfo.bodyColor);
            //createSprite();
 		    };
+
+
         function logInBttnSelected() {
           speciesSelectionWindow(speciesSelect)
+          bodySelectionWindow(bodySelect)
           playerInfo.headColor = playerInfo.headColor.replace('#','0x');
           playerInfo.bodyColor = playerInfo.bodyColor.replace('#','0x');
-          self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username, headColor: playerInfo.headColor, bodyColor: playerInfo.bodyColor });
-          console.log('log in button clicked by', playerInfo.playerId, '\n', 'confirming selections of: ', '\n', 'Username = ', playerInfo.username, '\n', 'Head Color = ', playerInfo.headColor, '\n', 'Body Color = ', playerInfo.bodyColor);
+          self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username, headColor: playerInfo.headColor, bodyColor: playerInfo.bodyColor, description: playerInfo.descrip });
+          console.log('log in button clicked by', playerInfo.playerId, '\n', 'confirming selections of: ', '\n', 'Username = ', playerInfo.username, '\n', 'Head Color = ', playerInfo.headColor, '\n', 'Body Color = ', playerInfo.bodyColor, '\n', 'Descriptoin = ', playerInfo.descrip);
           createSprite();
 		    };
 
@@ -538,10 +577,19 @@ var create = new Phaser.Class({
             {
               avatar.head.setTint(0xff0000);
               avatar.body.setTint(0xff0000);
-              console.log(playerInfo.username);
-              const lookTab = document.getElementById("lookDisplay")
-              lookDisplay.innerHTML = 'NAME: '+playerInfo.username
-              //console.log('sprite was Right clicked');
+              examineClicked(playerInfo);
+              function examineClicked (playerInfo) {
+                console.log(playerInfo.username);
+                const lookDisplay = document.getElementById("lookDisplay")
+                lookDisplay.innerHTML = 'NAME: '+playerInfo.username
+                document.getElementById("lookDisplay").style.display = "block";
+
+                document.getElementById("itemsDisplay").style.display = "none";
+                document.getElementById("spellsDisplay").style.display = "none";
+                document.getElementById("mapDisplay").style.display = "none";
+                document.getElementById("optionsDisplay").style.display = "none";
+                //console.log('sprite was Right clicked');
+              }
             }
             else
             {
