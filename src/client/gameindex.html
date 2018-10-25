@@ -193,9 +193,19 @@
       top: 20%;
       bottom: 15%;
     }
-    #descriptionInput{
+    #descriptionInput {
       position: absolute;
       top: 10%;
+      right: 2%;
+      left: 2%;
+      bottom: 10%;
+    }
+    #descrip {
+      position: absolute;
+      top: 5%;
+      bottom: 2%;
+      left: 2%;
+      width: 94%
     }
 
     #menu {
@@ -267,6 +277,7 @@
           position: absolute;
           width: 100%;
           height:100%;
+          overflow: auto; /* <-why this no work?*/
           display: none;
         }
         #itemsDisplay {
@@ -378,7 +389,7 @@
           Input username here: <input id="uN" type="text" autocomplete="off" class="form-control" placeholder="username" aria-label="username"></input>
         </div>
         <div id="descriptionInput">
-          Input Character Description here: <br> (not functional yet) <br> <textarea id="descrip" autocomplete="off" class="form-control" placeholder="description" aria-label="description"></textarea>
+          Input Character Description here: <br> <textarea id="descrip" autocomplete="off" class="form-control" placeholder="description" aria-label="description"></textarea>
         </div>
       </div>
     </div>
