@@ -32,6 +32,8 @@ preload() {
 			progressBarHolder.destroy();
 		});
   this.load.image('spritesheet', 'assets/images/spritesheet.png');
+  this.load.image('scroll', 'assets/images/Scroll_01.png')
+  this.load.image('scroll2', 'assets/images/Scroll_02.png')
 
   //This loads the map json file that says what coordinates have what pictures
   this.load.tilemapTiledJSON('level_2', 'assets/tilemaps/level2.json');

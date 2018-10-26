@@ -291,6 +291,7 @@ var create = new Phaser.Class({
     const background3_layer = map.createStaticLayer('background3', tileset, 0, 0);
     const ground_layer = map.createStaticLayer('blocked', tileset, 0, 0);
     const ground2_layer = map.createStaticLayer('blocked2', tileset, 0, 0);
+    const spawn_layer = map.createStaticLayer('spawn', tileset, 0, 0);
 
     //defines the height that each map layer is displayed at and what tile IDs player can collide with
 
@@ -300,13 +301,57 @@ var create = new Phaser.Class({
     roof_layer.setCollision(-1);
     grass_layer.depth = 2;
     grass_layer.setCollision(-1);
-    ground_layer.setCollision([73, 74, 75, 292, 329, 450, 451, 452, 454, 455, 456, 482, 513, 514, 515, 516, 517, 518, 518, 583, 584, 589, 609, 610, 611, 645, 646, 647, 648, 651, 705, 706, 707, 712, 771, 772, 773, 774, 775, 776, 833, 834, 835, 836, 837, 838, 839, 840, 1300, 1301, 1302, 1363, 1364, 1366, 1367, 1427, 1431, 1491, 1492, 1494, 1495, 1556, 1557, 1558, 2369, 2370, 2371, 2433, 2434, 2435, 2497, 2498, 2499,]);
+    ground_layer.setCollisionByProperty({collide: true });
     ground_layer.depth = 0;
     ground2_layer.setCollision(-1);
     background_layer.setCollision(-1);
     background2_layer.setCollision(-1);
     background3_layer.setCollision(-1);
+    spawn_layer.setCollision(-1);
+    console.log('this.debugMode = ', this.game.config.physics.arcade.debug);
+    if (this.game.config.physics.arcade.debug == true) {
+      spawn_layer.depth = 5;
+    } else {
+      spawn_layer.depth = -1;
+    }
     ground_layer.setCollisionFromCollisionGroup();
+
+    var spell = this.add.image(4820, 5100, 'scroll2').setInteractive();
+    spell.depth = 0;
+    spell.name = 'The name of the spell';
+    spell.descrip = 'This is a spell';
+
+    spell.on('pointerdown', function (pointer){
+      //clickFunction();
+      if (pointer.rightButtonDown())
+      {
+        console.log('spell was right clicked');
+        var input = document.getElementById("examineItem");
+        input.addEventListener("click", function(event) {
+          event.preventDefault();
+          console.log('examineing a spell');
+          //console.log(playerInfo.username);
+          examineClickedSpell(spell);
+        });
+
+        function examineClickedSpell (spell) {
+          const lookDisplay = document.getElementById("lookDisplay")
+          lookDisplay.innerHTML = '<strong>SPELL NAME: </strong>'+spell.name+'<br><br><strong>Spell Description:</strong><br>'+spell.descrip
+          document.getElementById("lookDisplay").style.display = "block";
+
+          document.getElementById("itemsDisplay").style.display = "none";
+          document.getElementById("spellsDisplay").style.display = "none";
+          document.getElementById("mapDisplay").style.display = "none";
+          document.getElementById("optionsDisplay").style.display = "none";
+          //console.log('spell was Right clicked');
+        }
+      }
+      else
+      {
+        console.log('spell was Left clicked');
+      }
+    });
+
     //makes all the objects you can't walk through
     let blocked = this.physics.add.staticGroup();
 
