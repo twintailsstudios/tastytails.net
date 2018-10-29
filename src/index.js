@@ -11,6 +11,8 @@ const game = require('./managers/game').default
 const Message = require('./entities/message').default
 
 var players = {};
+var spawnAreas = null;
+var random_tile = null;
 
 const port = 3000
 
@@ -30,6 +32,23 @@ io.on('connection', function (socket) {
     playerId: socket.id,
     //username: null,
   };
+  // asks player for map tile coordinates
+
+  if (spawnAreas == null) {
+    console.log('spawnAreas is empty');
+    socket.emit('getMapData', spawnAreas);
+    socket.on('sendMapData', function (tiles) {
+      spawnAreas = tiles;
+      //console.log('Spawn Areas = ', spawnAreas);
+      random_tile = Math.floor((Math.random() * spawnAreas.length))
+      //console.log('random_tile = ', spawnAreas[random_tile]);
+      socket.emit('spawnLocation', spawnAreas, random_tile);
+    });
+  }else{
+    //console.log('spawnAreas is not empty = ', spawnAreas);
+    socket.emit('spawnLocation', spawnAreas, random_tile);
+  }
+
   // send the players object to the new player
   socket.emit('currentPlayers', players);
   // update all other players of the new player

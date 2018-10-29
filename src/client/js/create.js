@@ -303,54 +303,110 @@ var create = new Phaser.Class({
     grass_layer.setCollision(-1);
     ground_layer.setCollisionByProperty({collide: true });
     ground_layer.depth = 0;
+    ground_layer.setCollisionFromCollisionGroup();
     ground2_layer.setCollision(-1);
     background_layer.setCollision(-1);
     background2_layer.setCollision(-1);
     background3_layer.setCollision(-1);
     spawn_layer.setCollision(-1);
+
     console.log('this.debugMode = ', this.game.config.physics.arcade.debug);
     if (this.game.config.physics.arcade.debug == true) {
       spawn_layer.depth = 5;
+
+      const debugGraphics = this.add.graphics().setAlpha(0.75);
+      ground_layer.renderDebug(debugGraphics, {
+        tileColor: null, //Color of non-colliding tiles
+        collidingTileColor: new Phaser.Display.Color(243, 134, 48, 255), //color of colliding tiles
+        faceColor: new Phaser.Display.Color(40, 39, 37, 255) //color of colliding face edges
+      });
     } else {
       spawn_layer.depth = -1;
     }
-    ground_layer.setCollisionFromCollisionGroup();
 
-    var spell = this.add.image(4820, 5100, 'scroll2').setInteractive();
-    spell.depth = 0;
-    spell.name = 'The name of the spell';
-    spell.descrip = 'This is a spell';
 
-    spell.on('pointerdown', function (pointer){
-      //clickFunction();
-      if (pointer.rightButtonDown())
-      {
-        console.log('spell was right clicked');
-        var input = document.getElementById("examineItem");
-        input.addEventListener("click", function(event) {
-          event.preventDefault();
-          console.log('examineing a spell');
-          //console.log(playerInfo.username);
-          examineClickedSpell(spell);
-        });
 
-        function examineClickedSpell (spell) {
-          const lookDisplay = document.getElementById("lookDisplay")
-          lookDisplay.innerHTML = '<strong>SPELL NAME: </strong>'+spell.name+'<br><br><strong>Spell Description:</strong><br>'+spell.descrip
-          document.getElementById("lookDisplay").style.display = "block";
 
-          document.getElementById("itemsDisplay").style.display = "none";
-          document.getElementById("spellsDisplay").style.display = "none";
-          document.getElementById("mapDisplay").style.display = "none";
-          document.getElementById("optionsDisplay").style.display = "none";
-          //console.log('spell was Right clicked');
-        }
-      }
-      else
-      {
-        console.log('spell was Left clicked');
-      }
+
+
+
+
+
+
+
+    var tiles = [];
+    var spell = null;
+    this.socket.on('getMapData', function (spawnAreas) {
+      var tiles = [];
+
+      spawn_layer.layer.data.forEach((row) => {
+          row.forEach((col) => {
+              if(col.index != -1) tiles.push({ x: col.x*col.width + 24, y: col.y*col.height + 24 })
+          })
+      })
+      console.log('Spawn tile = ', tiles);
+      self.socket.emit('sendMapData', tiles);
     });
+    self.socket.on('spawnLocation', function (spawnAreas, random_tile) {
+
+      var spell = self.add.image(spawnAreas[random_tile].x, spawnAreas[random_tile].y, 'scroll2').setInteractive();
+      spell.depth = 0;
+      spell.name = 'The name of the spell';
+      spell.descrip = 'This is a spell';
+
+      spell.on('pointerdown', function (pointer){
+        //clickFunction();
+        if (pointer.rightButtonDown())
+        {
+          console.log('spell was right clicked');
+          if (spawnAreas[random_tile].x - self.avatar.head.x >= 0 && spawnAreas[random_tile].x - self.avatar.head.x <= 100 || spawnAreas[random_tile].x - self.avatar.head.x >= -100 && spawnAreas[random_tile].x - self.avatar.head.x <= 0) {
+            console.log('Player Too far', 'spawnAreas[random_tile].x = ', spawnAreas[random_tile].x, '-', 'self.avatar.head.x = ', self.avatar.head.x, '=', spawnAreas[random_tile].x - self.avatar.head.x)
+          }
+          var input = document.getElementById("examineItem");
+          input.addEventListener("click", function(event) {
+            event.preventDefault();
+            console.log('examineing a spell');
+            //console.log(playerInfo.username);
+            examineClickedSpell(spell);
+          });
+
+          function examineClickedSpell (spell) {
+            const lookDisplay = document.getElementById("lookDisplay")
+            lookDisplay.innerHTML = '<strong>SPELL NAME: </strong>'+spell.name+'<br><br><strong>Spell Description:</strong><br>'+spell.descrip
+            document.getElementById("lookDisplay").style.display = "block";
+
+            document.getElementById("itemsDisplay").style.display = "none";
+            document.getElementById("spellsDisplay").style.display = "none";
+            document.getElementById("mapDisplay").style.display = "none";
+            document.getElementById("optionsDisplay").style.display = "none";
+            //console.log('spell was Right clicked');
+          }
+        }
+        else
+        {
+          console.log('spell was Left clicked');
+        }
+      });
+
+    });
+
+
+
+
+    //tiles[random_tile].x = tiles[random_tile].x + 24;
+    //tiles[random_tile].y = tiles[random_tile].y + 24;
+
+
+
+
+
+
+
+
+
+
+
+
 
     //makes all the objects you can't walk through
     let blocked = this.physics.add.staticGroup();
