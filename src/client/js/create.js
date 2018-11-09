@@ -9,6 +9,8 @@ let avatarInfo = {
   head:"emptyplayer",
   body:"emptyplayer"
 };
+
+var spell1 = 0
 //var socket = io();
 //console.log('js/create.js file socket connection = ', socket);
 
@@ -146,6 +148,9 @@ var create = new Phaser.Class({
 
 
 
+
+
+
     //Chat box
     const room = 'localchat';
 
@@ -239,6 +244,46 @@ var create = new Phaser.Class({
       document.getElementById("mapDisplay").style.display = "none";
       document.getElementById("optionsDisplay").style.display = "none";
     });
+      const fill = document.querySelector('.fill');
+      const empties = document.querySelectorAll('.empty');
+
+      // Fill Listeners
+      fill.addEventListener('dragstart', dragStart);
+      fill.addEventListener('dragend', dragEnd);
+
+      // Loop Through Empties and call drag events
+      for(const empty of empties) {
+        empty.addEventListener('dragover', dragOver);
+        empty.addEventListener('dragenter', dragEnter);
+        empty.addEventListener('dragleave', dragLeave);
+        empty.addEventListener('drop', dragDrop);
+      }
+
+      // Drag Functions
+      function dragStart() {
+        console.log('dragging started');
+        this.className += ' hold';
+        setTimeout(() => (this.className = 'invisible'), 0);
+      }
+      function dragEnd() {
+        console.log('dragging ended');
+        this.className = 'fill';
+      }
+      function dragOver(event) {
+        event.preventDefault();
+      }
+      function dragEnter(event) {
+        event.preventDefault();
+        this.className += ' hovered';
+      }
+      function dragLeave() {
+        this.className = 'empty';
+      }
+      function dragDrop() {
+        this.className = 'empty';
+        this.append(fill);
+      }
+
     var input = document.getElementById("mapTab");
     input.addEventListener("click", function(event) {
       event.preventDefault();
@@ -349,38 +394,68 @@ var create = new Phaser.Class({
     });
     self.socket.on('spawnLocation', function (spawnAreas, random_tile) {
 
+      //creates listener to check if "examine Item" is clicked in the right click context menu
+      var input = document.getElementById("examineItem");
+      input.addEventListener("click", function(event) {
+        event.preventDefault();
+        if (spell1 == 1) {
+          console.log('examineing a spell');
+          //console.log(playerInfo.username);
+          spell1 = 0
+          examineClickedSpell(spell);
+        }
+      });
+
+      //creates listener to check if "pick up" is clicked in the right click context menu
+      var pickUpInput = document.getElementById("pickUp");
+
+      pickUpInput.addEventListener("click", function(event) {
+        event.preventDefault();
+        if (spell1 == 1) {
+          spell1 = 0
+          pickUpClickedSpell(spell);
+        }
+      });
+
       var spell = self.add.image(spawnAreas[random_tile].x, spawnAreas[random_tile].y, 'scroll2').setInteractive();
       spell.depth = 0;
       spell.name = 'The name of the spell';
       spell.descrip = 'This is a spell';
+      function pickUpClickedSpell (spell) {
+        if (spawnAreas[random_tile].x - self.avatar.head.x >= 0 && spawnAreas[random_tile].x - self.avatar.head.x <= 100 || spawnAreas[random_tile].x - self.avatar.head.x >= -100 && spawnAreas[random_tile].x - self.avatar.head.x <= 0) {
+          console.log('Player Too far', 'spawnAreas[random_tile].x = ', spawnAreas[random_tile].x, '-', 'self.avatar.head.x = ', self.avatar.head.x, '=', spawnAreas[random_tile].x - self.avatar.head.x);
+          console.log('picking up a spell');
+          //console.log(playerInfo.username);
+          const spellsDisplay = document.getElementById("spellsDisplay")
+          fill.innerHTML = '<img src="assets/images/Scroll_02.png" alt="Spell1">'
+          document.getElementById("lookDisplay").style.display = "none";
+
+          document.getElementById("itemsDisplay").style.display = "none";
+          document.getElementById("spellsDisplay").style.display = "block";
+          document.getElementById("mapDisplay").style.display = "none";
+          document.getElementById("optionsDisplay").style.display = "none";
+          //console.log('spell was Right clicked');
+        }
+      }
+
+      function examineClickedSpell (spell) {
+        const lookDisplay = document.getElementById("lookDisplay")
+        lookDisplay.innerHTML = '<strong>SPELL NAME: </strong>'+spell.name+'<br><br><strong>Spell Description:</strong><br>'+spell.descrip
+        document.getElementById("lookDisplay").style.display = "block";
+
+        document.getElementById("itemsDisplay").style.display = "none";
+        document.getElementById("spellsDisplay").style.display = "none";
+        document.getElementById("mapDisplay").style.display = "none";
+        document.getElementById("optionsDisplay").style.display = "none";
+        //console.log('spell was Right clicked');
+      }
 
       spell.on('pointerdown', function (pointer){
         //clickFunction();
         if (pointer.rightButtonDown())
         {
           console.log('spell was right clicked');
-          if (spawnAreas[random_tile].x - self.avatar.head.x >= 0 && spawnAreas[random_tile].x - self.avatar.head.x <= 100 || spawnAreas[random_tile].x - self.avatar.head.x >= -100 && spawnAreas[random_tile].x - self.avatar.head.x <= 0) {
-            console.log('Player Too far', 'spawnAreas[random_tile].x = ', spawnAreas[random_tile].x, '-', 'self.avatar.head.x = ', self.avatar.head.x, '=', spawnAreas[random_tile].x - self.avatar.head.x)
-          }
-          var input = document.getElementById("examineItem");
-          input.addEventListener("click", function(event) {
-            event.preventDefault();
-            console.log('examineing a spell');
-            //console.log(playerInfo.username);
-            examineClickedSpell(spell);
-          });
-
-          function examineClickedSpell (spell) {
-            const lookDisplay = document.getElementById("lookDisplay")
-            lookDisplay.innerHTML = '<strong>SPELL NAME: </strong>'+spell.name+'<br><br><strong>Spell Description:</strong><br>'+spell.descrip
-            document.getElementById("lookDisplay").style.display = "block";
-
-            document.getElementById("itemsDisplay").style.display = "none";
-            document.getElementById("spellsDisplay").style.display = "none";
-            document.getElementById("mapDisplay").style.display = "none";
-            document.getElementById("optionsDisplay").style.display = "none";
-            //console.log('spell was Right clicked');
-          }
+          spell1 = 1
         }
         else
         {
@@ -388,13 +463,14 @@ var create = new Phaser.Class({
         }
       });
 
+
+      //here is the end of the function that generates the spawn locations.
     });
 
 
 
 
-    //tiles[random_tile].x = tiles[random_tile].x + 24;
-    //tiles[random_tile].y = tiles[random_tile].y + 24;
+
 
 
 

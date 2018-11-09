@@ -338,6 +338,47 @@
       background: #dedede;
       margin: 2px 0px 2px 0px;
     }
+    table {
+      margin: auto;
+      border: 1px solid #f21515;
+      width: 99%;
+      height: 94%;
+    }
+
+
+
+    .fill {
+      position: relitive;
+      cursor: pointer;
+      width: 48px;
+      height: 48px;
+    }
+
+    .empty {
+      border: 1px solid #21c2cc;
+      background-color: #ffffff;
+      width: 48px;
+      height: 48px;
+    }
+
+    .hold {
+      border: solid #ccc 4px;
+      width: 48px;
+      height: 48px;
+    }
+
+    .hover {
+      background: #f4f4f4;
+      border-style: dashed;
+      width: 48px;
+      height: 48px;
+    }
+
+    .invisible {
+      display: none;
+      width: 48px;
+      height: 48px;
+    }
 
     </style>
   </head>
@@ -351,7 +392,7 @@
         <ul>
           <li id="examineItem">Examine</li>
           <li class="separator"></li>
-          <li>Copy</li>
+          <li id="pickUp">Pick Up</li>
           <li>Cut</li>
           <li>Paste</li>
         </ul>
@@ -421,6 +462,52 @@
           </div>
           <div id="spellsDisplay">
             you are in the spells tab
+
+              <table>
+                <tr>
+                  <td class="empty">
+                    <div class="fill" draggable="true"></div>
+                  </td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                </tr>
+                <tr>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                </tr>
+                <tr>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                </tr>
+                <tr>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                </tr>
+                <tr>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                  <td class="empty"></td>
+                </tr>
+
+              </table>
           </div>
           <div id="mapDisplay">
             you are in the map tab
