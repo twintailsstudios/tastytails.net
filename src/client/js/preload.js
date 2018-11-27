@@ -35,6 +35,7 @@ preload() {
   this.load.image('scroll', 'assets/images/Scroll_01.png')
   this.load.image('scroll2', 'assets/images/Scroll_02.png')
 
+
   //This loads the map json file that says what coordinates have what pictures
   this.load.tilemapTiledJSON('level_2', 'assets/tilemaps/level2.json');
 	//loads sprite files to be used for players
@@ -49,6 +50,7 @@ preload() {
   this.load.spritesheet('testFur', 'assets/spritesheets/testFur.png', {frameWidth: 32, frameHeight: 96});
   this.load.spritesheet('testBody02', 'assets/spritesheets/testBody_02.png', {frameWidth: 32, frameHeight: 96});
   this.load.spritesheet('testFur02', 'assets/spritesheets/testFur_02.png', {frameWidth: 32, frameHeight: 96});
+  this.load.spritesheet('WolfAnthroBase', 'assets/spritesheets/WolfAnthroBase.png', {frameWidth: 128, frameHeight: 136});
 
   //preloading menu assets
   this.load.image('menuframe', 'assets/images/menuframe.png', {frameWidth: 1921, frameHeight: 1041});

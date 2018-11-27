@@ -10,6 +10,7 @@ let avatarInfo = {
   body:"emptyplayer"
 };
 
+var spellInventory = [];
 var spell1 = 0
 //var socket = io();
 //console.log('js/create.js file socket connection = ', socket);
@@ -381,6 +382,7 @@ var create = new Phaser.Class({
 
     var tiles = [];
     var spell = null;
+    var spellInfo = {selection:'', Name:'', Descrip:'',locationX:'', locationY:''};
     this.socket.on('getMapData', function (spawnAreas) {
       var tiles = [];
 
@@ -392,16 +394,16 @@ var create = new Phaser.Class({
       console.log('Spawn tile = ', tiles);
       self.socket.emit('sendMapData', tiles);
     });
-    self.socket.on('spawnLocation', function (spawnAreas, random_tile) {
+    self.socket.on('spawnLocation', function (spawnAreas, random_tile, spells) {
 
       //creates listener to check if "examine Item" is clicked in the right click context menu
       var input = document.getElementById("examineItem");
       input.addEventListener("click", function(event) {
         event.preventDefault();
-        if (spell1 == 1) {
+        if (spell == 1) {
           console.log('examineing a spell');
           //console.log(playerInfo.username);
-          spell1 = 0
+          spell = 0
           examineClickedSpell(spell);
         }
       });
@@ -411,23 +413,30 @@ var create = new Phaser.Class({
 
       pickUpInput.addEventListener("click", function(event) {
         event.preventDefault();
-        if (spell1 == 1) {
-          spell1 = 0
+        if (spell == 1) {
+          spell = 0
           pickUpClickedSpell(spell);
         }
       });
 
-      var spell = self.add.image(spawnAreas[random_tile].x, spawnAreas[random_tile].y, 'scroll2').setInteractive();
-      spell.depth = 0;
-      spell.name = 'The name of the spell';
-      spell.descrip = 'This is a spell';
+
       function pickUpClickedSpell (spell) {
-        if (spawnAreas[random_tile].x - self.avatar.head.x >= 0 && spawnAreas[random_tile].x - self.avatar.head.x <= 100 || spawnAreas[random_tile].x - self.avatar.head.x >= -100 && spawnAreas[random_tile].x - self.avatar.head.x <= 0) {
-          console.log('Player Too far', 'spawnAreas[random_tile].x = ', spawnAreas[random_tile].x, '-', 'self.avatar.head.x = ', self.avatar.head.x, '=', spawnAreas[random_tile].x - self.avatar.head.x);
+        //console.log(spellLocation.x, ',', spellLocation.y);
+        if (spellInfo.locationX - self.avatar.head.x >= -100 && spellInfo.locationX - self.avatar.head.x <= 100 && spellInfo.locationY - self.avatar.head.y >= -100 && spellInfo.locationY - self.avatar.head.y <= 100) {
           console.log('picking up a spell');
           //console.log(playerInfo.username);
           const spellsDisplay = document.getElementById("spellsDisplay")
-          fill.innerHTML = '<img src="assets/images/Scroll_02.png" alt="Spell1">'
+          spellInventory.push(spellInfo);
+          console.log(spellInventory[0].Name);
+          var spellsTable = document.getElementById("spellsTable");
+          var row = spellsTable.insertRow();
+          var cell1 = row.insertCell();
+          var cell2 = row.insertCell();
+          var cell3 = row.insertCell();
+          cell1.innerHTML = '<img src="assets/images/Scroll_02.png" alt="Spell1">';
+          cell2.innerHTML = spellInventory[spellInventory.length-1].Name;
+          cell3.innerHTML = spellInventory[spellInventory.length-1].Descrip;
+          //fill.innerHTML = '<img src="assets/images/Scroll_02.png" alt="Spell1">'
           document.getElementById("lookDisplay").style.display = "none";
 
           document.getElementById("itemsDisplay").style.display = "none";
@@ -435,12 +444,15 @@ var create = new Phaser.Class({
           document.getElementById("mapDisplay").style.display = "none";
           document.getElementById("optionsDisplay").style.display = "none";
           //console.log('spell was Right clicked');
+          spellInfo.selection.destroy();
+        } else {
+          console.log('Player Too far:', '\n', 'spellInfo.locationX : ', spellInfo.locationX, '-', 'self.avatar.head.x : ', self.avatar.head.x, '=', spellInfo.locationX - self.avatar.head.x, '\n', 'spellInfo.locationY : ', spellInfo.locationY, '-', 'self.avatar.head.y : ', self.avatar.head.y, '=', spellInfo.locationY - self.avatar.head.y);
         }
       }
 
       function examineClickedSpell (spell) {
         const lookDisplay = document.getElementById("lookDisplay")
-        lookDisplay.innerHTML = '<strong>SPELL NAME: </strong>'+spell.name+'<br><br><strong>Spell Description:</strong><br>'+spell.descrip
+        lookDisplay.innerHTML = '<strong>SPELL NAME: </strong>'+spellInfo.Name+'<br><br><strong>Spell Description:</strong><br>'+spellInfo.Descrip
         document.getElementById("lookDisplay").style.display = "block";
 
         document.getElementById("itemsDisplay").style.display = "none";
@@ -450,12 +462,59 @@ var create = new Phaser.Class({
         //console.log('spell was Right clicked');
       }
 
-      spell.on('pointerdown', function (pointer){
+      var spell0 = self.add.image(spells[0].x, spells[0].y, spells[0].Icon).setInteractive();
+      spell0.depth = 0;
+      spell0.on('pointerdown', function (pointer){
         //clickFunction();
         if (pointer.rightButtonDown())
         {
           console.log('spell was right clicked');
-          spell1 = 1
+          spellInfo.locationX = spells[0].x;
+          spellInfo.locationY = spells[0].y;
+          spellInfo.Name = spells[0].Name;
+          spellInfo.Descrip = spells[0].Description;
+          spellInfo.selection = spell0;
+          spell = 1;
+        }
+        else
+        {
+          console.log('spell was Left clicked');
+        }
+      });
+
+      var spell1 = self.add.image(spells[1].x, spells[1].y, spells[1].Icon).setInteractive();
+      spell1.depth = 0;
+      spell1.on('pointerdown', function (pointer){
+        //clickFunction();
+        if (pointer.rightButtonDown())
+        {
+          console.log('spell was right clicked');
+          spellInfo.locationX = spells[1].x;
+          spellInfo.locationY = spells[1].y;
+          spellInfo.Name = spells[1].Name;
+          spellInfo.Descrip = spells[1].Description;
+          spellInfo.selection = spell1;
+          spell = 1;
+        }
+        else
+        {
+          console.log('spell was Left clicked');
+        }
+      });
+
+      var spell2 = self.add.image(spells[2].x, spells[2].y, spells[2].Icon).setInteractive();
+      spell2.depth = 0;
+      spell2.on('pointerdown', function (pointer){
+        //clickFunction();
+        if (pointer.rightButtonDown())
+        {
+          console.log('spell was right clicked');
+          spellInfo.locationX = spells[2].x;
+          spellInfo.locationY = spells[2].y;
+          spellInfo.Name = spells[2].Name;
+          spellInfo.Descrip = spells[2].Description;
+          spellInfo.selection = spell2;
+          spell = 1;
         }
         else
         {
@@ -532,7 +591,7 @@ var create = new Phaser.Class({
           if (speciesSelect == 3) {
             console.log('value 3 = blue');
             speciesLable.innerHTML = '<center>Species3</center>'
-            document.getElementById('speciesSelectionWindow').src = "assets/images/testBody_02.png";
+            document.getElementById('speciesSelectionWindow').src = "assets/images/WolfAnthroBase.png";
             blueHeadSelected();
           }
         };
@@ -678,7 +737,7 @@ var create = new Phaser.Class({
 
 
         function blueHeadSelected() {
-			    avatarInfo.head = 'testBody';
+			    avatarInfo.head = 'WolfAnthroBase';
           playerInfo.username = document.getElementById("uN").value;
           playerInfo.descrip = document.getElementById("descrip").value;
           playerInfo.headColor = document.getElementById("myColor1").value;

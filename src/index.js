@@ -13,6 +13,11 @@ const Message = require('./entities/message').default
 var players = {};
 var spawnAreas = null;
 var random_tile = null;
+var spell0 = {Name:"Spell #0", Description:"This is the zeroth spell", Icon:"scroll2", x:"", y:"", Action:"action_0"};
+var spell1 = {Name:"Spell #1", Description:"This is the first spell", Icon:"scroll2", x:"", y:"", Action:"action_1"};
+var spell2 = {Name:"Spell #2", Description:"This is the second spell", Icon:"scroll2", x:"", y:"", Action:"action_2"};
+
+var spells = [spell0, spell1, spell2];
 
 const port = 3000
 
@@ -41,12 +46,25 @@ io.on('connection', function (socket) {
       spawnAreas = tiles;
       //console.log('Spawn Areas = ', spawnAreas);
       random_tile = Math.floor((Math.random() * spawnAreas.length))
-      //console.log('random_tile = ', spawnAreas[random_tile]);
-      socket.emit('spawnLocation', spawnAreas, random_tile);
+      spells[0].x = spawnAreas[random_tile].x
+      spells[0].y = spawnAreas[random_tile].y
+      console.log('spells[0] = ', spells[0].x, spells[0].y);
+
+      random_tile = Math.floor((Math.random() * spawnAreas.length))
+      spells[1].x = spawnAreas[random_tile].x
+      spells[1].y = spawnAreas[random_tile].y
+      console.log('spells[1] = ', spells[1].x, spells[1].y);
+
+      random_tile = Math.floor((Math.random() * spawnAreas.length))
+      spells[2].x = spawnAreas[random_tile].x
+      spells[2].y = spawnAreas[random_tile].y
+      console.log('spells[2] = ', spells[2].x, spells[2].y);
+
+      socket.emit('spawnLocation', spawnAreas, random_tile, spells);
     });
   }else{
     //console.log('spawnAreas is not empty = ', spawnAreas);
-    socket.emit('spawnLocation', spawnAreas, random_tile);
+    socket.emit('spawnLocation', spawnAreas, random_tile, spells);
   }
 
   // send the players object to the new player
