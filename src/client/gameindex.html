@@ -254,7 +254,7 @@
         bottom:93%;
         left:44%;
       }
-      #optionsTab {
+      #specialTab {
         position: absolute;
         background-color: white;
         border: solid;
@@ -262,6 +262,15 @@
         top:0%;
         bottom:93%;
         left:58.5%;
+      }
+      #optionsTab {
+        position: absolute;
+        background-color: white;
+        border: solid;
+        right:13.8%;
+        top:0%;
+        bottom:93%;
+        left:72%;
       }
 
       #menuDisplay {
@@ -293,6 +302,12 @@
           display: none;
         }
         #mapDisplay {
+          position: absolute;
+          width: 100%;
+          height:100%;
+          display: none;
+        }
+        #specialDisplay {
           position: absolute;
           width: 100%;
           height:100%;
@@ -356,6 +371,65 @@
       width: 75%;
       height:10%;
     }
+
+    #specialAdd {
+      position: absolute;
+      border: solid;
+      top: 0%;
+      bottom: 92%;
+      right: 25%;
+      left: 1%;
+      background-color: blue;
+    }
+    #specialEdit {
+      position: absolute;
+      border: solid;
+      top: 0%;
+      bottom: 0%;
+      right: 0%;
+      left: 0%;
+      background-color: pink;
+      display: none;
+    }
+    #specialDetails {
+      position: absolute;
+      top: 8.5%;
+      bottom: 1%;
+      right: 25%;
+      left: 1%;
+      background-color: purple;
+    }
+    #specialContents {
+      position: absolute;
+      top: 1%;
+      bottom: 1%;
+      right: 1%;
+      left: 75%;
+      background-color: yellow;
+    }
+    .collapsible {
+    background-color: #777;
+    color: white;
+    cursor: pointer;
+    padding: 1%;
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 15px;
+  }
+
+  .active, .collapsible:hover {
+    background-color: #555;
+  }
+
+  .content {
+    padding: 0 18px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.2s ease-out;
+    background-color: #f1f1f1;
+  }
 
 
 
@@ -461,6 +535,9 @@
         <div id="mapTab">
           Map
         </div>
+        <div id="specialTab">
+          Special
+        </div>
         <div id="optionsTab">
           Options
         </div>
@@ -490,6 +567,37 @@
           </div>
           <div id="mapDisplay">
             you are in the map tab
+          </div>
+          <div id="specialDisplay">
+            you are in the special tab
+            <div id="specialAdd">
+              <button id="addSpecialType" type="button">+ Add Special Type</button>
+            </div>
+            <div id="specialContents">
+
+            </div>
+            <div id="specialDetails">
+              <button class="collapsible">Open Collapsible          +</button>
+              <div class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+            </div>
+            <div id="specialEdit">
+              <div id="specialNameInput">
+                Input Special Name here: <br><input id="specialName" type="text" autocomplete="off" class="form-control" placeholder="specialName" aria-label="specialName"></input>
+              </div>
+              <div id="specialVerbInput">
+                Input Special Verb here: <br>
+                (<strong>Example:</strong> Inserting "stuffs" will result in: "player <strong>stuffs</strong> target into their bag") <br>
+                <input id="specialVerb" type="text" autocomplete="off" class="form-control" placeholder="specialVerb" aria-label="specialVerb"></input>
+              </div>
+              <div id="specialDescripInput">
+                Input Special Description here: <br> <textarea id="specialDescrip" autocomplete="off" class="form-control" placeholder="special description" aria-label="special description"></textarea>
+              </div>
+              <div id="specialCreateBttn">
+                <center>Click to <br> Create</center>
+              </div>
+            </div>
           </div>
           <div id="optionsDisplay">
             you are in the options tab

@@ -221,6 +221,7 @@ var create = new Phaser.Class({
       document.getElementById("itemsDisplay").style.display = "none";
       document.getElementById("spellsDisplay").style.display = "none";
       document.getElementById("mapDisplay").style.display = "none";
+      document.getElementById("specialDisplay").style.display = "none";
       document.getElementById("optionsDisplay").style.display = "none";
     });
     var input = document.getElementById("itemsTab");
@@ -232,6 +233,7 @@ var create = new Phaser.Class({
       document.getElementById("lookDisplay").style.display = "none";
       document.getElementById("spellsDisplay").style.display = "none";
       document.getElementById("mapDisplay").style.display = "none";
+      document.getElementById("specialDisplay").style.display = "none";
       document.getElementById("optionsDisplay").style.display = "none";
     });
     var input = document.getElementById("spellsTab");
@@ -243,6 +245,7 @@ var create = new Phaser.Class({
       document.getElementById("lookDisplay").style.display = "none";
       document.getElementById("itemsDisplay").style.display = "none";
       document.getElementById("mapDisplay").style.display = "none";
+      document.getElementById("specialDisplay").style.display = "none";
       document.getElementById("optionsDisplay").style.display = "none";
     });
       const fill = document.querySelector('.fill');
@@ -294,8 +297,41 @@ var create = new Phaser.Class({
       document.getElementById("lookDisplay").style.display = "none";
       document.getElementById("itemsDisplay").style.display = "none";
       document.getElementById("spellsDisplay").style.display = "none";
+      document.getElementById("specialDisplay").style.display = "none";
       document.getElementById("optionsDisplay").style.display = "none";
     });
+    var input = document.getElementById("specialTab");
+    input.addEventListener("click", function(event) {
+      event.preventDefault();
+      console.log('special tab was clicked!');
+      document.getElementById("specialDisplay").style.display = "block";
+
+      document.getElementById("lookDisplay").style.display = "none";
+      document.getElementById("itemsDisplay").style.display = "none";
+      document.getElementById("spellsDisplay").style.display = "none";
+      document.getElementById("mapDisplay").style.display = "none";
+      document.getElementById("optionsDisplay").style.display = "none";
+    });
+    var input = document.getElementById("addSpecialType");
+    input.addEventListener("click", function(event) {
+      console.log('add special type clicked');
+      document.getElementById("specialEdit").style.display = "block";
+
+    });
+    var coll = document.getElementsByClassName("collapsible");
+    var i;
+
+    for (i = 0; i < coll.length; i++) {
+      coll[i].addEventListener("click", function() {
+        this.classList.toggle("active");
+        var content = this.nextElementSibling;
+        if (content.style.maxHeight){
+          content.style.maxHeight = null;
+        } else {
+          content.style.maxHeight = content.scrollHeight + "px";
+        }
+      });
+    }
     var input = document.getElementById("optionsTab");
     input.addEventListener("click", function(event) {
       event.preventDefault();
@@ -306,6 +342,7 @@ var create = new Phaser.Class({
       document.getElementById("itemsDisplay").style.display = "none";
       document.getElementById("spellsDisplay").style.display = "none";
       document.getElementById("mapDisplay").style.display = "none";
+      document.getElementById("specialDisplay").style.display = "none";
     });
 
 
@@ -468,12 +505,12 @@ var create = new Phaser.Class({
         //clickFunction();
         if (pointer.rightButtonDown())
         {
-          console.log('spell was right clicked');
           spellInfo.locationX = spells[0].x;
           spellInfo.locationY = spells[0].y;
           spellInfo.Name = spells[0].Name;
           spellInfo.Descrip = spells[0].Description;
           spellInfo.selection = spell0;
+          console.log(spellInfo.Name, ' was Right clicked');
           spell = 1;
         }
         else
@@ -488,12 +525,12 @@ var create = new Phaser.Class({
         //clickFunction();
         if (pointer.rightButtonDown())
         {
-          console.log('spell was right clicked');
           spellInfo.locationX = spells[1].x;
           spellInfo.locationY = spells[1].y;
           spellInfo.Name = spells[1].Name;
           spellInfo.Descrip = spells[1].Description;
           spellInfo.selection = spell1;
+          console.log(spellInfo.Name, ' was Right clicked');
           spell = 1;
         }
         else
@@ -508,12 +545,12 @@ var create = new Phaser.Class({
         //clickFunction();
         if (pointer.rightButtonDown())
         {
-          console.log('spell was right clicked');
           spellInfo.locationX = spells[2].x;
           spellInfo.locationY = spells[2].y;
           spellInfo.Name = spells[2].Name;
           spellInfo.Descrip = spells[2].Description;
           spellInfo.selection = spell2;
+          console.log(spellInfo.Name, ' was Right clicked');
           spell = 1;
         }
         else
