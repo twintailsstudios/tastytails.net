@@ -10,8 +10,10 @@ let avatarInfo = {
   body:"emptyplayer"
 };
 
+var localPlayerInfo = {playerId:'', username:'', descrip:'', headColor:'',bodyColor:'', specialList:[]};
 var spellInventory = [];
 var spell1 = 0
+var voreTypes = [];
 //var socket = io();
 //console.log('js/create.js file socket connection = ', socket);
 
@@ -318,20 +320,77 @@ var create = new Phaser.Class({
       document.getElementById("specialEdit").style.display = "block";
 
     });
-    var coll = document.getElementsByClassName("collapsible");
-    var i;
-
-    for (i = 0; i < coll.length; i++) {
-      coll[i].addEventListener("click", function() {
-        this.classList.toggle("active");
-        var content = this.nextElementSibling;
-        if (content.style.maxHeight){
-          content.style.maxHeight = null;
-        } else {
-          content.style.maxHeight = content.scrollHeight + "px";
+    var input = document.getElementById("specialCreateBttn");
+    input.addEventListener("click", function(event) {
+      event.preventDefault();
+      document.getElementById("specialCreateBttn").style.backgroundColor = "green";
+      var specialInfo = {Name:'', Verb:'', Descrip:''};
+      specialInfo.Name = document.getElementById("specialName").value;
+      specialInfo.Verb = document.getElementById("specialVerb").value;
+      specialInfo.Descrip = document.getElementById("specialDescrip").value;
+      if (specialInfo.Name == '' || specialInfo.Verb == '' || specialInfo.Descrip == '') {
+        if (specialInfo.Name == '') {
+          document.getElementById("specialNameInput").style.color = "red";
+          specialCreateBttn.innerHTML = '<center>Click to <br> Create <br> (Missing Special Name Selection)</center>'
+          return;
         }
-      });
+        if (specialInfo.Verb == '') {
+          document.getElementById("specialVerbInput").style.color = "red";
+          specialCreateBttn.innerHTML = '<center>Click to <br> Create <br> (Missing Special Verb Selection)</center>'
+          return;
+        }
+        if (specialInfo.Descrip == '') {
+          document.getElementById("specialDescripInput").style.color = "red";
+          specialCreateBttn.innerHTML = '<center>Click to <br> Create <br> (Missing Special Description Selection)</center>'
+          return;
+        }
+      }
+      specialCreateBttnSelected(specialInfo);
+    });
+    function specialCreateBttnSelected (specialInfo) {
+      //self.socket.emit('avatarSelected', specialInfo);
+      localPlayerInfo.specialList.push(specialInfo);
+      console.log('special create button clicked by', localPlayerInfo.playerId, '\n', 'confirming inputs of: ', '\n', 'Special Name = ', specialInfo.Name, '\n', 'Special Verb = ', specialInfo.Verb, '\n', 'Special Description = ', specialInfo.Descrip);
+      //var last = localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1]
+      console.log('testing the push array thingy: ', localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1]);
+      var newCollapsible = document.createElement("button");
+      var node = document.createTextNode(localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1].Name);
+      var newCollapsibleClass = document.createAttribute("class");
+      newCollapsibleClass.value = "collapsible";
+      newCollapsible.setAttributeNode(newCollapsibleClass);
+      newCollapsible.appendChild(node);
+      var element = document.getElementById("specialDetails");
+      element.appendChild(newCollapsible);
+      var content = document.createElement("div");
+      var node = document.createTextNode(localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1].Descrip);
+      var newContentClass = document.createAttribute("class");
+      newContentClass.value = "content";
+      content.setAttributeNode(newContentClass);
+      content.appendChild(node);
+      var element = document.getElementById("specialDetails");
+      element.appendChild(content);
+
+
+
+      var coll = document.getElementsByClassName("collapsible");
+      var i;
+
+      for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+          this.classList.toggle("active");
+          var content = this.nextElementSibling;
+          if (content.style.maxHeight){
+            content.style.maxHeight = null;
+          } else {
+            content.style.maxHeight = content.scrollHeight + "px";
+          }
+        });
+      }
+      //document.getElementById()
+      //<button class="collapsible">Open Collapsible          +</button>
+      document.getElementById("specialEdit").style.display = "none";
     }
+
     var input = document.getElementById("optionsTab");
     input.addEventListener("click", function(event) {
       event.preventDefault();
@@ -593,7 +652,7 @@ var create = new Phaser.Class({
         var speciesSelect = 0;
         var bodySelect = 0;
         var speciesSelect3 = null;
-
+        localPlayerInfo.playerId = playerInfo.playerId
         console.log(playerInfo.playerId, 'is creating their avatar...');
 
         var input = document.getElementById("speciesArrowLeft");
@@ -735,6 +794,7 @@ var create = new Phaser.Class({
 
           document.getElementById("logInBttn").style.backgroundColor = "green";
           playerInfo.username = document.getElementById("uN").value;
+          localPlayerInfo.username = playerInfo.username;
           if (playerInfo.username == '') {
             document.getElementById("usernameInput").style.color = "red";
             logInBttn.innerHTML = '<center>Click to <br> Log in <br> (Missing Username Selection)</center>'
@@ -828,6 +888,9 @@ var create = new Phaser.Class({
           bodySelectionWindow(bodySelect)
           playerInfo.headColor = playerInfo.headColor.replace('#','0x');
           playerInfo.bodyColor = playerInfo.bodyColor.replace('#','0x');
+          localPlayerInfo.descrip = playerInfo.descrip;
+          localPlayerInfo.headColor = playerInfo.headColor;
+          localPlayerInfo.bodyColor = playerInfo.bodyColor;
           self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username, headColor: playerInfo.headColor, bodyColor: playerInfo.bodyColor, descrip: playerInfo.descrip });
           console.log('log in button clicked by', playerInfo.playerId, '\n', 'confirming selections of: ', '\n', 'Username = ', playerInfo.username, '\n', 'Head Color = ', playerInfo.headColor, '\n', 'Body Color = ', playerInfo.bodyColor, '\n', 'Descriptoin = ', playerInfo.descrip);
           createSprite();
