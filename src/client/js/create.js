@@ -70,7 +70,7 @@ var create = new Phaser.Class({
 
 
     this.otherPlayers = this.physics.add.group();
-    this.socket.on('currentPlayers', function (players) {
+    this.socket.on('currentPlayers', function (players, spells) {
       Object.keys(players).forEach(function (id) {
         console.log('Local players socket ID = ', players[id].playerId);
         if (players[id].playerId === self.socket.id) {
@@ -79,6 +79,7 @@ var create = new Phaser.Class({
           addOtherPlayers(self, players[id]);
         }
       });
+      spawnSpells(spells);
     });
     this.socket.on('newPlayer', function (playerInfo) {
       addOtherPlayers(self, playerInfo);
@@ -98,16 +99,37 @@ var create = new Phaser.Class({
           console.log('Player ID: ', self.socket.id, 'disconnected');
           otherPlayer.destroy();
           //otherPlayerBody.destroy();
+          //otherPlayerBody.destroy();
         }
       });
     });
     this.socket.on('playerMoved', function (playerInfo) {
+    //console.log('playerMoved called successfully');
+    //console.log(playerInfo.x, playerInfo.y);
+    if (playerInfo.playerId === self.socket.id) {
+      //console.log(playerInfo.x, playerInfo.y);
+      self.avatar.head.setPosition(playerInfo.x, playerInfo.y);
+      self.avatar.body.setPosition(playerInfo.x, playerInfo.y);
+      //self.stack3.setPosition(playerInfo.x, playerInfo.y);
+      //localPlayerInfo.sprite.setPosition(playerInfo.x, playerInfo.y);
+    } else {
+      //console.log('someone else is moving')
+      self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+        if (playerInfo.playerId === otherPlayer.playerId) {
+          otherPlayer.setPosition(playerInfo.x, playerInfo.y);
+          //otherPlayerBody.setPosition(playerInfo.x, playerInfo.y);
+          //console.log(otherPlayer);
+        }
+      });
+    }
+  });
+    /*this.socket.on('playerMoved', function (playerInfo) {
       self.otherPlayers.getChildren().forEach(function (otherPlayer) {
         if (playerInfo.playerId === otherPlayer.playerId) {
           otherPlayer.setPosition(playerInfo.x, playerInfo.y);
         }
       });
-    });
+    });*/
 
     this.cursors = this.input.keyboard.createCursorKeys();
     //this.input.mouse.disableContextMenu();
@@ -137,6 +159,41 @@ var create = new Phaser.Class({
         }
       });*/
     };
+
+  function spawnSpells(spells) {
+    var spell0 = self.add.image(spells[0].x, spells[0].y, spells[0].Icon).setInteractive();
+    var spell1 = self.add.image(spells[1].x, spells[1].y, spells[1].Icon).setInteractive();
+    var spell2 = self.add.image(spells[2].x, spells[2].y, spells[2].Icon).setInteractive();
+    var spellInfo = {selection:'', Name:'', Descrip:'',locationX:'', locationY:''};
+    spell0.on('pointerdown', function (pointer){
+      //clickFunction();
+      if (pointer.rightButtonDown()) {
+        spellInfo.Name = spells[0].Name;
+        console.log(spellInfo.Name, ' was Right clicked');
+      } else {
+        console.log('spell was Left clicked');
+      }
+    });
+    spell1.on('pointerdown', function (pointer){
+      //clickFunction();
+      if (pointer.rightButtonDown()) {
+        spellInfo.Name = spells[1].Name;
+        console.log(spellInfo.Name, ' was Right clicked');
+      } else {
+        console.log('spell was Left clicked');
+      }
+    });
+    spell2.on('pointerdown', function (pointer){
+      //clickFunction();
+      if (pointer.rightButtonDown()) {
+        spellInfo.Name = spells[2].Name;
+        console.log(spellInfo.Name, ' was Right clicked');
+      } else {
+        console.log('spell was Left clicked');
+      }
+    });
+  }
+//}
 
 
 
@@ -347,36 +404,297 @@ var create = new Phaser.Class({
       }
       specialCreateBttnSelected(specialInfo);
     });
+    var coll = document.getElementsByClassName("collapsible");
+    var i;
+    for (i = 0; i < coll.length; i++) {
+      coll[i].addEventListener("click", function() {
+        this.classList.toggle("active");
+        var content = this.nextElementSibling;
+        if (content.style.maxHeight){
+          content.style.maxHeight = null;
+        } else {
+          content.style.maxHeight = content.scrollHeight + "px";
+        }
+      });
+    }
+    var specialMenuInput = document.getElementsByClassName("specialActions");
+    var specialI;
+    var specialDivList = [];
+    for (specialI = 0; specialI < specialMenuInput.length; specialI++) {
+
+      specialDivList.push(specialMenuInput[specialI]);
+      specialMenuInput[specialI].addEventListener("click", function() {
+        console.log("Special Menu Input in Context Menu was Clicked");
+        if (localPlayerInfo.specialList == specialDivList) {
+          //console.log('specialMenuInput = ', specialMenuInput);
+          //console.log('specialI = ', specialI);
+          console.log('specialDivList = ', specialDivList);
+          console.log('localPlayerInfo.specialList = ', localPlayerInfo.specialList);
+        }
+      });
+    }
     function specialCreateBttnSelected (specialInfo) {
       //self.socket.emit('avatarSelected', specialInfo);
       localPlayerInfo.specialList.push(specialInfo);
       console.log('special create button clicked by', localPlayerInfo.playerId, '\n', 'confirming inputs of: ', '\n', 'Special Name = ', specialInfo.Name, '\n', 'Special Verb = ', specialInfo.Verb, '\n', 'Special Description = ', specialInfo.Descrip);
       //var last = localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1]
       console.log('testing the push array thingy: ', localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1]);
+      if (localPlayerInfo.specialList[0] !== undefined) {
+        document.getElementById("specialTitle0").style.display = "block";
+        document.getElementById("specialMenuInput0").style.display = "block";
+        document.getElementById("specialTitle0").innerHTML = localPlayerInfo.specialList[0].Name
+        document.getElementById("specialDescription0").innerHTML = localPlayerInfo.specialList[0].Descrip
+        document.getElementById("specialMenuInput0").innerHTML = localPlayerInfo.specialList[0].Name
+        specialMenuInput0.addEventListener("click", function() {
+          examineClicked(playerInfo);
+        });
+      }
+      if (localPlayerInfo.specialList[1] !== undefined) {
+        document.getElementById("specialTitle1").style.display = "block";
+        document.getElementById("specialMenuInput1").style.display = "block";
+        document.getElementById("specialTitle1").innerHTML = localPlayerInfo.specialList[1].Name
+        document.getElementById("specialDescription1").innerHTML = localPlayerInfo.specialList[1].Descrip
+        document.getElementById("specialMenuInput1").innerHTML = localPlayerInfo.specialList[1].Name
+      }
+      if (localPlayerInfo.specialList[2] !== undefined) {
+        document.getElementById("specialTitle2").style.display = "block";
+        document.getElementById("specialMenuInput2").style.display = "block";
+        document.getElementById("specialTitle2").innerHTML = localPlayerInfo.specialList[2].Name
+        document.getElementById("specialDescription2").innerHTML = localPlayerInfo.specialList[2].Descrip
+        document.getElementById("specialMenuInput2").innerHTML = localPlayerInfo.specialList[2].Name
+      }
+      if (localPlayerInfo.specialList[3] !== undefined) {
+        document.getElementById("specialTitle3").style.display = "block";
+        document.getElementById("specialMenuInput3").style.display = "block";
+        document.getElementById("specialTitle3").innerHTML = localPlayerInfo.specialList[3].Name
+        document.getElementById("specialDescription3").innerHTML = localPlayerInfo.specialList[3].Descrip
+        document.getElementById("specialMenuInput3").innerHTML = localPlayerInfo.specialList[3].Name
+      }
+      if (localPlayerInfo.specialList[4] !== undefined) {
+        document.getElementById("specialTitle4").style.display = "block";
+        document.getElementById("specialMenuInput4").style.display = "block";
+        document.getElementById("specialTitle4").innerHTML = localPlayerInfo.specialList[4].Name
+        document.getElementById("specialDescription4").innerHTML = localPlayerInfo.specialList[4].Descrip
+        document.getElementById("specialMenuInput4").innerHTML = localPlayerInfo.specialList[4].Name
+      }
+      if (localPlayerInfo.specialList[5] !== undefined) {
+        document.getElementById("specialTitle5").style.display = "block";
+        document.getElementById("specialMenuInput5").style.display = "block";
+        document.getElementById("specialTitle5").innerHTML = localPlayerInfo.specialList[5].Name
+        document.getElementById("specialDescription5").innerHTML = localPlayerInfo.specialList[5].Descrip
+        document.getElementById("specialMenuInput5").innerHTML = localPlayerInfo.specialList[5].Name
+      }
+      if (localPlayerInfo.specialList[6] !== undefined) {
+        document.getElementById("specialTitle6").style.display = "block";
+        document.getElementById("specialMenuInput6").style.display = "block";
+        document.getElementById("specialTitle6").innerHTML = localPlayerInfo.specialList[6].Name
+        document.getElementById("specialDescription6").innerHTML = localPlayerInfo.specialList[6].Descrip
+        document.getElementById("specialMenuInput6").innerHTML = localPlayerInfo.specialList[6].Name
+      }
+      if (localPlayerInfo.specialList[7] !== undefined) {
+        document.getElementById("specialTitle7").style.display = "block";
+        document.getElementById("specialMenuInput7").style.display = "block";
+        document.getElementById("specialTitle7").innerHTML = localPlayerInfo.specialList[7].Name
+        document.getElementById("specialDescription7").innerHTML = localPlayerInfo.specialList[7].Descrip
+        document.getElementById("specialMenuInput7").innerHTML = localPlayerInfo.specialList[7].Name
+      }
+      if (localPlayerInfo.specialList[8] !== undefined) {
+        document.getElementById("specialTitle8").style.display = "block";
+        document.getElementById("specialMenuInput8").style.display = "block";
+        document.getElementById("specialTitle8").innerHTML = localPlayerInfo.specialList[8].Name
+        document.getElementById("specialDescription8").innerHTML = localPlayerInfo.specialList[8].Descrip
+        document.getElementById("specialMenuInput8").innerHTML = localPlayerInfo.specialList[8].Name
+      }
+      if (localPlayerInfo.specialList[9] !== undefined) {
+        document.getElementById("specialTitle9").style.display = "block";
+        document.getElementById("specialMenuInput9").style.display = "block";
+        document.getElementById("specialTitle9").innerHTML = localPlayerInfo.specialList[9].Name
+        document.getElementById("specialDescription9").innerHTML = localPlayerInfo.specialList[9].Descrip
+        document.getElementById("specialMenuInput9").innerHTML = localPlayerInfo.specialList[9].Name
+      }
+      if (localPlayerInfo.specialList[10] !== undefined) {
+        document.getElementById("specialTitle10").style.display = "block";
+        document.getElementById("specialMenuInput10").style.display = "block";
+        document.getElementById("specialTitle10").innerHTML = localPlayerInfo.specialList[10].Name
+        document.getElementById("specialDescription10").innerHTML = localPlayerInfo.specialList[10].Descrip
+        document.getElementById("specialMenuInput10").innerHTML = localPlayerInfo.specialList[10].Name
+      }
+      if (localPlayerInfo.specialList[11] !== undefined) {
+        document.getElementById("specialTitle11").style.display = "block";
+        document.getElementById("specialMenuInput11").style.display = "block";
+        document.getElementById("specialTitle11").innerHTML = localPlayerInfo.specialList[11].Name
+        document.getElementById("specialDescription11").innerHTML = localPlayerInfo.specialList[11].Descrip
+        document.getElementById("specialMenuInput11").innerHTML = localPlayerInfo.specialList[11].Name
+      }
+      if (localPlayerInfo.specialList[12] !== undefined) {
+        document.getElementById("specialTitle12").style.display = "block";
+        document.getElementById("specialMenuInput12").style.display = "block";
+        document.getElementById("specialTitle12").innerHTML = localPlayerInfo.specialList[12].Name
+        document.getElementById("specialDescription12").innerHTML = localPlayerInfo.specialList[12].Descrip
+        document.getElementById("specialMenuInput12").innerHTML = localPlayerInfo.specialList[12].Name
+      }
+      if (localPlayerInfo.specialList[13] !== undefined) {
+        document.getElementById("specialTitle13").style.display = "block";
+        document.getElementById("specialMenuInput13").style.display = "block";
+        document.getElementById("specialTitle13").innerHTML = localPlayerInfo.specialList[13].Name
+        document.getElementById("specialDescription13").innerHTML = localPlayerInfo.specialList[13].Descrip
+        document.getElementById("specialMenuInput13").innerHTML = localPlayerInfo.specialList[13].Name
+      }
+      if (localPlayerInfo.specialList[14] !== undefined) {
+        document.getElementById("specialTitle14").style.display = "block";
+        document.getElementById("specialMenuInput14").style.display = "block";
+        document.getElementById("specialTitle14").innerHTML = localPlayerInfo.specialList[14].Name
+        document.getElementById("specialDescription14").innerHTML = localPlayerInfo.specialList[14].Descrip
+        document.getElementById("specialMenuInput14").innerHTML = localPlayerInfo.specialList[14].Name
+      }
+      if (localPlayerInfo.specialList[15] !== undefined) {
+        document.getElementById("specialTitle15").style.display = "block";
+        document.getElementById("specialMenuInput15").style.display = "block";
+        document.getElementById("specialTitle15").innerHTML = localPlayerInfo.specialList[15].Name
+        document.getElementById("specialDescription15").innerHTML = localPlayerInfo.specialList[15].Descrip
+        document.getElementById("specialMenuInput15").innerHTML = localPlayerInfo.specialList[15].Name
+      }
+      if (localPlayerInfo.specialList[16] !== undefined) {
+        document.getElementById("specialTitle16").style.display = "block";
+        document.getElementById("specialMenuInput16").style.display = "block";
+        document.getElementById("specialTitle16").innerHTML = localPlayerInfo.specialList[16].Name
+        document.getElementById("specialDescription16").innerHTML = localPlayerInfo.specialList[16].Descrip
+        document.getElementById("specialMenuInput16").innerHTML = localPlayerInfo.specialList[16].Name
+      }
+      if (localPlayerInfo.specialList[17] !== undefined) {
+        document.getElementById("specialTitle17").style.display = "block";
+        document.getElementById("specialTitle17").innerHTML = localPlayerInfo.specialList[17].Name
+        document.getElementById("specialDescription17").innerHTML = localPlayerInfo.specialList[17].Descrip
+        document.getElementById("specialMenuInput17").innerHTML = localPlayerInfo.specialList[17].Name
+      }
+      if (localPlayerInfo.specialList[18] !== undefined) {
+        document.getElementById("specialTitle18").style.display = "block";
+        document.getElementById("specialMenuInput18").style.display = "block";
+        document.getElementById("specialTitle18").innerHTML = localPlayerInfo.specialList[18].Name
+        document.getElementById("specialDescription18").innerHTML = localPlayerInfo.specialList[18].Descrip
+        document.getElementById("specialMenuInput18").innerHTML = localPlayerInfo.specialList[18].Name
+      }
+      if (localPlayerInfo.specialList[19] !== undefined) {
+        document.getElementById("specialTitle19").style.display = "block";
+        document.getElementById("specialTitle19").innerHTML = localPlayerInfo.specialList[19].Name
+        document.getElementById("specialDescription19").innerHTML = localPlayerInfo.specialList[19].Descrip
+        document.getElementById("specialMenuInput19").innerHTML = localPlayerInfo.specialList[19].Name
+      }
+      if (localPlayerInfo.specialList[20] !== undefined) {
+        document.getElementById("specialTitle20").style.display = "block";
+        document.getElementById("specialMenuInput20").style.display = "block";
+        document.getElementById("specialTitle20").innerHTML = localPlayerInfo.specialList[20].Name
+        document.getElementById("specialDescription20").innerHTML = localPlayerInfo.specialList[20].Descrip
+        document.getElementById("specialMenuInput20").innerHTML = localPlayerInfo.specialList[20].Name
+      }
+      if (localPlayerInfo.specialList[21] !== undefined) {
+        document.getElementById("specialTitle21").style.display = "block";
+        document.getElementById("specialMenuInput21").style.display = "block";
+        document.getElementById("specialTitle21").innerHTML = localPlayerInfo.specialList[21].Name
+        document.getElementById("specialDescription21").innerHTML = localPlayerInfo.specialList[21].Descrip
+        document.getElementById("specialMenuInput21").innerHTML = localPlayerInfo.specialList[21].Name
+      }
+      if (localPlayerInfo.specialList[22] !== undefined) {
+        document.getElementById("specialTitle22").style.display = "block";
+        document.getElementById("specialTitle22").innerHTML = localPlayerInfo.specialList[22].Name
+        document.getElementById("specialDescription22").innerHTML = localPlayerInfo.specialList[22].Descrip
+        document.getElementById("specialMenuInput22").innerHTML = localPlayerInfo.specialList[22].Name
+      }
+      if (localPlayerInfo.specialList[23] !== undefined) {
+        document.getElementById("specialTitle23").style.display = "block";
+        document.getElementById("specialMenuInput23").style.display = "block";
+        document.getElementById("specialTitle23").innerHTML = localPlayerInfo.specialList[23].Name
+        document.getElementById("specialDescription23").innerHTML = localPlayerInfo.specialList[23].Descrip
+        document.getElementById("specialMenuInput23").innerHTML = localPlayerInfo.specialList[23].Name
+      }
+      if (localPlayerInfo.specialList[24] !== undefined) {
+        document.getElementById("specialTitle24").style.display = "block";
+        document.getElementById("specialMenuInput24").style.display = "block";
+        document.getElementById("specialTitle24").innerHTML = localPlayerInfo.specialList[24].Name
+        document.getElementById("specialDescription24").innerHTML = localPlayerInfo.specialList[24].Descrip
+        document.getElementById("specialMenuInput24").innerHTML = localPlayerInfo.specialList[24].Name
+      }
+      if (localPlayerInfo.specialList[25] !== undefined) {
+        document.getElementById("specialTitle25").style.display = "block";
+        document.getElementById("specialMenuInput25").style.display = "block";
+        document.getElementById("specialTitle25").innerHTML = localPlayerInfo.specialList[25].Name
+        document.getElementById("specialDescription25").innerHTML = localPlayerInfo.specialList[25].Descrip
+        document.getElementById("specialMenuInput25").innerHTML = localPlayerInfo.specialList[25].Name
+      }
+      if (localPlayerInfo.specialList[26] !== undefined) {
+        document.getElementById("specialTitle26").style.display = "block";
+        document.getElementById("specialMenuInput26").style.display = "block";
+        document.getElementById("specialTitle26").innerHTML = localPlayerInfo.specialList[26].Name
+        document.getElementById("specialDescription26").innerHTML = localPlayerInfo.specialList[26].Descrip
+        document.getElementById("specialMenuInput26").innerHTML = localPlayerInfo.specialList[26].Name
+      }
+      if (localPlayerInfo.specialList[27] !== undefined) {
+        document.getElementById("specialTitle27").style.display = "block";
+        document.getElementById("specialMenuInput27").style.display = "block";
+        document.getElementById("specialTitle27").innerHTML = localPlayerInfo.specialList[27].Name
+        document.getElementById("specialDescription27").innerHTML = localPlayerInfo.specialList[27].Descrip
+        document.getElementById("specialMenuInput27").innerHTML = localPlayerInfo.specialList[27].Name
+      }
+      if (localPlayerInfo.specialList[28] !== undefined) {
+        document.getElementById("specialTitle28").style.display = "block";
+        document.getElementById("specialMenuInput28").style.display = "block";
+        document.getElementById("specialTitle28").innerHTML = localPlayerInfo.specialList[28].Name
+        document.getElementById("specialDescription28").innerHTML = localPlayerInfo.specialList[28].Descrip
+        document.getElementById("specialMenuInput28").innerHTML = localPlayerInfo.specialList[28].Name
+      }
+      if (localPlayerInfo.specialList[29] !== undefined) {
+        document.getElementById("specialTitle29").style.display = "block";
+        document.getElementById("specialMenuInput29").style.display = "block";
+        document.getElementById("specialTitle29").innerHTML = localPlayerInfo.specialList[29].Name
+        document.getElementById("specialDescription29").innerHTML = localPlayerInfo.specialList[29].Descrip
+        document.getElementById("specialMenuInput29").innerHTML = localPlayerInfo.specialList[29].Name
+      }
+      if (localPlayerInfo.specialList[30] !== undefined) {
+        document.getElementById("specialTitle30").style.display = "block";
+        document.getElementById("specialMenuInput30").style.display = "block";
+        document.getElementById("specialTitle30").innerHTML = localPlayerInfo.specialList[30].Name
+        document.getElementById("specialDescription30").innerHTML = localPlayerInfo.specialList[30].Descrip
+        document.getElementById("specialMenuInput30").innerHTML = localPlayerInfo.specialList[30].Name
+      }
+
+      /*
       var newCollapsible = document.createElement("button");
       var node = document.createTextNode(localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1].Name);
       var newCollapsibleClass = document.createAttribute("class");
       newCollapsibleClass.value = "collapsible";
       newCollapsible.setAttributeNode(newCollapsibleClass);
       newCollapsible.appendChild(node);
-      var element = document.getElementById("specialDetails");
+      var element = document.getElementById("specialTitle");
       element.appendChild(newCollapsible);
+
+      //add special to context menu
+      var specialMenuUl = document.createElement("li");
+      var node = document.createTextNode(localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1].Name);
+      specialMenuUl.appendChild(node);
+      var element = document.getElementById("specialMenuUl");
+      element.appendChild(specialMenuUl);
+      //document.getElementById("").addEventListener("click", specialMenuSelect);
+
       var content = document.createElement("div");
       var node = document.createTextNode(localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1].Descrip);
       var newContentClass = document.createAttribute("class");
       newContentClass.value = "content";
       content.setAttributeNode(newContentClass);
       content.appendChild(node);
-      var element = document.getElementById("specialDetails");
+      var element = document.getElementById("specialTitle");
       element.appendChild(content);
 
 
 
-      var coll = document.getElementsByClassName("collapsible");
-      var i;
 
-      for (i = 0; i < coll.length; i++) {
-        coll[i].addEventListener("click", function() {
+      */
+
+
+
+
+      /*
+      //for (i = 0; i < coll.length; i++) {
+        newCollapsible.addEventListener("click", function() {
           this.classList.toggle("active");
           var content = this.nextElementSibling;
           if (content.style.maxHeight){
@@ -385,9 +703,11 @@ var create = new Phaser.Class({
             content.style.maxHeight = content.scrollHeight + "px";
           }
         });
-      }
+        */
+      //}
       //document.getElementById()
       //<button class="collapsible">Open Collapsible          +</button>
+
       document.getElementById("specialEdit").style.display = "none";
     }
 
@@ -476,7 +796,7 @@ var create = new Phaser.Class({
 
 
 
-    var tiles = [];
+    /*var tiles = [];
     var spell = null;
     var spellInfo = {selection:'', Name:'', Descrip:'',locationX:'', locationY:''};
     this.socket.on('getMapData', function (spawnAreas) {
@@ -620,7 +940,24 @@ var create = new Phaser.Class({
 
 
       //here is the end of the function that generates the spawn locations.
+    });*/
+
+    var specialMenuInput = document.getElementById("specialMenuInput");
+
+    specialMenuInput.addEventListener("click", function(event) {
+      event.preventDefault();
+      specialMenuSelect();
     });
+    function specialMenuSelect (event) {
+      console.log('special clicked n stuff');
+      //console.log(spellLocation.x, ',', spellLocation.y);
+      /*if (spellInfo.locationX - self.avatar.head.x >= -100 && spellInfo.locationX - self.avatar.head.x <= 100 && spellInfo.locationY - self.avatar.head.y >= -100 && spellInfo.locationY - self.avatar.head.y <= 100) {
+        console.log('picking up a spell');
+
+      } else {
+        console.log('Player Too far:', '\n', 'spellInfo.locationX : ', spellInfo.locationX, '-', 'self.avatar.head.x : ', self.avatar.head.x, '=', spellInfo.locationX - self.avatar.head.x, '\n', 'spellInfo.locationY : ', spellInfo.locationY, '-', 'self.avatar.head.y : ', self.avatar.head.y, '=', spellInfo.locationY - self.avatar.head.y);
+      }*/
+    }
 
 
 
@@ -1058,6 +1395,31 @@ var create = new Phaser.Class({
       if (avatarSelected == true) {
         if (chatFocused == false) {
           if (this.cursors.left.isDown) {
+            //console.log(localPlayerInfo.playerId);
+            this.socket.emit('movementLeft', localPlayerInfo.playerId);
+
+          } else {
+            if (this.cursors.right.isDown) {
+              this.socket.emit('movementRight', localPlayerInfo.playerId);
+
+            }
+          }
+          if (this.cursors.up.isDown) {
+            this.socket.emit('movementUp', localPlayerInfo.playerId);
+
+          } else {
+            if (this. cursors.down.isDown) {
+              this.socket.emit('movementDown', localPlayerInfo.playerId);
+
+            }
+          }
+          if (this.cursors.left.isUp && this.cursors.right.isUp) {
+
+          }
+          if (this.cursors.up.isUp && this.cursors.down.isUp) {
+
+          }
+          /*if (this.cursors.left.isDown) {
             this.avatar.head.setVelocityX(-150);
             this.avatar.head.setVelocityY(0);
             this.avatar.body.setVelocityX(-150);
@@ -1088,7 +1450,7 @@ var create = new Phaser.Class({
           else {
             this.avatar.head.setVelocity(0);
             this.avatar.body.setVelocity(0);
-          }
+          }*/
         }
       }
 

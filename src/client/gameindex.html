@@ -327,11 +327,24 @@
       font-family: verdana;
       font-size: 10px;
     }
-    .context-menu {
+    #specialMenu {
+      position: absolute;
+      top: 41%;
+      left: 200px;
+      background: #ed2ae5;
+      width: 200px;
+      height: auto;
+      box-shadow: 0 0 20px 0 #ccc;
+    }
+    .normalMenu {
+      float: left;
       background: #f6f6f6;
       width: 200px;
       height: auto;
       box-shadow: 0 0 20px 0 #ccc;
+    }
+    .context-menu {
+
       position: absolute;
       display: none;
     }
@@ -352,6 +365,9 @@
       height: 1px;
       background: #dedede;
       margin: 2px 0px 2px 0px;
+    }
+    .specialActions {
+      display: none;
     }
     #spellsTable {
       margin: auto;
@@ -441,6 +457,7 @@
     text-align: left;
     outline: none;
     font-size: 15px;
+    display: none;
   }
 
   .active, .collapsible:hover {
@@ -499,13 +516,51 @@
 
       <!--Right Click Custom Menu-->
       <div id="contextMenu" class="context-menu">
-        <ul>
-          <li id="examineItem">Examine</li>
-          <li class="separator"></li>
-          <li id="pickUp">Pick Up</li>
-          <li>Cut</li>
-          <li>Paste</li>
-        </ul>
+        <div class="normalMenu" >
+          <ul>
+            <li id="examineItem">Examine</li>
+            <li class="separator"></li>
+            <li id="pickUp">Pick Up</li>
+            <li id="special" onmouseover="return specialTestFunction(event);" onmouseout="return specialMouseOut(event)">Special -></li>
+          </ul>
+        </div>
+
+        <div id="specialMenu" onmouseover="return specialTestFunction(event);" onmouseout="return specialMouseOut(event)">
+          <ul id="specialMenuUl">
+            <li id="specialMenuInput">test</li>
+            <li id="specialMenuInput0" class="specialActions"></li>
+            <li id="specialMenuInput1" class="specialActions"></li>
+            <li id="specialMenuInput2" class="specialActions"></li>
+            <li id="specialMenuInput3" class="specialActions"></li>
+            <li id="specialMenuInput4" class="specialActions"></li>
+            <li id="specialMenuInput5" class="specialActions"></li>
+            <li id="specialMenuInput6" class="specialActions"></li>
+            <li id="specialMenuInput7" class="specialActions"></li>
+            <li id="specialMenuInput8" class="specialActions"></li>
+            <li id="specialMenuInput9" class="specialActions"></li>
+            <li id="specialMenuInput10" class="specialActions"></li>
+            <li id="specialMenuInput11" class="specialActions"></li>
+            <li id="specialMenuInput12" class="specialActions"></li>
+            <li id="specialMenuInput13" class="specialActions"></li>
+            <li id="specialMenuInput14" class="specialActions"></li>
+            <li id="specialMenuInput15" class="specialActions"></li>
+            <li id="specialMenuInput16" class="specialActions"></li>
+            <li id="specialMenuInput17" class="specialActions"></li>
+            <li id="specialMenuInput18" class="specialActions"></li>
+            <li id="specialMenuInput19" class="specialActions"></li>
+            <li id="specialMenuInput20" class="specialActions"></li>
+            <li id="specialMenuInput21" class="specialActions"></li>
+            <li id="specialMenuInput22" class="specialActions"></li>
+            <li id="specialMenuInput23" class="specialActions"></li>
+            <li id="specialMenuInput24" class="specialActions"></li>
+            <li id="specialMenuInput25" class="specialActions"></li>
+            <li id="specialMenuInput26" class="specialActions"></li>
+            <li id="specialMenuInput27" class="specialActions"></li>
+            <li id="specialMenuInput28" class="specialActions"></li>
+            <li id="specialMenuInput29" class="specialActions"></li>
+            <li id="specialMenuInput30" class="specialActions"></li>
+          </ul>
+        </div>
       </div>
     </div>
 
@@ -598,11 +653,131 @@
               <button id="addSpecialType" type="button">+ Add Special Type</button>
             </div>
             <div id="specialContents">
-
+              <h1>Contents:<h1/>
             </div>
             <div id="specialDetails">
-              <button class="collapsible">Open Collapsible          +</button>
-              <div class="content">
+              <button id="specialTitle0" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription0" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle1" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription1" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle2" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription2" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle3" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription3" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle4" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription4" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle5" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription5" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle6" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription6" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle7" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription7" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle8" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription8" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle9" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription9" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle10" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription10" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle11" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription11" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle12" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription12" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle13" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription13" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle14" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription14" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle15" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription15" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle16" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription16" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle17" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription17" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle18" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription18" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle19" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription19" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle20" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription20" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle21" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription21" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle22" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription22" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle23" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription23" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle24" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription24" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle25" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription25" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle26" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription26" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle27" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription27" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle28" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription28" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle29" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription29" class="content">
+                <p>Description players read when this special is used on them</p>
+              </div>
+              <button id="specialTitle30" class="collapsible">Open Collapsible          +</button>
+              <div id="specialDescription30" class="content">
                 <p>Description players read when this special is used on them</p>
               </div>
             </div>
@@ -685,6 +860,7 @@
       var contextMenu = document.getElementById('contextMenu');
       function showContextMenu (event) {
         contextMenu.style.display = 'block';
+        specialMenu.style.display = 'none';
         contextMenu.style.left = event.clientX + 'px';
         contextMenu.style.top = event.clientY + 'px';
         return false;
@@ -700,6 +876,19 @@
           hideContextMenu();
         }
       }
+
+    var specialMenu = document.getElementById('specialMenu');
+    function specialTestFunction (event) {
+      //alert("You did a hover thingy!");
+      specialMenu.style.display = 'block';
+      //specialMenu.style.left = event.clientX + 'px';
+      //specialMenu.style.top = event.clientY + 'px';
+      return false;
+    }
+    function specialMouseOut (event) {
+      specialMenu.style.display = 'none';
+      return false;
+    }
     </script>
 
   </body>
