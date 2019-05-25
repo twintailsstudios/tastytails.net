@@ -11,9 +11,11 @@ let avatarInfo = {
 };
 
 var localPlayerInfo = {playerId:'', username:'', descrip:'', headColor:'',bodyColor:'', specialList:[]};
-var spellInventory = [];
-var spell1 = 0
+//var spellInventory = [];
+//var spell1 = 0
 var voreTypes = [];
+var clicked = {Identifier: ''};
+var toDestroy = '';
 //var socket = io();
 //console.log('js/create.js file socket connection = ', socket);
 
@@ -104,32 +106,26 @@ var create = new Phaser.Class({
       });
     });
     this.socket.on('playerMoved', function (playerInfo) {
-    //console.log('playerMoved called successfully');
-    //console.log(playerInfo.x, playerInfo.y);
-    if (playerInfo.playerId === self.socket.id) {
+      //console.log('playerMoved called successfully');
       //console.log(playerInfo.x, playerInfo.y);
-      self.avatar.head.setPosition(playerInfo.x, playerInfo.y);
-      self.avatar.body.setPosition(playerInfo.x, playerInfo.y);
-      //self.stack3.setPosition(playerInfo.x, playerInfo.y);
-      //localPlayerInfo.sprite.setPosition(playerInfo.x, playerInfo.y);
-    } else {
-      //console.log('someone else is moving')
-      self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-        if (playerInfo.playerId === otherPlayer.playerId) {
-          otherPlayer.setPosition(playerInfo.x, playerInfo.y);
-          //otherPlayerBody.setPosition(playerInfo.x, playerInfo.y);
-          //console.log(otherPlayer);
-        }
-      });
-    }
-  });
-    /*this.socket.on('playerMoved', function (playerInfo) {
-      self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-        if (playerInfo.playerId === otherPlayer.playerId) {
-          otherPlayer.setPosition(playerInfo.x, playerInfo.y);
-        }
-      });
-    });*/
+      if (playerInfo.playerId === self.socket.id) {
+        //console.log(playerInfo.x, playerInfo.y);
+        self.avatar.head.setPosition(playerInfo.x, playerInfo.y);
+        self.avatar.body.setPosition(playerInfo.x, playerInfo.y);
+        //self.stack3.setPosition(playerInfo.x, playerInfo.y);
+        //localPlayerInfo.sprite.setPosition(playerInfo.x, playerInfo.y);
+      } else {
+        //console.log('someone else is moving')
+        self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+          if (playerInfo.playerId === otherPlayer.playerId) {
+            otherPlayer.setPosition(playerInfo.x, playerInfo.y);
+            //otherPlayerBody.setPosition(playerInfo.x, playerInfo.y);
+            //console.log(otherPlayer);
+          }
+        });
+      }
+    });
+
 
     this.cursors = this.input.keyboard.createCursorKeys();
     //this.input.mouse.disableContextMenu();
@@ -160,43 +156,105 @@ var create = new Phaser.Class({
       });*/
     };
 
-  function spawnSpells(spells) {
-    var spell0 = self.add.image(spells[0].x, spells[0].y, spells[0].Icon).setInteractive();
-    var spell1 = self.add.image(spells[1].x, spells[1].y, spells[1].Icon).setInteractive();
-    var spell2 = self.add.image(spells[2].x, spells[2].y, spells[2].Icon).setInteractive();
-    var spellInfo = {selection:'', Name:'', Descrip:'',locationX:'', locationY:''};
-    spell0.on('pointerdown', function (pointer){
-      //clickFunction();
-      if (pointer.rightButtonDown()) {
-        spellInfo.Name = spells[0].Name;
-        console.log(spellInfo.Name, ' was Right clicked');
-      } else {
-        console.log('spell was Left clicked');
-      }
-    });
-    spell1.on('pointerdown', function (pointer){
-      //clickFunction();
-      if (pointer.rightButtonDown()) {
-        spellInfo.Name = spells[1].Name;
-        console.log(spellInfo.Name, ' was Right clicked');
-      } else {
-        console.log('spell was Left clicked');
-      }
-    });
-    spell2.on('pointerdown', function (pointer){
-      //clickFunction();
-      if (pointer.rightButtonDown()) {
-        spellInfo.Name = spells[2].Name;
-        console.log(spellInfo.Name, ' was Right clicked');
-      } else {
-        console.log('spell was Left clicked');
-      }
-    });
-  }
-//}
+    function spawnSpells(spells) {
+      var spell0 = self.add.image(spells[0].x, spells[0].y, spells[0].Icon).setInteractive();
+      var spell1 = self.add.image(spells[1].x, spells[1].y, spells[1].Icon).setInteractive();
+      var spell2 = self.add.image(spells[2].x, spells[2].y, spells[2].Icon).setInteractive();
+      var spellInfo = {selection:'', Name:'', Descrip:'',locationX:'', locationY:''};
+      spell0.on('pointerdown', function (pointer){
+        //clickFunction();
+        toDestroy = spell0;
+        if (pointer.rightButtonDown()) {
+          spellInfo.Name = spells[0].Name;
+          clicked = spells[0];
+          console.log(spellInfo.Name, ' was Right clicked');
+        } else {
+          console.log('spell was Left clicked');
+        }
+      });
+      spell1.on('pointerdown', function (pointer){
+        toDestroy = spell1;
+        //clickFunction();
+        if (pointer.rightButtonDown()) {
+          spellInfo.Name = spells[1].Name;
+          clicked = spells[1];
+          console.log(spellInfo.Name, ' was Right clicked');
+        } else {
+          console.log('spell was Left clicked');
+        }
+      });
+      spell2.on('pointerdown', function (pointer){
+        toDestroy = spell2;
+        //clickFunction();
+        if (pointer.rightButtonDown()) {
+          spellInfo.Name = spells[2].Name;
+          clicked = spells[2];
+          console.log(spellInfo.Name, ' was Right clicked');
+        } else {
+          console.log('spell was Left clicked');
+        }
+      });
+    }
 
+    var input = document.getElementById("examineItem");
+    input.addEventListener("click", function(event) {
+      event.preventDefault();
+      self.socket.emit('examineClicked', clicked);
+      //console.log('examineItem was clicked', '\n', 'Client Side clicked variable = ', clicked);
+      clicked = {Identifier: ''};
+      //console.log(playerInfo.username);
+      //examineClicked(playerInfo);
+    });
 
+    this.socket.on('examinedInfo', function (examinedItem) {
+      //console.log('examintedItem information from server = ', examinedItem);
+      const lookDisplay = document.getElementById("lookDisplay")
+      if (examinedItem.Identifier === 'spell') {
+        lookDisplay.innerHTML = '<strong>Spell Name: </strong>'+examinedItem.Name+'<br><br><strong>Spell Description:</strong><br>'+examinedItem.Description
+      }
+      if (examinedItem.Identifier === 'player') {
+        lookDisplay.innerHTML = '<strong>Name: </strong>'+examinedItem.Username+'<br><br><strong>Player Description:</strong><br>'+examinedItem.Description
+      }
+      document.getElementById("lookDisplay").style.display = "block";
 
+      document.getElementById("itemsDisplay").style.display = "none";
+      document.getElementById("spellsDisplay").style.display = "none";
+      document.getElementById("mapDisplay").style.display = "none";
+      document.getElementById("optionsDisplay").style.display = "none";
+      //console.log('sprite was Right clicked');
+    });
+
+    var pickUpInput = document.getElementById("pickUp");
+    pickUpInput.addEventListener("click", function(event) {
+      event.preventDefault();
+      self.socket.emit('pickUpClicked', clicked);
+      clicked = {Identifier: ''};
+    });
+    this.socket.on('pickedUpItem', function (spellInventory) {
+        console.log('picking up a spell');
+        //console.log(playerInfo.username);
+        const spellsDisplay = document.getElementById("spellsDisplay")
+        var spellsTable = document.getElementById("spellsTable");
+        var row = spellsTable.insertRow();
+        var cell1 = row.insertCell();
+        var cell2 = row.insertCell();
+        var cell3 = row.insertCell();
+        cell1.innerHTML = '<img src="assets/images/Scroll_02.png" alt="Spell1">';
+        cell2.innerHTML = spellInventory[spellInventory.length-1].Name;
+        cell3.innerHTML = spellInventory[spellInventory.length-1].Description;
+        //fill.innerHTML = '<img src="assets/images/Scroll_02.png" alt="Spell1">'
+        document.getElementById("lookDisplay").style.display = "none";
+
+        document.getElementById("itemsDisplay").style.display = "none";
+        document.getElementById("spellsDisplay").style.display = "block";
+        document.getElementById("mapDisplay").style.display = "none";
+        document.getElementById("optionsDisplay").style.display = "none";
+        //console.log('spell was Right clicked');
+        toDestroy.destroy();
+        toDestroy = null;
+        //console.log('spell0 = ', spell0);
+
+    })
 
 
 
@@ -446,7 +504,7 @@ var create = new Phaser.Class({
         document.getElementById("specialDescription0").innerHTML = localPlayerInfo.specialList[0].Descrip
         document.getElementById("specialMenuInput0").innerHTML = localPlayerInfo.specialList[0].Name
         specialMenuInput0.addEventListener("click", function() {
-          examineClicked(playerInfo);
+          self.socket.emit('voreActionClicked', clicked);
         });
       }
       if (localPlayerInfo.specialList[1] !== undefined) {
@@ -1249,15 +1307,16 @@ var create = new Phaser.Class({
             //clickFunction();
             if (pointer.rightButtonDown())
             {
-              var input = document.getElementById("examineItem");
+              clicked = playerInfo;
+              /*var input = document.getElementById("examineItem");
               input.addEventListener("click", function(event) {
                 event.preventDefault();
                 console.log('examineItem was clicked');
                 //console.log(playerInfo.username);
                 examineClicked(playerInfo);
-              });
+              });*/
 
-              function examineClicked (playerInfo) {
+              /*function examineClicked (playerInfo) {
                 console.log(playerInfo.username);
                 const lookDisplay = document.getElementById("lookDisplay")
                 lookDisplay.innerHTML = '<strong>NAME: </strong>'+playerInfo.username+'<br><br><strong>Description:</strong><br>'+playerInfo.descrip
@@ -1268,7 +1327,7 @@ var create = new Phaser.Class({
                 document.getElementById("mapDisplay").style.display = "none";
                 document.getElementById("optionsDisplay").style.display = "none";
                 //console.log('sprite was Right clicked');
-              }
+              }*/
             }
             else
             {
@@ -1337,15 +1396,16 @@ var create = new Phaser.Class({
         //clickFunction();
         if (pointer.rightButtonDown())
         {
-          var input = document.getElementById("examineItem");
+          clicked = playerInfo;
+          /*var input = document.getElementById("examineItem");
           input.addEventListener("click", function(event) {
             event.preventDefault();
             console.log('examineItem was clicked');
             //console.log(playerInfo.username);
             examineClicked(playerInfo);
-          });
+          });*/
 
-          function examineClicked (playerInfo) {
+          /*function examineClicked (playerInfo) {
             console.log(playerInfo.username);
             const lookDisplay = document.getElementById("lookDisplay")
             lookDisplay.innerHTML = '<strong>NAME: </strong>'+playerInfo.username+'<br><br><strong>Description:</strong><br>'+playerInfo.descrip
@@ -1356,7 +1416,7 @@ var create = new Phaser.Class({
             document.getElementById("mapDisplay").style.display = "none";
             document.getElementById("optionsDisplay").style.display = "none";
             //console.log('sprite was Right clicked');
-          }
+          }*/
         }
         else
         {

@@ -46,14 +46,14 @@ for (let info = 0; info < spawningLayer.data.length; info++) {
     remainder = (Math.floor(Math.floor(info % 200) * 48));
     division = (Math.floor(Math.floor(Math.floor(info) / 200)) * 48);
     spawnLocation.push({ x: remainder + 24, y: division + 24 })
-    console.log('info = ', info, 'remainder = ', remainder, 'division = ', division, 'spawnTile = ', spawnTile);
+    //console.log('info = ', info, 'remainder = ', remainder, 'division = ', division, 'spawnTile = ', spawnTile);
   }
 }
-console.log('spawnLocaiton: ', spawnLocation);
+//console.log('spawnLocaiton: ', spawnLocation);
 
-var spell0 = {Name:"Spell #0", Description:"This is the zeroth spell", Icon:"scroll2", x:"", y:"", Action:"action_0"};
-var spell1 = {Name:"Spell #1", Description:"This is the first spell", Icon:"scroll2", x:"", y:"", Action:"action_1"};
-var spell2 = {Name:"Spell #2", Description:"This is the second spell", Icon:"scroll2", x:"", y:"", Action:"action_2"};
+var spell0 = {Identifier:"spell", Name:"Spell #0", Description:"This is the zeroth spell", Icon:"scroll2", x:"", y:"", Action:"action_0"};
+var spell1 = {Identifier:"spell", Name:"Spell #1", Description:"This is the first spell", Icon:"scroll2", x:"", y:"", Action:"action_1"};
+var spell2 = {Identifier:"spell", Name:"Spell #2", Description:"This is the second spell", Icon:"scroll2", x:"", y:"", Action:"action_2"};
 
 var spells = [spell0, spell1, spell2];
 var random_tile = null;
@@ -81,9 +81,16 @@ io.on('connection', function (socket) {
   });
   // create a new player and add it to our players object
   players[socket.id] = {
+    Identifier:"player",
+    playerId: socket.id,
+    Username:"",
+    Description:"",
+    headColor:"",
+    bodyColor:"",
+    specialList:[],
+    spellInventory:[],
     x: 4820,
     y: 5020,
-    playerId: socket.id,
     //username: null,
   };
   // asks player for map tile coordinates
@@ -182,7 +189,7 @@ io.on('connection', function (socket) {
 
   function collision (x, y, tempX, tempY) {
     //console.log('collision function called');
-    console.log(x, y);
+    //console.log(x, y);
     //console.log('X: ', (Math.ceil(Math.ceil(x) / 200)) , 'Y: ', (Math.ceil(Math.ceil(y) / 200)));
     //console.log('blockingLayer', blockingLayer.data);
     //console.log('leingth', blockingLayer.data.length);
@@ -196,6 +203,80 @@ io.on('connection', function (socket) {
       io.sockets.emit('playerMoved', players[socket.id]);
     }
   }
+
+  socket.on('examineClicked', function (clicked) {
+    console.log('Examine clicked.Identifier = ', clicked.Identifier);
+    if (clicked.Identifier === 'spell') {
+      for (let i = 0; i < spells.length; i++) {
+        if (clicked.Name === spells[i].Name)  {
+          let examinedItem = spells[i];
+          socket.emit('examinedInfo', examinedItem);
+        }
+      }
+    }
+    if (clicked.Identifier === 'player') {
+      //console.log('clicked.playerId = ', clicked.playerId);
+      //console.log('players = ', players);
+      //console.log('Object.keys(players).length = ', Object.keys(players).length);
+      Object.keys(players).forEach(function(p)  {
+        if (clicked.playerId === players[p].playerId)  {
+          let examinedItem = players[p];
+          //console.log('examinedItem = ', examinedItem)
+          socket.emit('examinedInfo', examinedItem);
+        }
+      });
+    }
+      //if (spellInfo.locationX - self.avatar.head.x >= -100 && spellInfo.locationX - self.avatar.head.x <= 100 && spellInfo.locationY - self.avatar.head.y >= -100 && spellInfo.locationY - self.avatar.head.y <= 100)
+  })
+
+  socket.on('pickUpClicked', function (clicked) {
+    //console.log('Pick Up clicked.Identifier = ', clicked.Identifier);
+    if (clicked.Identifier === 'spell') {
+      for (let i = 0; i < spells.length; i++) {
+        if (clicked.Name === spells[i].Name)  {
+          let pickedUpItem = spells[i];
+          if (pickedUpItem.x - players[socket.id].x >= -100 && pickedUpItem.x - players[socket.id].x <= 100 && pickedUpItem.y - players[socket.id].y >= -100 && pickedUpItem.y - players[socket.id].y <= 100) {
+            console.log('in range to pick up item');
+            players[socket.id].spellInventory.push(pickedUpItem);
+            //console.log('players[socket.id].spellInventory = ', players[socket.id].spellInventory);
+            socket.emit('pickedUpItem', players[socket.id].spellInventory);
+          }else {
+            console.log('NOT in range to pick up item');
+            //socket.emit('examinedInfo', examinedItem);
+          }
+        }
+      }
+    }
+    if (clicked.Identifier === 'player') {
+      //console.log('clicked.playerId = ', clicked.playerId);
+      //console.log('players = ', players);
+      //console.log('Object.keys(players).length = ', Object.keys(players).length);
+      Object.keys(players).forEach(function(p)  {
+        if (clicked.playerId === players[p].playerId)  {
+          let pickedUpItem = players[p];
+          console.log('Attempting to pick up player = ', pickedUpItem.Username);
+          //socket.emit('examinedInfo', examinedItem);
+        }
+      });
+    }
+      //if (spellInfo.locationX - self.avatar.head.x >= -100 && spellInfo.locationX - self.avatar.head.x <= 100 && spellInfo.locationY - self.avatar.head.y >= -100 && spellInfo.locationY - self.avatar.head.y <= 100)
+  })
+  socket.on('voreActionClicked', function (clicked) {
+    console.log('Vore Action clicked.Identifier = ', clicked.Identifier);
+    if (clicked.Identifier === 'player') {
+      Object.keys(players).forEach(function(p)  {
+        if (clicked.playerId === players[p].playerId)  {
+          let voreAttempt = players[p];
+          if (voreAttempt.x - players[socket.id].x >= -100 && voreAttempt.x - players[socket.id].x <= 100 && voreAttempt.y - players[socket.id].y >= -100 && voreAttempt.y - players[socket.id].y <= 100) {
+            console.log('Attempting to vore player = ', voreAttempt.Username);
+          } else {
+            console.log('Too Far Away From Player: ', voreAttempt.Username, ' To Vore Them');
+          }
+        }
+      });
+    }
+  })
+
   /*socket.on('playerMovement', function (movementData) {
     players[socket.id].x = movementData.x;
     players[socket.id].y = movementData.y;
@@ -207,8 +288,8 @@ io.on('connection', function (socket) {
   socket.on('avatarSelected', function (avatarSave) {
     players[socket.id].head = avatarSave.head;
     players[socket.id].body = avatarSave.body;
-    players[socket.id].username = avatarSave.username;
-    players[socket.id].descrip = avatarSave.descrip;
+    players[socket.id].Username = avatarSave.username;
+    players[socket.id].Description = avatarSave.descrip;
     players[socket.id].headColor = avatarSave.headColor;
     players[socket.id].bodyColor = avatarSave.bodyColor;
     console.log('Player ID: ', socket.id, 'has chosen: ', '\n', 'username = ', players[socket.id].username, '\n', 'avatar.head = ', players[socket.id].head, '\n', 'avatar.body = ', players[socket.id].body,  '\n', 'Head Color = ', players[socket.id].headColor, '\n', 'Body Color =', players[socket.id].bodyColor, '\n', 'Description = ', players[socket.id].descrip);
@@ -226,8 +307,7 @@ io.on('connection', function (socket) {
   //let author = game.user.all[socket.id]
   //let type = (data.type === 'ooc' || data.type === 'rp' ? data.type : null)
   //game.chat.add(new Message(author, data.type, data.content))
-});
-
+  });
 });
 
 /*io.on('connection', socket => {
