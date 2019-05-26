@@ -11,13 +11,11 @@ let avatarInfo = {
 };
 
 var localPlayerInfo = {playerId:'', username:'', descrip:'', headColor:'',bodyColor:'', specialList:[]};
-//var spellInventory = [];
-//var spell1 = 0
 var voreTypes = [];
 var clicked = {Identifier: ''};
 var toDestroy = '';
-//var socket = io();
-//console.log('js/create.js file socket connection = ', socket);
+var container = null;
+//var otherContainer = null;
 
 
 
@@ -28,22 +26,6 @@ var toDestroy = '';
 
 
 
-/*var input = document.getElementById("m");
-input.addEventListener("keyup", function(event) {
-  event.preventDefault();
-  if (event.keyCode === 13) {
-      form.onsubmit
-  }
-});
-var input = document.getElementById("preview");
-input.addEventListener("keyup", function(event) {
-  event.preventDefault();
-  if (event.keyCode === 13) {
-      form.onsubmit
-  }
-});*/
-
-// This is the code for the chat box
 
 
 
@@ -69,9 +51,8 @@ var create = new Phaser.Class({
     var self = this;
     this.socket = io();
     console.log('this.socket = ', this.socket);
-
-
     this.otherPlayers = this.physics.add.group();
+
     this.socket.on('currentPlayers', function (players, spells) {
       Object.keys(players).forEach(function (id) {
         console.log('Local players socket ID = ', players[id].playerId);
@@ -83,44 +64,40 @@ var create = new Phaser.Class({
       });
       spawnSpells(spells);
     });
+
     this.socket.on('newPlayer', function (playerInfo) {
       addOtherPlayers(self, playerInfo);
     });
+
     this.socket.on('avatarSelection', function (playerInfo) {
       self.otherPlayers.getChildren().forEach(function (otherPlayer) {
         if (playerInfo.playerId === otherPlayer.playerId) {
           addOtherPlayers(self, playerInfo);
-          //playerInfo.head.add.image(playerInfo.head);
           console.log(playerInfo.playerId, 'chose username: ', playerInfo.username, '\n', 'Set head to: ', playerInfo.head, 'and body to: ', playerInfo.body, '\n', 'and head color to:', playerInfo.headColor,  'and body color to:', playerInfo.bodyColor, 'and they have described themselves as: ', playerInfo.descrip);
         }
       });
     });
+
     this.socket.on('disconnect', function (playerId) {
       self.otherPlayers.getChildren().forEach(function (otherPlayer) {
         if (playerId === otherPlayer.playerId) {
           console.log('Player ID: ', self.socket.id, 'disconnected');
-          otherPlayer.destroy();
-          //otherPlayerBody.destroy();
-          //otherPlayerBody.destroy();
+          otherContainer.destroy();
         }
       });
     });
+
     this.socket.on('playerMoved', function (playerInfo) {
       //console.log('playerMoved called successfully');
-      //console.log(playerInfo.x, playerInfo.y);
       if (playerInfo.playerId === self.socket.id) {
         //console.log(playerInfo.x, playerInfo.y);
-        self.avatar.head.setPosition(playerInfo.x, playerInfo.y);
-        self.avatar.body.setPosition(playerInfo.x, playerInfo.y);
-        //self.stack3.setPosition(playerInfo.x, playerInfo.y);
-        //localPlayerInfo.sprite.setPosition(playerInfo.x, playerInfo.y);
+        self.container.setPosition(playerInfo.x, playerInfo.y);
       } else {
         //console.log('someone else is moving')
         self.otherPlayers.getChildren().forEach(function (otherPlayer) {
           if (playerInfo.playerId === otherPlayer.playerId) {
-            otherPlayer.setPosition(playerInfo.x, playerInfo.y);
-            //otherPlayerBody.setPosition(playerInfo.x, playerInfo.y);
-            //console.log(otherPlayer);
+            console.log('otherPlayer variable in the playerMoved command = ', otherPlayer);
+            otherPlayer.otherContainer.setPosition(playerInfo.x, playerInfo.y);
           }
         });
       }
@@ -128,7 +105,6 @@ var create = new Phaser.Class({
 
 
     this.cursors = this.input.keyboard.createCursorKeys();
-    //this.input.mouse.disableContextMenu();
 
     //this detects if the game has been clicked so as to move the focus off of the chat div and back onto the game
     //allowing players to move again
@@ -139,22 +115,7 @@ var create = new Phaser.Class({
     }, this);
 
 
-    function clickFunction(self, playerInfo, avatar, pointer) {
-      /*avatar.body.on('pointerdown', function (pointer){
-        if (pointer.rightButtonDown())
-        {
-          avatar.head.setTint(0xff0000);
-          avatar.body.setTint(0xff0000);
-          console.log('sprite was Right clicked');
-        }
-        else
-        {
-          avatar.head.setTint(0x0000ff);
-          avatar.body.setTint(0x0000ff);
-          console.log('sprite was Left clicked');
-        }
-      });*/
-    };
+
 
     function spawnSpells(spells) {
       var spell0 = self.add.image(spells[0].x, spells[0].y, spells[0].Icon).setInteractive();
@@ -162,7 +123,6 @@ var create = new Phaser.Class({
       var spell2 = self.add.image(spells[2].x, spells[2].y, spells[2].Icon).setInteractive();
       var spellInfo = {selection:'', Name:'', Descrip:'',locationX:'', locationY:''};
       spell0.on('pointerdown', function (pointer){
-        //clickFunction();
         toDestroy = spell0;
         if (pointer.rightButtonDown()) {
           spellInfo.Name = spells[0].Name;
@@ -174,7 +134,6 @@ var create = new Phaser.Class({
       });
       spell1.on('pointerdown', function (pointer){
         toDestroy = spell1;
-        //clickFunction();
         if (pointer.rightButtonDown()) {
           spellInfo.Name = spells[1].Name;
           clicked = spells[1];
@@ -185,7 +144,6 @@ var create = new Phaser.Class({
       });
       spell2.on('pointerdown', function (pointer){
         toDestroy = spell2;
-        //clickFunction();
         if (pointer.rightButtonDown()) {
           spellInfo.Name = spells[2].Name;
           clicked = spells[2];
@@ -242,7 +200,6 @@ var create = new Phaser.Class({
         cell1.innerHTML = '<img src="assets/images/Scroll_02.png" alt="Spell1">';
         cell2.innerHTML = spellInventory[spellInventory.length-1].Name;
         cell3.innerHTML = spellInventory[spellInventory.length-1].Description;
-        //fill.innerHTML = '<img src="assets/images/Scroll_02.png" alt="Spell1">'
         document.getElementById("lookDisplay").style.display = "none";
 
         document.getElementById("itemsDisplay").style.display = "none";
@@ -492,10 +449,9 @@ var create = new Phaser.Class({
       });
     }
     function specialCreateBttnSelected (specialInfo) {
-      //self.socket.emit('avatarSelected', specialInfo);
+
       localPlayerInfo.specialList.push(specialInfo);
       console.log('special create button clicked by', localPlayerInfo.playerId, '\n', 'confirming inputs of: ', '\n', 'Special Name = ', specialInfo.Name, '\n', 'Special Verb = ', specialInfo.Verb, '\n', 'Special Description = ', specialInfo.Descrip);
-      //var last = localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1]
       console.log('testing the push array thingy: ', localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1]);
       if (localPlayerInfo.specialList[0] !== undefined) {
         document.getElementById("specialTitle0").style.display = "block";
@@ -715,56 +671,6 @@ var create = new Phaser.Class({
         document.getElementById("specialMenuInput30").innerHTML = localPlayerInfo.specialList[30].Name
       }
 
-      /*
-      var newCollapsible = document.createElement("button");
-      var node = document.createTextNode(localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1].Name);
-      var newCollapsibleClass = document.createAttribute("class");
-      newCollapsibleClass.value = "collapsible";
-      newCollapsible.setAttributeNode(newCollapsibleClass);
-      newCollapsible.appendChild(node);
-      var element = document.getElementById("specialTitle");
-      element.appendChild(newCollapsible);
-
-      //add special to context menu
-      var specialMenuUl = document.createElement("li");
-      var node = document.createTextNode(localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1].Name);
-      specialMenuUl.appendChild(node);
-      var element = document.getElementById("specialMenuUl");
-      element.appendChild(specialMenuUl);
-      //document.getElementById("").addEventListener("click", specialMenuSelect);
-
-      var content = document.createElement("div");
-      var node = document.createTextNode(localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1].Descrip);
-      var newContentClass = document.createAttribute("class");
-      newContentClass.value = "content";
-      content.setAttributeNode(newContentClass);
-      content.appendChild(node);
-      var element = document.getElementById("specialTitle");
-      element.appendChild(content);
-
-
-
-
-      */
-
-
-
-
-      /*
-      //for (i = 0; i < coll.length; i++) {
-        newCollapsible.addEventListener("click", function() {
-          this.classList.toggle("active");
-          var content = this.nextElementSibling;
-          if (content.style.maxHeight){
-            content.style.maxHeight = null;
-          } else {
-            content.style.maxHeight = content.scrollHeight + "px";
-          }
-        });
-        */
-      //}
-      //document.getElementById()
-      //<button class="collapsible">Open Collapsible          +</button>
 
       document.getElementById("specialEdit").style.display = "none";
     }
@@ -854,151 +760,7 @@ var create = new Phaser.Class({
 
 
 
-    /*var tiles = [];
-    var spell = null;
-    var spellInfo = {selection:'', Name:'', Descrip:'',locationX:'', locationY:''};
-    this.socket.on('getMapData', function (spawnAreas) {
-      var tiles = [];
 
-      spawn_layer.layer.data.forEach((row) => {
-          row.forEach((col) => {
-              if(col.index != -1) tiles.push({ x: col.x*col.width + 24, y: col.y*col.height + 24 })
-          })
-      })
-      console.log('Spawn tile = ', tiles);
-      self.socket.emit('sendMapData', tiles);
-    });
-    self.socket.on('spawnLocation', function (spawnAreas, random_tile, spells) {
-
-      //creates listener to check if "examine Item" is clicked in the right click context menu
-      var input = document.getElementById("examineItem");
-      input.addEventListener("click", function(event) {
-        event.preventDefault();
-        if (spell == 1) {
-          console.log('examineing a spell');
-          //console.log(playerInfo.username);
-          spell = 0
-          examineClickedSpell(spell);
-        }
-      });
-
-      //creates listener to check if "pick up" is clicked in the right click context menu
-      var pickUpInput = document.getElementById("pickUp");
-
-      pickUpInput.addEventListener("click", function(event) {
-        event.preventDefault();
-        if (spell == 1) {
-          spell = 0
-          pickUpClickedSpell(spell);
-        }
-      });
-
-
-      function pickUpClickedSpell (spell) {
-        //console.log(spellLocation.x, ',', spellLocation.y);
-        if (spellInfo.locationX - self.avatar.head.x >= -100 && spellInfo.locationX - self.avatar.head.x <= 100 && spellInfo.locationY - self.avatar.head.y >= -100 && spellInfo.locationY - self.avatar.head.y <= 100) {
-          console.log('picking up a spell');
-          //console.log(playerInfo.username);
-          const spellsDisplay = document.getElementById("spellsDisplay")
-          spellInventory.push(spellInfo);
-          console.log(spellInventory[0].Name);
-          var spellsTable = document.getElementById("spellsTable");
-          var row = spellsTable.insertRow();
-          var cell1 = row.insertCell();
-          var cell2 = row.insertCell();
-          var cell3 = row.insertCell();
-          cell1.innerHTML = '<img src="assets/images/Scroll_02.png" alt="Spell1">';
-          cell2.innerHTML = spellInventory[spellInventory.length-1].Name;
-          cell3.innerHTML = spellInventory[spellInventory.length-1].Descrip;
-          //fill.innerHTML = '<img src="assets/images/Scroll_02.png" alt="Spell1">'
-          document.getElementById("lookDisplay").style.display = "none";
-
-          document.getElementById("itemsDisplay").style.display = "none";
-          document.getElementById("spellsDisplay").style.display = "block";
-          document.getElementById("mapDisplay").style.display = "none";
-          document.getElementById("optionsDisplay").style.display = "none";
-          //console.log('spell was Right clicked');
-          spellInfo.selection.destroy();
-        } else {
-          console.log('Player Too far:', '\n', 'spellInfo.locationX : ', spellInfo.locationX, '-', 'self.avatar.head.x : ', self.avatar.head.x, '=', spellInfo.locationX - self.avatar.head.x, '\n', 'spellInfo.locationY : ', spellInfo.locationY, '-', 'self.avatar.head.y : ', self.avatar.head.y, '=', spellInfo.locationY - self.avatar.head.y);
-        }
-      }
-
-      function examineClickedSpell (spell) {
-        const lookDisplay = document.getElementById("lookDisplay")
-        lookDisplay.innerHTML = '<strong>SPELL NAME: </strong>'+spellInfo.Name+'<br><br><strong>Spell Description:</strong><br>'+spellInfo.Descrip
-        document.getElementById("lookDisplay").style.display = "block";
-
-        document.getElementById("itemsDisplay").style.display = "none";
-        document.getElementById("spellsDisplay").style.display = "none";
-        document.getElementById("mapDisplay").style.display = "none";
-        document.getElementById("optionsDisplay").style.display = "none";
-        //console.log('spell was Right clicked');
-      }
-
-      var spell0 = self.add.image(spells[0].x, spells[0].y, spells[0].Icon).setInteractive();
-      spell0.depth = 0;
-      spell0.on('pointerdown', function (pointer){
-        //clickFunction();
-        if (pointer.rightButtonDown())
-        {
-          spellInfo.locationX = spells[0].x;
-          spellInfo.locationY = spells[0].y;
-          spellInfo.Name = spells[0].Name;
-          spellInfo.Descrip = spells[0].Description;
-          spellInfo.selection = spell0;
-          console.log(spellInfo.Name, ' was Right clicked');
-          spell = 1;
-        }
-        else
-        {
-          console.log('spell was Left clicked');
-        }
-      });
-
-      var spell1 = self.add.image(spells[1].x, spells[1].y, spells[1].Icon).setInteractive();
-      spell1.depth = 0;
-      spell1.on('pointerdown', function (pointer){
-        //clickFunction();
-        if (pointer.rightButtonDown())
-        {
-          spellInfo.locationX = spells[1].x;
-          spellInfo.locationY = spells[1].y;
-          spellInfo.Name = spells[1].Name;
-          spellInfo.Descrip = spells[1].Description;
-          spellInfo.selection = spell1;
-          console.log(spellInfo.Name, ' was Right clicked');
-          spell = 1;
-        }
-        else
-        {
-          console.log('spell was Left clicked');
-        }
-      });
-
-      var spell2 = self.add.image(spells[2].x, spells[2].y, spells[2].Icon).setInteractive();
-      spell2.depth = 0;
-      spell2.on('pointerdown', function (pointer){
-        //clickFunction();
-        if (pointer.rightButtonDown())
-        {
-          spellInfo.locationX = spells[2].x;
-          spellInfo.locationY = spells[2].y;
-          spellInfo.Name = spells[2].Name;
-          spellInfo.Descrip = spells[2].Description;
-          spellInfo.selection = spell2;
-          console.log(spellInfo.Name, ' was Right clicked');
-          spell = 1;
-        }
-        else
-        {
-          console.log('spell was Left clicked');
-        }
-      });
-
-
-      //here is the end of the function that generates the spawn locations.
-    });*/
 
     var specialMenuInput = document.getElementById("specialMenuInput");
 
@@ -1009,12 +771,7 @@ var create = new Phaser.Class({
     function specialMenuSelect (event) {
       console.log('special clicked n stuff');
       //console.log(spellLocation.x, ',', spellLocation.y);
-      /*if (spellInfo.locationX - self.avatar.head.x >= -100 && spellInfo.locationX - self.avatar.head.x <= 100 && spellInfo.locationY - self.avatar.head.y >= -100 && spellInfo.locationY - self.avatar.head.y <= 100) {
-        console.log('picking up a spell');
 
-      } else {
-        console.log('Player Too far:', '\n', 'spellInfo.locationX : ', spellInfo.locationX, '-', 'self.avatar.head.x : ', self.avatar.head.x, '=', spellInfo.locationX - self.avatar.head.x, '\n', 'spellInfo.locationY : ', spellInfo.locationY, '-', 'self.avatar.head.y : ', self.avatar.head.y, '=', spellInfo.locationY - self.avatar.head.y);
-      }*/
     }
 
 
@@ -1293,44 +1050,21 @@ var create = new Phaser.Class({
 
         function createSprite (){
           let avatar = {};
-          if(avatarInfo.head)avatar.head = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.head).setInteractive();
-
+          self.container = self.add.container(playerInfo.x, playerInfo.y).setInteractive();
+          if(avatarInfo.head)avatar.head = self.physics.add.image(0, 0, avatarInfo.head).setInteractive();
           avatar.head.setTint(playerInfo.headColor);
           console.log('Modified color to head is: ', playerInfo.headColor);
 
-          if(avatarInfo.body)avatar.body = self.physics.add.image(playerInfo.x, playerInfo.y, avatarInfo.body).setInteractive();
-
+          if(avatarInfo.body)avatar.body = self.physics.add.image(0, 0, avatarInfo.body).setInteractive();
           avatar.body.setTint(playerInfo.bodyColor);
           console.log('Modified color to body is: ', playerInfo.bodyColor);
 
-          avatar.body.on('pointerdown', function (pointer){
-            //clickFunction();
-            if (pointer.rightButtonDown())
-            {
+          self.container.add([ avatar.head, avatar.body ]);
+
+          avatar.body.on('pointerdown', function (pointer) {
+            if (pointer.rightButtonDown()) {
               clicked = playerInfo;
-              /*var input = document.getElementById("examineItem");
-              input.addEventListener("click", function(event) {
-                event.preventDefault();
-                console.log('examineItem was clicked');
-                //console.log(playerInfo.username);
-                examineClicked(playerInfo);
-              });*/
-
-              /*function examineClicked (playerInfo) {
-                console.log(playerInfo.username);
-                const lookDisplay = document.getElementById("lookDisplay")
-                lookDisplay.innerHTML = '<strong>NAME: </strong>'+playerInfo.username+'<br><br><strong>Description:</strong><br>'+playerInfo.descrip
-                document.getElementById("lookDisplay").style.display = "block";
-
-                document.getElementById("itemsDisplay").style.display = "none";
-                document.getElementById("spellsDisplay").style.display = "none";
-                document.getElementById("mapDisplay").style.display = "none";
-                document.getElementById("optionsDisplay").style.display = "none";
-                //console.log('sprite was Right clicked');
-              }*/
-            }
-            else
-            {
+            } else {
               console.log('sprite was Left clicked');
             }
           });
@@ -1338,8 +1072,6 @@ var create = new Phaser.Class({
           document.getElementById('phaserApp').focus();
           document.getElementById('characterSelect').style.display = "none"
           document.getElementById('characterSelectBackground').style.display = "none"
-
-
 
           self.avatar = avatar;
           applyPhysics();
@@ -1350,26 +1082,16 @@ var create = new Phaser.Class({
       function applyPhysics () {
         //console.log('applyPhysics function called');
         let newSprite;
-        //self.physics.add.group();
-        let cam1 = self.cameras.main.setSize(920, 920).startFollow(self.avatar.head).setName('Camera 1');
-        //physics for head
-        self.avatar.head.setMaxVelocity(200);
+
+        let cam1 = self.cameras.main.setSize(920, 920).startFollow(self.container).setName('Camera 1');
         self.avatar.head.setSize(8, 8);
         self.avatar.head.setOffset(11, 40);
         self.avatar.head.setCollideWorldBounds(false);
-        //gives physics to local player so that they will obey blocked objects
-        self.physics.add.collider(self.avatar.head, ground_layer);
-        //physics for body
-        self.avatar.body.setMaxVelocity(200);
+
         self.avatar.body.setSize(8, 8);
         self.avatar.body.setOffset(11, 40);
         self.avatar.body.setCollideWorldBounds(false);
-        //gives physics to local player so that they will obey blocked objects
-        self.physics.add.collider(self.avatar.body, ground_layer);
-
       }
-
-
     };
 
     function addOtherPlayers(self, playerInfo) {
@@ -1378,54 +1100,28 @@ var create = new Phaser.Class({
       console.log('addOtherPlayers function Head Tint = ', playerInfo.headColor);
       console.log('addOtherPlayers function Head Tint = ', playerInfo.bodyColor);
       //console.log('addOtherPlayer function called and playerInfo.head = ', playerInfo.head, 'and, ', playerInfo.body);
-      const otherPlayerHead = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.head).setInteractive();
-      const otherPlayerBody = self.add.sprite(playerInfo.x, playerInfo.y, playerInfo.body).setInteractive();
+      var otherContainer = self.add.container(playerInfo.x, playerInfo.y).setInteractive();
+      const otherPlayerHead = self.add.sprite(0, 0, playerInfo.head).setInteractive();
+      const otherPlayerBody = self.add.sprite(0, 0, playerInfo.body).setInteractive();
+      otherContainer.add([ otherPlayerHead, otherPlayerBody ]);
 
 
-      otherPlayerHead.playerId = playerInfo.playerId;
-      otherPlayerBody.playerId = playerInfo.playerId;
-      self.otherPlayers.add(otherPlayerHead);
-      self.otherPlayers.add(otherPlayerBody);
+      otherContainer.playerId = playerInfo.playerId;
+      self.otherPlayers.add(otherContainer);
+      console.log('self.otherPlayers = ', self.otherPlayers);
 
 
-        //playerInfo.headColor = playerInfo.headColor.replace('#','0x');
-        //playerInfo.bodyColor = playerInfo.bodyColor.replace('#','0x');
         otherPlayerHead.setTint(playerInfo.headColor);
         otherPlayerBody.setTint(playerInfo.bodyColor);
         otherPlayerBody.on('pointerdown', function (pointer){
-        //clickFunction();
-        if (pointer.rightButtonDown())
-        {
+
+        if (pointer.rightButtonDown()) {
           clicked = playerInfo;
-          /*var input = document.getElementById("examineItem");
-          input.addEventListener("click", function(event) {
-            event.preventDefault();
-            console.log('examineItem was clicked');
-            //console.log(playerInfo.username);
-            examineClicked(playerInfo);
-          });*/
-
-          /*function examineClicked (playerInfo) {
-            console.log(playerInfo.username);
-            const lookDisplay = document.getElementById("lookDisplay")
-            lookDisplay.innerHTML = '<strong>NAME: </strong>'+playerInfo.username+'<br><br><strong>Description:</strong><br>'+playerInfo.descrip
-            document.getElementById("lookDisplay").style.display = "block";
-
-            document.getElementById("itemsDisplay").style.display = "none";
-            document.getElementById("spellsDisplay").style.display = "none";
-            document.getElementById("mapDisplay").style.display = "none";
-            document.getElementById("optionsDisplay").style.display = "none";
-            //console.log('sprite was Right clicked');
-          }*/
-        }
-        else
-        {
+        } else {
           console.log('sprite was Left clicked');
         }
       });
-
     };
-    //this.events.on('resize', resize, this)
   },
 
   update() {
@@ -1479,55 +1175,7 @@ var create = new Phaser.Class({
           if (this.cursors.up.isUp && this.cursors.down.isUp) {
 
           }
-          /*if (this.cursors.left.isDown) {
-            this.avatar.head.setVelocityX(-150);
-            this.avatar.head.setVelocityY(0);
-            this.avatar.body.setVelocityX(-150);
-            this.avatar.body.setVelocityY(0);
-            //console.log('Left arrow key pressed.');
-          }
-          else if (this.cursors.right.isDown) {
-            this.avatar.head.setVelocityX(150);
-            this.avatar.head.setVelocityY(0);
-            this.avatar.body.setVelocityX(150);
-            this.avatar.body.setVelocityY(0);
-            //console.log('Right arrow key pressed.');
-          }
-          else if (this.cursors.up.isDown) {
-            this.avatar.head.setVelocityY(-150);
-            this.avatar.head.setVelocityX(0);
-            this.avatar.body.setVelocityY(-150);
-            this.avatar.body.setVelocityX(0);
-            //console.log('up arrow key pressed.');
-          }
-          else if (this.cursors.down.isDown) {
-            this.avatar.head.setVelocityY(150);
-            this.avatar.head.setVelocityX(0);
-            this.avatar.body.setVelocityY(150);
-            this.avatar.body.setVelocityX(0);
-            //console.log('Down arrow key pressed.');
-          }
-          else {
-            this.avatar.head.setVelocity(0);
-            this.avatar.body.setVelocity(0);
-          }*/
         }
-      }
-
-
-
-      // emit player movement
-      if (avatarSelected == true) {
-        var x = this.avatar.head.x;
-        var y = this.avatar.head.y;
-        if (this.avatar.head.oldPosition && (x !== this.avatar.head.oldPosition.x || y !== this.avatar.head.oldPosition.y)) {
-          this.socket.emit('playerMovement', { x: this.avatar.head.x, y: this.avatar.head.y });
-        }
-        // save old position data
-        this.avatar.head.oldPosition = {
-          x: this.avatar.head.x,
-          y: this.avatar.head.y,
-        };
       }
     }
   }
