@@ -91,37 +91,8 @@ io.on('connection', function (socket) {
     spellInventory:[],
     x: 4820,
     y: 5020,
-    //username: null,
   };
-  // asks player for map tile coordinates
 
-  /*if (spawnAreas == null) {
-    console.log('spawnAreas is empty');
-    socket.emit('getMapData', spawnAreas);
-    socket.on('sendMapData', function (tiles) {
-      spawnAreas = tiles;
-      //console.log('Spawn Areas = ', spawnAreas);
-      random_tile = Math.floor((Math.random() * spawnAreas.length))
-      spells[0].x = spawnAreas[random_tile].x
-      spells[0].y = spawnAreas[random_tile].y
-      console.log('spells[0] = ', spells[0].x, spells[0].y);
-
-      random_tile = Math.floor((Math.random() * spawnAreas.length))
-      spells[1].x = spawnAreas[random_tile].x
-      spells[1].y = spawnAreas[random_tile].y
-      console.log('spells[1] = ', spells[1].x, spells[1].y);
-
-      random_tile = Math.floor((Math.random() * spawnAreas.length))
-      spells[2].x = spawnAreas[random_tile].x
-      spells[2].y = spawnAreas[random_tile].y
-      console.log('spells[2] = ', spells[2].x, spells[2].y);
-
-      socket.emit('spawnLocation', spawnAreas, random_tile, spells);
-    });
-  }else{
-    //console.log('spawnAreas is not empty = ', spawnAreas);
-    socket.emit('spawnLocation', spawnAreas, random_tile, spells);
-  }*/
 
   // send the players object to the new player
   socket.emit('currentPlayers', players, spells);
@@ -261,29 +232,37 @@ io.on('connection', function (socket) {
     }
       //if (spellInfo.locationX - self.avatar.head.x >= -100 && spellInfo.locationX - self.avatar.head.x <= 100 && spellInfo.locationY - self.avatar.head.y >= -100 && spellInfo.locationY - self.avatar.head.y <= 100)
   })
-  socket.on('voreActionClicked', function (clicked) {
+
+  socket.on('specialCreateBttnSelected', function (voreInfo){
+    //console.log('voreInfo from player = ', voreInfo);
+    players[socket.id].specialList.push(voreInfo);
+    console.log('Addition to ', players[socket.id].Username, 's custom vore options = ', players[socket.id].specialList[players[socket.id].specialList.length -1]);
+    socket.emit('newVoreAction', players[socket.id].specialList[players[socket.id].specialList.length -1]);
+  })
+
+  socket.on('voreActionClicked', function (clicked, voreAttempt) {
     console.log('Vore Action clicked.Identifier = ', clicked.Identifier);
     if (clicked.Identifier === 'player') {
       Object.keys(players).forEach(function(p)  {
         if (clicked.playerId === players[p].playerId)  {
-          let voreAttempt = players[p];
-          if (voreAttempt.x - players[socket.id].x >= -100 && voreAttempt.x - players[socket.id].x <= 100 && voreAttempt.y - players[socket.id].y >= -100 && voreAttempt.y - players[socket.id].y <= 100) {
-            console.log('Attempting to vore player = ', voreAttempt.Username);
+          let preyAttempt = players[p];
+          if (preyAttempt.x - players[socket.id].x >= -100 && preyAttempt.x - players[socket.id].x <= 100 && preyAttempt.y - players[socket.id].y >= -100 && preyAttempt.y - players[socket.id].y <= 100) {
+            for (let i = 0; i < players[socket.id].specialList.length; i++) {
+              //console.log('players[socket.id].specialList[i]', players[socket.id].specialList[i]);
+              //console.log('voreAttempt', voreAttempt);
+              if (players[socket.id].specialList[i].Name === voreAttempt.Name && players[socket.id].specialList[i].Verb === voreAttempt.Verb && players[socket.id].specialList[i].Descrip === voreAttempt.Descrip) {
+                console.log(players[socket.id].Username, ' is attempting to', players[socket.id].specialList[i].Verb, ' ', preyAttempt.Username, ' into thier ', players[socket.id].specialList[i].Name);
+              }
+            }
           } else {
-            console.log('Too Far Away From Player: ', voreAttempt.Username, ' To Vore Them');
+            console.log('Too Far Away From Player: ', preyAttempt.Username, ' To Vore Them');
           }
         }
       });
     }
   })
 
-  /*socket.on('playerMovement', function (movementData) {
-    players[socket.id].x = movementData.x;
-    players[socket.id].y = movementData.y;
-    console.log('Player ID: ', socket.id, '     X: ', Math.round(players[socket.id].x), '     Y: ', Math.round(players[socket.id].y));
-    // emit a message to all players about the player that moved
-    socket.broadcast.emit('playerMoved', players[socket.id]);
-  });*/
+
 
   socket.on('avatarSelected', function (avatarSave) {
     players[socket.id].head = avatarSave.head;
@@ -292,7 +271,7 @@ io.on('connection', function (socket) {
     players[socket.id].Description = avatarSave.descrip;
     players[socket.id].headColor = avatarSave.headColor;
     players[socket.id].bodyColor = avatarSave.bodyColor;
-    console.log('Player ID: ', socket.id, 'has chosen: ', '\n', 'username = ', players[socket.id].username, '\n', 'avatar.head = ', players[socket.id].head, '\n', 'avatar.body = ', players[socket.id].body,  '\n', 'Head Color = ', players[socket.id].headColor, '\n', 'Body Color =', players[socket.id].bodyColor, '\n', 'Description = ', players[socket.id].descrip);
+    console.log('Player ID: ', socket.id, 'has chosen: ', '\n', 'Username = ', players[socket.id].Username, '\n', 'Description = ', players[socket.id].Description, '\n', 'avatar.head = ', players[socket.id].head, '\n', 'avatar.body = ', players[socket.id].body,  '\n', 'Head Color = ', players[socket.id].headColor, '\n', 'Body Color =', players[socket.id].bodyColor);
     // emit a message to all players about the updated player avatar
     socket.broadcast.emit('avatarSelection', players[socket.id]);
   });
@@ -309,32 +288,5 @@ io.on('connection', function (socket) {
   //game.chat.add(new Message(author, data.type, data.content))
   });
 });
-
-/*io.on('connection', socket => {
-  console.log('user connected', socket.id)
-  let user = game.user.add(socket.id)
-  socket.broadcast.emit('player join', {id: socket.id, skin: user.character.skin, position: user.character.position})
-
-
-
-  socket.on('update velocity', (data) => {
-    if (!!data.velocity) {
-      console.log('character moved! data.velocity = ', data.velocity);
-      user.character.velocity = data.velocity
-      socket.broadcast.emit('update velocity', {id: socket.id, velocity: data.velocity})
-    }
-  })
-
-  socket.on('update position', (data) => {
-    if (!!data.position) {
-      // ...
-    }
-  })
-
-  socket.on('disconnect', () => {
-    io.emit('user disconnected')
-    console.log('user disconnected', socket.id)
-  })
-})*/
 
 http.listen(port, () => console.log('Listening on port 3000!'))

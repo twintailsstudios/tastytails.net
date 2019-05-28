@@ -51,7 +51,8 @@ var create = new Phaser.Class({
     var self = this;
     this.socket = io();
     console.log('this.socket = ', this.socket);
-    this.otherPlayers = this.physics.add.group();
+    //this.otherPlayers = this.physics.add.group();
+    var otherPlayers = [];
 
     this.socket.on('currentPlayers', function (players, spells) {
       Object.keys(players).forEach(function (id) {
@@ -70,21 +71,42 @@ var create = new Phaser.Class({
     });
 
     this.socket.on('avatarSelection', function (playerInfo) {
-      self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+      /*self.otherPlayers.getChildren().forEach(function (otherPlayer) {
         if (playerInfo.playerId === otherPlayer.playerId) {
           addOtherPlayers(self, playerInfo);
           console.log(playerInfo.playerId, 'chose username: ', playerInfo.username, '\n', 'Set head to: ', playerInfo.head, 'and body to: ', playerInfo.body, '\n', 'and head color to:', playerInfo.headColor,  'and body color to:', playerInfo.bodyColor, 'and they have described themselves as: ', playerInfo.descrip);
         }
-      });
+      });*/
+      for (let i = 0; i < otherPlayers.length; i++) {
+        //let movingPlayer = otherPlayers[i];
+        if (playerInfo.playerId === otherPlayers[i].playerId) {
+          addOtherPlayers(self, playerInfo);
+          console.log(playerInfo.playerId, 'chose username: ', playerInfo.username, '\n', 'Set head to: ', playerInfo.head, 'and body to: ', playerInfo.body, '\n', 'and head color to:', playerInfo.headColor,  'and body color to:', playerInfo.bodyColor, 'and they have described themselves as: ', playerInfo.descrip);
+          return;
+        }
+      }
     });
 
     this.socket.on('disconnect', function (playerId) {
-      self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+      /*otherPlayers.getChildren().forEach(function (otherPlayer) {
         if (playerId === otherPlayer.playerId) {
           console.log('Player ID: ', self.socket.id, 'disconnected');
-          otherContainer.destroy();
+          otherPlayers.otherContainer.destroy();
         }
-      });
+      });*/
+      for (let i = 0; i < otherPlayers.length; i++) {
+        //let movingPlayer = otherPlayers[i];
+        console.log('otherPlayers[i] to be destroyed = ', otherPlayers[i]);
+        console.log('playerId to be destroyed = ', playerId);
+        if (playerId === otherPlayers[i].playerId) {
+          console.log('Player ID: ', self.socket.id, 'disconnected');
+
+          otherPlayers[i].destroy();
+        }
+      }
+
+
+
     });
 
     this.socket.on('playerMoved', function (playerInfo) {
@@ -94,13 +116,22 @@ var create = new Phaser.Class({
         self.container.setPosition(playerInfo.x, playerInfo.y);
       } else {
         //console.log('someone else is moving')
-        self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+        /*otherPlayers.getChildren().forEach(function (otherPlayer) {
           if (playerInfo.playerId === otherPlayer.playerId) {
             console.log('otherPlayer variable in the playerMoved command = ', otherPlayer);
             otherPlayer.otherContainer.setPosition(playerInfo.x, playerInfo.y);
           }
-        });
+        });*/
       }
+      for (let i = 0; i < otherPlayers.length; i++) {
+        //let movingPlayer = otherPlayers[i];
+        if (playerInfo.playerId === otherPlayers[i].playerId) {
+          //console.log('otherPlayers[i] = ', otherPlayers[i]);
+        otherPlayers[i].setPosition(playerInfo.x, playerInfo.y);
+        }
+      }
+
+
     });
 
 
@@ -416,8 +447,10 @@ var create = new Phaser.Class({
           specialCreateBttn.innerHTML = '<center>Click to <br> Create <br> (Missing Special Description Selection)</center>'
           return;
         }
+      } else {
+        self.socket.emit('specialCreateBttnSelected', specialInfo);
+        //specialCreateBttnSelected(specialInfo);
       }
-      specialCreateBttnSelected(specialInfo);
     });
     var coll = document.getElementsByClassName("collapsible");
     var i;
@@ -448,10 +481,10 @@ var create = new Phaser.Class({
         }
       });
     }
-    function specialCreateBttnSelected (specialInfo) {
+    this.socket.on('newVoreAction', function (voreEntry) {
 
-      localPlayerInfo.specialList.push(specialInfo);
-      console.log('special create button clicked by', localPlayerInfo.playerId, '\n', 'confirming inputs of: ', '\n', 'Special Name = ', specialInfo.Name, '\n', 'Special Verb = ', specialInfo.Verb, '\n', 'Special Description = ', specialInfo.Descrip);
+      localPlayerInfo.specialList.push(voreEntry);
+      console.log('special create button clicked by', localPlayerInfo.playerId, '\n', 'confirming inputs of: ', '\n', 'Special Name = ', voreEntry.Name, '\n', 'Special Verb = ', voreEntry.Verb, '\n', 'Special Description = ', voreEntry.Descrip);
       console.log('testing the push array thingy: ', localPlayerInfo.specialList[localPlayerInfo.specialList.length - 1]);
       if (localPlayerInfo.specialList[0] !== undefined) {
         document.getElementById("specialTitle0").style.display = "block";
@@ -460,7 +493,7 @@ var create = new Phaser.Class({
         document.getElementById("specialDescription0").innerHTML = localPlayerInfo.specialList[0].Descrip
         document.getElementById("specialMenuInput0").innerHTML = localPlayerInfo.specialList[0].Name
         specialMenuInput0.addEventListener("click", function() {
-          self.socket.emit('voreActionClicked', clicked);
+          self.socket.emit('voreActionClicked', clicked, localPlayerInfo.specialList[0]);
         });
       }
       if (localPlayerInfo.specialList[1] !== undefined) {
@@ -673,7 +706,7 @@ var create = new Phaser.Class({
 
 
       document.getElementById("specialEdit").style.display = "none";
-    }
+    });
 
     var input = document.getElementById("optionsTab");
     input.addEventListener("click", function(event) {
@@ -1107,14 +1140,15 @@ var create = new Phaser.Class({
 
 
       otherContainer.playerId = playerInfo.playerId;
-      self.otherPlayers.add(otherContainer);
+      //self.otherPlayers.add(otherContainer);
+      otherPlayers.push(otherContainer);
       console.log('self.otherPlayers = ', self.otherPlayers);
 
 
         otherPlayerHead.setTint(playerInfo.headColor);
         otherPlayerBody.setTint(playerInfo.bodyColor);
-        otherPlayerBody.on('pointerdown', function (pointer){
 
+        otherPlayerBody.on('pointerdown', function (pointer){
         if (pointer.rightButtonDown()) {
           clicked = playerInfo;
         } else {
