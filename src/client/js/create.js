@@ -502,6 +502,9 @@ var create = new Phaser.Class({
         document.getElementById("specialTitle1").innerHTML = localPlayerInfo.specialList[1].Name
         document.getElementById("specialDescription1").innerHTML = localPlayerInfo.specialList[1].Descrip
         document.getElementById("specialMenuInput1").innerHTML = localPlayerInfo.specialList[1].Name
+        specialMenuInput1.addEventListener("click", function() {
+          self.socket.emit('voreActionClicked', clicked, localPlayerInfo.specialList[1]);
+        });
       }
       if (localPlayerInfo.specialList[2] !== undefined) {
         document.getElementById("specialTitle2").style.display = "block";
@@ -509,6 +512,9 @@ var create = new Phaser.Class({
         document.getElementById("specialTitle2").innerHTML = localPlayerInfo.specialList[2].Name
         document.getElementById("specialDescription2").innerHTML = localPlayerInfo.specialList[2].Descrip
         document.getElementById("specialMenuInput2").innerHTML = localPlayerInfo.specialList[2].Name
+        specialMenuInput2.addEventListener("click", function() {
+          self.socket.emit('voreActionClicked', clicked, localPlayerInfo.specialList[2]);
+        });
       }
       if (localPlayerInfo.specialList[3] !== undefined) {
         document.getElementById("specialTitle3").style.display = "block";
@@ -516,6 +522,9 @@ var create = new Phaser.Class({
         document.getElementById("specialTitle3").innerHTML = localPlayerInfo.specialList[3].Name
         document.getElementById("specialDescription3").innerHTML = localPlayerInfo.specialList[3].Descrip
         document.getElementById("specialMenuInput3").innerHTML = localPlayerInfo.specialList[3].Name
+        specialMenuInput3.addEventListener("click", function() {
+          self.socket.emit('voreActionClicked', clicked, localPlayerInfo.specialList[3]);
+        });
       }
       if (localPlayerInfo.specialList[4] !== undefined) {
         document.getElementById("specialTitle4").style.display = "block";

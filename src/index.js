@@ -251,7 +251,10 @@ io.on('connection', function (socket) {
               //console.log('players[socket.id].specialList[i]', players[socket.id].specialList[i]);
               //console.log('voreAttempt', voreAttempt);
               if (players[socket.id].specialList[i].Name === voreAttempt.Name && players[socket.id].specialList[i].Verb === voreAttempt.Verb && players[socket.id].specialList[i].Descrip === voreAttempt.Descrip) {
-                console.log(players[socket.id].Username, ' is attempting to', players[socket.id].specialList[i].Verb, ' ', preyAttempt.Username, ' into thier ', players[socket.id].specialList[i].Name);
+                //console.log(players[socket.id].Username, ' is attempting to', players[socket.id].specialList[i].Verb, ' ', preyAttempt.Username, ' into their ', players[socket.id].specialList[i].Name);
+                var msg = players[socket.id].Username + ' is attempting to ' + players[socket.id].specialList[i].Verb + ' ' + preyAttempt.Username + ' into their ' + players[socket.id].specialList[i].Name;
+                console.log('msg = ', msg);
+                io.sockets.emit('message', msg);
               }
             }
           } else {
@@ -280,12 +283,12 @@ io.on('connection', function (socket) {
     //console.log('players variable = ', players);
     //console.log('socket.id variable = ', socket.id);
     //console.log('players[socket.id] variable = ', players[socket.id]);
-    console.log(players[socket.id].username);
-  io.in(data.room).emit('message', data.msg, players[socket.id].username);
+    console.log(players[socket.id].Username);
+    io.in(data.room).emit('message', data.msg, players[socket.id].Username);
 
-  //let author = game.user.all[socket.id]
-  //let type = (data.type === 'ooc' || data.type === 'rp' ? data.type : null)
-  //game.chat.add(new Message(author, data.type, data.content))
+    //let author = game.user.all[socket.id]
+    //let type = (data.type === 'ooc' || data.type === 'rp' ? data.type : null)
+    //game.chat.add(new Message(author, data.type, data.content))
   });
 });
 
