@@ -253,8 +253,11 @@ io.on('connection', function (socket) {
               if (players[socket.id].specialList[i].Name === voreAttempt.Name && players[socket.id].specialList[i].Verb === voreAttempt.Verb && players[socket.id].specialList[i].Descrip === voreAttempt.Descrip) {
                 //console.log(players[socket.id].Username, ' is attempting to', players[socket.id].specialList[i].Verb, ' ', preyAttempt.Username, ' into their ', players[socket.id].specialList[i].Name);
                 var msg = players[socket.id].Username + ' is attempting to ' + players[socket.id].specialList[i].Verb + ' ' + preyAttempt.Username + ' into their ' + players[socket.id].specialList[i].Name;
+                var pred = players[socket.id];
+                var prey = preyAttempt;
                 console.log('msg = ', msg);
                 io.sockets.emit('message', msg);
+                io.sockets.emit('playerConsumed', pred, prey);
               }
             }
           } else {

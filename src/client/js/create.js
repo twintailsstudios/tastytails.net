@@ -15,6 +15,7 @@ var voreTypes = [];
 var clicked = {Identifier: ''};
 var toDestroy = '';
 var container = null;
+var cam1 = null;
 //var otherContainer = null;
 
 
@@ -99,7 +100,7 @@ var create = new Phaser.Class({
         console.log('otherPlayers[i] to be destroyed = ', otherPlayers[i]);
         console.log('playerId to be destroyed = ', playerId);
         if (playerId === otherPlayers[i].playerId) {
-          console.log('Player ID: ', self.socket.id, 'disconnected');
+          console.log('Player ID: ', otherPlayers[i].playerId, 'disconnected');
 
           otherPlayers[i].destroy();
         }
@@ -481,6 +482,11 @@ var create = new Phaser.Class({
         }
       });
     }
+
+    specialMenuInput0.addEventListener("click", function() {
+      self.socket.emit('voreActionClicked', clicked, localPlayerInfo.specialList[0]);
+    });
+
     this.socket.on('newVoreAction', function (voreEntry) {
 
       localPlayerInfo.specialList.push(voreEntry);
@@ -492,9 +498,7 @@ var create = new Phaser.Class({
         document.getElementById("specialTitle0").innerHTML = localPlayerInfo.specialList[0].Name
         document.getElementById("specialDescription0").innerHTML = localPlayerInfo.specialList[0].Descrip
         document.getElementById("specialMenuInput0").innerHTML = localPlayerInfo.specialList[0].Name
-        specialMenuInput0.addEventListener("click", function() {
-          self.socket.emit('voreActionClicked', clicked, localPlayerInfo.specialList[0]);
-        });
+
       }
       if (localPlayerInfo.specialList[1] !== undefined) {
         document.getElementById("specialTitle1").style.display = "block";
@@ -717,6 +721,39 @@ var create = new Phaser.Class({
       document.getElementById("specialEdit").style.display = "none";
     });
 
+    this.socket.on('playerConsumed', function (pred, prey) {
+      console.log('pred = ', pred, '\n', 'prey = ', prey);
+      if (prey.playerId === self.socket.id) {
+        console.log('you are prey');
+        self.avatar.head.setTexture('emptyplayer');
+        for (let i = 0; i < otherPlayers.length; i++) {
+          if (pred.playerId === otherPlayers[i].playerId) {
+            console.log('you were swallowed whole by', pred.Username);
+
+            cam1.startFollow(otherPlayers[i]);
+          }
+        }
+      } else {
+        console.log('you are not prey');
+        for (let i = 0; i < otherPlayers.length; i++) {
+          if (prey.playerId === otherPlayers[i].playerId) {
+            console.log(pred.Username, ' swallowed ', prey.Username, ' whole!');
+            console.log('otherPlayers[i] = ', otherPlayers[i]);
+            otherPlayers[i].otherContainer.otherPlayerHead.setTexture('emptyplayer');
+            //otherPlayers[i].otherPlayerHead.setTexture('emptyplayer');
+            //otherPlayers[i].otherContainer[0].setTexture('emptyplayer');
+            //otherPlayers[i].setTexture('emptyplayer');
+            //otherPlayers[i][0].setTexture('emptyplayer');
+            /*for (let info = 0; info < otherPlayers[i].length; info++) {
+              console.log('otherPlayers[i][info] = ', otherPlayers[i][info]);
+              //otherPlayers[i][info].setTexture('emptyplayer');
+              //cam1.startFollow(otherPlayers[i]);
+            }*/
+          }
+        }
+      }
+    })
+
     var input = document.getElementById("optionsTab");
     input.addEventListener("click", function(event) {
       event.preventDefault();
@@ -804,7 +841,7 @@ var create = new Phaser.Class({
 
 
 
-    var specialMenuInput = document.getElementById("specialMenuInput");
+    /*var specialMenuInput = document.getElementById("specialMenuInput");
 
     specialMenuInput.addEventListener("click", function(event) {
       event.preventDefault();
@@ -814,7 +851,7 @@ var create = new Phaser.Class({
       console.log('special clicked n stuff');
       //console.log(spellLocation.x, ',', spellLocation.y);
 
-    }
+    }*/
 
 
 
@@ -881,7 +918,7 @@ var create = new Phaser.Class({
           if (speciesSelect == 3) {
             console.log('value 3 = blue');
             speciesLable.innerHTML = '<center>Species3</center>'
-            document.getElementById('speciesSelectionWindow').src = "assets/images/WolfAnthroBase.png";
+            document.getElementById('speciesSelectionWindow').src = "assets/images/testBody_03.png";
             blueHeadSelected();
           }
         };
@@ -1028,7 +1065,7 @@ var create = new Phaser.Class({
 
 
         function blueHeadSelected() {
-			    avatarInfo.head = 'WolfAnthroBase';
+			    avatarInfo.head = 'testBody03';
           playerInfo.username = document.getElementById("uN").value;
           playerInfo.descrip = document.getElementById("descrip").value;
           playerInfo.headColor = document.getElementById("myColor1").value;
@@ -1125,7 +1162,7 @@ var create = new Phaser.Class({
         //console.log('applyPhysics function called');
         let newSprite;
 
-        let cam1 = self.cameras.main.setSize(920, 920).startFollow(self.container).setName('Camera 1');
+        cam1 = self.cameras.main.setSize(920, 920).startFollow(self.container).setName('Camera 1');
         self.avatar.head.setSize(8, 8);
         self.avatar.head.setOffset(11, 40);
         self.avatar.head.setCollideWorldBounds(false);
@@ -1147,7 +1184,6 @@ var create = new Phaser.Class({
       const otherPlayerBody = self.add.sprite(0, 0, playerInfo.body).setInteractive();
       otherContainer.add([ otherPlayerHead, otherPlayerBody ]);
 
-
       otherContainer.playerId = playerInfo.playerId;
       //self.otherPlayers.add(otherContainer);
       otherPlayers.push(otherContainer);
@@ -1158,12 +1194,12 @@ var create = new Phaser.Class({
         otherPlayerBody.setTint(playerInfo.bodyColor);
 
         otherPlayerBody.on('pointerdown', function (pointer){
-        if (pointer.rightButtonDown()) {
-          clicked = playerInfo;
-        } else {
-          console.log('sprite was Left clicked');
-        }
-      });
+          if (pointer.rightButtonDown()) {
+            clicked = playerInfo;
+          } else {
+            console.log('sprite was Left clicked');
+          }
+        });
     };
   },
 
