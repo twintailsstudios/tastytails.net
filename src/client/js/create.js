@@ -210,6 +210,7 @@ var create = new Phaser.Class({
       document.getElementById("itemsDisplay").style.display = "none";
       document.getElementById("spellsDisplay").style.display = "none";
       document.getElementById("mapDisplay").style.display = "none";
+      document.getElementById("specialDisplay").style.display = "none";
       document.getElementById("optionsDisplay").style.display = "none";
       //console.log('sprite was Right clicked');
     });
@@ -725,7 +726,8 @@ var create = new Phaser.Class({
       console.log('pred = ', pred, '\n', 'prey = ', prey);
       if (prey.playerId === self.socket.id) {
         console.log('you are prey');
-        self.avatar.head.setTexture('emptyplayer');
+        //self.avatar.head.setTexture('emptyplayer');
+        self.container.visible = false;
         for (let i = 0; i < otherPlayers.length; i++) {
           if (pred.playerId === otherPlayers[i].playerId) {
             console.log('you were swallowed whole by', pred.Username);
@@ -739,7 +741,8 @@ var create = new Phaser.Class({
           if (prey.playerId === otherPlayers[i].playerId) {
             console.log(pred.Username, ' swallowed ', prey.Username, ' whole!');
             console.log('otherPlayers[i] = ', otherPlayers[i]);
-            otherPlayers[i].otherContainer.otherPlayerHead.setTexture('emptyplayer');
+            otherPlayers[i].visible = false;
+            //otherPlayers[i].otherContainer.otherPlayerHead.setTexture('emptyplayer');
             //otherPlayers[i].otherPlayerHead.setTexture('emptyplayer');
             //otherPlayers[i].otherContainer[0].setTexture('emptyplayer');
             //otherPlayers[i].setTexture('emptyplayer');

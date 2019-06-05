@@ -89,6 +89,7 @@ io.on('connection', function (socket) {
     bodyColor:"",
     specialList:[],
     spellInventory:[],
+    consumedBy:null,
     x: 4820,
     y: 5020,
   };
@@ -112,49 +113,65 @@ io.on('connection', function (socket) {
   socket.on('movementLeft', function (playerId) {
     //console.log(playerId);
     if (playerId === players[socket.id].playerId) {
-      var temporary = {
-        x: players[socket.id].x,
-        y: players[socket.id].y,
-      };
-      temporary.x = temporary.x - 2.5;
-      //console.log(players[socket.id]);
-      collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
+      if (players[socket.id].consumedBy === null) {
+        var temporary = {
+          x: players[socket.id].x,
+          y: players[socket.id].y,
+        };
+        temporary.x = temporary.x - 2.5;
+        //console.log(players[socket.id]);
+        collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
+      } else {
+        return;
+      }
     }
   })
   socket.on('movementRight', function (playerId) {
     //console.log(playerId);
     if (playerId === players[socket.id].playerId) {
-      var temporary = {
-        x: players[socket.id].x,
-        y: players[socket.id].y,
-      };
-      temporary.x = temporary.x + 2.5;
-      //console.log(players[socket.id]);
-      collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
+      if (players[socket.id].consumedBy === null) {
+        var temporary = {
+          x: players[socket.id].x,
+          y: players[socket.id].y,
+        };
+        temporary.x = temporary.x + 2.5;
+        //console.log(players[socket.id]);
+        collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
+      } else {
+        return;
+      }
     }
   })
   socket.on('movementUp', function (playerId) {
     //console.log(playerId);
     if (playerId === players[socket.id].playerId) {
-      var temporary = {
-        x: players[socket.id].x,
-        y: players[socket.id].y,
-      };
-      temporary.y = temporary.y - 2.5;
-      //console.log(players[socket.id]);
-      collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
+      if (players[socket.id].consumedBy === null) {
+        var temporary = {
+          x: players[socket.id].x,
+          y: players[socket.id].y,
+        };
+        temporary.y = temporary.y - 2.5;
+        //console.log(players[socket.id]);
+        collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
+      } else {
+        return;
+      }
     }
   })
   socket.on('movementDown', function (playerId) {
     //console.log(playerId);
     if (playerId === players[socket.id].playerId) {
-      var temporary = {
-        x: players[socket.id].x,
-        y: players[socket.id].y,
-      };
-      temporary.y = temporary.y + 2.5;
-      //console.log(players[socket.id]);
-      collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
+      if (players[socket.id].consumedBy === null) {
+        var temporary = {
+          x: players[socket.id].x,
+          y: players[socket.id].y,
+        };
+        temporary.y = temporary.y + 2.5;
+        //console.log(players[socket.id]);
+        collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
+      } else {
+        return;
+      }
     }
   })
 
@@ -258,6 +275,9 @@ io.on('connection', function (socket) {
                 console.log('msg = ', msg);
                 io.sockets.emit('message', msg);
                 io.sockets.emit('playerConsumed', pred, prey);
+                players[p].consumedBy = pred;
+                players[p].x = 0;
+                players[p].y = 0;
               }
             }
           } else {
