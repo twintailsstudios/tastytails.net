@@ -2,7 +2,7 @@
 <html>
   <style>
     body {
-      background-color:black;
+      background-color: #122a4e;
     }
     h1, h2 {
       color:white;
@@ -23,16 +23,376 @@
       width: 30%;
       height: 30%;
     }
+    #home{
+      position: static;
+    }
+    #characterCreator{
+        /**display: none;*/
+        position: absolute;
+        background-color: #0b4b90;
+        border: solid;
+        border-width: 5px;
+        border-color: #05336f;
+        border-radius: 10px;
+        height:500px;
+        left: 10%;
+        right: 10%;
+    }
+    #preview{
+      position:absolute;
+      background-color: pink;
+      border: solid;
+      border-width: 5px;
+      right:5%;
+      top:10%;
+      bottom:30%;
+      left:80%;
+    }
+    .pullout{
+      display: none;
+      position:absolute;
+      background-color: #74b6dc;
+      border: solid;
+      border-width: 5px;
+      border-color: #05336f;
+      border-radius: 10px;
+      right:21%;
+      top:5%;
+      bottom:10%;
+      left:15%;
+    }
+    #genderPullout{
+      display: block;
+    }
+
+    .button {
+  display: inline-block;
+  border-radius: 4px;
+  background-color: #60d8c2;
+  border: none;
+  color: #FFFFFF;
+  text-align: center;
+  font-size: 50px;
+  padding: 5px;
+  width: 150px;
+  transition: all 0.5s;
+  cursor: pointer;
+  margin: 5px;
+}
+.button.left{
+  font-size: 25px;
+  width: 100px;
+}
+.button.right{
+  font-size: 25px;
+  width: 100px;
+}
+
+.button span {
+  cursor: pointer;
+  display: inline-block;
+  position: relative;
+  transition: 0.5s;
+}
+
+  .button.left span:before {
+    content: '\00AB';
+    left: 20px;
+  }
+  .button.right span:before {
+    content: '\00bb';
+    right: -20px;
+  }
+  .button.main span:after {
+    content: '\00bb';
+    right: -20px;
+  }
+
+.button span:after {
+  position: absolute;
+  opacity: 0;
+  top: 0;
+  transition: 0.2s;
+}
+
+.button:hover span {
+  padding-right: 25px;
+}
+.button.right:hover span {
+  padding-left: 50px;
+}
+
+.button:hover span:after {
+  opacity: 1;
+  right: 0;
+}
+.button:active {
+  background-color: #e5ecb4;
+  box-shadow: 0 5px #666;
+  transform: translateY(4px);
+}
+
   </style>
 
   <body>
+    <div id ="home">
+      <center>
+        <h1>TastyTails</h1>
+        <h2>~Under Construction~</h2>
+        <a href="gameindex.html">Click Here to play Alpha</a><br>
+        <img src="assets/images/Tasty_Tails_under_construction.png" alt="Under Construction">
+      </center>
+    </div>
+    <div id ="characterCreator">
+      <div id="primaryButtons">
+        <button id="gender" class="button main" style="vertical-align:middle"><span>&#9892; </span></button>
+        <br>
+        <button id="species" class="button main" style="vertical-align:middle"><span>Species </span></button>
+        <br>
+        <button id="about" class="button main" style="vertical-align:middle"><span>About </span></button>
+      </div>
 
-    <center>
-      <h1>TastyTails</h1>
-      <h2>~Under Construction~</h2>
-      <a href="gameindex.html">Click Here to play Alpha</a><br>
-      <img src="assets/images/Tasty_Tails_under_construction.png" alt="Under Construction">
-    </center>
+      <div id ="genderPullout" class="pullout">
+        <div id ="bodyType">
+          <button id="bodyLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+          Body Type Options
+          <button id="bodyRight" class="button right" style="vertical-align:middle"><span> </span></button>
+        </div>
+        <div id ="genitailia">
+          <button id="genitleLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+          Genitailia Options
+          <button id="genitleRight" class="button right" style="vertical-align:middle"><span> </span></button>
+        </div>
+
+      </div>
+      <div id ="speciesPullout" class="pullout">
+        <div id ="headType">
+          <button id="headLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+          Head Type Options
+          <button id="headRight" class="button right" style="vertical-align:middle"><span> </span></button>
+        </div>
+        <div id ="tailType">
+          <button id="tailLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+          Tail Options
+          <button id="tailRight" class="button right" style="vertical-align:middle"><span> </span></button>
+        </div>
+      </div>
+      <div id ="aboutPullout" class="pullout">
+
+      </div>
+
+      <div id="preview">
+
+      </div>
+    </div>
+
+
+
+
+
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.13.0/dist/phaser.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+      gender.addEventListener("click", function() {
+        console.log('gender clicked');
+        document.getElementById("genderPullout").style.display = "block";
+        document.getElementById("speciesPullout").style.display = "none";
+        document.getElementById("aboutPullout").style.display = "none";
+        //document.getElementById("genderPullout").style.transform = translateX(50px);
+      });
+      species.addEventListener("click", function() {
+        console.log('species clicked');
+        document.getElementById("genderPullout").style.display = "none";
+        document.getElementById("speciesPullout").style.display = "block";
+        document.getElementById("aboutPullout").style.display = "none";
+      });
+      about.addEventListener("click", function() {
+        console.log('about clicked');
+        document.getElementById("genderPullout").style.display = "none";
+        document.getElementById("speciesPullout").style.display = "none";
+        document.getElementById("aboutPullout").style.display = "block";
+      });
+      bodyLeft.addEventListener("click", function() {
+        console.log('bodyLeft clicked');
+        if (bodySelection > 1) {
+          console.log('bodySelection is greater than 1');
+          bodySelection = bodySelection - 1;
+          console.log('setting bodySelection to: ', bodySelection);
+        }
+      });
+      bodyRight.addEventListener("click", function() {
+        console.log('bodyRight clicked');
+        if (bodySelection < 2) {
+          console.log('bodySelection is less than 1');
+          bodySelection = bodySelection + 1;
+          console.log('setting bodySelection to: ', bodySelection);
+        }
+      });
+      genitleLeft.addEventListener("click", function() {
+        console.log('genitleLeft clicked');
+        if (genitleSelection > 1) {
+          genitleSelection = genitleSelection - 1;
+          console.log('setting genitleSelection to: ', genitleSelection);
+        } else {
+          console.log('genitleSelection = 1 restarting');
+          genitleSelection = 3;
+          console.log('setting genitleSelection to: ', genitleSelection);
+        }
+      });
+      genitleRight.addEventListener("click", function() {
+        console.log('genitleRight clicked');
+        if (genitleSelection < 3) {
+          genitleSelection = genitleSelection + 1;
+          console.log('setting genitleSelection to: ', genitleSelection);
+        } else {
+          console.log('genitleSelection = 3 restarting');
+          genitleSelection = 1;
+          console.log('setting genitleSelection to: ', genitleSelection);
+        }
+      });
+
+      var bodySelection = 1;
+      var genitleSelection = 1;
+      var headSelection = 1;
+      console.log('bodySelection = ', bodySelection);
+      console.log('genitleSelection = ', genitleSelection);
+      var config = {
+        type: Phaser.AUTO,
+        parent: 'preview',
+        width: 200,
+        height: 200,
+        physics: {
+          default: 'arcade',
+          arcade: {
+            debug: true,
+            gravity: { y: 0 }
+          }
+        },
+        scene: {
+          preload: preload,
+          create: create,
+          update: update
+        }
+      };
+
+      var game = new Phaser.Game(config);
+      var localPlayerInfo = {playerId:'', username:'', descrip:'', headColor:'',bodyColor:'', specialList:[]};
+
+      function preload() {
+        this.load.spritesheet('testBody', 'assets/spritesheets/testBody.png', {frameWidth: 109, frameHeight: 220});
+        this.load.spritesheet('head_01', 'assets/spritesheets/head_01.png', {frameWidth: 182, frameHeight: 190});
+        this.load.spritesheet('head_02', 'assets/spritesheets/head_02.png', {frameWidth: 182, frameHeight: 190});
+        this.load.spritesheet('head_03', 'assets/spritesheets/head_03.png', {frameWidth: 182, frameHeight: 190});
+        this.load.spritesheet('body_01', 'assets/spritesheets/body_01.png', {frameWidth: 182, frameHeight: 190});
+        this.load.spritesheet('tail_01', 'assets/spritesheets/tail_01.png', {frameWidth: 182, frameHeight: 190});
+        this.load.spritesheet('eyes_01', 'assets/spritesheets/eyes_01.png', {frameWidth: 182, frameHeight: 190});
+      }
+
+      function create() {
+        var self = this;
+        this.socket = io();
+        this.otherPlayers = this.physics.add.group();
+        cursors = this.input.keyboard.createCursorKeys();
+        //console.log('self.socket = ', self.socket);
+        this.socket.on('currentPlayers', function (players, spells) {
+          Object.keys(players).forEach(function (id) {
+            console.log('Local players socket Id = ', players[id].playerId);
+            if (players[id].playerId === self.socket.id) {
+              console.log('players[id] = ', players[id]);
+              addPlayer(self, players[id]);
+            } else {
+              return;
+            }
+          });
+        });
+        headRight.addEventListener("click", function() {
+          console.log('headRight clicked');
+          if (headSelection < 3) {
+            headSelection = headSelection + 1;
+            headfunct(self, headSelection);
+          } else {
+            headSelection = 1;
+            headfunct(self, headSelection);
+          }
+        });
+
+        function headfunct(self, headSelection) {
+          self.head.setTexture('head02');
+        }
+        function addPlayer(self, playerInfo) {
+          //self.stack = self.add.sprite(0, 0, 'body_01');
+          //self.stack.visible = false;
+          //self.stack.play('bodyDown');
+          var headAnimConfig = {
+            key: 'headDown',
+            frames: self.anims.generateFrameNumbers(playerInfo.head, { start: 1, end: 8 }),
+            frameRate: 9,
+            repeat: -1,
+            showOnStart: true
+          };
+          self.anims.create(headAnimConfig);
+
+          console.log('player head = ', playerInfo.head);
+          self.container = self.add.container(0, 0).setInteractive();
+          self.head = self.physics.add.sprite(0, 0, playerInfo.head).setInteractive();
+          //head.setTint(playerInfo.headColor);
+          body = self.physics.add.sprite(0, 0, playerInfo.body).setInteractive();
+          //body.setTint(playerInfo.bodyColor);
+          tail = self.physics.add.sprite(0, 0, playerInfo.tail).setInteractive();
+          //tail.setTint(playerInfo.bodyColor);
+          eyes = self.physics.add.sprite(0, 0, playerInfo.eyes).setInteractive();
+          //eyes.setTint(playerInfo.bodyColor);
+          self.container.add([ self.head, body, tail, eyes ]);
+          //self.container.visible = false;
+          self.head.play('headDown');
+          body.play('bodyDown');
+          tail.play('tailDown');
+          eyes.play('eyesDown');
+
+
+          localPlayerInfo.playerId = playerInfo.playerId;
+          //localPlayerInfo.sprite = self.stack
+          let cam1 = self.cameras.main.setSize(200, 200).startFollow(self.container).setName('Camera 1');
+
+
+        }
+        var bodyAnimConfig = {
+          key: 'bodyDown',
+          frames: self.anims.generateFrameNumbers('body_01', { start: 1, end: 8 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        };
+        this.anims.create(bodyAnimConfig);
+
+        var tailAnimConfig = {
+          key: 'tailDown',
+          frames: self.anims.generateFrameNumbers('tail_01', { start: 1, end: 8 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        };
+        this.anims.create(tailAnimConfig);
+        var eyesAnimConfig = {
+          key: 'eyesDown',
+          frames: self.anims.generateFrameNumbers('eyes_01', { start: 1, end: 8 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        };
+        this.anims.create(eyesAnimConfig);
+      }
+
+
+      function update() {
+        if (cursors.down.isDown)
+        {
+          //console.log('self.stack in update = ', self.stack);
+          //self.stack.anims.play('down');
+        }
+      }
+    </script>
 
   </body>
 </html>

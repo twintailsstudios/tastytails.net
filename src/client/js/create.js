@@ -52,7 +52,7 @@ var create = new Phaser.Class({
     var self = this;
     this.socket = io();
     console.log('this.socket = ', this.socket);
-    //this.otherPlayers = this.physics.add.group();
+
     var otherPlayers = [];
 
     this.socket.on('currentPlayers', function (players, spells) {
