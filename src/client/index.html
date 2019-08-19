@@ -277,7 +277,8 @@
       };
 
       var game = new Phaser.Game(config);
-      var localPlayerInfo = {playerId:'', username:'', descrip:'', headColor:'',bodyColor:'', specialList:[]};
+      var localPlayerInfo = {Identifier:'', playerId:'', Username:'', Description:'', head:'head_01', headColor:'', body:'body_01', bodyColor:'', tail:'tail_01', eyes:'eyes_01', specialList:[], spellInventory:[],
+      consumedBy:''};
 
       function preload() {
         this.load.spritesheet('testBody', 'assets/spritesheets/testBody.png', {frameWidth: 109, frameHeight: 220});
@@ -316,39 +317,72 @@
             headfunct(self, headSelection);
           }
         });
-
+        headLeft.addEventListener("click", function() {
+          console.log('headRight clicked');
+          if (headSelection > 1) {
+            headSelection = headSelection - 1;
+            headfunct(self, headSelection);
+          } else {
+            headSelection = 3;
+            headfunct(self, headSelection);
+          }
+        });
         function headfunct(self, headSelection) {
-          self.head.setTexture('head02');
+          if (headSelection == 1) {
+            localPlayerInfo.head = 'head_01';
+          }
+          if (headSelection == 2) {
+            localPlayerInfo.head = 'head_02';
+          }
+          if (headSelection == 3) {
+            localPlayerInfo.head = 'head_03';
+          }
+          self.socket.emit('characterUpdate', localPlayerInfo);
         }
+
+
+        this.socket.on('characterUpdated', function (playerInfo) {
+          //console.log('characterUpdated', '\n', 'playerInfo.playerId = ', playerInfo.playerId, '\n', 'self.socket.id = ', self.socket.id);
+            if (playerInfo.playerId === self.socket.id) {
+              //addOtherPlayers(self, playerInfo);
+              console.log(playerInfo.playerId, 'Called new animation successfully: ', '\n', 'Set head to: ', playerInfo.head, '\n', 'Set body to: ', playerInfo.body, '\n', 'Set Tail to:', playerInfo.tail,  '\n', 'Set eyes to:', playerInfo.eyes);
+              self.head.anims.stop();
+              self.body.anims.stop();
+              self.tail.anims.stop();
+              self.eyes.anims.stop();
+              self.head.play(playerInfo.head + 'Down', false, 1);
+              self.body.play(playerInfo.body + 'Down', false, 1);
+              self.tail.play(playerInfo.tail + 'Down', false, 1);
+              self.eyes.play(playerInfo.eyes + 'Down', false, 1);
+
+              console.log('Head: ', self.head.anims.nextTick, '\n', 'Body: ', self.body.anims.nextTick, '\n', 'Tail: ', self.tail.anims.nextTick, '\n', 'Eyes: ', self.eyes.anims.nextTick);
+              return;
+            }
+        });
+
+
         function addPlayer(self, playerInfo) {
           //self.stack = self.add.sprite(0, 0, 'body_01');
           //self.stack.visible = false;
           //self.stack.play('bodyDown');
-          var headAnimConfig = {
-            key: 'headDown',
-            frames: self.anims.generateFrameNumbers(playerInfo.head, { start: 1, end: 8 }),
-            frameRate: 9,
-            repeat: -1,
-            showOnStart: true
-          };
-          self.anims.create(headAnimConfig);
+
 
           console.log('player head = ', playerInfo.head);
           self.container = self.add.container(0, 0).setInteractive();
           self.head = self.physics.add.sprite(0, 0, playerInfo.head).setInteractive();
           //head.setTint(playerInfo.headColor);
-          body = self.physics.add.sprite(0, 0, playerInfo.body).setInteractive();
+          self.body = self.physics.add.sprite(0, 0, playerInfo.body).setInteractive();
           //body.setTint(playerInfo.bodyColor);
-          tail = self.physics.add.sprite(0, 0, playerInfo.tail).setInteractive();
+          self.tail = self.physics.add.sprite(0, 0, playerInfo.tail).setInteractive();
           //tail.setTint(playerInfo.bodyColor);
-          eyes = self.physics.add.sprite(0, 0, playerInfo.eyes).setInteractive();
+          self.eyes = self.physics.add.sprite(0, 0, playerInfo.eyes).setInteractive();
           //eyes.setTint(playerInfo.bodyColor);
-          self.container.add([ self.head, body, tail, eyes ]);
+          self.container.add([ self.head, self.body, self.tail, self.eyes ]);
           //self.container.visible = false;
-          self.head.play('headDown');
-          body.play('bodyDown');
-          tail.play('tailDown');
-          eyes.play('eyesDown');
+          self.head.play('head_01Down');
+          self.body.play('bodyDown');
+          self.tail.play('tailDown');
+          self.eyes.play('eyesDown');
 
 
           localPlayerInfo.playerId = playerInfo.playerId;
@@ -357,6 +391,27 @@
 
 
         }
+        self.anims.create({
+          key: 'head_01Down',
+          frames: self.anims.generateFrameNumbers('head_01', { start: 1, end: 8 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'head_02Down',
+          frames: self.anims.generateFrameNumbers('head_02', { start: 1, end: 8 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'head_03Down',
+          frames: self.anims.generateFrameNumbers('head_03', { start: 1, end: 8 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
         var bodyAnimConfig = {
           key: 'bodyDown',
           frames: self.anims.generateFrameNumbers('body_01', { start: 1, end: 8 }),
@@ -388,8 +443,7 @@
       function update() {
         if (cursors.down.isDown)
         {
-          //console.log('self.stack in update = ', self.stack);
-          //self.stack.anims.play('down');
+          console.log('Head: ', this.head.anims.nextTick, '\n', 'Body: ', this.body.anims.nextTick, '\n', 'Tail: ', this.tail.anims.nextTick, '\n', 'Eyes: ', this.eyes.anims.nextTick);
         }
       }
     </script>

@@ -85,10 +85,12 @@ io.on('connection', function (socket) {
     playerId: socket.id,
     Username:"",
     Description:"",
-    head:"head_01",
+    head:"",
     headColor:"",
     body:"",
     bodyColor:"",
+    tail:"",
+    eyes:"",
     specialList:[],
     spellInventory:[],
     consumedBy:null,
@@ -290,7 +292,19 @@ io.on('connection', function (socket) {
     }
   })
 
+  socket.on('characterUpdate', function (pushedInfo) {
+    players[socket.id].head = pushedInfo.head;
+    players[socket.id].headColor = pushedInfo.headColor;
+    players[socket.id].body = pushedInfo.body;
+    players[socket.id].bodyColor = pushedInfo.bodyColor;
+    players[socket.id].tail = pushedInfo.tail;
+    players[socket.id].eyes = pushedInfo.eyes;
+    players[socket.id].Username = pushedInfo.Username;
+    players[socket.id].Description = pushedInfo.Description;
+    console.log('updating character...');
+    socket.emit('characterUpdated', players[socket.id]);
 
+  });
 
   socket.on('avatarSelected', function (avatarSave) {
     players[socket.id].head = avatarSave.head;
