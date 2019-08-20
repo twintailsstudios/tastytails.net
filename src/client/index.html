@@ -158,6 +158,7 @@
   height: 50px;
   border-radius: 100%;
   border: 2px solid rgba(15, 15, 15, 0.2);
+  background-color: rgb(255, 255, 255);
 }
 
 
@@ -283,11 +284,10 @@
         listenForEvents() {
           let isMouseDown = false;
           const onMouseDown = (e) => {
-            //let currentX = e.clientX - this.target.offsetLeft;
-            //let currentY = e.clientY - this.target.offsetTop;
-            let currentX = e.clientX - 759.5;
-            let currentY = e.clientY - 574;
-            console.log('currentX = ', currentX, '\n', 'currentY = ', currentY, '\n', 'e.clientX = ', e.clientX, '\n', 'e.clientY = ', e.clientY, '\n', 'this.target.offsetLeft = ', this.target.offsetLeft, '\n', 'this.target.offsetTop = ', this.target.offsetTop);
+            let colorPickerRect = document.getElementById('color-picker').getBoundingClientRect();
+            let currentX = e.clientX - colorPickerRect.left;
+            let currentY = e.clientY - colorPickerRect.top;
+            //console.log('currentX = ', currentX, '\n', 'currentY = ', currentY, '\n', 'e.clientX = ', e.clientX, '\n', 'e.clientY = ', e.clientY, '\n', 'this.target.offsetLeft = ', this.target.offsetLeft, '\n', 'this.target.offsetTop = ', this.target.offsetTop);
             if(currentY > this.pickerCircle.y && currentY < this.pickerCircle.y + this.pickerCircle.width && currentX > this.pickerCircle.x && currentX < this.pickerCircle.x + this.pickerCircle.width) {
               isMouseDown = true;
             } else {
@@ -297,8 +297,9 @@
           }
           const onMouseMove = (e) => {
             if (isMouseDown) {
-              let currentX = e.clientX - this.target.offsetLeft;
-              let currentY = e.clientY - this.target.offsetTop;
+              let colorPickerRect = document.getElementById('color-picker').getBoundingClientRect();
+              let currentX = e.clientX - colorPickerRect.left;
+              let currentY = e.clientY - colorPickerRect.top;
               this.pickerCircle.x = currentX;
               this.pickerCircle.y = currentY;
             }
@@ -314,7 +315,7 @@
         }
 
         getPickedColor() {
-          let imageData = this.context.getImageData(this.pickerCircle.x, pickerCircle.y, 1, 1);
+          let imageData = this.context.getImageData(this.pickerCircle.x, this.pickerCircle.y, 1, 1);
             return {r: imageData.data[0], g: imageData.data[1], b: imageData.data[2] };
         }
         onChange(callback) {
@@ -325,9 +326,11 @@
       //draw
       setInterval(() => picker.draw(), 1);
       picker.onChange((color) => {
-        let selected = document.getElementByClassName("selected")[0];
-          selected.style.backgroundColor = 'rgb(${color.r}, ${color.g}, {color.b})';
-      })
+        let selected = document.getElementsByClassName("selected")[0];
+        console.log('color.r = ', color.r, '\n', 'color.g = ', color.g, '\n', 'color.b', color.b);
+          selected.style.backgroundColor = 'rgb(' + [color.r,color.g,color.b].join(',') + ')';
+
+      });
 
       gender.addEventListener("click", function() {
         console.log('gender clicked');
