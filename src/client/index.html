@@ -283,9 +283,10 @@
         listenForEvents() {
           let isMouseDown = false;
           const onMouseDown = (e) => {
-            let currentX = e.clientX - this.target.offsetLeft;
-            let currentY = e.clientY - this.target.offsetTop;
-
+            //let currentX = e.clientX - this.target.offsetLeft;
+            //let currentY = e.clientY - this.target.offsetTop;
+            let currentX = e.clientX - 759.5;
+            let currentY = e.clientY - 574;
             console.log('currentX = ', currentX, '\n', 'currentY = ', currentY, '\n', 'e.clientX = ', e.clientX, '\n', 'e.clientY = ', e.clientY, '\n', 'this.target.offsetLeft = ', this.target.offsetLeft, '\n', 'this.target.offsetTop = ', this.target.offsetTop);
             if(currentY > this.pickerCircle.y && currentY < this.pickerCircle.y + this.pickerCircle.width && currentX > this.pickerCircle.x && currentX < this.pickerCircle.x + this.pickerCircle.width) {
               isMouseDown = true;
@@ -316,7 +317,7 @@
               return {r: imageData.data[0], g: imageData.data[1], b: imageData.data[2] };
           }
           onChange(callback) {
-            this.onchangeCallback = Callback;
+            this.onChangeCallback = callback;
           }
         }
       }
