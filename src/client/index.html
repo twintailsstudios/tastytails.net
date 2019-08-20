@@ -311,20 +311,20 @@
           this.target.addEventListener("mousemove", onMouseMove);
           this.target.addEventListener("mousemove", () => this.onChangeCallback(this.getPickedColor()));
           document.addEventListener("mouseup", onMouseUp);
+        }
 
-          getPickedColor() {
-            let imageData = this.context.getImageData(this.pickerCircle.x, pickerCircle.y, 1, 1);
-              return {r: imageData.data[0], g: imageData.data[1], b: imageData.data[2] };
-          }
-          onChange(callback) {
-            this.onChangeCallback = callback;
-          }
+        getPickedColor() {
+          let imageData = this.context.getImageData(this.pickerCircle.x, pickerCircle.y, 1, 1);
+            return {r: imageData.data[0], g: imageData.data[1], b: imageData.data[2] };
+        }
+        onChange(callback) {
+          this.onChangeCallback = callback;
         }
       }
       let picker = new Picker(document.getElementById("color-picker"), 250, 220);
       //draw
       setInterval(() => picker.draw(), 1);
-      pickere((color) => {
+      picker.onChange((color) => {
         let selected = document.getElementByClassName("selected")[0];
           selected.style.backgroundColor = 'rgb(${color.r}, ${color.g}, {color.b})';
       })
