@@ -230,107 +230,7 @@
     <script src="/socket.io/socket.io.js"></script>
 
     <script>
-      class Picker {
-        constructor(target, width, height) {
-          this.target = target;
-          this.width = width;
-          this.height = height;
-          this.target.width = width;
-          this.target.height = height;
-          //Get context
-          this.context = this.target.getContext("2d");
-          //Circle
-          this.pickerCircle = { x: 10, y: 10, width: 7, height: 7 };
 
-          this.listenForEvents();
-        }
-
-        draw() {
-          this.build();
-        }
-
-        build() {
-          let gradient = this.context.createLinearGradient(0, 0, this.width, 0);
-
-          //Color Stops
-          gradient.addColorStop(0, "rgb(255, 0, 0)");
-          gradient.addColorStop(0.15, "rgb(255, 0, 255)");
-          gradient.addColorStop(0.33, "rgb(0, 0, 255)");
-          gradient.addColorStop(0.49, "rgb(0, 255, 255)");
-          gradient.addColorStop(0.67, "rgb(0, 255, 0)");
-          gradient.addColorStop(0.84, "rgb(255, 255, 0)");
-          gradient.addColorStop(1, "rgb(255, 0, 0)");
-          //Fill it
-          this.context.fillStyle = gradient;
-          this.context.fillRect(0, 0, this.width, this.height);
-
-          //Apply black & white
-          gradient = this.context.createLinearGradient(0, 0, 0, this.height);
-          gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
-          gradient.addColorStop(0.5, "rgba(255, 255, 255, 0)");
-          gradient.addColorStop(0.5, "rgba(0, 0, 0, 0)");
-          gradient.addColorStop(1, "rgba(0, 0, 0, 1)");
-          this.context.fillStyle = gradient;
-          this.context.fillRect(0, 0, this.width, this.height);
-
-          //Circle
-          this.context.beginPath();
-          this.context.arc(this.pickerCircle.x, this.pickerCircle.y, this.pickerCircle.width, 0, Math.PI * 2);
-          this.context.strokeStyle = "black";
-          this.context.stroke();
-          this.context.closePath();
-
-        }
-        listenForEvents() {
-          let isMouseDown = false;
-          const onMouseDown = (e) => {
-            let colorPickerRect = document.getElementById('color-picker').getBoundingClientRect();
-            let currentX = e.clientX - colorPickerRect.left;
-            let currentY = e.clientY - colorPickerRect.top;
-            //console.log('currentX = ', currentX, '\n', 'currentY = ', currentY, '\n', 'e.clientX = ', e.clientX, '\n', 'e.clientY = ', e.clientY, '\n', 'this.target.offsetLeft = ', this.target.offsetLeft, '\n', 'this.target.offsetTop = ', this.target.offsetTop);
-            if(currentY > this.pickerCircle.y && currentY < this.pickerCircle.y + this.pickerCircle.width && currentX > this.pickerCircle.x && currentX < this.pickerCircle.x + this.pickerCircle.width) {
-              isMouseDown = true;
-            } else {
-              this.pickerCircle.x = currentX;
-              this.pickerCircle.y = currentY;
-            }
-          }
-          const onMouseMove = (e) => {
-            if (isMouseDown) {
-              let colorPickerRect = document.getElementById('color-picker').getBoundingClientRect();
-              let currentX = e.clientX - colorPickerRect.left;
-              let currentY = e.clientY - colorPickerRect.top;
-              this.pickerCircle.x = currentX;
-              this.pickerCircle.y = currentY;
-            }
-          }
-          const onMouseUp = () => {
-            isMouseDown = false;
-          }
-          //Register
-          this.target.addEventListener("mousedown", onMouseDown);
-          this.target.addEventListener("mousemove", onMouseMove);
-          this.target.addEventListener("mousemove", () => this.onChangeCallback(this.getPickedColor()));
-          document.addEventListener("mouseup", onMouseUp);
-        }
-
-        getPickedColor() {
-          let imageData = this.context.getImageData(this.pickerCircle.x, this.pickerCircle.y, 1, 1);
-            return {r: imageData.data[0], g: imageData.data[1], b: imageData.data[2] };
-        }
-        onChange(callback) {
-          this.onChangeCallback = callback;
-        }
-      }
-      let picker = new Picker(document.getElementById("color-picker"), 250, 220);
-      //draw
-      setInterval(() => picker.draw(), 1);
-      picker.onChange((color) => {
-        let selected = document.getElementsByClassName("selected")[0];
-        console.log('color.r = ', color.r, '\n', 'color.g = ', color.g, '\n', 'color.b', color.b);
-          selected.style.backgroundColor = 'rgb(' + [color.r,color.g,color.b].join(',') + ')';
-
-      });
 
       gender.addEventListener("click", function() {
         console.log('gender clicked');
@@ -415,7 +315,7 @@
       };
 
       var game = new Phaser.Game(config);
-      var localPlayerInfo = {Identifier:'', playerId:'', Username:'', Description:'', head:'head_01', headColor:'', body:'body_01', bodyColor:'', tail:'tail_01', eyes:'eyes_01', specialList:[], spellInventory:[],
+      var localPlayerInfo = {Identifier:'', playerId:'', Username:'', Description:'', head:'head_01', body:'body_01', tail:'tail_01', eyes:'eyes_01', primaryColor:'', specialList:[], spellInventory:[],
       consumedBy:''};
 
       function preload() {
@@ -445,6 +345,139 @@
             }
           });
         });
+
+
+
+
+
+        var colorValue = "";
+        class Picker {
+          constructor(target, width, height) {
+            this.target = target;
+            this.width = width;
+            this.height = height;
+            this.target.width = width;
+            this.target.height = height;
+            //Get context
+            this.context = this.target.getContext("2d");
+            //Circle
+            this.pickerCircle = { x: 10, y: 10, width: 7, height: 7 };
+
+
+
+            this.listenForEvents();
+          }
+
+          draw() {
+            this.build();
+          }
+
+          build() {
+            let gradient = this.context.createLinearGradient(0, 0, this.width, 0);
+
+            //Color Stops
+            gradient.addColorStop(0, "rgb(255, 0, 0)");
+            gradient.addColorStop(0.15, "rgb(255, 0, 255)");
+            gradient.addColorStop(0.33, "rgb(0, 0, 255)");
+            gradient.addColorStop(0.49, "rgb(0, 255, 255)");
+            gradient.addColorStop(0.67, "rgb(0, 255, 0)");
+            gradient.addColorStop(0.84, "rgb(255, 255, 0)");
+            gradient.addColorStop(1, "rgb(255, 0, 0)");
+            //Fill it
+            this.context.fillStyle = gradient;
+            this.context.fillRect(0, 0, this.width, this.height);
+
+            //Apply black & white
+            gradient = this.context.createLinearGradient(0, 0, 0, this.height);
+            gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+            gradient.addColorStop(0.5, "rgba(255, 255, 255, 0)");
+            gradient.addColorStop(0.5, "rgba(0, 0, 0, 0)");
+            gradient.addColorStop(1, "rgba(0, 0, 0, 1)");
+            this.context.fillStyle = gradient;
+            this.context.fillRect(0, 0, this.width, this.height);
+
+            //Circle
+            this.context.beginPath();
+            this.context.arc(this.pickerCircle.x, this.pickerCircle.y, this.pickerCircle.width, 0, Math.PI * 2);
+            this.context.strokeStyle = "black";
+            this.context.stroke();
+            this.context.closePath();
+
+          }
+          listenForEvents() {
+            let isMouseDown = false;
+            const onMouseDown = (e) => {
+              let colorPickerRect = document.getElementById('color-picker').getBoundingClientRect();
+              let currentX = e.clientX - colorPickerRect.left;
+              let currentY = e.clientY - colorPickerRect.top;
+              //console.log('currentX = ', currentX, '\n', 'currentY = ', currentY, '\n', 'e.clientX = ', e.clientX, '\n', 'e.clientY = ', e.clientY, '\n', 'this.target.offsetLeft = ', this.target.offsetLeft, '\n', 'this.target.offsetTop = ', this.target.offsetTop);
+              if(currentY > this.pickerCircle.y && currentY < this.pickerCircle.y + this.pickerCircle.width && currentX > this.pickerCircle.x && currentX < this.pickerCircle.x + this.pickerCircle.width) {
+                isMouseDown = true;
+              } else {
+                this.pickerCircle.x = currentX;
+                this.pickerCircle.y = currentY;
+              }
+            }
+            const onMouseMove = (e) => {
+              if (isMouseDown) {
+                let colorPickerRect = document.getElementById('color-picker').getBoundingClientRect();
+                let currentX = e.clientX - colorPickerRect.left;
+                let currentY = e.clientY - colorPickerRect.top;
+                this.pickerCircle.x = currentX;
+                this.pickerCircle.y = currentY;
+              }
+            }
+            const onMouseUp = () => {
+              isMouseDown = false;
+            }
+            //Register
+            this.target.addEventListener("mousedown", onMouseDown);
+            this.target.addEventListener("mousedown", () => this.defineHexColor());
+            this.target.addEventListener("mousemove", onMouseMove);
+            this.target.addEventListener("mousemove", () => this.onChangeCallback(this.getPickedColor()));
+            document.addEventListener("mouseup", onMouseUp);
+          }
+
+          defineHexColor() {
+            //console.log('rgb = ', rgb);
+            //console.log('colorValue = ', colorValue);
+            var hexColorCode = "0x" + getHex(colorValue.r) + getHex(colorValue.g) + getHex(colorValue.b);
+            localPlayerInfo.primaryColor = hexColorCode
+            console.log('hexColorCode = ', localPlayerInfo.primaryColor);
+
+            self.socket.emit('characterUpdate', localPlayerInfo);
+          }
+
+          getPickedColor() {
+            let imageData = this.context.getImageData(this.pickerCircle.x, this.pickerCircle.y, 1, 1);
+              return {r: imageData.data[0], g: imageData.data[1], b: imageData.data[2] };
+          }
+          onChange(callback) {
+            this.onChangeCallback = callback;
+          }
+        }
+        let picker = new Picker(document.getElementById("color-picker"), 250, 220);
+        //draw
+        setInterval(() => picker.draw(), 1);
+        picker.onChange((color) => {
+          let selected = document.getElementsByClassName("selected")[0];
+          //console.log('color.r = ', color.r, '\n', 'color.g = ', color.g, '\n', 'color.b', color.b);
+            selected.style.backgroundColor = 'rgb(' + [color.r,color.g,color.b].join(',') + ')';
+            /**if (isMouseDown == true) {
+              console.log('mouse is down');
+            }**/
+            colorValue = color;
+        });
+
+        function getHex(color) {
+          var hex = parseInt(color).toString(16);
+          return hex.length == 1 ? "0" + hex : hex;
+        };
+
+
+
+
+
         headRight.addEventListener("click", function() {
           console.log('headRight clicked');
           if (headSelection < 3) {
@@ -478,16 +511,18 @@
           self.socket.emit('characterUpdate', localPlayerInfo);
         }
 
-
         this.socket.on('characterUpdated', function (playerInfo) {
           //console.log('characterUpdated', '\n', 'playerInfo.playerId = ', playerInfo.playerId, '\n', 'self.socket.id = ', self.socket.id);
             if (playerInfo.playerId === self.socket.id) {
               //addOtherPlayers(self, playerInfo);
-              console.log(playerInfo.playerId, 'Called new animation successfully: ', '\n', 'Set head to: ', playerInfo.head, '\n', 'Set body to: ', playerInfo.body, '\n', 'Set Tail to:', playerInfo.tail,  '\n', 'Set eyes to:', playerInfo.eyes);
+              console.log(playerInfo.playerId, 'Called new animation successfully: ', '\n', 'Set head to: ', playerInfo.head, '\n', 'Set body to: ', playerInfo.body, '\n', 'Set Tail to:', playerInfo.tail,  '\n', 'Set eyes to:', playerInfo.eyes, '\n', 'Set Primary Color to: ', playerInfo.primaryColor);
               self.head.play(playerInfo.head + 'Down');
               self.body.play(playerInfo.body + 'Down');
               self.tail.play(playerInfo.tail + 'Down');
               self.eyes.play(playerInfo.eyes + 'Down');
+              self.head.setTint(playerInfo.primaryColor);
+              self.body.setTint(playerInfo.primaryColor);
+              self.tail.setTint(playerInfo.primaryColor);
 
               //console.log('Head: ', self.head.anims.nextTick, '\n', 'Body: ', self.body.anims.nextTick, '\n', 'Tail: ', self.tail.anims.nextTick, '\n', 'Eyes: ', self.eyes.anims.nextTick);
               return;
