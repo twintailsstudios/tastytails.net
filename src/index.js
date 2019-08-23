@@ -89,7 +89,10 @@ io.on('connection', function (socket) {
     body:"",
     tail:"",
     eyes:"",
-    primaryColor:'',
+    secondaryBody:'secondaryBody_01',
+    primaryColor:'0xe0e0e0',
+    secondaryColor:'0xffffff',
+    accentColor:'0xfcf2f2',
     specialList:[],
     spellInventory:[],
     consumedBy:null,
@@ -299,6 +302,8 @@ io.on('connection', function (socket) {
     players[socket.id].tail = pushedInfo.tail;
     players[socket.id].eyes = pushedInfo.eyes;
     players[socket.id].primaryColor = pushedInfo.primaryColor;
+    players[socket.id].secondaryColor = pushedInfo.secondaryColor;
+    players[socket.id].accentColor = pushedInfo.accentColor;
     players[socket.id].Username = pushedInfo.Username;
     players[socket.id].Description = pushedInfo.Description;
     console.log('updating character...');

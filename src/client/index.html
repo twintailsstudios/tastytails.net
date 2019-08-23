@@ -107,6 +107,13 @@
     content: '\00bb';
     right: -20px;
   }
+  .butt.tab{
+    font-size: 25px;
+    width:100px;
+  }
+  .button.tab span:before {
+    content: '\fe3e'
+  }
 
 .button span:after {
   position: absolute;
@@ -133,25 +140,26 @@
 }
 .container {
   position: absolute;
-
-  height: 100%;
-  right:0%;
-  top:0%;
-  bottom:0%;
-  left:45%;
+  right:31%;
+  top:20%;
+  bottom:30%;
+  left:50%;
   display: flex;
-  justify-content: center;
-  align-items: center;
+
+  z-index: 2
 }
 #color-picker {
   border: 3px solid rgba(15, 15, 15, 0.2);
 }
 .info {
-  width: 12em;
-  display: flex;
-  margin-left: 4em;
-  flex-direction: row;
-  justify-content: space-between;
+  position: absolute;
+  right: 21%;
+  top: 15%;
+  bottom: 10%;
+  left: 74%;
+  z-index: 2
+
+
 }
 .selected {
   width: 50px;
@@ -159,6 +167,10 @@
   border-radius: 100%;
   border: 2px solid rgba(15, 15, 15, 0.2);
   background-color: rgb(255, 255, 255);
+}
+.selected:active {
+  box-shadow: 0 5px #666;
+  transform: translateY(4px);
 }
 
 
@@ -182,6 +194,28 @@
         <button id="about" class="button main" style="vertical-align:middle"><span>About </span></button>
       </div>
 
+      <div class="info">
+        <div id= "test1">
+          Primary Color:<br>
+          <button id="primary" class="selected"></button>
+        </div>
+        <br>
+        <div id= "test2">
+          Secondary Color:<br>
+          <button id="secondary" class="selected"></button>
+        </div>
+        <br>
+        <div id="test3">
+          Accent Color:<br>
+          <button id="accent" class="selected"></button>
+        </div>
+      </div>
+
+        <div class="container">
+          <canvas id="color-picker"></canvas>
+        </div>
+
+
       <div id ="genderPullout" class="pullout">
         <div id ="bodyType">
           <button id="bodyLeft" class="button left" style="vertical-align:middle"><span> </span></button>
@@ -196,11 +230,9 @@
 
       </div>
       <div id ="speciesPullout" class="pullout">
-        <div class="container">
-          <canvas id="color-picker"></canvas>
-          <div class="info">
-            <div class="selected"></div>
-          </div>
+
+        <div id ="bodyPartSelection">
+          <button id="head" class="button tab" style="vertical-align:middle"><span>Head </span></button>
         </div>
         <div id ="headType">
           <button id="headLeft" class="button left" style="vertical-align:middle"><span> </span></button>
@@ -230,7 +262,6 @@
     <script src="/socket.io/socket.io.js"></script>
 
     <script>
-
 
       gender.addEventListener("click", function() {
         console.log('gender clicked');
@@ -315,7 +346,7 @@
       };
 
       var game = new Phaser.Game(config);
-      var localPlayerInfo = {Identifier:'', playerId:'', Username:'', Description:'', head:'head_01', body:'body_01', tail:'tail_01', eyes:'eyes_01', primaryColor:'', specialList:[], spellInventory:[],
+      var localPlayerInfo = {Identifier:'', playerId:'', Username:'', Description:'', head:'head_01', body:'body_01', tail:'tail_01', eyes:'eyes_01', secondaryBody:'secondaryBody_01', primaryColor:'0xe0e0e0', secondaryColor:'0xffffff', accentColor:'0xfcf2f2', specialList:[], spellInventory:[],
       consumedBy:''};
 
       function preload() {
@@ -326,6 +357,7 @@
         this.load.spritesheet('body_01', 'assets/spritesheets/body_01.png', {frameWidth: 182, frameHeight: 190});
         this.load.spritesheet('tail_01', 'assets/spritesheets/tail_01.png', {frameWidth: 182, frameHeight: 190});
         this.load.spritesheet('eyes_01', 'assets/spritesheets/eyes_01.png', {frameWidth: 182, frameHeight: 190});
+        this.load.spritesheet('secondaryBody_01', 'assets/spritesheets/secondaryBody_01.png', {frameWidth: 182, frameHeight: 190});
       }
 
       function create() {
@@ -350,7 +382,9 @@
 
 
 
-        var colorValue = "";
+
+        let isMouseDown = false;
+        let colorButton = 1;
         class Picker {
           constructor(target, width, height) {
             this.target = target;
@@ -405,18 +439,21 @@
 
           }
           listenForEvents() {
-            let isMouseDown = false;
+
             const onMouseDown = (e) => {
               let colorPickerRect = document.getElementById('color-picker').getBoundingClientRect();
               let currentX = e.clientX - colorPickerRect.left;
               let currentY = e.clientY - colorPickerRect.top;
               //console.log('currentX = ', currentX, '\n', 'currentY = ', currentY, '\n', 'e.clientX = ', e.clientX, '\n', 'e.clientY = ', e.clientY, '\n', 'this.target.offsetLeft = ', this.target.offsetLeft, '\n', 'this.target.offsetTop = ', this.target.offsetTop);
-              if(currentY > this.pickerCircle.y && currentY < this.pickerCircle.y + this.pickerCircle.width && currentX > this.pickerCircle.x && currentX < this.pickerCircle.x + this.pickerCircle.width) {
+              /**if(currentY > this.pickerCircle.y && currentY < this.pickerCircle.y + this.pickerCircle.width && currentX > this.pickerCircle.x && currentX < this.pickerCircle.x + this.pickerCircle.width) {
                 isMouseDown = true;
               } else {
                 this.pickerCircle.x = currentX;
                 this.pickerCircle.y = currentY;
-              }
+              }**/
+              isMouseDown = true;
+              this.pickerCircle.x = currentX;
+              this.pickerCircle.y = currentY;
             }
             const onMouseMove = (e) => {
               if (isMouseDown) {
@@ -428,24 +465,17 @@
               }
             }
             const onMouseUp = () => {
-              isMouseDown = false;
+              setTimeout(myFunction, 10);
+              function myFunction() {
+                isMouseDown = false;
+              }
             }
             //Register
             this.target.addEventListener("mousedown", onMouseDown);
-            this.target.addEventListener("mousedown", () => this.defineHexColor());
+            this.target.addEventListener("mousedown", () => this.onChangeCallback(this.getPickedColor()));
             this.target.addEventListener("mousemove", onMouseMove);
             this.target.addEventListener("mousemove", () => this.onChangeCallback(this.getPickedColor()));
             document.addEventListener("mouseup", onMouseUp);
-          }
-
-          defineHexColor() {
-            //console.log('rgb = ', rgb);
-            //console.log('colorValue = ', colorValue);
-            var hexColorCode = "0x" + getHex(colorValue.r) + getHex(colorValue.g) + getHex(colorValue.b);
-            localPlayerInfo.primaryColor = hexColorCode
-            console.log('hexColorCode = ', localPlayerInfo.primaryColor);
-
-            self.socket.emit('characterUpdate', localPlayerInfo);
           }
 
           getPickedColor() {
@@ -460,13 +490,39 @@
         //draw
         setInterval(() => picker.draw(), 1);
         picker.onChange((color) => {
-          let selected = document.getElementsByClassName("selected")[0];
-          //console.log('color.r = ', color.r, '\n', 'color.g = ', color.g, '\n', 'color.b', color.b);
+          console.log("colorButton = ", colorButton);
+          let selected = "";
+          if(colorButton == 1) {
+            selected = document.getElementsByClassName("selected")[0];
+          }
+          if(colorButton == 2) {
+            selected = document.getElementsByClassName("selected")[1];
+          }
+          if(colorButton == 3) {
+            selected = document.getElementsByClassName("selected")[2];
+          }
+
+
+          if (isMouseDown == true) {
+          console.log('color.r = ', color.r, '\n', 'color.g = ', color.g, '\n', 'color.b', color.b);
             selected.style.backgroundColor = 'rgb(' + [color.r,color.g,color.b].join(',') + ')';
-            /**if (isMouseDown == true) {
-              console.log('mouse is down');
-            }**/
-            colorValue = color;
+            var hexColorCode = "0x" + getHex(color.r) + getHex(color.g) + getHex(color.b);
+            if(colorButton == 1) {
+              localPlayerInfo.primaryColor = hexColorCode
+              console.log('PRIMARY hexColorCode = ', localPlayerInfo.primaryColor);
+            }
+            if(colorButton == 2) {
+              localPlayerInfo.secondaryColor = hexColorCode
+              console.log('SECONDARY hexColorCode = ', localPlayerInfo.secondaryColor);
+            }
+            if(colorButton == 3) {
+              localPlayerInfo.accentColor = hexColorCode
+              console.log('ACCENT hexColorCode = ', localPlayerInfo.accentColor);
+            }
+
+
+            self.socket.emit('characterUpdate', localPlayerInfo);
+            }
         });
 
         function getHex(color) {
@@ -477,7 +533,18 @@
 
 
 
-
+        primary.addEventListener("click", function() {
+          console.log('primary clicked');
+          colorButton = 1;
+        });
+        secondary.addEventListener("click", function() {
+          console.log('secondary clicked');
+          colorButton = 2;
+        });
+        accent.addEventListener("click", function() {
+          console.log('accent clicked');
+          colorButton = 3;
+        });
         headRight.addEventListener("click", function() {
           console.log('headRight clicked');
           if (headSelection < 3) {
@@ -515,14 +582,17 @@
           //console.log('characterUpdated', '\n', 'playerInfo.playerId = ', playerInfo.playerId, '\n', 'self.socket.id = ', self.socket.id);
             if (playerInfo.playerId === self.socket.id) {
               //addOtherPlayers(self, playerInfo);
-              console.log(playerInfo.playerId, 'Called new animation successfully: ', '\n', 'Set head to: ', playerInfo.head, '\n', 'Set body to: ', playerInfo.body, '\n', 'Set Tail to:', playerInfo.tail,  '\n', 'Set eyes to:', playerInfo.eyes, '\n', 'Set Primary Color to: ', playerInfo.primaryColor);
+              console.log(playerInfo.playerId, 'Called new animation successfully: ', '\n', 'Set head to: ', playerInfo.head, '\n', 'Set body to: ', playerInfo.body, '\n', 'Set Tail to:', playerInfo.tail,  '\n', 'Set eyes to:', playerInfo.eyes, '\n', 'Set Primary Color to: ', playerInfo.primaryColor, '\n', 'Set Secondary Color to: ', playerInfo.secondaryColor, '\n', 'Set Accent Color to: ', playerInfo.accentColor);
               self.head.play(playerInfo.head + 'Down');
               self.body.play(playerInfo.body + 'Down');
               self.tail.play(playerInfo.tail + 'Down');
               self.eyes.play(playerInfo.eyes + 'Down');
+              self.secondaryBody.play(playerInfo.secondaryBody + 'Down');
               self.head.setTint(playerInfo.primaryColor);
               self.body.setTint(playerInfo.primaryColor);
               self.tail.setTint(playerInfo.primaryColor);
+              self.secondaryBody.setTint(playerInfo.secondaryColor);
+
 
               //console.log('Head: ', self.head.anims.nextTick, '\n', 'Body: ', self.body.anims.nextTick, '\n', 'Tail: ', self.tail.anims.nextTick, '\n', 'Eyes: ', self.eyes.anims.nextTick);
               return;
@@ -537,26 +607,31 @@
 
 
           console.log('player head = ', playerInfo.head);
-          self.container = self.add.container(0, 0).setInteractive();
+          self.container = self.add.container(0, 0).setSize(109, 220).setInteractive();
           self.head = self.physics.add.sprite(0, 0, playerInfo.head).setInteractive();
-          //head.setTint(playerInfo.headColor);
+          self.head.setTint(playerInfo.primaryColor);
           self.body = self.physics.add.sprite(0, 0, playerInfo.body).setInteractive();
-          //body.setTint(playerInfo.bodyColor);
+          self.body.setTint(playerInfo.primaryColor);
           self.tail = self.physics.add.sprite(0, 0, playerInfo.tail).setInteractive();
-          //tail.setTint(playerInfo.bodyColor);
+          self.tail.setTint(playerInfo.primaryColor);
           self.eyes = self.physics.add.sprite(0, 0, playerInfo.eyes).setInteractive();
           //eyes.setTint(playerInfo.bodyColor);
-          self.container.add([ self.head, self.body, self.tail, self.eyes ]);
+          self.secondaryBody = self.physics.add.sprite(0, 0, playerInfo.secondaryBody).setInteractive();
+          self.secondaryBody.setTint(playerInfo.secondaryColor);
+          self.container.add([ self.tail, self.head, self.body, self.eyes, self.secondaryBody ]);
+          //self.container.sendToBack(self.tail);
+
           //self.container.visible = false;
           self.head.play('head_01Down');
           self.body.play('body_01Down');
           self.tail.play('tail_01Down');
           self.eyes.play('eyes_01Down');
+          self.secondaryBody.play('secondaryBody_01Down')
 
 
           localPlayerInfo.playerId = playerInfo.playerId;
           //localPlayerInfo.sprite = self.stack
-          let cam1 = self.cameras.main.setSize(200, 200).startFollow(self.container).setName('Camera 1');
+          let cam1 = self.cameras.main.setSize(200, 200).startFollow(self.head).setName('Camera 1');
 
 
         }
@@ -626,6 +701,13 @@
           repeat: -1,
           showOnStart: true
         });
+        self.anims.create({
+          key: 'secondaryBody_01Down',
+          frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 1, end: 8 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
       }
 
 
@@ -641,6 +723,12 @@
           this.body.play(localPlayerInfo.body + 'Down');
           this.tail.play(localPlayerInfo.tail + 'Down');
           this.eyes.play(localPlayerInfo.eyes + 'Down');
+        }
+        if (cursors.left.isDown) {
+          this.head.setDepth(4);
+          this.body.setDepth(3);
+          this.tail.setDepth(1);
+          this.eyes.setDepth(2);
         }
       }
     </script>
