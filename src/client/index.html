@@ -172,6 +172,28 @@
   box-shadow: 0 5px #666;
   transform: translateY(4px);
 }
+.collapsible {
+  background-color: #777;
+  color: white;
+  cursor: pointer;
+  padding: 18px;
+  width: 100%;
+  border: none;
+  text-align: left;
+  outline: none;
+  font-size: 15px;
+}
+
+.active, .collapsible:hover {
+  background-color: #555;
+}
+
+.content {
+  padding: 0 18px;
+  display: none;
+  overflow: hidden;
+  background-color: #f1f1f1;
+}
 
 
   </style>
@@ -215,18 +237,33 @@
           <canvas id="color-picker"></canvas>
         </div>
 
-
       <div id ="genderPullout" class="pullout">
-        <div id ="bodyType">
-          <button id="bodyLeft" class="button left" style="vertical-align:middle"><span> </span></button>
-          Body Type Options
-          <button id="bodyRight" class="button right" style="vertical-align:middle"><span> </span></button>
+        <button class="collapsible">Body Type <span>&#65086;</span></button>
+        <div class="content">
+          <div id ="bodyType">
+            <button id="bodyLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+            Body Type Options
+            <button id="bodyRight" class="button right" style="vertical-align:middle"><span> </span></button>
+          </div>
         </div>
-        <div id ="genitailia">
-          <button id="genitleLeft" class="button left" style="vertical-align:middle"><span> </span></button>
-          Genitailia Options
-          <button id="genitleRight" class="button right" style="vertical-align:middle"><span> </span></button>
+        <button class="collapsible">Genitailia</button>
+        <div class="content">
+          <div id ="genitailia">
+            <button id="genitleLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+            Genitailia Options
+            <button id="genitleRight" class="button right" style="vertical-align:middle"><span> </span></button>
+          </div>
         </div>
+        <button class="collapsible">Head</button>
+        <div class="content">
+          <div id ="headType">
+            <button id="headLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+            Head Type Options
+            <button id="headRight" class="button right" style="vertical-align:middle"><span> </span></button>
+          </div>
+        </div>
+
+
 
       </div>
       <div id ="speciesPullout" class="pullout">
@@ -234,11 +271,7 @@
         <div id ="bodyPartSelection">
           <button id="head" class="button tab" style="vertical-align:middle"><span>Head </span></button>
         </div>
-        <div id ="headType">
-          <button id="headLeft" class="button left" style="vertical-align:middle"><span> </span></button>
-          Head Type Options
-          <button id="headRight" class="button right" style="vertical-align:middle"><span> </span></button>
-        </div>
+
         <div id ="tailType">
           <button id="tailLeft" class="button left" style="vertical-align:middle"><span> </span></button>
           Tail Options
@@ -262,6 +295,21 @@
     <script src="/socket.io/socket.io.js"></script>
 
     <script>
+
+      var coll = document.getElementsByClassName("collapsible");
+      var i;
+
+      for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+          this.classList.toggle("active");
+          var content = this.nextElementSibling;
+          if (content.style.display === "block") {
+            content.style.display = "none";
+          } else {
+            content.style.display = "block";
+          }
+        });
+      }
 
       gender.addEventListener("click", function() {
         console.log('gender clicked');
@@ -631,7 +679,7 @@
 
           localPlayerInfo.playerId = playerInfo.playerId;
           //localPlayerInfo.sprite = self.stack
-          let cam1 = self.cameras.main.setSize(200, 200).startFollow(self.head).setName('Camera 1');
+          let cam1 = self.cameras.main.setSize(200, 200).startFollow(self.container).setName('Camera 1');
 
 
         }
