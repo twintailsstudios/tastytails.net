@@ -172,6 +172,14 @@
   box-shadow: 0 5px #666;
   transform: translateY(4px);
 }
+#collapsibleBox {
+  position: absolute;
+  border-radius: 10px;
+  margin: 5px;
+  left: 0%;
+  right: 45%;
+
+}
 .collapsible {
   background-color: #777;
   color: white;
@@ -233,39 +241,39 @@
         </div>
       </div>
 
-        <div class="container">
-          <canvas id="color-picker"></canvas>
-        </div>
+      <div class="container">
+        <canvas id="color-picker"></canvas>
+      </div>
 
       <div id ="genderPullout" class="pullout">
-        <button class="collapsible">Body Type <span>&#65086;</span></button>
-        <div class="content">
-          <div id ="bodyType">
-            <button id="bodyLeft" class="button left" style="vertical-align:middle"><span> </span></button>
-            Body Type Options
-            <button id="bodyRight" class="button right" style="vertical-align:middle"><span> </span></button>
+        <div id ="collapsibleBox">
+          <button class="collapsible">Body Type <span>&#65086;</span></button>
+          <div class="content">
+            <div id ="bodyType">
+              <button id="bodyLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              Body Type Options
+              <button id="bodyRight" class="button right" style="vertical-align:middle"><span> </span></button>
+            </div>
+          </div>
+          <button class="collapsible">Genitailia</button>
+          <div class="content">
+            <div id ="genitailia">
+              <button id="genitleLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              Genitailia Options
+              <button id="genitleRight" class="button right" style="vertical-align:middle"><span> </span></button>
+            </div>
+          </div>
+          <button class="collapsible">Head</button>
+          <div class="content">
+            <div id ="headType">
+              <button id="headLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              Head Type Options
+              <button id="headRight" class="button right" style="vertical-align:middle"><span> </span></button>
+            </div>
           </div>
         </div>
-        <button class="collapsible">Genitailia</button>
-        <div class="content">
-          <div id ="genitailia">
-            <button id="genitleLeft" class="button left" style="vertical-align:middle"><span> </span></button>
-            Genitailia Options
-            <button id="genitleRight" class="button right" style="vertical-align:middle"><span> </span></button>
-          </div>
-        </div>
-        <button class="collapsible">Head</button>
-        <div class="content">
-          <div id ="headType">
-            <button id="headLeft" class="button left" style="vertical-align:middle"><span> </span></button>
-            Head Type Options
-            <button id="headRight" class="button right" style="vertical-align:middle"><span> </span></button>
-          </div>
-        </div>
-
-
-
       </div>
+
       <div id ="speciesPullout" class="pullout">
 
         <div id ="bodyPartSelection">
