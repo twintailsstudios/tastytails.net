@@ -63,6 +63,7 @@
     }
     #genderPullout{
       display: block;
+      justify-content: space-evenly;
     }
 
     .button {
@@ -82,10 +83,12 @@
 .button.left{
   font-size: 25px;
   width: 100px;
+  float: left;
 }
 .button.right{
   font-size: 25px;
   width: 100px;
+  float: right;
 }
 
 .button span {
@@ -139,27 +142,17 @@
   transform: translateY(4px);
 }
 .container {
-  position: absolute;
-  right:31%;
-  top:20%;
-  bottom:30%;
-  left:50%;
-  display: flex;
-
-  z-index: 2
+  position: static;
+  display: inline-block;
+  vertical-align: top;
 }
 #color-picker {
   border: 3px solid rgba(15, 15, 15, 0.2);
 }
 .info {
-  position: absolute;
-  right: 21%;
-  top: 15%;
-  bottom: 10%;
-  left: 74%;
-  z-index: 2
-
-
+  position: static;
+  display: inline-block;
+  vertical-align: top;
 }
 .selected {
   width: 50px;
@@ -173,15 +166,19 @@
   transform: translateY(4px);
 }
 #collapsibleBox {
-  position: absolute;
+  position: static;
+  display: inline-block;
+  vertical-align: top;
+  max-width: 454px;
+  min-width: 384px;
+  border: solid;
   border-radius: 10px;
+  border-width: 5px;
+  border-color: #05336f;
   margin: 5px;
-  left: 0%;
-  right: 45%;
-
 }
 .collapsible {
-  background-color: #777;
+  background-color: #0b4b90;
   color: white;
   cursor: pointer;
   padding: 18px;
@@ -193,14 +190,28 @@
 }
 
 .active, .collapsible:hover {
-  background-color: #555;
+  background-color: #093e78;
 }
 
 .content {
   padding: 0 18px;
   display: none;
   overflow: hidden;
-  background-color: #f1f1f1;
+  background-color: #74b6dc;
+}
+.typeLabel {
+  display: inline-block;
+  vertical-align: center;
+  text-align: center;
+
+  border: solid;
+  border-radius: 10px;
+  border-width: 5px;
+  border-color: #e5ecb4;
+  min-width: 188px;
+  min-height: 39px;
+  background-color: #ffffff;
+  font-size: 20px;
 }
 
 
@@ -224,26 +235,9 @@
         <button id="about" class="button main" style="vertical-align:middle"><span>About </span></button>
       </div>
 
-      <div class="info">
-        <div id= "test1">
-          Primary Color:<br>
-          <button id="primary" class="selected"></button>
-        </div>
-        <br>
-        <div id= "test2">
-          Secondary Color:<br>
-          <button id="secondary" class="selected"></button>
-        </div>
-        <br>
-        <div id="test3">
-          Accent Color:<br>
-          <button id="accent" class="selected"></button>
-        </div>
-      </div>
 
-      <div class="container">
-        <canvas id="color-picker"></canvas>
-      </div>
+
+
 
       <div id ="genderPullout" class="pullout">
         <div id ="collapsibleBox">
@@ -251,7 +245,9 @@
           <div class="content">
             <div id ="bodyType">
               <button id="bodyLeft" class="button left" style="vertical-align:middle"><span> </span></button>
-              Body Type Options
+              <div id ="bodyTypeLabel" class="typeLabel">
+                Feminine
+              </div>
               <button id="bodyRight" class="button right" style="vertical-align:middle"><span> </span></button>
             </div>
           </div>
@@ -263,27 +259,59 @@
               <button id="genitleRight" class="button right" style="vertical-align:middle"><span> </span></button>
             </div>
           </div>
+          <button class="collapsible">Secondary Fur</button>
+          <div class="content">
+            <div id ="secondaryFurType">
+              <button id="secondaryFurLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              <div id ="secondaryFurTypeLabel" class="typeLabel">
+                Option 1
+              </div>
+              <button id="secondaryFurRight" class="button right" style="vertical-align:middle"><span> </span></button>
+            </div>
+          </div>
           <button class="collapsible">Head</button>
           <div class="content">
             <div id ="headType">
               <button id="headLeft" class="button left" style="vertical-align:middle"><span> </span></button>
-              Head Type Options
+              <div id ="headTypeLabel" class="typeLabel">
+                Fox
+              </div>
               <button id="headRight" class="button right" style="vertical-align:middle"><span> </span></button>
             </div>
           </div>
+          <button class="collapsible">Tail</button>
+          <div class="content">
+            <div id ="tailType">
+              <button id="tailLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              Tail Options
+              <button id="tailRight" class="button right" style="vertical-align:middle"><span> </span></button>
+            </div>
+          </div>
+        </div>
+        <div class="info">
+          <div id= "test1">
+            Primary Color:<br>
+            <button id="primary" class="selected"></button>
+          </div>
+          <br>
+          <div id= "test2">
+            Secondary Color:<br>
+            <button id="secondary" class="selected"></button>
+          </div>
+          <br>
+          <div id="test3">
+            Accent Color:<br>
+            <button id="accent" class="selected"></button>
+          </div>
+        </div>
+        <div class="container">
+          <canvas id="color-picker"></canvas>
         </div>
       </div>
 
       <div id ="speciesPullout" class="pullout">
-
         <div id ="bodyPartSelection">
           <button id="head" class="button tab" style="vertical-align:middle"><span>Head </span></button>
-        </div>
-
-        <div id ="tailType">
-          <button id="tailLeft" class="button left" style="vertical-align:middle"><span> </span></button>
-          Tail Options
-          <button id="tailRight" class="button right" style="vertical-align:middle"><span> </span></button>
         </div>
       </div>
       <div id ="aboutPullout" class="pullout">
@@ -338,22 +366,6 @@
         document.getElementById("speciesPullout").style.display = "none";
         document.getElementById("aboutPullout").style.display = "block";
       });
-      bodyLeft.addEventListener("click", function() {
-        console.log('bodyLeft clicked');
-        if (bodySelection > 1) {
-          console.log('bodySelection is greater than 1');
-          bodySelection = bodySelection - 1;
-          console.log('setting bodySelection to: ', bodySelection);
-        }
-      });
-      bodyRight.addEventListener("click", function() {
-        console.log('bodyRight clicked');
-        if (bodySelection < 2) {
-          console.log('bodySelection is less than 1');
-          bodySelection = bodySelection + 1;
-          console.log('setting bodySelection to: ', bodySelection);
-        }
-      });
       genitleLeft.addEventListener("click", function() {
         console.log('genitleLeft clicked');
         if (genitleSelection > 1) {
@@ -380,6 +392,7 @@
       var bodySelection = 1;
       var genitleSelection = 1;
       var headSelection = 1;
+      var secondaryFurSelection = 1;
       console.log('bodySelection = ', bodySelection);
       console.log('genitleSelection = ', genitleSelection);
       var config = {
@@ -414,6 +427,8 @@
         this.load.spritesheet('tail_01', 'assets/spritesheets/tail_01.png', {frameWidth: 182, frameHeight: 190});
         this.load.spritesheet('eyes_01', 'assets/spritesheets/eyes_01.png', {frameWidth: 182, frameHeight: 190});
         this.load.spritesheet('secondaryBody_01', 'assets/spritesheets/secondaryBody_01.png', {frameWidth: 182, frameHeight: 190});
+        this.load.spritesheet('secondaryBody_02', 'assets/spritesheets/secondaryBody_02.png', {frameWidth: 182, frameHeight: 190});
+        this.load.spritesheet('secondaryBody_03', 'assets/spritesheets/secondaryBody_03.png', {frameWidth: 182, frameHeight: 190});
       }
 
       function create() {
@@ -612,7 +627,7 @@
           }
         });
         headLeft.addEventListener("click", function() {
-          console.log('headRight clicked');
+          console.log('headLeft clicked');
           if (headSelection > 1) {
             headSelection = headSelection - 1;
             headfunct(self, headSelection);
@@ -624,12 +639,85 @@
         function headfunct(self, headSelection) {
           if (headSelection == 1) {
             localPlayerInfo.head = 'head_01';
+            document.getElementById("headTypeLabel").innerHTML = "Fox";
           }
           if (headSelection == 2) {
             localPlayerInfo.head = 'head_02';
+            document.getElementById("headTypeLabel").innerHTML = "Long Eared Bunny";
           }
           if (headSelection == 3) {
             localPlayerInfo.head = 'head_03';
+            document.getElementById("headTypeLabel").innerHTML = "Lop Eared Bunny";
+          }
+          self.socket.emit('characterUpdate', localPlayerInfo);
+        }
+        secondaryFurRight.addEventListener("click", function() {
+          console.log('secondaryFurRight clicked');
+          if (secondaryFurSelection < 3) {
+            secondaryFurSelection = secondaryFurSelection + 1;
+            console.log('secondaryFurSelection =', secondaryFurSelection);
+            secondaryFurfunct(self, secondaryFurSelection);
+          } else {
+            secondaryFurSelection = 1;
+            console.log('secondaryFurSelection =', secondaryFurSelection);
+            secondaryFurfunct(self, secondaryFurSelection);
+          }
+        });
+        secondaryFurLeft.addEventListener("click", function() {
+          console.log('secondaryFurLeft clicked');
+          if (secondaryFurSelection > 1) {
+            secondaryFurSelection = secondaryFurSelection - 1;
+            console.log('secondaryFurSelection =', secondaryFurSelection);
+            secondaryFurfunct(self, secondaryFurSelection);
+          } else {
+            secondaryFurSelection = 3;
+            console.log('secondaryFurSelection =', secondaryFurSelection);
+            secondaryFurfunct(self, secondaryFurSelection);
+          }
+        });
+        function secondaryFurfunct(self, secondaryFurSelection) {
+          if (secondaryFurSelection == 1) {
+            localPlayerInfo.secondaryBody = 'secondaryBody_01';
+            document.getElementById("secondaryFurTypeLabel").innerHTML = "Option 1";
+          }
+          if (secondaryFurSelection == 2) {
+            localPlayerInfo.secondaryBody = 'secondaryBody_02';
+            document.getElementById("secondaryFurTypeLabel").innerHTML = "Option 2";
+          }
+          if (secondaryFurSelection == 3) {
+            localPlayerInfo.secondaryBody = 'secondaryBody_03';
+            document.getElementById("secondaryFurTypeLabel").innerHTML = "Option 3";
+          }
+          self.socket.emit('characterUpdate', localPlayerInfo);
+        }
+        bodyRight.addEventListener("click", function() {
+          console.log('bodyRight clicked');
+          if (bodySelection < 2) {
+            bodySelection = bodySelection + 1;
+            bodyfunct(self, bodySelection);
+          } else {
+            bodySelection = 1;
+            bodyfunct(self, bodySelection);
+          }
+        });
+        bodyLeft.addEventListener("click", function() {
+          console.log('bodyLeft clicked');
+          if (bodySelection > 1) {
+            bodySelection = bodySelection - 1;
+            bodyfunct(self, bodySelection);
+          } else {
+            bodySelection = 2;
+            bodyfunct(self, bodySelection);
+          }
+        });
+        function bodyfunct(self, bodySelection) {
+          if (bodySelection == 1) {
+            localPlayerInfo.body = 'body_01';
+            document.getElementById("bodyTypeLabel").innerHTML = "Feminine";
+          }
+          if (bodySelection == 2) {
+            localPlayerInfo.body = 'none';
+            document.getElementById("bodyTypeLabel").innerHTML = "(unavailable)";
           }
           self.socket.emit('characterUpdate', localPlayerInfo);
         }
@@ -638,7 +726,7 @@
           //console.log('characterUpdated', '\n', 'playerInfo.playerId = ', playerInfo.playerId, '\n', 'self.socket.id = ', self.socket.id);
             if (playerInfo.playerId === self.socket.id) {
               //addOtherPlayers(self, playerInfo);
-              console.log(playerInfo.playerId, 'Called new animation successfully: ', '\n', 'Set head to: ', playerInfo.head, '\n', 'Set body to: ', playerInfo.body, '\n', 'Set Tail to:', playerInfo.tail,  '\n', 'Set eyes to:', playerInfo.eyes, '\n', 'Set Primary Color to: ', playerInfo.primaryColor, '\n', 'Set Secondary Color to: ', playerInfo.secondaryColor, '\n', 'Set Accent Color to: ', playerInfo.accentColor);
+              console.log(playerInfo.playerId, 'Called new animation successfully: ', '\n', 'Set head to: ', playerInfo.head, '\n', 'Set body to: ', playerInfo.body, '\n', 'Set secondary body to: ', playerInfo.secondaryBody, '\n', 'Set Tail to:', playerInfo.tail,  '\n', 'Set eyes to:', playerInfo.eyes, '\n', 'Set Primary Color to: ', playerInfo.primaryColor, '\n', 'Set Secondary Color to: ', playerInfo.secondaryColor, '\n', 'Set Accent Color to: ', playerInfo.accentColor);
               self.head.play(playerInfo.head + 'Down');
               self.body.play(playerInfo.body + 'Down');
               self.tail.play(playerInfo.tail + 'Down');
@@ -760,6 +848,20 @@
         self.anims.create({
           key: 'secondaryBody_01Down',
           frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 1, end: 8 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'secondaryBody_02Down',
+          frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 1, end: 8 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'secondaryBody_03Down',
+          frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 1, end: 8 }),
           frameRate: 9,
           repeat: -1,
           showOnStart: true

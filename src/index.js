@@ -299,6 +299,7 @@ io.on('connection', function (socket) {
     players[socket.id].headColor = pushedInfo.headColor;
     players[socket.id].body = pushedInfo.body;
     players[socket.id].bodyColor = pushedInfo.bodyColor;
+    players[socket.id].secondaryBody = pushedInfo.secondaryBody;
     players[socket.id].tail = pushedInfo.tail;
     players[socket.id].eyes = pushedInfo.eyes;
     players[socket.id].primaryColor = pushedInfo.primaryColor;
