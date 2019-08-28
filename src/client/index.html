@@ -38,7 +38,7 @@
         left: 10%;
         right: 10%;
     }
-    #preview{
+    #previewContainer{
       position:absolute;
       background-color: pink;
       border: solid;
@@ -255,7 +255,9 @@
           <div class="content">
             <div id ="genitailia">
               <button id="genitleLeft" class="button left" style="vertical-align:middle"><span> </span></button>
-              Genitailia Options
+              <div id ="genitleTypeLabel" class="typeLabel">
+                (unavailable)
+              </div>
               <button id="genitleRight" class="button right" style="vertical-align:middle"><span> </span></button>
             </div>
           </div>
@@ -303,6 +305,11 @@
             Accent Color:<br>
             <button id="accent" class="selected"></button>
           </div>
+          <br>
+          <div id="test4">
+            Eye Color:<br>
+            <button id="eyeColor" class="selected"></button>
+          </div>
         </div>
         <div class="container">
           <canvas id="color-picker"></canvas>
@@ -318,8 +325,15 @@
 
       </div>
 
-      <div id="preview">
+      <div id="previewContainer">
+        <div id="preview">
 
+        </div>
+        <div id ="previewRotation">
+          <button id="rotateLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+
+          <button id="rodateRight" class="button right" style="vertical-align:middle"><span> </span></button>
+        </div>
       </div>
     </div>
 
@@ -366,28 +380,7 @@
         document.getElementById("speciesPullout").style.display = "none";
         document.getElementById("aboutPullout").style.display = "block";
       });
-      genitleLeft.addEventListener("click", function() {
-        console.log('genitleLeft clicked');
-        if (genitleSelection > 1) {
-          genitleSelection = genitleSelection - 1;
-          console.log('setting genitleSelection to: ', genitleSelection);
-        } else {
-          console.log('genitleSelection = 1 restarting');
-          genitleSelection = 3;
-          console.log('setting genitleSelection to: ', genitleSelection);
-        }
-      });
-      genitleRight.addEventListener("click", function() {
-        console.log('genitleRight clicked');
-        if (genitleSelection < 3) {
-          genitleSelection = genitleSelection + 1;
-          console.log('setting genitleSelection to: ', genitleSelection);
-        } else {
-          console.log('genitleSelection = 3 restarting');
-          genitleSelection = 1;
-          console.log('setting genitleSelection to: ', genitleSelection);
-        }
-      });
+
 
       var bodySelection = 1;
       var genitleSelection = 1;
@@ -415,7 +408,7 @@
       };
 
       var game = new Phaser.Game(config);
-      var localPlayerInfo = {Identifier:'', playerId:'', Username:'', Description:'', head:'head_01', body:'body_01', tail:'tail_01', eyes:'eyes_01', secondaryBody:'secondaryBody_01', primaryColor:'0xe0e0e0', secondaryColor:'0xffffff', accentColor:'0xfcf2f2', specialList:[], spellInventory:[],
+      var localPlayerInfo = {Identifier:'', playerId:'', Username:'', Description:'', head:'head_01', body:'body_01', tail:'tail_01', eyes:'eyes_01', secondaryBody:'secondaryBody_01', genitle:'none', primaryColor:'0xe0e0e0', secondaryColor:'0xffffff', accentColor:'0xfcf2f2', eyeColor:'0xfcf2f2', specialList:[], spellInventory:[],
       consumedBy:''};
 
       function preload() {
@@ -572,6 +565,9 @@
           if(colorButton == 3) {
             selected = document.getElementsByClassName("selected")[2];
           }
+          if(colorButton == 4) {
+            selected = document.getElementsByClassName("selected")[3];
+          }
 
 
           if (isMouseDown == true) {
@@ -589,6 +585,10 @@
             if(colorButton == 3) {
               localPlayerInfo.accentColor = hexColorCode
               console.log('ACCENT hexColorCode = ', localPlayerInfo.accentColor);
+            }
+            if(colorButton == 4) {
+              localPlayerInfo.eyeColor = hexColorCode
+              console.log('EYE COLOR hexColorCode = ', localPlayerInfo.eyeColor);
             }
 
 
@@ -615,6 +615,10 @@
         accent.addEventListener("click", function() {
           console.log('accent clicked');
           colorButton = 3;
+        });
+        eyeColor.addEventListener("click", function() {
+          console.log('eye color clicked');
+          colorButton = 4;
         });
         headRight.addEventListener("click", function() {
           console.log('headRight clicked');
@@ -721,6 +725,41 @@
           }
           self.socket.emit('characterUpdate', localPlayerInfo);
         }
+        genitleLeft.addEventListener("click", function() {
+          console.log('genitleLeft clicked');
+          if (genitleSelection > 1) {
+            genitleSelection = genitleSelection - 1;
+            genitlefunct(self, genitleSelection);
+          } else {
+            genitleSelection = 3;
+            genitlefunct(self, genitleSelection);
+          }
+        });
+        genitleRight.addEventListener("click", function() {
+          console.log('genitleRight clicked');
+          if (genitleSelection < 3) {
+            genitleSelection = genitleSelection + 1;
+            genitlefunct(self, genitleSelection);
+          } else {
+            genitleSelection = 1;
+            genitlefunct(self, genitleSelection);
+          }
+        });
+        function genitlefunct(self, genitleSelection) {
+          if (genitleSelection == 1) {
+            localPlayerInfo.genitle = 'none';
+            document.getElementById("genitleTypeLabel").innerHTML = "(unavailable)";
+          }
+          if (genitleSelection == 2) {
+            localPlayerInfo.genitle = 'none';
+            document.getElementById("genitleTypeLabel").innerHTML = "(unavailable)";
+          }
+          if (genitleSelection == 3) {
+            localPlayerInfo.genitle = 'none';
+            document.getElementById("genitleTypeLabel").innerHTML = "(unavailable)";
+          }
+          self.socket.emit('characterUpdate', localPlayerInfo);
+        }
 
         this.socket.on('characterUpdated', function (playerInfo) {
           //console.log('characterUpdated', '\n', 'playerInfo.playerId = ', playerInfo.playerId, '\n', 'self.socket.id = ', self.socket.id);
@@ -736,6 +775,7 @@
               self.body.setTint(playerInfo.primaryColor);
               self.tail.setTint(playerInfo.primaryColor);
               self.secondaryBody.setTint(playerInfo.secondaryColor);
+              self.eyes.setTint(playerInfo.eyeColor);
 
 
               //console.log('Head: ', self.head.anims.nextTick, '\n', 'Body: ', self.body.anims.nextTick, '\n', 'Tail: ', self.tail.anims.nextTick, '\n', 'Eyes: ', self.eyes.anims.nextTick);
@@ -759,7 +799,7 @@
           self.tail = self.physics.add.sprite(0, 0, playerInfo.tail).setInteractive();
           self.tail.setTint(playerInfo.primaryColor);
           self.eyes = self.physics.add.sprite(0, 0, playerInfo.eyes).setInteractive();
-          //eyes.setTint(playerInfo.bodyColor);
+          self.eyes.setTint(playerInfo.eyeColor);
           self.secondaryBody = self.physics.add.sprite(0, 0, playerInfo.secondaryBody).setInteractive();
           self.secondaryBody.setTint(playerInfo.secondaryColor);
           self.container.add([ self.tail, self.head, self.body, self.eyes, self.secondaryBody ]);
