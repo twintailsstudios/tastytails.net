@@ -213,6 +213,14 @@
   background-color: #ffffff;
   font-size: 20px;
 }
+.button.left.rotate {
+
+  max-width: 80px;
+}
+.button.right.rotate {
+
+  max-width: 80px;
+}
 
 
   </style>
@@ -330,9 +338,9 @@
 
         </div>
         <div id ="previewRotation">
-          <button id="rotateLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+          <button id="rotateLeft" class="button left rotate" style="vertical-align:middle"><span> </span></button>
 
-          <button id="rodateRight" class="button right" style="vertical-align:middle"><span> </span></button>
+          <button id="rotateRight" class="button right rotate" style="vertical-align:middle"><span> </span></button>
         </div>
       </div>
     </div>
@@ -386,6 +394,7 @@
       var genitleSelection = 1;
       var headSelection = 1;
       var secondaryFurSelection = 1;
+      var rotation = 1;
       console.log('bodySelection = ', bodySelection);
       console.log('genitleSelection = ', genitleSelection);
       var config = {
@@ -761,16 +770,116 @@
           self.socket.emit('characterUpdate', localPlayerInfo);
         }
 
+
+
+
+
+
+
+
+
+
+        rotateRight.addEventListener("click", function() {
+          console.log('rotateRight clicked');
+          if (rotation < 4) {
+            rotation = rotation + 1;
+            rotationfunct(self, rotation);
+          } else {
+            rotation = 1;
+            rotationfunct(self, rotation);
+          }
+        });
+        rotateLeft.addEventListener("click", function() {
+          console.log('rotateLeft clicked');
+          if (rotation > 1) {
+            rotation = rotation - 1;
+            rotationfunct(self, rotation);
+          } else {
+            rotation = 4;
+            rotationfunct(self, rotation);
+          }
+        });
+        function rotationfunct(self, rotation) {
+          if (rotation == 1) {
+            self.head.play(localPlayerInfo.head + 'Down');
+            self.body.play(localPlayerInfo.body + 'Down');
+            self.tail.play(localPlayerInfo.tail + 'Down');
+            self.eyes.play(localPlayerInfo.eyes + 'Down');
+            self.secondaryBody.play(localPlayerInfo.secondaryBody + 'Down');
+            self.container.sendToBack(self.tail);
+          }
+          if (rotation == 2) {
+            self.head.play(localPlayerInfo.head + 'Right');
+            self.body.play(localPlayerInfo.body + 'Right');
+            self.tail.play(localPlayerInfo.tail + 'Right');
+            self.eyes.play(localPlayerInfo.eyes + 'Right');
+            self.secondaryBody.play(localPlayerInfo.secondaryBody + 'Right');
+            self.container.sendToBack(self.tail);
+          }
+          if (rotation == 3) {
+            self.head.play(localPlayerInfo.head + 'Up');
+            self.body.play(localPlayerInfo.body + 'Up');
+            self.tail.play(localPlayerInfo.tail + 'Up');
+            self.eyes.play(localPlayerInfo.eyes + 'Up');
+            self.secondaryBody.play(localPlayerInfo.secondaryBody + 'Up');
+            self.container.sendToBack(self.secondaryBody);
+            self.container.sendToBack(self.eyes);
+            self.container.sendToBack(self.body);
+            self.container.sendToBack(self.head);
+
+          }
+          if (rotation == 4) {
+            self.head.play(localPlayerInfo.head + 'Left');
+            self.body.play(localPlayerInfo.body + 'Left');
+            self.tail.play(localPlayerInfo.tail + 'Left');
+            self.eyes.play(localPlayerInfo.eyes + 'Left');
+            self.secondaryBody.play(localPlayerInfo.secondaryBody + 'Left');
+            self.container.sendToBack(self.tail);
+          }
+
+        }
+
         this.socket.on('characterUpdated', function (playerInfo) {
           //console.log('characterUpdated', '\n', 'playerInfo.playerId = ', playerInfo.playerId, '\n', 'self.socket.id = ', self.socket.id);
             if (playerInfo.playerId === self.socket.id) {
               //addOtherPlayers(self, playerInfo);
               console.log(playerInfo.playerId, 'Called new animation successfully: ', '\n', 'Set head to: ', playerInfo.head, '\n', 'Set body to: ', playerInfo.body, '\n', 'Set secondary body to: ', playerInfo.secondaryBody, '\n', 'Set Tail to:', playerInfo.tail,  '\n', 'Set eyes to:', playerInfo.eyes, '\n', 'Set Primary Color to: ', playerInfo.primaryColor, '\n', 'Set Secondary Color to: ', playerInfo.secondaryColor, '\n', 'Set Accent Color to: ', playerInfo.accentColor);
-              self.head.play(playerInfo.head + 'Down');
-              self.body.play(playerInfo.body + 'Down');
-              self.tail.play(playerInfo.tail + 'Down');
-              self.eyes.play(playerInfo.eyes + 'Down');
-              self.secondaryBody.play(playerInfo.secondaryBody + 'Down');
+              if (rotation == 1) {
+                self.head.play(playerInfo.head + 'Down');
+                self.body.play(playerInfo.body + 'Down');
+                self.tail.play(playerInfo.tail + 'Down');
+                self.eyes.play(playerInfo.eyes + 'Down');
+                self.secondaryBody.play(playerInfo.secondaryBody + 'Down');
+                self.container.sendToBack(self.tail);
+              }
+              if (rotation == 2) {
+                self.head.play(playerInfo.head + 'Right');
+                self.body.play(playerInfo.body + 'Right');
+                self.tail.play(playerInfo.tail + 'Right');
+                self.eyes.play(playerInfo.eyes + 'Right');
+                self.secondaryBody.play(playerInfo.secondaryBody + 'Right');
+                self.container.sendToBack(self.tail);
+              }
+              if (rotation == 3) {
+                self.head.play(playerInfo.head + 'Up');
+                self.body.play(playerInfo.body + 'Up');
+                self.tail.play(playerInfo.tail + 'Up');
+                self.eyes.play(playerInfo.eyes + 'Up');
+                self.secondaryBody.play(playerInfo.secondaryBody + 'Up');
+                self.container.sendToBack(self.secondaryBody);
+                self.container.sendToBack(self.eyes);
+                self.container.sendToBack(self.body);
+                self.container.sendToBack(self.head);
+              }
+              if (rotation == 4) {
+                self.head.play(playerInfo.head + 'Left');
+                self.body.play(playerInfo.body + 'Left');
+                self.tail.play(playerInfo.tail + 'Left');
+                self.eyes.play(playerInfo.eyes + 'Left');
+                self.secondaryBody.play(playerInfo.secondaryBody + 'Left');
+                self.container.sendToBack(self.tail);
+              }
+
               self.head.setTint(playerInfo.primaryColor);
               self.body.setTint(playerInfo.primaryColor);
               self.tail.setTint(playerInfo.primaryColor);
@@ -827,6 +936,27 @@
           showOnStart: true
         });
         self.anims.create({
+          key: 'head_01Right',
+          frames: self.anims.generateFrameNumbers('head_01', { start: 10, end: 17 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'head_01Left',
+          frames: self.anims.generateFrameNumbers('head_01', { start: 19, end: 26 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'head_01Up',
+          frames: self.anims.generateFrameNumbers('head_01', { start: 28, end: 35 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
           key: 'head_01Stop',
           frames: self.anims.generateFrameNumbers('head_01', { start: 0, end: 0 }),
           frameRate: 9,
@@ -840,8 +970,29 @@
           showOnStart: true
         });
         self.anims.create({
+          key: 'head_02Right',
+          frames: self.anims.generateFrameNumbers('head_02', { start: 10, end: 17 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'head_02Left',
+          frames: self.anims.generateFrameNumbers('head_02', { start: 19, end: 26 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'head_02Up',
+          frames: self.anims.generateFrameNumbers('head_02', { start: 28, end: 35 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
           key: 'head_02Stop',
-          frames: self.anims.generateFrameNumbers('head_01', { start: 0, end: 0 }),
+          frames: self.anims.generateFrameNumbers('head_02', { start: 0, end: 0 }),
           frameRate: 9,
           repeat: -1,
         });
@@ -853,8 +1004,29 @@
           showOnStart: true
         });
         self.anims.create({
+          key: 'head_03Right',
+          frames: self.anims.generateFrameNumbers('head_03', { start: 10, end: 17 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'head_03Left',
+          frames: self.anims.generateFrameNumbers('head_03', { start: 19, end: 26 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'head_03Up',
+          frames: self.anims.generateFrameNumbers('head_03', { start: 28, end: 35 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
           key: 'head_03Stop',
-          frames: self.anims.generateFrameNumbers('head_01', { start: 0, end: 0 }),
+          frames: self.anims.generateFrameNumbers('head_03', { start: 0, end: 0 }),
           frameRate: 9,
           repeat: -1,
         });
@@ -866,8 +1038,29 @@
           showOnStart: true
         });
         self.anims.create({
+          key: 'body_01Right',
+          frames: self.anims.generateFrameNumbers('body_01', { start: 10, end: 17 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'body_01Left',
+          frames: self.anims.generateFrameNumbers('body_01', { start: 19, end: 26 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'body_01Up',
+          frames: self.anims.generateFrameNumbers('body_01', { start: 28, end: 35 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
           key: 'body_01Stop',
-          frames: self.anims.generateFrameNumbers('head_01', { start: 0, end: 0 }),
+          frames: self.anims.generateFrameNumbers('body_01', { start: 0, end: 0 }),
           frameRate: 9,
           repeat: -1,
         });
@@ -879,11 +1072,65 @@
           showOnStart: true
         });
         self.anims.create({
+          key: 'tail_01Right',
+          frames: self.anims.generateFrameNumbers('tail_01', { start: 10, end: 17 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'tail_01Left',
+          frames: self.anims.generateFrameNumbers('tail_01', { start: 19, end: 26 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'tail_01Up',
+          frames: self.anims.generateFrameNumbers('tail_01', { start: 28, end: 35 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'tail_01Stop',
+          frames: self.anims.generateFrameNumbers('tail_01', { start: 0, end: 0 }),
+          frameRate: 9,
+          repeat: -1,
+        });
+        self.anims.create({
           key: 'eyes_01Down',
           frames: self.anims.generateFrameNumbers('eyes_01', { start: 1, end: 8 }),
           frameRate: 9,
           repeat: -1,
           showOnStart: true
+        });
+        self.anims.create({
+          key: 'eyes_01Right',
+          frames: self.anims.generateFrameNumbers('eyes_01', { start: 10, end: 17 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'eyes_01Left',
+          frames: self.anims.generateFrameNumbers('eyes_01', { start: 19, end: 26 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'eyes_01Up',
+          frames: self.anims.generateFrameNumbers('eyes_01', { start: 28, end: 35 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'eyes_01Stop',
+          frames: self.anims.generateFrameNumbers('eyes_01', { start: 0, end: 0 }),
+          frameRate: 9,
+          repeat: -1,
         });
         self.anims.create({
           key: 'secondaryBody_01Down',
@@ -893,6 +1140,33 @@
           showOnStart: true
         });
         self.anims.create({
+          key: 'secondaryBody_01Right',
+          frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 10, end: 17 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'secondaryBody_01Left',
+          frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 19, end: 26 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'secondaryBody_01Up',
+          frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 28, end: 35 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'secondaryBody_01Stop',
+          frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 0, end: 0 }),
+          frameRate: 9,
+          repeat: -1,
+        });
+        self.anims.create({
           key: 'secondaryBody_02Down',
           frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 1, end: 8 }),
           frameRate: 9,
@@ -900,11 +1174,65 @@
           showOnStart: true
         });
         self.anims.create({
+          key: 'secondaryBody_02Right',
+          frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 10, end: 17 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'secondaryBody_02Left',
+          frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 19, end: 26 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'secondaryBody_02Up',
+          frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 28, end: 35 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'secondaryBody_02Stop',
+          frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 0, end: 0 }),
+          frameRate: 9,
+          repeat: -1,
+        });
+        self.anims.create({
           key: 'secondaryBody_03Down',
           frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 1, end: 8 }),
           frameRate: 9,
           repeat: -1,
           showOnStart: true
+        });
+        self.anims.create({
+          key: 'secondaryBody_03Right',
+          frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 10, end: 17 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'secondaryBody_03Left',
+          frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 19, end: 26 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'secondaryBody_03Up',
+          frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 28, end: 35 }),
+          frameRate: 9,
+          repeat: -1,
+          showOnStart: true
+        });
+        self.anims.create({
+          key: 'secondaryBody_03Stop',
+          frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 0, end: 0 }),
+          frameRate: 9,
+          repeat: -1,
         });
       }
 
