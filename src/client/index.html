@@ -63,7 +63,7 @@
     }
     #genderPullout{
       display: block;
-      justify-content: space-evenly;
+      justify-content: space-around;
     }
 
     .button {
@@ -221,6 +221,29 @@
 
   max-width: 80px;
 }
+#next {
+position: absolute;
+right: 10px;
+bottom: 10px;
+}
+#finish {
+position: absolute;
+right: 10px;
+bottom: 10px;
+}
+input[type=text] {
+  border: 2px solid #aaa;
+  border-radius: 4px;
+  margin: 8px 0;
+  outline: none;
+  padding: 8px;
+  box-sizing: border-box;
+  transition: .3s;
+}
+input[type=text]:focus {
+  border-color: #00c60e;
+  box-shadow: 0 0 8px 0 #00c60e;
+}
 
 
   </style>
@@ -237,8 +260,6 @@
     <div id ="characterCreator">
       <div id="primaryButtons">
         <button id="gender" class="button main" style="vertical-align:middle"><span>&#9892; </span></button>
-        <br>
-        <button id="species" class="button main" style="vertical-align:middle"><span>Species </span></button>
         <br>
         <button id="about" class="button main" style="vertical-align:middle"><span>About </span></button>
       </div>
@@ -322,15 +343,37 @@
         <div class="container">
           <canvas id="color-picker"></canvas>
         </div>
+        <button id="next" class="button main" style="vertical-align:middle"><span>Next </span></button>
       </div>
 
-      <div id ="speciesPullout" class="pullout">
-        <div id ="bodyPartSelection">
-          <button id="head" class="button tab" style="vertical-align:middle"><span>Head </span></button>
-        </div>
-      </div>
+
+
       <div id ="aboutPullout" class="pullout">
+        <div id="playerInformation">
+          <div id="nameInput">
+            <label for="firstName">First Name:</label>
+            <br>
+            <input id="firstName" type="text" autocomplete="off" class="form-control" placeholder="First Name" aria-label="First Name"></input>
+            <br>
+            <label for="lastName">Last Name:</label><br>
+            <input id="lastName" type="text" autocomplete="off" class="form-control" placeholder="Last Name" aria-label="Last Name"></input>
+            <br>
+            <label for="nickName">Nick Name:</label><br>
+            <input id="nickName" type="text" autocomplete="off" class="form-control" placeholder="Nick Name" aria-label="Nick Name"></input>
+          </div>
+          <div id="detailsInput">
+            <div id="pronouns">
 
+            </div>
+            <label for="speciesName">Species Name:</label>
+            <br>
+            <input id="speciesName" type="text" autocomplete="off" class="form-control" placeholder="Species Name" aria-label="Species Name"></input>
+          </div>
+          <div id="descriptionInput">
+            Input Character Description here: <br> <textarea id="descrip" autocomplete="off" class="form-control" placeholder="description" aria-label="description"></textarea>
+          </div>
+        </div>
+        <button id="finish" class="button main" style="vertical-align:middle"><span>Finish </span></button>
       </div>
 
       <div id="previewContainer">
@@ -372,20 +415,17 @@
       gender.addEventListener("click", function() {
         console.log('gender clicked');
         document.getElementById("genderPullout").style.display = "block";
-        document.getElementById("speciesPullout").style.display = "none";
         document.getElementById("aboutPullout").style.display = "none";
         //document.getElementById("genderPullout").style.transform = translateX(50px);
-      });
-      species.addEventListener("click", function() {
-        console.log('species clicked');
-        document.getElementById("genderPullout").style.display = "none";
-        document.getElementById("speciesPullout").style.display = "block";
-        document.getElementById("aboutPullout").style.display = "none";
       });
       about.addEventListener("click", function() {
         console.log('about clicked');
         document.getElementById("genderPullout").style.display = "none";
-        document.getElementById("speciesPullout").style.display = "none";
+        document.getElementById("aboutPullout").style.display = "block";
+      });
+      next.addEventListener("click", function() {
+        console.log('next clicked');
+        document.getElementById("genderPullout").style.display = "none";
         document.getElementById("aboutPullout").style.display = "block";
       });
 
