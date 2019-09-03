@@ -67,185 +67,238 @@
     }
 
     .button {
-  display: inline-block;
-  border-radius: 4px;
-  background-color: #60d8c2;
-  border: none;
-  color: #FFFFFF;
-  text-align: center;
-  font-size: 50px;
-  padding: 5px;
-  width: 150px;
-  transition: all 0.5s;
-  cursor: pointer;
-  margin: 5px;
-}
-.button.left{
-  font-size: 25px;
-  width: 100px;
-  float: left;
-}
-.button.right{
-  font-size: 25px;
-  width: 100px;
-  float: right;
-}
+      display: inline-block;
+      border-radius: 4px;
+      background-color: #60d8c2;
+      border: none;
+      color: #FFFFFF;
+      text-align: center;
+      font-size: 50px;
+      padding: 5px;
+      width: 150px;
+      transition: all 0.5s;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .button.left{
+      font-size: 25px;
+      width: 100px;
+      float: left;
+    }
+    .button.right{
+      font-size: 25px;
+      width: 100px;
+      float: right;
+    }
 
-.button span {
-  cursor: pointer;
-  display: inline-block;
-  position: relative;
-  transition: 0.5s;
-}
+    .button span {
+      cursor: pointer;
+      display: inline-block;
+      position: relative;
+      transition: 0.5s;
+    }
 
-  .button.left span:before {
-    content: '\00AB';
-    left: 20px;
-  }
-  .button.right span:before {
-    content: '\00bb';
-    right: -20px;
-  }
-  .button.main span:after {
-    content: '\00bb';
-    right: -20px;
-  }
-  .butt.tab{
-    font-size: 25px;
-    width:100px;
-  }
-  .button.tab span:before {
-    content: '\fe3e'
-  }
+    .button.left span:before {
+      content: '\00AB';
+      left: 20px;
+    }
+    .button.right span:before {
+      content: '\00bb';
+      right: -20px;
+    }
+    .button.main span:after {
+      content: '\00bb';
+      right: -20px;
+    }
+    .butt.tab{
+      font-size: 25px;
+      width:100px;
+    }
+    .button.tab span:before {
+      content: '\fe3e'
+    }
 
-.button span:after {
-  position: absolute;
-  opacity: 0;
-  top: 0;
-  transition: 0.2s;
-}
+    .button span:after {
+      position: absolute;
+      opacity: 0;
+      top: 0;
+      transition: 0.2s;
+    }
 
-.button:hover span {
-  padding-right: 25px;
-}
-.button.right:hover span {
-  padding-left: 50px;
-}
+    .button:hover span {
+      padding-right: 25px;
+    }
+    .button.right:hover span {
+      padding-left: 50px;
+    }
 
-.button:hover span:after {
-  opacity: 1;
-  right: 0;
-}
-.button:active {
-  background-color: #e5ecb4;
-  box-shadow: 0 5px #666;
-  transform: translateY(4px);
-}
-.container {
-  position: static;
-  display: inline-block;
-  vertical-align: top;
-}
-#color-picker {
-  border: 3px solid rgba(15, 15, 15, 0.2);
-}
-.info {
-  position: static;
-  display: inline-block;
-  vertical-align: top;
-}
-.selected {
-  width: 50px;
-  height: 50px;
-  border-radius: 100%;
-  border: 2px solid rgba(15, 15, 15, 0.2);
-  background-color: rgb(255, 255, 255);
-}
-.selected:active {
-  box-shadow: 0 5px #666;
-  transform: translateY(4px);
-}
-#collapsibleBox {
-  position: static;
-  display: inline-block;
-  vertical-align: top;
-  max-width: 454px;
-  min-width: 384px;
-  border: solid;
-  border-radius: 10px;
-  border-width: 5px;
-  border-color: #05336f;
-  margin: 5px;
-}
-.collapsible {
-  background-color: #0b4b90;
-  color: white;
-  cursor: pointer;
-  padding: 18px;
-  width: 100%;
-  border: none;
-  text-align: left;
-  outline: none;
-  font-size: 15px;
-}
+    .button:hover span:after {
+      opacity: 1;
+      right: 0;
+    }
+    .button:active {
+      background-color: #e5ecb4;
+      box-shadow: 0 5px #666;
+      transform: translateY(4px);
+    }
+    .container {
+      position: static;
+      display: inline-block;
+      vertical-align: top;
+    }
+    #color-picker {
+      border: 3px solid rgba(15, 15, 15, 0.2);
+    }
+    .info {
+      position: static;
+      display: inline-block;
+      vertical-align: top;
+    }
+    .selected {
+      width: 50px;
+      height: 50px;
+      border-radius: 100%;
+      border: 2px solid rgba(15, 15, 15, 0.2);
+      background-color: rgb(255, 255, 255);
+    }
+    .selected:active {
+      box-shadow: 0 5px #666;
+      transform: translateY(4px);
+    }
+    #collapsibleBox {
+      position: static;
+      display: inline-block;
+      vertical-align: top;
+      max-width: 454px;
+      min-width: 384px;
+      border: solid;
+      border-radius: 10px;
+      border-width: 5px;
+      border-color: #05336f;
+      margin: 5px;
+    }
+    .collapsible {
+      background-color: #0b4b90;
+      color: white;
+      cursor: pointer;
+      padding: 18px;
+      width: 100%;
+      border: none;
+      text-align: left;
+      outline: none;
+      font-size: 15px;
+    }
 
-.active, .collapsible:hover {
-  background-color: #093e78;
-}
+    .active, .collapsible:hover {
+      background-color: #093e78;
+    }
 
-.content {
-  padding: 0 18px;
-  display: none;
-  overflow: hidden;
-  background-color: #74b6dc;
-}
-.typeLabel {
-  display: inline-block;
-  vertical-align: center;
-  text-align: center;
+    .content {
+      padding: 0 18px;
+      display: none;
+      overflow: hidden;
+      background-color: #74b6dc;
+    }
+    .typeLabel {
+      display: inline-block;
+      vertical-align: center;
+      text-align: center;
 
-  border: solid;
-  border-radius: 10px;
-  border-width: 5px;
-  border-color: #e5ecb4;
-  min-width: 188px;
-  min-height: 39px;
-  background-color: #ffffff;
-  font-size: 20px;
-}
-.button.left.rotate {
+      border: solid;
+      border-radius: 10px;
+      border-width: 5px;
+      border-color: #e5ecb4;
+      min-width: 188px;
+      min-height: 39px;
+      background-color: #ffffff;
+      font-size: 20px;
+    }
+    .button.left.rotate {
 
-  max-width: 80px;
-}
-.button.right.rotate {
+      max-width: 80px;
+    }
+    .button.right.rotate {
 
-  max-width: 80px;
-}
-#next {
-position: absolute;
-right: 10px;
-bottom: 10px;
-}
-#finish {
-position: absolute;
-right: 10px;
-bottom: 10px;
-}
-input[type=text] {
-  border: 2px solid #aaa;
-  border-radius: 4px;
-  margin: 8px 0;
-  outline: none;
-  padding: 8px;
-  box-sizing: border-box;
-  transition: .3s;
-}
-input[type=text]:focus {
-  border-color: #00c60e;
-  box-shadow: 0 0 8px 0 #00c60e;
-}
-
-
+      max-width: 80px;
+    }
+    #next {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    }
+    #finish {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    }
+    input[type=text] {
+      border: 2px solid #aaa;
+      border-radius: 4px;
+      margin: 8px 0;
+      outline: none;
+      padding: 8px;
+      box-sizing: border-box;
+      transition: .3s;
+    }
+    input[type=text]:focus {
+      border-color: #00c60e;
+      box-shadow: 0 0 8px 0 #00c60e;
+    }
+    .radioContainer{
+      display: block;
+      position: relative;
+      font-size: 22px;
+      padding-left: 35px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .radioContainer input{
+      position: absolute;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .checkmark{
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 25px;
+      width: 25px;
+      background-color: #eee;
+      border-radius: 50%;
+    }
+    .radioContainer:hover input ~ .checkmark {
+      background-color: #ccc;
+    }
+    .radioContainer input:checked ~ .checkmark{
+      background-color: #2196F3;
+    }
+    .checkmark:after{
+    content: "";
+    position: absolute;
+    display: none;
+    }
+    .radioContainer input:checked ~ .checkmark:after{
+      display: block;
+    }
+    .radioContainer .checkmark:after{
+      top: 9px;
+      left: 9px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ffffff;
+    }
+    #nameInput{
+    display: inline-block;
+    }
+    #descriptionInput{
+      display: inline-block;
+      top: 0px;
+    }
+    #detailsInput{
+      display: inline-block;
+    }
   </style>
 
   <body>
@@ -363,7 +416,16 @@ input[type=text]:focus {
           </div>
           <div id="detailsInput">
             <div id="pronouns">
+              <label>Preferred Pronouns</label>
+              <label for="she/her" class="radioContainer"> She/Her
+                <input id="she/her" type="radio" checked="checked" name="radio">
+                <span class="checkmark"></span>
+              </label>
 
+              <label for="he/his" class="radioContainer"> He/His
+                <input id="he/his" type="radio" checked="checked" name="radio">
+                <span class="checkmark"></span>
+              </label>
             </div>
             <label for="speciesName">Species Name:</label>
             <br>
