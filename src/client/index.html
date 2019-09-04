@@ -247,7 +247,7 @@
     .radioContainer{
       display: block;
       position: relative;
-      font-size: 22px;
+
       padding-left: 35px;
       margin-bottom: 12px;
       cursor: pointer;
@@ -291,6 +291,10 @@
     }
     #nameInput{
     display: inline-block;
+    font-size: 18px;
+    padding: 10px;
+    box-shadow: 0 0 8px 0 #666;
+    margin: 10px;
     }
     #descriptionInput{
       display: inline-block;
@@ -413,10 +417,9 @@
             <br>
             <label for="nickName">Nick Name:</label><br>
             <input id="nickName" type="text" autocomplete="off" class="form-control" placeholder="Nick Name" aria-label="Nick Name"></input>
-          </div>
-          <div id="detailsInput">
+            <br>
             <div id="pronouns">
-              <label>Preferred Pronouns</label>
+              <label>Preferred Pronouns:</label>
               <label for="she/her" class="radioContainer"> She/Her
                 <input id="she/her" type="radio" checked="checked" name="radio">
                 <span class="checkmark"></span>
@@ -431,8 +434,10 @@
             <br>
             <input id="speciesName" type="text" autocomplete="off" class="form-control" placeholder="Species Name" aria-label="Species Name"></input>
           </div>
-          <div id="descriptionInput">
-            Input Character Description here: <br> <textarea id="descrip" autocomplete="off" class="form-control" placeholder="description" aria-label="description"></textarea>
+          <div id="detailsInput">
+            <div id="descriptionInput">
+              Input Character Description here: <br> <textarea id="descrip" autocomplete="off" class="form-control" placeholder="description" aria-label="description"></textarea>
+            </div>
           </div>
         </div>
         <button id="finish" class="button main" style="vertical-align:middle"><span>Finish </span></button>
