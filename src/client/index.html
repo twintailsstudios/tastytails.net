@@ -37,16 +37,22 @@
         height:500px;
         left: 10%;
         right: 10%;
+        min-width: 1355px;
+        min-height: 510px;
     }
     #previewContainer{
       position:absolute;
-      background-color: pink;
-      border: solid;
-      border-width: 5px;
+      text-align: center;
+      background-color: #74b6dc;
+
+      padding: 10px;
+      box-shadow: 0 0 8px 0 #666;
+      margin: 10px;
       right:5%;
       top:10%;
       bottom:30%;
       left:80%;
+      min-width: 180px
     }
     .pullout{
       display: none;
@@ -60,6 +66,8 @@
       top:5%;
       bottom:10%;
       left:15%;
+      min-width: 861px;
+      min-height: 425px;
     }
     #genderPullout{
       display: block;
@@ -247,9 +255,10 @@
     .radioContainer{
       display: block;
       position: relative;
-
+      text-align: left;
       padding-left: 35px;
       margin-bottom: 12px;
+      margin-left: 40px;
       cursor: pointer;
       user-select: none;
     }
@@ -290,18 +299,48 @@
       background: #ffffff;
     }
     #nameInput{
-    display: inline-block;
+    float: left;
+    text-align: center;
     font-size: 18px;
     padding: 10px;
     box-shadow: 0 0 8px 0 #666;
     margin: 10px;
-    }
-    #descriptionInput{
-      display: inline-block;
-      top: 0px;
+    width: 30%;
+    min-width: 214px;
+    min-height: 375px;
     }
     #detailsInput{
-      display: inline-block;
+      float: left;
+      font-size: 18px;
+      padding: 10px;
+      box-shadow: 0 0 8px 0 #666;
+      margin: 10px;
+      width: 60%;
+      min-width: 515px;
+      min-height: 350px;
+    }
+    #detailsInput textarea{
+      width: 100%;
+      min-width:495px;
+      min-height: 276px;
+      border: 2px solid #aaa;
+      border-radius: 4px;
+      margin: 8px 0;
+      outline: none;
+      padding: 8px;
+      box-sizing: border-box;
+      transition: .3s;
+    }
+
+    #detailsInput textarea:focus {
+      border-color: #00c60e;
+      box-shadow: 0 0 8px 0 #00c60e;
+    }
+    #descriptionInput{
+      float: left;
+      width: 100%;
+      height: 100%;
+
     }
   </style>
 
