@@ -1,4 +1,4 @@
-require('babel-register')
+
 const express = require('express')
 const app = express()
 const http = require('http').Server(app)
@@ -12,13 +12,17 @@ const authRoute = require('./routes/auth');
 dotenv.config();
 
 //connect to DB
-mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true }, () => console.log('Connected to DB'));
+mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true }, err => {
+  if (err) throw err;
+  console.log("Connected to DB");
+});
 
 //Middlewares
 app.use(express.json());
 //Route Middlewares
 //app.use('./api/user', authRoute);
-app.use('api/user', authUser);
+//app.use('api/user', authUser);
+app.use("api/user", authRoute);
 
 
 
