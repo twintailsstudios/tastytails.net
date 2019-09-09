@@ -4,20 +4,33 @@ const app = express()
 const http = require('http').Server(app)
 const io = require('socket.io')(http)
 const path = require('path')
+const dotenv = require('dotenv');
+const mongoose = require('mongoose');
+//Import Routes
+const authRoute = require('./routes/auth');
 
-const game = require('./managers/game').default
+dotenv.config();
+
+//connect to DB
+mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true }, () => console.log('Connected to DB'));
+
+//Middlewares
+app.use(express.json());
+//Route Middlewares
+//app.use('./api/user', authRoute);
+app.use('api/user', authUser);
+
+
+
+
+
+//const game = require('./managers/game').default
 
 //const PlayerCharacter = require('./entities/player-character').default
-const Message = require('./entities/message').default
+//const Message = require('./entities/message').default
 
 var players = {};
-/*var spawnAreas = null;
-var random_tile = null;
-var spell0 = {Name:"Spell #0", Description:"This is the zeroth spell", Icon:"scroll2", x:"", y:"", Action:"action_0"};
-var spell1 = {Name:"Spell #1", Description:"This is the first spell", Icon:"scroll2", x:"", y:"", Action:"action_1"};
-var spell2 = {Name:"Spell #2", Description:"This is the second spell", Icon:"scroll2", x:"", y:"", Action:"action_2"};
 
-var spells = [spell0, spell1, spell2];*/
 
 const port = 3000
 
@@ -341,4 +354,4 @@ io.on('connection', function (socket) {
   });
 });
 
-http.listen(port, () => console.log('Listening on port 3000!'))
+http.listen(port, () => console.log('Listening on port', port, '!'))

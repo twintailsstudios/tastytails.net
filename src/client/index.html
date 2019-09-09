@@ -1,13 +1,168 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <meta name="viewport" content="width=device-width">
+    <meta name="description" content="A place where you can eat and be eaten by your friends!">
+    <meta name="keywords" content="vore, game, vore game, unbirth, anal vore, tail vore, tasty, tails, tastytails, tasty tails, furry, yiff, role-playing, role-play, role play, RP, lewd, OwO,">
+    <meta name="author" content="Kimberly Tilson">
+    <title>TastyTails | Home</title>
+  </head>
   <style>
-    body {
-      background-color: #122a4e;
-    }
-    h1, h2 {
-      color:white;
-    }
-    a {
+  body {
+    background-color: #0b4b90;
+    padding: 0;
+    margin: 0;
+  }
+  /* Global */
+  .container{
+    width: 80%;
+    margin: auto;
+    overflow: hidden;
+  }
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style-type:none;
+  }
+  .button {
+    border-radius: 4px;
+    background-color: #60d8c2;
+    border: none;
+    color: #FFFFFF;
+    text-align: center;
+    font-size: 25px;
+    padding-left: 5px;
+    padding-right:5px;
+    transition: all 0.2s;
+    cursor: pointer;
+    margin: 5px;
+  }
+  .hide{
+    display:none;
+  }
+  .show{
+    display:block;
+  }
+  #smoke {
+    position: absolute;
+    background-color: black;
+    width: 100%;
+    height: 89%;
+    padding: 0;
+    margin: 0;
+    opacity: .5;
+  }
+  .registrationBox {
+    z-index: 2;
+  }
+  .popUpContainer {
+    position: absolute;
+    border: solid;
+    margin: 20px;
+    background-color: #0b4b90;
+    text-align: center;
+    top: 10%;
+    bottom: 30%;
+    left: 20%;
+    right: 20%;
+  }
+  .popUpContainer .close {
+    float: right;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    color: #ffffff;
+    font-size: 25px;
+  }
+  .popUpContainer .registrationContainer {
+    float: left;
+    margin: 0 25px 0 0;
+    padding-right: 25px;
+    padding-top: 20px;
+    border-right: #05336f 2px solid;
+    width: 60%;
+  }
+  .popUpContainer .loginContainer {
+    float: left;
+    width: 30%;
+    padding-top: 20px;
+  }
+  .popUpContainer form {
+    margin-top: 15px;
+    margin-bottom: 15px;
+  }
+  .popUpContainer input[type="email"] {
+    padding: 4px;
+    height: 20px;
+    width: 200px;
+    margin: 10px;
+  }
+  .popUpContainer input[type="password"] {
+    padding: 4px;
+    height: 20px;
+    width: 200px;
+    margin: 10px;
+  }
+  .popUpContainer header {
+    background: none;
+    border: none;
+    padding-top: 20px;
+    float: left;
+  }
+  .reg1 {
+    text-align: center;
+    margin: 0 25px 0 0;
+    padding-right: 25px;
+    width: 60%;
+  }
+  .login {
+    text-align: center;
+    width: 30%;
+  }
+
+  /* Header */
+  header {
+    background-color: #122a4e;
+    color: #ffffff;
+    padding-top: 30px;
+    min-height: 70px;
+    border-bottom: #05336f 5px solid;
+  }
+  header .headerLogo {
+    float: left;
+  }
+  header .headerLogo h1 {
+    margin:0;
+  }
+
+  /* Nav */
+  nav {
+    border-bottom: #05336f 1px solid;
+  }
+  nav a {
+    color: #ffffff;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-size: 16px;
+    margin: auto;
+  }
+  nav li {
+    float: left;
+    display: inline;
+    padding: 15px 20px 0 20px;
+  }
+  nav .loginBox {
+    float: right;
+    display: inline;
+    color: #ffffff;
+    font-size: 16px;
+    padding: 0 20px 0 20px;
+  }
+  nav a:hover {
+    color: #74b6dc;
+    font-weight: bold;
+  }
+    #home a {
       border-style: solid;
       border-color: pink;
       border-width: 5px;
@@ -26,17 +181,96 @@
     #home{
       position: static;
     }
+    .loggedIn {
+      display: none;
+    }
+
   </style>
 
   <body>
-    <div id ="home">
-      <center>
-        <h1>TastyTails</h1>
-        <h2>~Under Construction~</h2>
-        <a href="create.html">Click Here to play Alpha</a><br>
-        <img src="assets/images/Tasty_Tails_under_construction.png" alt="Under Construction">
-      </center>
+    <header>
+      <div class="container">
+        <div class="headerLogo">
+          <h1> TastyTails</h1>
+        </div>
+      </div>
+    </header>
+    <div id="smoke" class="hide">
+
     </div>
+    <nav>
+      <div class="container">
+        <ul>
+          <li>
+            <a href="index.html">Home</a>
+          </li>
+        </ul>
+        <div class="loginBox">
+            <button onClick="hideFunction()" class="button" >Login</button>
+          <div class="loggedIn">
+            <p>You're Logged In!</p>
+          </div>
+        </div>
+      </div>
+    </nav>
+    <section class="registrationBox hide">
+      <div class="container">
+        <div class="popUpContainer">
+          <div class="close">
+            <button onClick="hideFunction()"><span>&#x1F5D9;</span></button>
+          </div>
+          <header class="reg1">
+          <h1>Create an Account</h1>
+          <p>Join the fun!</p>
+          </header>
+          <header class="login">
+          <h1>Log In</h1>
+          <p>Been here before? Log in below.</p>
+          </header>
+          <div class="registrationContainer">
+
+            <form action="/register" method="POST">
+              <ul>
+                <li><input type="email" placeholder="Enter Email..." required></li>
+                <li><input type="password" placeholder="Enter Password..." required></li>
+              </ul>
+              <button type="submit" class="button">Sign Up!</button>
+            </form>
+          </div>
+
+          <div class="loginContainer">
+
+            <form>
+              <ul>
+                <li><input type="email" placeholder="Enter Email..."></li>
+                <li><input type="password" placeholder="Enter Password..."></li>
+              </ul>
+              <button type="submit" class="button">Login</button>
+            </form>
+          </div>
+        </div>
+    </div>
+    </section>
+
+    <section id ="home">
+      <div class="container">
+        <center>
+          <h1>TastyTails</h1>
+          <h2>~Under Construction~</h2>
+          <a href="create.html">Click Here to play Alpha</a><br>
+          <img src="assets/images/Tasty_Tails_under_construction.png" alt="Under Construction">
+        </center>
+    </div>
+    </section>
+
+    <script>
+      function hideFunction() {
+        var element = document.getElementsByClassName("registrationBox");
+        element[0].classList.toggle("hide");
+        element = document.getElementById("smoke");
+        element.classList.toggle("hide");
+      }
+    </script>
 
   </body>
 </html>
