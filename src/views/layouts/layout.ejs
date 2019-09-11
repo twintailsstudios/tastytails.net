@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width">
+    <meta name="description" content="A place where you can eat and be eaten by your friends!">
+    <meta name="keywords" content="vore, game, vore game, unbirth, anal vore, tail vore, tasty, tails, tastytails, tasty tails, furry, yiff, role-playing, role-play, role play, RP, lewd, OwO,">
+    <meta name="author" content="Kimberly Tilson">
+    <title>TastyTails | Home</title>
+    <link rel="stylesheet" href="./css/style.css">
+  </head>
+  <style>
+  body {
+    background-color: #0b4b90;
+    padding: 0;
+    margin: 0;
+  }
+  </style>
+
+  <body>
+    <header>
+      <div class="container">
+        <div class="headerLogo">
+          <h1> TastyTails</h1>
+        </div>
+      </div>
+    </header>
+    <div id="smoke" class="hide">
+
+    </div>
+    <nav>
+      <div class="container">
+        <ul>
+          <li>
+            <a href="/">Home</a>
+          </li>
+        </ul>
+        <div class="loginBox">
+            <button onClick="hideFunction()" class="button" >Login</button>
+          <div class="loggedIn">
+            <p>You're Logged In!</p>
+          </div>
+        </div>
+      </div>
+    </nav>
+    <%- body %>
+    <footer>
+      <p>TastyTails~</p>
+    </footer>
+    <script>
+      function hideFunction() {
+        var element = document.getElementsByClassName("registrationBox");
+        element[0].classList.toggle("hide");
+        element = document.getElementById("smoke");
+        element.classList.toggle("hide");
+      }
+    </script>
+  </body>
+</html>

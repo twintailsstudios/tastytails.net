@@ -1,0 +1,1053 @@
+<section id ="characterCreator">
+  <div class="container">
+    <div id="characterCreatorUi">
+      <div id="primaryButtons">
+        <ul>
+          <li><button id="gender" class="button main" style="vertical-align:middle"><span>&#9892; </span></button></li>
+          <li><button id="about" class="button main" style="vertical-align:middle"><span>About </span></button></li>
+        </ul>
+      </div>
+
+
+
+
+
+      <div id ="genderPullout" class="pullout">
+        <div id ="collapsibleBox">
+          <button class="collapsible">Body Type <span>&#65086;</span></button>
+          <div class="content">
+            <div id ="bodyType">
+              <button id="bodyLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              <div id ="bodyTypeLabel" class="typeLabel">
+                Feminine
+              </div>
+              <button id="bodyRight" class="button right" style="vertical-align:middle"><span> </span></button>
+            </div>
+          </div>
+          <button class="collapsible">Genitailia</button>
+          <div class="content">
+            <div id ="genitailia">
+              <button id="genitleLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              <div id ="genitleTypeLabel" class="typeLabel">
+                (unavailable)
+              </div>
+              <button id="genitleRight" class="button right" style="vertical-align:middle"><span> </span></button>
+            </div>
+          </div>
+          <button class="collapsible">Secondary Fur</button>
+          <div class="content">
+            <div id ="secondaryFurType">
+              <button id="secondaryFurLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              <div id ="secondaryFurTypeLabel" class="typeLabel">
+                Option 1
+              </div>
+              <button id="secondaryFurRight" class="button right" style="vertical-align:middle"><span> </span></button>
+            </div>
+          </div>
+          <button class="collapsible">Head</button>
+          <div class="content">
+            <div id ="headType">
+              <button id="headLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              <div id ="headTypeLabel" class="typeLabel">
+                Fox
+              </div>
+              <button id="headRight" class="button right" style="vertical-align:middle"><span> </span></button>
+            </div>
+          </div>
+          <button class="collapsible">Tail</button>
+          <div class="content">
+            <div id ="tailType">
+              <button id="tailLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              Tail Options
+              <button id="tailRight" class="button right" style="vertical-align:middle"><span> </span></button>
+            </div>
+          </div>
+        </div>
+        <div class="info">
+          <ul>
+            <li><div id= "test1">
+              Primary Color:<br>
+              <button id="primary" class="selected"></button>
+            </div></li>
+            <li><div id= "test2">
+              Secondary Color:<br>
+              <button id="secondary" class="selected"></button>
+            </div></li>
+            <li><div id="test3">
+              Accent Color:<br>
+              <button id="accent" class="selected"></button>
+            </div></li>
+            <li><div id="test4">
+              Eye Color:<br>
+              <button id="eyeColor" class="selected"></button>
+            </div></li>
+          </ul>
+        </div>
+        <div class="colorContainer">
+          <canvas id="color-picker"></canvas>
+        </div>
+        <button id="next" class="button main" style="vertical-align:middle"><span>Next </span></button>
+      </div>
+
+
+
+      <div id ="aboutPullout" class="pullout">
+        <div id="playerInformation">
+          <div id="nameInput">
+            <label for="firstName">First Name:</label>
+            <br>
+            <input id="firstName" type="text" autocomplete="off" class="form-control" placeholder="First Name" aria-label="First Name"></input>
+            <br>
+            <label for="lastName">Last Name:</label><br>
+            <input id="lastName" type="text" autocomplete="off" class="form-control" placeholder="Last Name" aria-label="Last Name"></input>
+            <br>
+            <label for="nickName">Nick Name:</label><br>
+            <input id="nickName" type="text" autocomplete="off" class="form-control" placeholder="Nick Name" aria-label="Nick Name"></input>
+            <br>
+            <div id="pronouns">
+              <label>Preferred Pronouns:</label>
+              <label for="she/her" class="radioContainer"> She/Her
+                <input id="she/her" type="radio" checked="checked" name="radio">
+                <span class="checkmark"></span>
+              </label>
+
+              <label for="he/his" class="radioContainer"> He/His
+                <input id="he/his" type="radio" checked="checked" name="radio">
+                <span class="checkmark"></span>
+              </label>
+            </div>
+            <label for="speciesName">Species Name:</label>
+            <br>
+            <input id="speciesName" type="text" autocomplete="off" class="form-control" placeholder="Species Name" aria-label="Species Name"></input>
+          </div>
+          <div id="detailsInput">
+            <div id="descriptionInput">
+              Input Character Description here: <br> <textarea id="descrip" autocomplete="off" class="form-control" placeholder="description" aria-label="description"></textarea>
+            </div>
+          </div>
+        </div>
+        <a href="gameindex.html" id="finish" class="button main" style="vertical-align:middle">Finish</a>
+
+      </div>
+
+      <div id="previewContainer">
+        <div id="preview">
+
+        </div>
+        <div id ="previewRotation">
+          <button id="rotateLeft" class="button left rotate" style="vertical-align:middle"><span> </span></button>
+
+          <button id="rotateRight" class="button right rotate" style="vertical-align:middle"><span> </span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<script src="//cdn.jsdelivr.net/npm/phaser@3.13.0/dist/phaser.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+
+  var coll = document.getElementsByClassName("collapsible");
+  var i;
+
+  for (i = 0; i < coll.length; i++) {
+    coll[i].addEventListener("click", function() {
+      this.classList.toggle("active");
+      var content = this.nextElementSibling;
+      if (content.style.display === "block") {
+        content.style.display = "none";
+      } else {
+        content.style.display = "block";
+      }
+    });
+  }
+
+  gender.addEventListener("click", function() {
+    console.log('gender clicked');
+    document.getElementById("genderPullout").style.display = "block";
+    document.getElementById("aboutPullout").style.display = "none";
+    //document.getElementById("genderPullout").style.transform = translateX(50px);
+  });
+  about.addEventListener("click", function() {
+    console.log('about clicked');
+    document.getElementById("genderPullout").style.display = "none";
+    document.getElementById("aboutPullout").style.display = "block";
+  });
+  next.addEventListener("click", function() {
+    console.log('next clicked');
+    document.getElementById("genderPullout").style.display = "none";
+    document.getElementById("aboutPullout").style.display = "block";
+  });
+
+
+  var bodySelection = 1;
+  var genitleSelection = 1;
+  var headSelection = 1;
+  var secondaryFurSelection = 1;
+  var rotation = 1;
+  console.log('bodySelection = ', bodySelection);
+  console.log('genitleSelection = ', genitleSelection);
+  var config = {
+    type: Phaser.AUTO,
+    parent: 'preview',
+    width: 200,
+    height: 200,
+    physics: {
+      default: 'arcade',
+      arcade: {
+        debug: false,
+        gravity: { y: 0 }
+      }
+    },
+    scene: {
+      preload: preload,
+      create: create,
+      update: update
+    }
+  };
+
+  var game = new Phaser.Game(config);
+  var localPlayerInfo = {Identifier:'', playerId:'', Username:'', Description:'', head:'head_01', body:'body_01', tail:'tail_01', eyes:'eyes_01', secondaryBody:'secondaryBody_01', genitle:'none', primaryColor:'0xe0e0e0', secondaryColor:'0xffffff', accentColor:'0xfcf2f2', eyeColor:'0xfcf2f2', specialList:[], spellInventory:[],
+  consumedBy:''};
+
+  function preload() {
+    this.load.spritesheet('testBody', 'assets/spritesheets/testBody.png', {frameWidth: 109, frameHeight: 220});
+    this.load.spritesheet('head_01', 'assets/spritesheets/head_01.png', {frameWidth: 182, frameHeight: 190});
+    this.load.spritesheet('head_02', 'assets/spritesheets/head_02.png', {frameWidth: 182, frameHeight: 190});
+    this.load.spritesheet('head_03', 'assets/spritesheets/head_03.png', {frameWidth: 182, frameHeight: 190});
+    this.load.spritesheet('body_01', 'assets/spritesheets/body_01.png', {frameWidth: 182, frameHeight: 190});
+    this.load.spritesheet('tail_01', 'assets/spritesheets/tail_01.png', {frameWidth: 182, frameHeight: 190});
+    this.load.spritesheet('eyes_01', 'assets/spritesheets/eyes_01.png', {frameWidth: 182, frameHeight: 190});
+    this.load.spritesheet('secondaryBody_01', 'assets/spritesheets/secondaryBody_01.png', {frameWidth: 182, frameHeight: 190});
+    this.load.spritesheet('secondaryBody_02', 'assets/spritesheets/secondaryBody_02.png', {frameWidth: 182, frameHeight: 190});
+    this.load.spritesheet('secondaryBody_03', 'assets/spritesheets/secondaryBody_03.png', {frameWidth: 182, frameHeight: 190});
+  }
+
+  function create() {
+    var self = this;
+    this.socket = io();
+    this.otherPlayers = this.physics.add.group();
+    cursors = this.input.keyboard.createCursorKeys();
+    //console.log('self.socket = ', self.socket);
+    this.socket.on('currentPlayers', function (players, spells) {
+      Object.keys(players).forEach(function (id) {
+        console.log('Local players socket Id = ', players[id].playerId);
+        if (players[id].playerId === self.socket.id) {
+          console.log('players[id] = ', players[id]);
+          addPlayer(self, players[id]);
+        } else {
+          return;
+        }
+      });
+    });
+
+
+
+
+
+
+    let isMouseDown = false;
+    let colorButton = 1;
+    class Picker {
+      constructor(target, width, height) {
+        this.target = target;
+        this.width = width;
+        this.height = height;
+        this.target.width = width;
+        this.target.height = height;
+        //Get context
+        this.context = this.target.getContext("2d");
+        //Circle
+        this.pickerCircle = { x: 10, y: 10, width: 7, height: 7 };
+
+
+
+        this.listenForEvents();
+      }
+
+      draw() {
+        this.build();
+      }
+
+      build() {
+        let gradient = this.context.createLinearGradient(0, 0, this.width, 0);
+
+        //Color Stops
+        gradient.addColorStop(0, "rgb(255, 0, 0)");
+        gradient.addColorStop(0.15, "rgb(255, 0, 255)");
+        gradient.addColorStop(0.33, "rgb(0, 0, 255)");
+        gradient.addColorStop(0.49, "rgb(0, 255, 255)");
+        gradient.addColorStop(0.67, "rgb(0, 255, 0)");
+        gradient.addColorStop(0.84, "rgb(255, 255, 0)");
+        gradient.addColorStop(1, "rgb(255, 0, 0)");
+        //Fill it
+        this.context.fillStyle = gradient;
+        this.context.fillRect(0, 0, this.width, this.height);
+
+        //Apply black & white
+        gradient = this.context.createLinearGradient(0, 0, 0, this.height);
+        gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+        gradient.addColorStop(0.5, "rgba(255, 255, 255, 0)");
+        gradient.addColorStop(0.5, "rgba(0, 0, 0, 0)");
+        gradient.addColorStop(1, "rgba(0, 0, 0, 1)");
+        this.context.fillStyle = gradient;
+        this.context.fillRect(0, 0, this.width, this.height);
+
+        //Circle
+        this.context.beginPath();
+        this.context.arc(this.pickerCircle.x, this.pickerCircle.y, this.pickerCircle.width, 0, Math.PI * 2);
+        this.context.strokeStyle = "black";
+        this.context.stroke();
+        this.context.closePath();
+
+      }
+      listenForEvents() {
+
+        const onMouseDown = (e) => {
+          let colorPickerRect = document.getElementById('color-picker').getBoundingClientRect();
+          let currentX = e.clientX - colorPickerRect.left;
+          let currentY = e.clientY - colorPickerRect.top;
+          //console.log('currentX = ', currentX, '\n', 'currentY = ', currentY, '\n', 'e.clientX = ', e.clientX, '\n', 'e.clientY = ', e.clientY, '\n', 'this.target.offsetLeft = ', this.target.offsetLeft, '\n', 'this.target.offsetTop = ', this.target.offsetTop);
+          /**if(currentY > this.pickerCircle.y && currentY < this.pickerCircle.y + this.pickerCircle.width && currentX > this.pickerCircle.x && currentX < this.pickerCircle.x + this.pickerCircle.width) {
+            isMouseDown = true;
+          } else {
+            this.pickerCircle.x = currentX;
+            this.pickerCircle.y = currentY;
+          }**/
+          isMouseDown = true;
+          this.pickerCircle.x = currentX;
+          this.pickerCircle.y = currentY;
+        }
+        const onMouseMove = (e) => {
+          if (isMouseDown) {
+            let colorPickerRect = document.getElementById('color-picker').getBoundingClientRect();
+            let currentX = e.clientX - colorPickerRect.left;
+            let currentY = e.clientY - colorPickerRect.top;
+            this.pickerCircle.x = currentX;
+            this.pickerCircle.y = currentY;
+          }
+        }
+        const onMouseUp = () => {
+          setTimeout(myFunction, 10);
+          function myFunction() {
+            isMouseDown = false;
+          }
+        }
+        //Register
+        this.target.addEventListener("mousedown", onMouseDown);
+        this.target.addEventListener("mousedown", () => this.onChangeCallback(this.getPickedColor()));
+        this.target.addEventListener("mousemove", onMouseMove);
+        this.target.addEventListener("mousemove", () => this.onChangeCallback(this.getPickedColor()));
+        document.addEventListener("mouseup", onMouseUp);
+      }
+
+      getPickedColor() {
+        let imageData = this.context.getImageData(this.pickerCircle.x, this.pickerCircle.y, 1, 1);
+          return {r: imageData.data[0], g: imageData.data[1], b: imageData.data[2] };
+      }
+      onChange(callback) {
+        this.onChangeCallback = callback;
+      }
+    }
+    let picker = new Picker(document.getElementById("color-picker"), 250, 220);
+    //draw
+    setInterval(() => picker.draw(), 1);
+    picker.onChange((color) => {
+      console.log("colorButton = ", colorButton);
+      let selected = "";
+      if(colorButton == 1) {
+        selected = document.getElementsByClassName("selected")[0];
+      }
+      if(colorButton == 2) {
+        selected = document.getElementsByClassName("selected")[1];
+      }
+      if(colorButton == 3) {
+        selected = document.getElementsByClassName("selected")[2];
+      }
+      if(colorButton == 4) {
+        selected = document.getElementsByClassName("selected")[3];
+      }
+
+
+      if (isMouseDown == true) {
+      console.log('color.r = ', color.r, '\n', 'color.g = ', color.g, '\n', 'color.b', color.b);
+        selected.style.backgroundColor = 'rgb(' + [color.r,color.g,color.b].join(',') + ')';
+        var hexColorCode = "0x" + getHex(color.r) + getHex(color.g) + getHex(color.b);
+        if(colorButton == 1) {
+          localPlayerInfo.primaryColor = hexColorCode
+          console.log('PRIMARY hexColorCode = ', localPlayerInfo.primaryColor);
+        }
+        if(colorButton == 2) {
+          localPlayerInfo.secondaryColor = hexColorCode
+          console.log('SECONDARY hexColorCode = ', localPlayerInfo.secondaryColor);
+        }
+        if(colorButton == 3) {
+          localPlayerInfo.accentColor = hexColorCode
+          console.log('ACCENT hexColorCode = ', localPlayerInfo.accentColor);
+        }
+        if(colorButton == 4) {
+          localPlayerInfo.eyeColor = hexColorCode
+          console.log('EYE COLOR hexColorCode = ', localPlayerInfo.eyeColor);
+        }
+
+
+        self.socket.emit('characterUpdate', localPlayerInfo);
+        }
+    });
+
+    function getHex(color) {
+      var hex = parseInt(color).toString(16);
+      return hex.length == 1 ? "0" + hex : hex;
+    };
+
+
+
+
+    primary.addEventListener("click", function() {
+      console.log('primary clicked');
+      colorButton = 1;
+    });
+    secondary.addEventListener("click", function() {
+      console.log('secondary clicked');
+      colorButton = 2;
+    });
+    accent.addEventListener("click", function() {
+      console.log('accent clicked');
+      colorButton = 3;
+    });
+    eyeColor.addEventListener("click", function() {
+      console.log('eye color clicked');
+      colorButton = 4;
+    });
+    headRight.addEventListener("click", function() {
+      console.log('headRight clicked');
+      if (headSelection < 3) {
+        headSelection = headSelection + 1;
+        headfunct(self, headSelection);
+      } else {
+        headSelection = 1;
+        headfunct(self, headSelection);
+      }
+    });
+    headLeft.addEventListener("click", function() {
+      console.log('headLeft clicked');
+      if (headSelection > 1) {
+        headSelection = headSelection - 1;
+        headfunct(self, headSelection);
+      } else {
+        headSelection = 3;
+        headfunct(self, headSelection);
+      }
+    });
+    function headfunct(self, headSelection) {
+      if (headSelection == 1) {
+        localPlayerInfo.head = 'head_01';
+        document.getElementById("headTypeLabel").innerHTML = "Fox";
+      }
+      if (headSelection == 2) {
+        localPlayerInfo.head = 'head_02';
+        document.getElementById("headTypeLabel").innerHTML = "Long Eared Bunny";
+      }
+      if (headSelection == 3) {
+        localPlayerInfo.head = 'head_03';
+        document.getElementById("headTypeLabel").innerHTML = "Lop Eared Bunny";
+      }
+      self.socket.emit('characterUpdate', localPlayerInfo);
+    }
+    secondaryFurRight.addEventListener("click", function() {
+      console.log('secondaryFurRight clicked');
+      if (secondaryFurSelection < 3) {
+        secondaryFurSelection = secondaryFurSelection + 1;
+        console.log('secondaryFurSelection =', secondaryFurSelection);
+        secondaryFurfunct(self, secondaryFurSelection);
+      } else {
+        secondaryFurSelection = 1;
+        console.log('secondaryFurSelection =', secondaryFurSelection);
+        secondaryFurfunct(self, secondaryFurSelection);
+      }
+    });
+    secondaryFurLeft.addEventListener("click", function() {
+      console.log('secondaryFurLeft clicked');
+      if (secondaryFurSelection > 1) {
+        secondaryFurSelection = secondaryFurSelection - 1;
+        console.log('secondaryFurSelection =', secondaryFurSelection);
+        secondaryFurfunct(self, secondaryFurSelection);
+      } else {
+        secondaryFurSelection = 3;
+        console.log('secondaryFurSelection =', secondaryFurSelection);
+        secondaryFurfunct(self, secondaryFurSelection);
+      }
+    });
+    function secondaryFurfunct(self, secondaryFurSelection) {
+      if (secondaryFurSelection == 1) {
+        localPlayerInfo.secondaryBody = 'secondaryBody_01';
+        document.getElementById("secondaryFurTypeLabel").innerHTML = "Option 1";
+      }
+      if (secondaryFurSelection == 2) {
+        localPlayerInfo.secondaryBody = 'secondaryBody_02';
+        document.getElementById("secondaryFurTypeLabel").innerHTML = "Option 2";
+      }
+      if (secondaryFurSelection == 3) {
+        localPlayerInfo.secondaryBody = 'secondaryBody_03';
+        document.getElementById("secondaryFurTypeLabel").innerHTML = "Option 3";
+      }
+      self.socket.emit('characterUpdate', localPlayerInfo);
+    }
+    bodyRight.addEventListener("click", function() {
+      console.log('bodyRight clicked');
+      if (bodySelection < 2) {
+        bodySelection = bodySelection + 1;
+        bodyfunct(self, bodySelection);
+      } else {
+        bodySelection = 1;
+        bodyfunct(self, bodySelection);
+      }
+    });
+    bodyLeft.addEventListener("click", function() {
+      console.log('bodyLeft clicked');
+      if (bodySelection > 1) {
+        bodySelection = bodySelection - 1;
+        bodyfunct(self, bodySelection);
+      } else {
+        bodySelection = 2;
+        bodyfunct(self, bodySelection);
+      }
+    });
+    function bodyfunct(self, bodySelection) {
+      if (bodySelection == 1) {
+        localPlayerInfo.body = 'body_01';
+        document.getElementById("bodyTypeLabel").innerHTML = "Feminine";
+      }
+      if (bodySelection == 2) {
+        localPlayerInfo.body = 'none';
+        document.getElementById("bodyTypeLabel").innerHTML = "(unavailable)";
+      }
+      self.socket.emit('characterUpdate', localPlayerInfo);
+    }
+    genitleLeft.addEventListener("click", function() {
+      console.log('genitleLeft clicked');
+      if (genitleSelection > 1) {
+        genitleSelection = genitleSelection - 1;
+        genitlefunct(self, genitleSelection);
+      } else {
+        genitleSelection = 3;
+        genitlefunct(self, genitleSelection);
+      }
+    });
+    genitleRight.addEventListener("click", function() {
+      console.log('genitleRight clicked');
+      if (genitleSelection < 3) {
+        genitleSelection = genitleSelection + 1;
+        genitlefunct(self, genitleSelection);
+      } else {
+        genitleSelection = 1;
+        genitlefunct(self, genitleSelection);
+      }
+    });
+    function genitlefunct(self, genitleSelection) {
+      if (genitleSelection == 1) {
+        localPlayerInfo.genitle = 'none';
+        document.getElementById("genitleTypeLabel").innerHTML = "(unavailable)";
+      }
+      if (genitleSelection == 2) {
+        localPlayerInfo.genitle = 'none';
+        document.getElementById("genitleTypeLabel").innerHTML = "(unavailable)";
+      }
+      if (genitleSelection == 3) {
+        localPlayerInfo.genitle = 'none';
+        document.getElementById("genitleTypeLabel").innerHTML = "(unavailable)";
+      }
+      self.socket.emit('characterUpdate', localPlayerInfo);
+    }
+
+
+
+
+
+
+
+
+
+
+    rotateRight.addEventListener("click", function() {
+      console.log('rotateRight clicked');
+      if (rotation < 4) {
+        rotation = rotation + 1;
+        rotationfunct(self, rotation);
+      } else {
+        rotation = 1;
+        rotationfunct(self, rotation);
+      }
+    });
+    rotateLeft.addEventListener("click", function() {
+      console.log('rotateLeft clicked');
+      if (rotation > 1) {
+        rotation = rotation - 1;
+        rotationfunct(self, rotation);
+      } else {
+        rotation = 4;
+        rotationfunct(self, rotation);
+      }
+    });
+    function rotationfunct(self, rotation) {
+      if (rotation == 1) {
+        self.head.play(localPlayerInfo.head + 'Down');
+        self.body.play(localPlayerInfo.body + 'Down');
+        self.tail.play(localPlayerInfo.tail + 'Down');
+        self.eyes.play(localPlayerInfo.eyes + 'Down');
+        self.secondaryBody.play(localPlayerInfo.secondaryBody + 'Down');
+        self.container.sendToBack(self.tail);
+      }
+      if (rotation == 2) {
+        self.head.play(localPlayerInfo.head + 'Right');
+        self.body.play(localPlayerInfo.body + 'Right');
+        self.tail.play(localPlayerInfo.tail + 'Right');
+        self.eyes.play(localPlayerInfo.eyes + 'Right');
+        self.secondaryBody.play(localPlayerInfo.secondaryBody + 'Right');
+        self.container.sendToBack(self.tail);
+      }
+      if (rotation == 3) {
+        self.head.play(localPlayerInfo.head + 'Up');
+        self.body.play(localPlayerInfo.body + 'Up');
+        self.tail.play(localPlayerInfo.tail + 'Up');
+        self.eyes.play(localPlayerInfo.eyes + 'Up');
+        self.secondaryBody.play(localPlayerInfo.secondaryBody + 'Up');
+        self.container.sendToBack(self.secondaryBody);
+        self.container.sendToBack(self.eyes);
+        self.container.sendToBack(self.body);
+        self.container.sendToBack(self.head);
+
+      }
+      if (rotation == 4) {
+        self.head.play(localPlayerInfo.head + 'Left');
+        self.body.play(localPlayerInfo.body + 'Left');
+        self.tail.play(localPlayerInfo.tail + 'Left');
+        self.eyes.play(localPlayerInfo.eyes + 'Left');
+        self.secondaryBody.play(localPlayerInfo.secondaryBody + 'Left');
+        self.container.sendToBack(self.tail);
+      }
+
+    }
+
+    this.socket.on('characterUpdated', function (playerInfo) {
+      //console.log('characterUpdated', '\n', 'playerInfo.playerId = ', playerInfo.playerId, '\n', 'self.socket.id = ', self.socket.id);
+        if (playerInfo.playerId === self.socket.id) {
+          //addOtherPlayers(self, playerInfo);
+          console.log(playerInfo.playerId, 'Called new animation successfully: ', '\n', 'Set head to: ', playerInfo.head, '\n', 'Set body to: ', playerInfo.body, '\n', 'Set secondary body to: ', playerInfo.secondaryBody, '\n', 'Set Tail to:', playerInfo.tail,  '\n', 'Set eyes to:', playerInfo.eyes, '\n', 'Set Primary Color to: ', playerInfo.primaryColor, '\n', 'Set Secondary Color to: ', playerInfo.secondaryColor, '\n', 'Set Accent Color to: ', playerInfo.accentColor);
+          if (rotation == 1) {
+            self.head.play(playerInfo.head + 'Down');
+            self.body.play(playerInfo.body + 'Down');
+            self.tail.play(playerInfo.tail + 'Down');
+            self.eyes.play(playerInfo.eyes + 'Down');
+            self.secondaryBody.play(playerInfo.secondaryBody + 'Down');
+            self.container.sendToBack(self.tail);
+          }
+          if (rotation == 2) {
+            self.head.play(playerInfo.head + 'Right');
+            self.body.play(playerInfo.body + 'Right');
+            self.tail.play(playerInfo.tail + 'Right');
+            self.eyes.play(playerInfo.eyes + 'Right');
+            self.secondaryBody.play(playerInfo.secondaryBody + 'Right');
+            self.container.sendToBack(self.tail);
+          }
+          if (rotation == 3) {
+            self.head.play(playerInfo.head + 'Up');
+            self.body.play(playerInfo.body + 'Up');
+            self.tail.play(playerInfo.tail + 'Up');
+            self.eyes.play(playerInfo.eyes + 'Up');
+            self.secondaryBody.play(playerInfo.secondaryBody + 'Up');
+            self.container.sendToBack(self.secondaryBody);
+            self.container.sendToBack(self.eyes);
+            self.container.sendToBack(self.body);
+            self.container.sendToBack(self.head);
+          }
+          if (rotation == 4) {
+            self.head.play(playerInfo.head + 'Left');
+            self.body.play(playerInfo.body + 'Left');
+            self.tail.play(playerInfo.tail + 'Left');
+            self.eyes.play(playerInfo.eyes + 'Left');
+            self.secondaryBody.play(playerInfo.secondaryBody + 'Left');
+            self.container.sendToBack(self.tail);
+          }
+
+          self.head.setTint(playerInfo.primaryColor);
+          self.body.setTint(playerInfo.primaryColor);
+          self.tail.setTint(playerInfo.primaryColor);
+          self.secondaryBody.setTint(playerInfo.secondaryColor);
+          self.eyes.setTint(playerInfo.eyeColor);
+
+
+          //console.log('Head: ', self.head.anims.nextTick, '\n', 'Body: ', self.body.anims.nextTick, '\n', 'Tail: ', self.tail.anims.nextTick, '\n', 'Eyes: ', self.eyes.anims.nextTick);
+          return;
+        }
+    });
+
+
+    function addPlayer(self, playerInfo) {
+      //self.stack = self.add.sprite(0, 0, 'body_01');
+      //self.stack.visible = false;
+      //self.stack.play('bodyDown');
+
+
+      console.log('player head = ', playerInfo.head);
+      self.container = self.add.container(0, 0).setSize(109, 220).setInteractive();
+      self.head = self.physics.add.sprite(0, 0, playerInfo.head).setInteractive();
+      self.head.setTint(playerInfo.primaryColor);
+      self.body = self.physics.add.sprite(0, 0, playerInfo.body).setInteractive();
+      self.body.setTint(playerInfo.primaryColor);
+      self.tail = self.physics.add.sprite(0, 0, playerInfo.tail).setInteractive();
+      self.tail.setTint(playerInfo.primaryColor);
+      self.eyes = self.physics.add.sprite(0, 0, playerInfo.eyes).setInteractive();
+      self.eyes.setTint(playerInfo.eyeColor);
+      self.secondaryBody = self.physics.add.sprite(0, 0, playerInfo.secondaryBody).setInteractive();
+      self.secondaryBody.setTint(playerInfo.secondaryColor);
+      self.container.add([ self.tail, self.head, self.body, self.eyes, self.secondaryBody ]);
+      //self.container.sendToBack(self.tail);
+
+      //self.container.visible = false;
+      self.head.play('head_01Down');
+      self.body.play('body_01Down');
+      self.tail.play('tail_01Down');
+      self.eyes.play('eyes_01Down');
+      self.secondaryBody.play('secondaryBody_01Down')
+
+
+      localPlayerInfo.playerId = playerInfo.playerId;
+      //localPlayerInfo.sprite = self.stack
+      let cam1 = self.cameras.main.setSize(200, 200).startFollow(self.container).setName('Camera 1');
+
+
+    }
+    self.anims.create({
+      key: 'head_01Down',
+      frames: self.anims.generateFrameNumbers('head_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_01Right',
+      frames: self.anims.generateFrameNumbers('head_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_01Left',
+      frames: self.anims.generateFrameNumbers('head_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_01Up',
+      frames: self.anims.generateFrameNumbers('head_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_01Stop',
+      frames: self.anims.generateFrameNumbers('head_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'head_02Down',
+      frames: self.anims.generateFrameNumbers('head_02', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_02Right',
+      frames: self.anims.generateFrameNumbers('head_02', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_02Left',
+      frames: self.anims.generateFrameNumbers('head_02', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_02Up',
+      frames: self.anims.generateFrameNumbers('head_02', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_02Stop',
+      frames: self.anims.generateFrameNumbers('head_02', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'head_03Down',
+      frames: self.anims.generateFrameNumbers('head_03', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_03Right',
+      frames: self.anims.generateFrameNumbers('head_03', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_03Left',
+      frames: self.anims.generateFrameNumbers('head_03', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_03Up',
+      frames: self.anims.generateFrameNumbers('head_03', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_03Stop',
+      frames: self.anims.generateFrameNumbers('head_03', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'body_01Down',
+      frames: self.anims.generateFrameNumbers('body_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'body_01Right',
+      frames: self.anims.generateFrameNumbers('body_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'body_01Left',
+      frames: self.anims.generateFrameNumbers('body_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'body_01Up',
+      frames: self.anims.generateFrameNumbers('body_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'body_01Stop',
+      frames: self.anims.generateFrameNumbers('body_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'tail_01Down',
+      frames: self.anims.generateFrameNumbers('tail_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'tail_01Right',
+      frames: self.anims.generateFrameNumbers('tail_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'tail_01Left',
+      frames: self.anims.generateFrameNumbers('tail_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'tail_01Up',
+      frames: self.anims.generateFrameNumbers('tail_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'tail_01Stop',
+      frames: self.anims.generateFrameNumbers('tail_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'eyes_01Down',
+      frames: self.anims.generateFrameNumbers('eyes_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'eyes_01Right',
+      frames: self.anims.generateFrameNumbers('eyes_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'eyes_01Left',
+      frames: self.anims.generateFrameNumbers('eyes_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'eyes_01Up',
+      frames: self.anims.generateFrameNumbers('eyes_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'eyes_01Stop',
+      frames: self.anims.generateFrameNumbers('eyes_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'secondaryBody_01Down',
+      frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_01Right',
+      frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_01Left',
+      frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_01Up',
+      frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_01Stop',
+      frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'secondaryBody_02Down',
+      frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_02Right',
+      frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_02Left',
+      frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_02Up',
+      frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_02Stop',
+      frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'secondaryBody_03Down',
+      frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_03Right',
+      frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_03Left',
+      frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_03Up',
+      frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_03Stop',
+      frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+  }
+
+
+  function update() {
+    if (cursors.down.isDown) {
+      this.head.anims.stop();
+      this.body.anims.stop();
+      this.tail.anims.stop();
+      this.eyes.anims.stop();
+    }
+    if (cursors.up.isDown) {
+      this.head.play(localPlayerInfo.head + 'Down');
+      this.body.play(localPlayerInfo.body + 'Down');
+      this.tail.play(localPlayerInfo.tail + 'Down');
+      this.eyes.play(localPlayerInfo.eyes + 'Down');
+    }
+    if (cursors.left.isDown) {
+      this.head.setDepth(4);
+      this.body.setDepth(3);
+      this.tail.setDepth(1);
+      this.eyes.setDepth(2);
+    }
+  }
+</script>

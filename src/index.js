@@ -1,39 +1,38 @@
 
-const express = require('express')
-const app = express()
-const http = require('http').Server(app)
-const io = require('socket.io')(http)
-const path = require('path')
+const express = require('express');
+const app = express();
+const expressLayouts = require('express-ejs-layouts');
+const http = require('http').Server(app);
+const io = require('socket.io')(http);
+const path = require('path');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
+
+app.set('view engine', 'ejs');
+app.set('views', __dirname + '/views');
+app.set('layout', 'layouts/layout');
+
 //Import Routes
 const authRoute = require('./routes/auth');
 const postRoute = require('./routes/posts');
+const indexRouter = require('./routes/index');
 
 dotenv.config();
 
 //connect to DB
-mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true }, err => {
-  if (err) throw err;
-  console.log("Connected to DB");
-});
+mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true })
+const db = mongoose.connection
+db.on('error', error => console.error(error))
+db.once('open', () => console.log('Connected to DB'))
 
 //Middlewares
 app.use(express.json());
+app.use(expressLayouts);
+app.use(express.static('public'));
 //Route Middlewares
-//app.use('./api/user', authRoute);
-//app.use('api/user', authUser);
 app.use('/api/user', authRoute);
 app.use('/api/posts', postRoute);
-
-
-
-
-
-//const game = require('./managers/game').default
-
-//const PlayerCharacter = require('./entities/player-character').default
-//const Message = require('./entities/message').default
+app.use('/', indexRouter);
 
 var players = {};
 

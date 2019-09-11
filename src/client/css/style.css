@@ -1,0 +1,475 @@
+<style>
+body {
+  background-color: #0b4b90;
+  padding: 0;
+  margin: 0;
+}
+/* Global */
+.container{
+  width: 80%;
+  margin: auto;
+  overflow: hidden;
+}
+ul {
+  margin: 0;
+  padding: 0;
+  list-style-type:none;
+}
+.button {
+  border-radius: 4px;
+  background-color: #60d8c2;
+  border: none;
+  color: #FFFFFF;
+  text-align: center;
+  font-size: 25px;
+  padding-left: 5px;
+  padding-right:5px;
+  transition: all 0.2s;
+  cursor: pointer;
+  margin: 5px;
+}
+.hide{
+  display:none;
+}
+.show{
+  display:block;
+}
+#smoke {
+  position: absolute;
+  background-color: black;
+  width: 100%;
+  height: 89%;
+  padding: 0;
+  margin: 0;
+  opacity: .5;
+}
+.registrationBox {
+  z-index: 2;
+}
+.popUpContainer {
+  position: absolute;
+  border: solid;
+  margin: 20px;
+  background-color: #0b4b90;
+  text-align: center;
+  top: 10%;
+  bottom: 30%;
+  left: 20%;
+  right: 20%;
+}
+.popUpContainer .close {
+  float: right;
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  color: #ffffff;
+  font-size: 25px;
+}
+.popUpContainer .registrationContainer {
+  float: left;
+  margin: 0 25px 0 0;
+  padding-right: 25px;
+  padding-top: 20px;
+  border-right: #05336f 2px solid;
+  width: 60%;
+}
+.popUpContainer .loginContainer {
+  float: left;
+  width: 30%;
+  padding-top: 20px;
+}
+.popUpContainer form {
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+.popUpContainer input[type="email"] {
+  padding: 4px;
+  height: 20px;
+  width: 200px;
+  margin: 10px;
+}
+.popUpContainer input[type="password"] {
+  padding: 4px;
+  height: 20px;
+  width: 200px;
+  margin: 10px;
+}
+.popUpContainer header {
+  background: none;
+  border: none;
+  padding-top: 20px;
+  float: left;
+}
+.reg1 {
+  text-align: center;
+  margin: 0 25px 0 0;
+  padding-right: 25px;
+  width: 60%;
+}
+.login {
+  text-align: center;
+  width: 30%;
+}
+
+/* Header */
+header {
+  background-color: #122a4e;
+  color: #ffffff;
+  padding-top: 30px;
+  min-height: 70px;
+  border-bottom: #05336f 5px solid;
+}
+header .headerLogo {
+  float: left;
+}
+header .headerLogo h1 {
+  margin:0;
+}
+
+/* Nav */
+nav {
+  border-bottom: #05336f 1px solid;
+}
+nav a {
+  color: #ffffff;
+  text-decoration: none;
+  text-transform: uppercase;
+  font-size: 16px;
+  margin: auto;
+}
+nav li {
+  float: left;
+  display: inline;
+  padding: 15px 20px 0 20px;
+}
+nav .loginBox {
+  float: right;
+  display: inline;
+  color: #ffffff;
+  font-size: 16px;
+  padding: 0 20px 0 20px;
+}
+nav a:hover {
+  color: #74b6dc;
+  font-weight: bold;
+}
+  #home a {
+    border-style: solid;
+    border-color: pink;
+    border-width: 5px;
+    border-radius: 10px;
+    font-size: 50px;
+    background-color: white;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+  img{
+    width: 30%;
+    height: 30%;
+  }
+  #home{
+    position: static;
+  }
+  .loggedIn {
+    display: none;
+  }
+
+
+
+
+
+
+
+  /* Character Creator */
+  #characterCreatorUi{
+      /**display: none;*/
+      margin:20px 0 0 0;
+      background-color: #0b4b90;
+      height:500px;
+      min-width: 1355px;
+      min-height: 510px;
+  }
+
+  #primaryButtons{
+    float:left;
+    margin: 10px;
+  }
+  .button.main {
+    font-size: 45px;
+    min-width: 153px;
+  }
+  .button.main span:after {
+    content: '\00bb';
+    right: -20px;
+  }
+  .button.main:hover span {
+    padding-right: 25px;
+  }
+
+  .pullout{
+    display: none;
+    float: left;
+    background-color: #74b6dc;
+    border: solid;
+    border-width: 5px;
+    border-color: #05336f;
+    border-radius: 10px;
+    width: calc(100% - 433px);
+    min-width: 861px;
+    min-height: 425px;
+  }
+  #genderPullout{
+    display: block;
+
+  }
+  #collapsibleBox {
+    float: left;
+    vertical-align: top;
+    max-width: 454px;
+    min-width: 384px;
+    border: solid;
+    border-radius: 10px;
+    border-width: 5px;
+    border-color: #05336f;
+    margin: 5px;
+  }
+  .collapsible {
+    background-color: #0b4b90;
+    color: white;
+    cursor: pointer;
+    padding: 18px;
+    width: 100%;
+    border: none;
+    text-align: center;
+    outline: none;
+    font-size: 15px;
+  }
+
+  .active, .collapsible:hover {
+    background-color: #093e78;
+  }
+
+  .content {
+    padding: 0 18px;
+    display: none;
+    overflow: hidden;
+    background-color: #74b6dc;
+  }
+  .typeLabel {
+    display: inline-block;
+    vertical-align: center;
+    text-align: center;
+    border: solid;
+    border-radius: 10px;
+    border-width: 5px;
+    border-color: #e5ecb4;
+    min-width: 188px;
+    min-height: 39px;
+    background-color: #ffffff;
+    font-size: 20px;
+  }
+  .button.left{
+    font-size: 25px;
+    width: 100px;
+    float: left;
+  }
+  .button.right{
+    font-size: 25px;
+    width: 100px;
+    float: right;
+  }
+
+  .button span {
+    cursor: pointer;
+    display: inline-block;
+    position: relative;
+    transition: 0.5s;
+  }
+
+  .button.left span:before {
+    content: '\00AB';
+    left: 20px;
+  }
+  .button.right span:before {
+    content: '\00bb';
+    right: -20px;
+  }
+  .button span:after {
+    position: absolute;
+    opacity: 0;
+    top: 0;
+    transition: 0.3s;
+  }
+  .button.left:hover span {
+    padding-right: 25px;
+  }
+  .button.right:hover span {
+    padding-left: 25px;
+  }
+  .button:hover span:after {
+    opacity: 1;
+    right: 0;
+  }
+  .button:active {
+    background-color: #e5ecb4;
+    box-shadow: 0 5px #666;
+    transform: translateY(4px);
+  }
+  .info {
+    float: right;
+    text-align: center;
+    margin: 10px;
+  }
+  .colorContainer {
+    float: right;
+    margin: 10px;
+  }
+  #color-picker {
+    border: 3px solid rgba(15, 15, 15, 0.2);
+  }
+
+  .selected {
+    width: 50px;
+    height: 50px;
+    border-radius: 100%;
+    border: 2px solid rgba(15, 15, 15, 0.2);
+    background-color: rgb(255, 255, 255);
+  }
+  .selected:active {
+    box-shadow: 0 5px #666;
+    transform: translateY(4px);
+  }
+
+  #previewContainer{
+    float: right;
+    text-align: center;
+    background-color: #74b6dc;
+    padding: 10px;
+    box-shadow: 0 0 8px 0 #666;
+    margin: 10px;
+    min-width: 180px
+  }
+  .button.left.rotate {
+
+    max-width: 80px;
+  }
+  .button.right.rotate {
+
+    max-width: 80px;
+  }
+  #next {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  }
+  #finish {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  }
+  input[type=text] {
+    border: 2px solid #aaa;
+    border-radius: 4px;
+    margin: 8px 0;
+    outline: none;
+    padding: 8px;
+    box-sizing: border-box;
+    transition: .3s;
+  }
+  input[type=text]:focus {
+    border-color: #00c60e;
+    box-shadow: 0 0 8px 0 #00c60e;
+  }
+  .radioContainer{
+    display: block;
+    position: relative;
+    text-align: left;
+    padding-left: 35px;
+    margin-bottom: 12px;
+    margin-left: 40px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .radioContainer input{
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .checkmark{
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 25px;
+    width: 25px;
+    background-color: #eee;
+    border-radius: 50%;
+  }
+  .radioContainer:hover input ~ .checkmark {
+    background-color: #ccc;
+  }
+  .radioContainer input:checked ~ .checkmark{
+    background-color: #2196F3;
+  }
+  .checkmark:after{
+  content: "";
+  position: absolute;
+  display: none;
+  }
+  .radioContainer input:checked ~ .checkmark:after{
+    display: block;
+  }
+  .radioContainer .checkmark:after{
+    top: 9px;
+    left: 9px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ffffff;
+  }
+  #nameInput{
+  float: left;
+  text-align: center;
+  font-size: 18px;
+  padding: 10px;
+  box-shadow: 0 0 8px 0 #666;
+  margin: 10px;
+  width: 30%;
+  min-width: 214px;
+  min-height: 375px;
+  }
+  #detailsInput{
+    float: left;
+    font-size: 18px;
+    padding: 10px;
+    box-shadow: 0 0 8px 0 #666;
+    margin: 10px;
+    width: 60%;
+    min-width: 515px;
+    min-height: 350px;
+  }
+  #detailsInput textarea{
+    width: 100%;
+    min-width:495px;
+    min-height: 276px;
+    border: 2px solid #aaa;
+    border-radius: 4px;
+    margin: 8px 0;
+    outline: none;
+    padding: 8px;
+    box-sizing: border-box;
+    transition: .3s;
+  }
+
+  #detailsInput textarea:focus {
+    border-color: #00c60e;
+    box-shadow: 0 0 8px 0 #00c60e;
+  }
+  #descriptionInput{
+    float: left;
+    width: 100%;
+    height: 100%;
+
+  }
+</style>
