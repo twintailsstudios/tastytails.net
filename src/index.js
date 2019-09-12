@@ -29,6 +29,7 @@ db.once('open', () => console.log('Connected to DB'))
 app.use(express.json());
 app.use(expressLayouts);
 app.use(express.static('public'));
+app.use(express.urlencoded())
 //Route Middlewares
 app.use('/api/user', authRoute);
 app.use('/api/posts', postRoute);
