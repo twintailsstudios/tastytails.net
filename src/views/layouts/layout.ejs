@@ -55,6 +55,13 @@
         element = document.getElementById("smoke");
         element.classList.toggle("hide");
       }
+      http.post('auth', userCredentials)
+        .then(response => {
+          response.json()
+        .then(responseJson => {
+        window.localStorage.setItem('my_token', responseJson.my_token)
+        })
+      })
     </script>
   </body>
 </html>

@@ -27,10 +27,10 @@
 
         <div class="loginContainer">
 
-          <form>
+          <form action="/api/user/login" method="POST">
             <ul>
-              <li><input type="email" placeholder="Enter Email..."></li>
-              <li><input type="password" placeholder="Enter Password..."></li>
+              <li><input type="email" id="email" name="email" placeholder="Enter Email..." required></li>
+              <li><input type="password" id="password" name="password" placeholder="Enter Password..." required></li>
             </ul>
             <button type="submit" class="button">Login</button>
           </form>

@@ -28,7 +28,8 @@ if (error) return res.status(405).send(error.details[0].message);
   });
   try {
     const savedUser = await user.save();
-    res.send({ user: user._id });
+    //res.send({ user: user._id });
+    res.send('registration complete');
   } catch(err){
     res.status(400).send(err);
   }
@@ -48,7 +49,53 @@ router.post('/login', async (req, res) => {
 
   //Create and Assign a Token
   const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET);
-  res.header('auth-token', token).send(token);
+  //req.session.userId = token;
+  //localStorage.setItem('auth-token', token);
+  //res.header('auth-token', token).send(token);
+  /*res.json({ authToken: token }).send(`
+    <style>
+    body {
+      background-color: #0b4b90;
+      padding: 0;
+      margin: 0;
+    }
+    </style>
+
+    <body>
+      <h1>this is a test?</h1>
+      <script>
+      http.post('auth', userCredentials)
+        .then(response => {
+          response.json()
+        .then(responseJson => {
+        window.localStorage.setItem('my_token', responseJson.my_token)
+        })
+      })
+      </script>
+    </body>
+  `)*/
+
+  /*res.header('auth-token', token).send(`
+    <style>
+    body {
+      background-color: #0b4b90;
+      padding: 0;
+      margin: 0;
+    }
+    </style>
+
+    <body>
+      <h1>this is a test?</h1>
+      <script>
+      var authToken = document.getElementById("auth-token");
+        window.localStorage.setItem('auth-token', authToken);
+        console.log('auth = ', localStorage);
+      </script>
+    </body>
+  `);*/
+  res.status(200).send({
+    token: token
+});
 })
 
 

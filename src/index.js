@@ -2,6 +2,7 @@
 const express = require('express');
 const app = express();
 const expressLayouts = require('express-ejs-layouts');
+const session = require('express-session');
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const path = require('path');
@@ -29,7 +30,18 @@ db.once('open', () => console.log('Connected to DB'))
 app.use(express.json());
 app.use(expressLayouts);
 app.use(express.static('public'));
-app.use(express.urlencoded())
+app.use(express.urlencoded({ extended: true }))
+/*app.use(session({
+  name: 'tastytails_sid',
+  resave: false,
+  saveUninitialized: false,
+  secret: process.env.sess_secret,
+  cookie: {
+    sameSite: true,
+    secure: false,
+
+  }
+}))*/
 //Route Middlewares
 app.use('/api/user', authRoute);
 app.use('/api/posts', postRoute);
