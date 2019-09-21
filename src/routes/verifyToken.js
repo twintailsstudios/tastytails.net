@@ -1,7 +1,10 @@
 const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 
 module.exports = function(req, res, next) {
-  const token = req.header('auth-token');
+  //const token = req.header('token');
+  const token = req.cookies.TastyTails;
+  console.log(token);
   if(!token) return res.status(401).send('Access Denied');
 
   try {

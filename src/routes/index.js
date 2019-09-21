@@ -3,16 +3,19 @@ const router = express.Router();
 const verify = require('./verifyToken');
 
 router.get('/', (req, res) => {
-  console.log(req.user);
-  console.log(req.session);
-  res.render('index');
+  console.log('user = ', req.user);
+  console.log('session = ', req.session);
+  console.log('header = ', req.header('token'));
+  res.render('index', {
+    button: ['test']
+  });
 })
 
 router.get('/create', verify, (req, res) => {
   console.log(req.user);
   res.render('create');
 })
-router.get('/login', (req, res) => {
+router.get('/api/user/login', (req, res) => {
   //console.log(req.user);
   res.render('login');
 })

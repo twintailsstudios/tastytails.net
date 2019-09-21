@@ -49,53 +49,13 @@ router.post('/login', async (req, res) => {
 
   //Create and Assign a Token
   const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET);
-  //req.session.userId = token;
-  //localStorage.setItem('auth-token', token);
-  //res.header('auth-token', token).send(token);
-  /*res.json({ authToken: token }).send(`
-    <style>
-    body {
-      background-color: #0b4b90;
-      padding: 0;
-      margin: 0;
-    }
-    </style>
-
-    <body>
-      <h1>this is a test?</h1>
-      <script>
-      http.post('auth', userCredentials)
-        .then(response => {
-          response.json()
-        .then(responseJson => {
-        window.localStorage.setItem('my_token', responseJson.my_token)
-        })
-      })
-      </script>
-    </body>
-  `)*/
-
-  /*res.header('auth-token', token).send(`
-    <style>
-    body {
-      background-color: #0b4b90;
-      padding: 0;
-      margin: 0;
-    }
-    </style>
-
-    <body>
-      <h1>this is a test?</h1>
-      <script>
-      var authToken = document.getElementById("auth-token");
-        window.localStorage.setItem('auth-token', authToken);
-        console.log('auth = ', localStorage);
-      </script>
-    </body>
-  `);*/
-  res.status(200).send({
-    token: token
-});
+  //Redirect user to home pahe and send token to response header
+  res.cookie('TastyTails', token, {
+    expiresIn: "7d"
+  }), {
+    httpOnly: true
+  }
+  res.set('token', token).redirect('/');
 })
 
 

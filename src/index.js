@@ -8,6 +8,7 @@ const io = require('socket.io')(http);
 const path = require('path');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
+const cookieParser = require('cookie-parser');
 
 app.set('view engine', 'ejs');
 app.set('views', __dirname + '/views');
@@ -31,6 +32,7 @@ app.use(express.json());
 app.use(expressLayouts);
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }))
+app.use(cookieParser());
 /*app.use(session({
   name: 'tastytails_sid',
   resave: false,

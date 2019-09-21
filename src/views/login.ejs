@@ -10,12 +10,24 @@ body {
 <body>
   <h1>this is a test?</h1>
   <script>
-  http.post('auth', userCredentials)
+    var authToken = document.getElementById("text");
+      window.localStorage.setItem('auth-token', authToken);
+      console.log('auth = ', localStorage);
+
+
+  /*http.post('auth', userCredentials)
     .then(response => {
       response.json()
     .then(responseJson => {
     window.localStorage.setItem('my_token', responseJson.my_token)
-    })
   })
+  })*/
   </script>
 </body>
+<style>
+body {
+  background-color: #0b4b90;
+  padding: 0;
+  margin: 0;
+}
+</style>
