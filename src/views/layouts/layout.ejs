@@ -24,9 +24,9 @@
         </div>
       </div>
     </header>
-    <div id="smoke" class="hide">
+    <% if (loginForm == 1) { %> <div id="smoke">
 
-    </div>
+    </div> <% } %>
     <nav>
       <div class="container">
         <ul>
@@ -35,7 +35,15 @@
           </li>
         </ul>
         <div class="loginBox">
-            <%= button %> <button onClick="hideFunction()" class="button" >Login</button>
+          <% if (token !== null) { %>
+            <form action="/api/user/logout" method="POST">
+              <button type="submit" class="button">Logout</button>
+            </form>
+          <% } else { %>
+            <form action="/api/user/loginForm" method="POST">
+              <button type="submit" onClick="hideFunction()" class="button" >Login</button>
+            </form>
+          <% } %>
           <div class="loggedIn">
             <p>You're Logged In!</p>
           </div>

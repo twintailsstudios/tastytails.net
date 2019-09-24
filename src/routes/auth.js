@@ -24,12 +24,13 @@ if (error) return res.status(405).send(error.details[0].message);
   //Create a new user
   const user = new User({
     email: req.body.email,
-    password: hashedPassword
+    password: hashedPassword,
+    birthday: req.body.birthday
   });
   try {
     const savedUser = await user.save();
     //res.send({ user: user._id });
-    res.send('registration complete');
+    res.redirect('/registered');
   } catch(err){
     res.status(400).send(err);
   }
@@ -58,6 +59,19 @@ router.post('/login', async (req, res) => {
   res.set('token', token).redirect('/');
 })
 
+//User Logout Request
+router.post('/logout', async (req, res) => {
+  res.clearCookie('TastyTails').redirect('/');
+})
+
+
+router.post('/loginForm', async (req, res) => {
+  res.redirect('/loginForm');
+})
+
+router.post('/closereg', async (req, res) => {
+  res.redirect('/');
+})
 
 
 

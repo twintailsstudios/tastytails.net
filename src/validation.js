@@ -3,9 +3,14 @@ const Joi = require('@hapi/joi');
 
 //Register Validation
 const registerValidation = (data) => {
+  const date = new Date();
+  const validDate = ((date.getMonth() + 1) + '-' + date.getDate() + '-' +  (date.getFullYear() - 18));
+
   const schema = {
     email: Joi.string().min(6).required().email(),
-    password: Joi.string().min(6).required()
+    password: Joi.string().min(6).required(),
+    password_confirmation: Joi.string().valid(Joi.ref('password')).min(6).required(),
+    birthday: Joi.date().max(validDate).iso().required()
   }
   return Joi.validate(data, schema);
 };

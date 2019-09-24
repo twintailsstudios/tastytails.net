@@ -1,9 +1,11 @@
 <body>
-  <section class="registrationBox hide">
+  <% if (loginForm == 1) { %> <section class="registrationBox">
     <div class="container">
       <div class="popUpContainer">
         <div class="close">
-          <button onClick="hideFunction()"><span>&#x1F5D9;</span></button>
+          <form action="/api/user/closereg" method="POST">
+            <button type="submit"><span>&#x1F5D9;</span></button>
+          </form>
         </div>
         <header class="reg1">
         <h1>Create an Account</h1>
@@ -19,6 +21,9 @@
             <ul>
               <li><input type="email" id="email" name="email" placeholder="Enter Email..." required></li>
               <li><input type="password" id="password" name="password" placeholder="Enter Password..." required></li>
+              <li><input type="password" id="password_confirmation" name="password_confirmation" placeholder="Verify Password..." required></li>
+              <li><input type="date" id="birthday" name="birthday" placeholder="Enter Birthdate..." required></li>
+
 
             </ul>
             <button type="submit" class="button">Sign Up!</button>
@@ -37,14 +42,27 @@
         </div>
       </div>
   </div>
-  </section>
+  </section> <% } %>
 
   <section id ="home">
     <div class="container">
       <center>
         <h1>TastyTails</h1>
         <h2>~Under Construction~</h2>
-        <a href="/create">Click Here to play Alpha</a><br>
+
+
+
+
+        <% if (token !== null) { %>
+          <a href="/create">Click Here to play Alpha</a><br>
+        <% } else { %>
+          <a href="/loginForm">Click Here to play Alpha</a><br>
+        <% } %>
+
+
+
+
+
         <img src="assets/images/Tasty_Tails_under_construction.png" alt="Under Construction">
       </center>
   </div>
