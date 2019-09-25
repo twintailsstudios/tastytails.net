@@ -1,0 +1,91 @@
+<style>
+  #bank{
+    background-color: #74b6dc;
+    margin: 10px;
+    padding: 5px;
+  }
+  .slot{
+    background-color: #74b6dc;
+    width: 250px;
+    height: 350px;
+    margin: 20px;
+    padding: 10px;
+    padding-right: 10px;
+    box-shadow: 0 0 8px 0 #666;
+  }
+  #emptySlot{
+    position: relative;
+    background-color: #74b6dc;
+    border-style: dashed;
+    border-width: 5px;
+    border-color: #666;
+    border-radius: 10px;
+
+    height: 95%;
+    width: 95%;
+    text-align: center;
+    opacity: .5;
+    z-index: 1;
+  }
+  .slot a{
+    display: block;
+    position: absolute;
+
+    text-align: center;
+    text-decoration: none;
+    z-index: 2;
+  }
+  #bank ul{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+  }
+
+</style>
+
+<body>
+  <section id ="characterBank">
+    <div class ="container">
+      <div id ="bank">
+        <h1>Character Bank</h1>
+        <ul>
+          <li>
+            <div class ="slot">
+              <div id="emptySlot">
+                <a href ="/create"><br><br><br><br>Click Here to Create a New Character <br><h1>&#x2795;</h1><br><br><br><br><br><br><br><br><br></a>
+              </div>
+            </div>
+          </li>
+          <li>
+            <div class ="slot">
+              <div id="emptySlot">
+                <a href ="/create"><br><br><br><br>Click Here to Create a New Character <br><h1>&#x2795;</h1><br><br><br><br><br><br><br><br><br></a>
+              </div>
+            </div>
+          </li>
+          <li>
+            <div class ="slot">
+              <div id="emptySlot">
+                <a href ="/create"><br><br><br><br>Click Here to Create a New Character <br><h1>&#x2795;</h1><br><br><br><br><br><br><br><br><br></a>
+              </div>
+            </div>
+          </li>
+          <li>
+            <div class ="slot">
+              <div id="emptySlot">
+                <a href ="/create"><br><br><br><br>Click Here to Create a New Character <br><h1>&#x2795;</h1><br><br><br><br><br><br><br><br><br></a>
+              </div>
+            </div>
+          </li>
+          <li>
+            <div class ="slot">
+              <div id="emptySlot">
+                <a href ="/create"><br><br><br><br>Click Here to Create a New Character <br><h1>&#x2795;</h1><br><br><br><br><br><br><br><br><br></a>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</body>

@@ -88,7 +88,7 @@ router.get('/loginForm', (req, res) => {
 })
 
 
-router.get('/registered', (req, res) => {
+router.get('/registered', verify, (req, res) => {
   const token = req.cookies.TastyTails;
   if(!token) return res.render('registered', {
       token: null,
@@ -99,6 +99,30 @@ router.get('/registered', (req, res) => {
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
     req.user = verified;
     res.render('registered', {
+      token: token,
+      loginForm: 0
+    });
+  } catch (err) {
+    res.status(400).render('error', {
+      token: null,
+      loginForm: 0,
+      error: 'Invalid Token',
+      errDescrip: "Try logging out and logging back in. If you are still having issues, you can try clearing your browser's cache and cookies and then logging back in."
+    });
+  }
+})
+
+router.get('/character-bank', verify, (req, res) => {
+  const token = req.cookies.TastyTails;
+  if(!token) return res.render('character-bank', {
+      token: null,
+      loginForm: 0
+    });
+
+  try {
+    const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+    req.user = verified;
+    res.render('character-bank', {
       token: token,
       loginForm: 0
     });

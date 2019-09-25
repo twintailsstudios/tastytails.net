@@ -33,6 +33,12 @@
           <li>
             <a href="/">Home</a>
           </li>
+          <% if (token !== null) { %>
+            <li>
+              <a href="/character-bank">Character Bank</a>
+            </li>
+          <% } %>
+          
         </ul>
         <div class="loginBox">
           <% if (token !== null) { %>
