@@ -88,7 +88,7 @@ router.get('/loginForm', (req, res) => {
 })
 
 
-router.get('/registered', verify, (req, res) => {
+router.get('/registered', (req, res) => {
   const token = req.cookies.TastyTails;
   if(!token) return res.render('registered', {
       token: null,

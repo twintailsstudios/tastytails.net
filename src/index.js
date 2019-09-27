@@ -33,17 +33,7 @@ app.use(expressLayouts);
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser());
-/*app.use(session({
-  name: 'tastytails_sid',
-  resave: false,
-  saveUninitialized: false,
-  secret: process.env.sess_secret,
-  cookie: {
-    sameSite: true,
-    secure: false,
 
-  }
-}))*/
 //Route Middlewares
 app.use('/api/user', authRoute);
 app.use('/api/posts', postRoute);

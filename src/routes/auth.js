@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const User = require('../model/User');
+const Character = require('../model/Character');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { registerValidation, loginValidation } = require('../validation');
+const { registerValidation, loginValidation, charCreateValidation } = require('../validation');
 
 
 
@@ -50,7 +51,7 @@ router.post('/login', async (req, res) => {
 
   //Create and Assign a Token
   const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET);
-  //Redirect user to home pahe and send token to response header
+  //Redirect user to home page and send token to response header
   res.cookie('TastyTails', token, {
     expiresIn: "7d"
   }), {
@@ -64,13 +65,32 @@ router.post('/logout', async (req, res) => {
   res.clearCookie('TastyTails').redirect('/');
 })
 
-
+//Bring Up Login/Registration Forms
 router.post('/loginForm', async (req, res) => {
   res.redirect('/loginForm');
 })
 
+//Close Login/Registation Forms
 router.post('/closereg', async (req, res) => {
   res.redirect('/');
+})
+
+//Create a new Character
+router.post('/createcharacter', async (req, res) => {
+  //Lets make sure the character sheet was properly filled out
+  const { error } = charCreateValidation(req.body);
+  if (error) return res.status(405).send(error.details[0].message);
+
+  //Create a new Character
+  const token = req.cookies.TastyTails;
+  const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+  console.log('verified = ', verified._id);
+  try {
+    const updateChar = await User.updateOne({_id: verified._id}, {$push: {"characters": {"firstName": req.body.firstName}}});
+    res.redirect('/character-bank');
+  } catch(err){
+    res.status(400).send(err);
+  }
 })
 
 

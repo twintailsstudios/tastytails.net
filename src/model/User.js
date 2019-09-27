@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const Character = require('./Character');
+const Schema = mongoose.Schema;
 
 const userSchema = new mongoose.Schema({
   email: {
@@ -21,8 +23,28 @@ const userSchema = new mongoose.Schema({
   date: {
     type: Date,
     default: Date.now
+  },
+
+  characters: {
+    type: [{
+      firstName: {
+        type: String
+      },
+      lastName: {
+        type: String
+      }
+    }]
   }
+  // characters: {
+  //   type: Schema.ObjectId,
+  //   ref: 'Character'
+  //
+  //   // type: [Character],
+  //   // default: undefined
+  // }
 });
+
+
 
 
 module.exports = mongoose.model('User', userSchema);

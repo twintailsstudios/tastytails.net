@@ -24,6 +24,15 @@ const loginValidation = (data) => {
   return Joi.validate(data, schema);
 };
 
+//Character Creation Validation
+const charCreateValidation = (data) => {
+  const schema = {
+    firstName: Joi.string().required()
+  }
+  return Joi.validate(data, schema);
+};
+
 
 module.exports.registerValidation = registerValidation;
 module.exports.loginValidation = loginValidation;
+module.exports.charCreateValidation = charCreateValidation;

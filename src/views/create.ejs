@@ -94,31 +94,36 @@
       <div id ="aboutPullout" class="pullout">
         <div id="playerInformation">
           <div id="nameInput">
-            <label for="firstName">First Name:</label>
-            <br>
-            <input id="firstName" type="text" autocomplete="off" class="form-control" placeholder="First Name" aria-label="First Name"></input>
-            <br>
-            <label for="lastName">Last Name:</label><br>
-            <input id="lastName" type="text" autocomplete="off" class="form-control" placeholder="Last Name" aria-label="Last Name"></input>
-            <br>
-            <label for="nickName">Nick Name:</label><br>
-            <input id="nickName" type="text" autocomplete="off" class="form-control" placeholder="Nick Name" aria-label="Nick Name"></input>
-            <br>
-            <div id="pronouns">
-              <label>Preferred Pronouns:</label>
-              <label for="she/her" class="radioContainer"> She/Her
-                <input id="she/her" type="radio" checked="checked" name="radio">
-                <span class="checkmark"></span>
-              </label>
+            <form action="/api/user/createcharacter" method="POST">
+              <label for="firstName">First Name:</label>
+              <br>
+              <input id="firstName" name="firstName" type="text" autocomplete="off" class="form-control" placeholder="First Name" aria-label="First Name"></input>
+              <br>
+              <button type="submit"><span>&#x1F5D9;</span></button>
+            </form>
+              <label for="lastName">Last Name:</label><br>
+              <input id="lastName" type="text" autocomplete="off" class="form-control" placeholder="Last Name" aria-label="Last Name"></input>
+              <br>
+              <label for="nickName">Nick Name:</label><br>
+              <input id="nickName" type="text" autocomplete="off" class="form-control" placeholder="Nick Name" aria-label="Nick Name"></input>
+              <br>
+              <div id="pronouns">
+                <label>Preferred Pronouns:</label>
+                <label for="she/her" class="radioContainer"> She/Her
+                  <input id="she/her" type="radio" checked="checked" name="radio">
+                  <span class="checkmark"></span>
+                </label>
 
-              <label for="he/his" class="radioContainer"> He/His
-                <input id="he/his" type="radio" checked="checked" name="radio">
-                <span class="checkmark"></span>
-              </label>
-            </div>
-            <label for="speciesName">Species Name:</label>
-            <br>
-            <input id="speciesName" type="text" autocomplete="off" class="form-control" placeholder="Species Name" aria-label="Species Name"></input>
+                <label for="he/his" class="radioContainer"> He/His
+                  <input id="he/his" type="radio" checked="checked" name="radio">
+                  <span class="checkmark"></span>
+                </label>
+              </div>
+              <label for="speciesName">Species Name:</label>
+              <br>
+              <input id="speciesName" type="text" autocomplete="off" class="form-control" placeholder="Species Name" aria-label="Species Name"></input>
+
+
           </div>
           <div id="detailsInput">
             <div id="descriptionInput">
