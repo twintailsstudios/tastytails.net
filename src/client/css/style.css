@@ -472,4 +472,73 @@ nav a:hover {
     height: 100%;
 
   }
+
+  /* OOC Tab */
+  #kinksInput{
+  float: left;
+  display: flex;
+  text-align: center;
+  font-size: 18px;
+  padding: 10px;
+  box-shadow: 0 0 8px 0 #666;
+  margin: 10px;
+  width: 30%;
+  min-width: 900px;
+  min-height: 375px;
+  justify-content: space-around;
+  }
+  #kinksInput ul{
+    float: left;
+    padding: 5px;
+    margin: 5px;
+    min-width: 260px;
+    box-shadow: 0 0 8px 0 #666;
+  }
+  #kinksInput li{
+    margin: 5px;
+  }
+  .rating{
+    /* position: absolute; */
+    /* top:50%;
+    left: 50%;*/
+    transform:rotateY(180deg);
+    display: flex;
+  }
+  .rating input{
+    display: none;
+
+  }
+  .rating label{
+    display: block;
+    cursor: pointer;
+    width: 50px;
+    /* background: #ccc; */
+
+  }
+  .rating label:before{
+    content: '\f004';
+    font-family: fontAwesome;
+    position: relative;
+    display: block;
+    font-size: 50px;
+    color: black;
+  }
+  .rating label:after{
+    content: '\f004';
+    font-family: fontAwesome;
+    position: absolute;
+    display: block;
+    font-size: 50px;
+    color: red;
+    top: 0;
+    opacity: 0;
+    transition: .5s;
+    text-shadow: 0 2px 5px rgba(0,0,0,.5);
+  }
+  .rating label:hover:after,
+  .rating label:hover ~ label:after,
+  .rating input:checked ~ label:after{
+    opacity: 1;
+  }
+
 </style>
