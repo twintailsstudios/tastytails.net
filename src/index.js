@@ -16,7 +16,7 @@ app.set('layout', 'layouts/layout');
 
 //Import Routes
 const authRoute = require('./routes/auth');
-const postRoute = require('./routes/posts');
+//const dbInterfaceRoute = require('./routes/dbInterface');
 const indexRouter = require('./routes/index');
 
 dotenv.config();
@@ -36,7 +36,7 @@ app.use(cookieParser());
 
 //Route Middlewares
 app.use('/api/user', authRoute);
-app.use('/api/posts', postRoute);
+//app.use('/api/dbInterface', dbInterfaceRoute);
 app.use('/', indexRouter);
 
 var players = {};

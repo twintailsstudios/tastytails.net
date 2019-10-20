@@ -3,7 +3,7 @@ const cookieParser = require('cookie-parser');
 
 module.exports = function(req, res, next) {
   const token = req.cookies.TastyTails;
-  console.log(token);
+  //console.log(token);
   if(!token) return res.status(401).render('error', {
     token: null,
     loginForm: 0,

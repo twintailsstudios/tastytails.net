@@ -7,6 +7,7 @@ body {
 /* Global */
 .container{
   width: 80%;
+  max-width: 100%;
   margin: auto;
   overflow: hidden;
 }
@@ -184,12 +185,12 @@ nav a:hover {
 
   /* Character Creator */
   #characterCreatorUi{
-      /**display: none;*/
-      margin:20px 0 0 0;
-      background-color: #0b4b90;
-      height:500px;
-      min-width: 1355px;
-      min-height: 510px;
+    /**display: none;*/
+    margin:20px 0 0 0;
+    background-color: #0b4b90;
+    height:500px;
+    min-width: 1355px;
+    min-height: 510px;
   }
 
   #primaryButtons{
@@ -369,7 +370,7 @@ nav a:hover {
   right: 10px;
   bottom: 10px;
   }
-  input[type=text] {
+  input[type=text], input[type=number] {
     border: 2px solid #aaa;
     border-radius: 4px;
     margin: 8px 0;
@@ -378,7 +379,37 @@ nav a:hover {
     box-sizing: border-box;
     transition: .3s;
   }
-  input[type=text]:focus {
+  input[type=text]:focus, input[type=number]:focus {
+    border-color: #00c60e;
+    box-shadow: 0 0 8px 0 #00c60e;
+  }
+  textarea{
+    resize: vertical;
+    border: 2px solid #aaa;
+    border-radius: 4px;
+    margin: 8px 0;
+    outline: none;
+    padding: 8px;
+    box-sizing: border-box;
+    /* transition: .3s; */
+  }
+
+  textarea:focus {
+    border-color: #00c60e;
+    box-shadow: 0 0 8px 0 #00c60e;
+  }
+  select{
+    resize: vertical;
+    border: 2px solid #aaa;
+    border-radius: 4px;
+    margin: 8px 0;
+    outline: none;
+    padding: 8px;
+    box-sizing: border-box;
+    transition: .3s;
+    /* pointer-events:  */
+  }
+  select:focus{
     border-color: #00c60e;
     box-shadow: 0 0 8px 0 #00c60e;
   }
@@ -453,27 +484,21 @@ nav a:hover {
     width: 100%;
     min-width:495px;
     min-height: 276px;
-    border: 2px solid #aaa;
-    border-radius: 4px;
-    margin: 8px 0;
-    outline: none;
-    padding: 8px;
-    box-sizing: border-box;
-    transition: .3s;
-  }
-
-  #detailsInput textarea:focus {
-    border-color: #00c60e;
-    box-shadow: 0 0 8px 0 #00c60e;
   }
   #descriptionInput{
     float: left;
     width: 100%;
     height: 100%;
-
+    border: solid;
+    border-radius: 10px;
+    border-width: 5px;
+    border-color: #05336f;
   }
 
-  /* OOC Tab */
+  /* kinks Tab */
+  #kinksPullout{
+    position: relative;
+  }
   #kinksInput{
   float: left;
   display: flex;
@@ -482,7 +507,7 @@ nav a:hover {
   padding: 10px;
   box-shadow: 0 0 8px 0 #666;
   margin: 10px;
-  width: 30%;
+  width: 100%;
   min-width: 900px;
   min-height: 375px;
   justify-content: space-around;
@@ -498,9 +523,6 @@ nav a:hover {
     margin: 5px;
   }
   .rating{
-    /* position: absolute; */
-    /* top:50%;
-    left: 50%;*/
     transform:rotateY(180deg);
     display: flex;
   }
@@ -540,5 +562,40 @@ nav a:hover {
   .rating input:checked ~ label:after{
     opacity: 1;
   }
+
+  /* Vore Tab */
+  #voreTypes{
+    padding: 5px;
+    margin: 5px;
+
+    box-shadow: 0 0 8px 0 #666;
+  }
+  .voreClassifiers{
+    float:left;
+    text-align: center;
+    padding: 5px;
+    margin: 5px;
+    width: 45%;
+    min-width: 393px;
+    min-height: 300px;
+    box-shadow: 0 0 8px 0 #666;
+  }
+  .voreClassifiers textarea{
+    width: 100%;
+    min-height: 276px;
+  }
+  .activityMessages{
+    float:right;
+    padding: 5px;
+    margin: 5px;
+    width: 50%;
+    min-width: 433px;
+    box-shadow: 0 0 8px 0 #666;
+  }
+  .activityMessages textarea{
+    width: 100%;
+
+  }
+
 
 </style>

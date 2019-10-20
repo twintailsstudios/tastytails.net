@@ -40,6 +40,13 @@
     flex-wrap: wrap;
     justify-content: space-around;
   }
+  .name{
+    margin: 5px;
+    padding: 5px;
+    border: solid;
+    border-width: 5px;
+    width: 100%;
+  }
 
 </style>
 
@@ -48,44 +55,46 @@
     <div class ="container">
       <div id ="bank">
         <h1>Character Bank</h1>
-        <ul>
-          <li>
+        <ul id= "bankUl">
+          <li id ="addChar">
             <div class ="slot">
               <div id="emptySlot">
                 <a href ="/create"><br><br><br><br>Click Here to Create a New Character <br><h1>&#x2795;</h1><br><br><br><br><br><br><br><br><br></a>
               </div>
             </div>
           </li>
-          <li>
-            <div class ="slot">
-              <div id="emptySlot">
-                <a href ="/create"><br><br><br><br>Click Here to Create a New Character <br><h1>&#x2795;</h1><br><br><br><br><br><br><br><br><br></a>
-              </div>
-            </div>
-          </li>
-          <li>
-            <div class ="slot">
-              <div id="emptySlot">
-                <a href ="/create"><br><br><br><br>Click Here to Create a New Character <br><h1>&#x2795;</h1><br><br><br><br><br><br><br><br><br></a>
-              </div>
-            </div>
-          </li>
-          <li>
-            <div class ="slot">
-              <div id="emptySlot">
-                <a href ="/create"><br><br><br><br>Click Here to Create a New Character <br><h1>&#x2795;</h1><br><br><br><br><br><br><br><br><br></a>
-              </div>
-            </div>
-          </li>
-          <li>
-            <div class ="slot">
-              <div id="emptySlot">
-                <a href ="/create"><br><br><br><br>Click Here to Create a New Character <br><h1>&#x2795;</h1><br><br><br><br><br><br><br><br><br></a>
-              </div>
-            </div>
-          </li>
+
         </ul>
       </div>
     </div>
   </section>
 </body>
+<% if (charList !== null) { %>
+  <script>
+    var charList = <%- charList %>;
+    console.log('charList = ', charList);
+
+    for (i = 0; i < charList.length; i++) {
+      var addCharLi = document.getElementById("addChar");
+      var li = document.createElement('li');
+      var slotDiv = document.createElement('div');
+      var nameDiv = document.createElement('div');
+
+      bankUl.insertBefore(li, addCharLi);
+      //document.getElementById("bankUl").appendChild(li);
+
+      slotDiv.className = 'slot';
+
+      nameDiv.className = 'name';
+      nameDiv.innerHTML = "<h1> Name: </h1><br>" + charList[i].firstName + ' ' + charList[i].lastName;
+      slotDiv.appendChild(nameDiv);
+
+      li.appendChild(slotDiv);
+
+    }
+  </script>
+<% } else { %>
+  <script>
+    console.log('No current characters');
+  </script>
+<% } %>

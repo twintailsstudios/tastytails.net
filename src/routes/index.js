@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const verify = require('./verifyToken');
+const dbInterface = require('./dbInterface');
 
 router.get('/', (req, res) => {
   const token = req.cookies.TastyTails;
@@ -112,8 +113,9 @@ router.get('/registered', (req, res) => {
   }
 })
 
-router.get('/character-bank', verify, (req, res) => {
+router.get('/character-bank', verify, async (req, res) => {
   const token = req.cookies.TastyTails;
+
   if(!token) return res.render('character-bank', {
       token: null,
       loginForm: 0
@@ -121,10 +123,14 @@ router.get('/character-bank', verify, (req, res) => {
 
   try {
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+    const characters = await dbInterface.charList(token);
+    //console.log('characters in the index.js = ', characters);
     req.user = verified;
     res.render('character-bank', {
       token: token,
-      loginForm: 0
+      loginForm: 0,
+      charList: JSON.stringify(characters)
+
     });
   } catch (err) {
     res.status(400).render('error', {

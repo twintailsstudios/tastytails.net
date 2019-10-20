@@ -3,11 +3,10 @@
     <div id="characterCreatorUi">
       <div id="primaryButtons">
         <ul>
-          <li><button id="gender" class="button main" style="vertical-align:middle"><span>&#9892; </span></button></li>
-          <li><button id="about" class="button main" style="vertical-align:middle"><span>About </span></button></li>
-          <li><button id="OOC" class="button main" style="vertical-align:middle"><span>OOC </span></button></li>
-          <li>Kinks</li>
-          <li>Vore Methods</li>
+          <li><button type="button" id="gender" class="button main" style="vertical-align:middle"><span>&#9892; </span></button></li>
+          <li><button type="button" id="about" class="button main" style="vertical-align:middle"><span>About </span></button></li>
+          <li><button type="button" id="kinks" class="button main" style="vertical-align:middle"><span>Kinks </span></button></li>
+          <li><button type="button" id="vore" class="button main" style="vertical-align:middle"><span>Vore </span></button></li>
           <li>Hair</li>
         </ul>
       </div>
@@ -15,55 +14,55 @@
 
 
 
-
+      <form action="/api/user/createcharacter" method="POST">
       <div id ="genderPullout" class="pullout">
         <div id ="collapsibleBox">
-          <button class="collapsible">Body Type <span>&#65086;</span></button>
+          <button type="button" class="collapsible">Body Type <span>&#65086;</span></button>
           <div class="content">
             <div id ="bodyType">
-              <button id="bodyLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              <button type="button" id="bodyLeft" class="button left" style="vertical-align:middle"><span> </span></button>
               <div id ="bodyTypeLabel" class="typeLabel">
                 Feminine
               </div>
-              <button id="bodyRight" class="button right" style="vertical-align:middle"><span> </span></button>
+              <button type="button" id="bodyRight" class="button right" style="vertical-align:middle"><span> </span></button>
             </div>
           </div>
-          <button class="collapsible">Genitailia</button>
+          <button type="button" class="collapsible">Genitailia</button>
           <div class="content">
             <div id ="genitailia">
-              <button id="genitleLeft" class="button left" style="vertical-align:middle"><span> </span></button>
-              <div id ="genitleTypeLabel" class="typeLabel">
+              <button type="button" id="genitleLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              <div type="button" id ="genitleTypeLabel" class="typeLabel">
                 (unavailable)
               </div>
-              <button id="genitleRight" class="button right" style="vertical-align:middle"><span> </span></button>
+              <button type="button" id="genitleRight" class="button right" style="vertical-align:middle"><span> </span></button>
             </div>
           </div>
-          <button class="collapsible">Secondary Fur</button>
+          <button type="button" class="collapsible">Secondary Fur</button>
           <div class="content">
             <div id ="secondaryFurType">
-              <button id="secondaryFurLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              <button type="button" id="secondaryFurLeft" class="button left" style="vertical-align:middle"><span> </span></button>
               <div id ="secondaryFurTypeLabel" class="typeLabel">
                 Option 1
               </div>
-              <button id="secondaryFurRight" class="button right" style="vertical-align:middle"><span> </span></button>
+              <button type="button" id="secondaryFurRight" class="button right" style="vertical-align:middle"><span> </span></button>
             </div>
           </div>
-          <button class="collapsible">Head</button>
+          <button type="button" class="collapsible">Head</button>
           <div class="content">
             <div id ="headType">
-              <button id="headLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              <button type="button" id="headLeft" class="button left" style="vertical-align:middle"><span> </span></button>
               <div id ="headTypeLabel" class="typeLabel">
                 Fox
               </div>
-              <button id="headRight" class="button right" style="vertical-align:middle"><span> </span></button>
+              <button type="button" id="headRight" class="button right" style="vertical-align:middle"><span> </span></button>
             </div>
           </div>
-          <button class="collapsible">Tail</button>
+          <button type="button" class="collapsible">Tail</button>
           <div class="content">
             <div id ="tailType">
-              <button id="tailLeft" class="button left" style="vertical-align:middle"><span> </span></button>
+              <button type="button" id="tailLeft" class="button left" style="vertical-align:middle"><span> </span></button>
               Tail Options
-              <button id="tailRight" class="button right" style="vertical-align:middle"><span> </span></button>
+              <button type="button" id="tailRight" class="button right" style="vertical-align:middle"><span> </span></button>
             </div>
           </div>
         </div>
@@ -71,26 +70,26 @@
           <ul>
             <li><div id= "test1">
               Primary Color:<br>
-              <button id="primary" class="selected"></button>
+              <button type="button" id="primary" class="selected"></button>
             </div></li>
             <li><div id= "test2">
               Secondary Color:<br>
-              <button id="secondary" class="selected"></button>
+              <button type="button" id="secondary" class="selected"></button>
             </div></li>
             <li><div id="test3">
               Accent Color:<br>
-              <button id="accent" class="selected"></button>
+              <button type="button" id="accent" class="selected"></button>
             </div></li>
             <li><div id="test4">
               Eye Color:<br>
-              <button id="eyeColor" class="selected"></button>
+              <button type="button" id="eyeColor" class="selected"></button>
             </div></li>
           </ul>
         </div>
         <div class="colorContainer">
           <canvas id="color-picker"></canvas>
         </div>
-        <button id="next" class="button main" style="vertical-align:middle"><span>Next </span></button>
+        <button type="button" id="next" class="button main" style="vertical-align:middle"><span>Next </span></button>
       </div>
 
 
@@ -98,51 +97,54 @@
       <div id ="aboutPullout" class="pullout">
         <div id="playerInformation">
           <div id="nameInput">
-            <form action="/api/user/createcharacter" method="POST">
               <label for="firstName">First Name:</label>
               <br>
               <input id="firstName" name="firstName" type="text" autocomplete="off" class="form-control" placeholder="First Name" aria-label="First Name"></input>
               <br>
-              <button type="submit"><span>&#x1F5D9;</span></button>
-            </form>
               <label for="lastName">Last Name:</label><br>
-              <input id="lastName" type="text" autocomplete="off" class="form-control" placeholder="Last Name" aria-label="Last Name"></input>
+              <input id="lastName" name="lastName" type="text" autocomplete="off" class="form-control" placeholder="Last Name" aria-label="Last Name"></input>
               <br>
               <label for="nickName">Nick Name:</label><br>
-              <input id="nickName" type="text" autocomplete="off" class="form-control" placeholder="Nick Name" aria-label="Nick Name"></input>
+              <input id="nickName" name="nickName" type="text" autocomplete="off" class="form-control" placeholder="Nick Name" aria-label="Nick Name"></input>
               <br>
+              <label for="speciesName">Species Name:</label>
+              <br>
+              <input id="speciesName" name="speciesName" type="text" autocomplete="off" class="form-control" placeholder="Species Name" aria-label="Species Name"></input>
               <div id="pronouns">
                 <label>Preferred Pronouns:</label>
                 <label for="she/her" class="radioContainer"> She/Her
-                  <input id="she/her" type="radio" name="radio" value="She/Her">
+                  <input id="she/her" type="radio" name="pronouns" value="She/Her">
                   <span class="checkmark"></span>
                 </label>
 
                 <label for="he/his" class="radioContainer"> He/His
-                  <input id="he/his" type="radio" name="radio" value="He/His">
+                  <input id="he/his" type="radio" name="pronouns" value="He/His">
                   <span class="checkmark"></span>
                 </label>
               </div>
-              <label for="speciesName">Species Name:</label>
-              <br>
-              <input id="speciesName" type="text" autocomplete="off" class="form-control" placeholder="Species Name" aria-label="Species Name"></input>
-
-
           </div>
           <div id="detailsInput">
             <div id="descriptionInput">
-              Input Character Description here: <br> <textarea id="descrip" autocomplete="off" class="form-control" placeholder="description" aria-label="description"></textarea>
+              <button type="button" class="collapsible">In Character Description</button>
+              <div class="content">
+                Input Character Description here: <br> <textarea id="icDescrip" name="icDescrip" autocomplete="off" class="form-control" placeholder="In Character Description..." aria-label="description"></textarea>
+              </div>
+
+              <button type="button" class="collapsible">Out of Character Description</button>
+              <div class="content">
+                Input Character Description here: <br> <textarea id="oocDescrip" type="text" name="oocDescrip" autocomplete="off" class="form-control" placeholder="Out of Charactrer Description" aria-label="description"></textarea>
+              </div>
             </div>
           </div>
         </div>
-        <button id="next2" class="button main" style="vertical-align:middle"><span>Next </span></button>
+        <button type="button" id="next2" class="button main" style="vertical-align:middle"><span>Next </span></button>
 
       </div>
 
 
 
-      <div id ="OOCPullout" class="pullout">
-        <div id="kinkInformation">
+      <div id ="kinksPullout" class="pullout">
+
           <div id="kinksInput">
             <ul>
               <li>
@@ -290,7 +292,7 @@
                 </div>
               </li>
             </ul>
-            
+
             <ul>
               <li>
                 Transformation
@@ -359,10 +361,23 @@
               </li>
             </ul>
           </div>
-        </div>
-        <a href="gameindex.html" id="finish" class="button main" style="vertical-align:middle">Finish</a>
+
+        <button type="button" id="next3" class="button main" style="vertical-align:middle"><span>Next </span></button>
 
       </div>
+
+      <div id ="vorePullout" class="pullout">
+        <div id="voreTypes">
+          <p>Input Vore Types Here</p>
+          <ul id="voreList">
+
+          </ul>
+          <button type="button" id="addVore" class="button main"><span>Add New Vore</span></button>
+        </div>
+        <button type="submit" id="finish" class="button main" style="vertical-align:middle"><span>&#x1F5D9;</span></button>
+        <!-- <a href="gameindex.html" id="finish" class="button main" style="vertical-align:middle">Finish</a> -->
+      </div>
+      </form>
 
 
 
@@ -384,7 +399,6 @@
 
 <script src="//cdn.jsdelivr.net/npm/phaser@3.13.0/dist/phaser.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
-
 <script>
 
   var coll = document.getElementsByClassName("collapsible");
@@ -402,36 +416,436 @@
     });
   }
 
+  var voreList = [
+    { name: "Stomach",
+      verb: "shoves",
+      digestionTimer: "120",
+      animation: "1",
+      descrip: "The walls feel hot and slimy as they constrict around you.",
+      examineMsg: "<pred>'s belly looks as though something inside is moving...",
+      struggleMsgInt: "Pressing against the slimy walls doesn't seem to get much of a reaction from <pred>.",
+      struggleMsgExt: "<pred>'s belly bulges out with the outline of a hand print for a moment before returning to it's distended shape.",
+      digestionMsgInt: "You finally feel your body succumb and are reduced to mush for <pred> to absorb.",
+      digestionMsgExt: "The constant movement inside <pred>'s middle finally goes still as a soft gurgling sound comes from their belly."
+    } ,
+    { name: "Bowels",
+      verb: "forces",
+      digestionTimer: "120",
+      animation: "2",
+      descrip: "You feel the musky walls of <pred>'s digestive tract undulating around you as you are shoved up their ass.",
+      examineMsg: "<pred>'s lower abdomen seems to be swollen out quite a lot...did something just move?",
+      struggleMsgInt: "Wriggling about only seems to make that tight fleshy tube squeeze tighter around your body.",
+      struggleMsgExt: "The outline of a footprint forms against the surface of <pred>'s lower belly",
+      digestionMsgInt: "A final powerful squeeze of the muscles around you causes your body to give out and you become a puddle of nutrients to feed <pred>",
+      digestionMsgExt: "<pred>'s tummy seems to shrink some as it lets out a satisfied burbling sound."
+    },
+    { name: "Balls",
+      verb: "presses",
+      digestionTimer: "120",
+      animation: "3",
+      descrip: "You fall down into a thick, musky puddle of jizz that immediately starts coating your body and you feel the wrinkly walls of <pred>'s scrotum tighten up to welcome you~",
+      examineMsg: "A large bulge between their thighs seems to shift and sway on it's own.",
+      struggleMsgInt: "The walls of your prison seem to give easily when you push out against them, but they always clench right back down the moment you relax...",
+      struggleMsgExt: "A very clear imprint of someone's face bulges out from the side of <pred>'s nutsack.",
+      digestionMsgInt: "The walls around you suddenly cinch up tightly submerging your head completely in <pred>'s sperm before you finally melt, becoming one with the pool of seed you had been bathing in.",
+      digestionMsgExt: "There are a few frantic garbled sounds seeming to come up from <pred>'s crotch before there was a sudden, thick sounding, GLORP and those frantic sounds were reduced to a soft sloshing."
+    },
+    { name: "Womb",
+      verb: "slurps",
+      digestionTimer: "120",
+      animation: "4",
+      descrip: "You are wholly enveloped in a humid heat as you are deposited into a wet and slimy chamber. The air is filled with the scent of <pred>'s arousal and their heart can be heard beating just above.",
+      examineMsg: "<pred>'s tummy looks swollen... could they be pregnant?",
+      struggleMsgInt: "Struggling seems to do little good, but you do feel the gentle rubbing of <pred>'s hand over your shape as they press the bulges you make back into their core.",
+      struggleMsgExt: "<pred>'s distended belly seems to rock and sway on it's own, they coo softly and seem to rub over their middle affectionately.",
+      digestionMsgInt: "Your body seems to feel soggy and wet as the heat surrounding you grows more intense. The walls seem to flex down harder and harder until finally... splorsh! You succumb to <pred>'s arousal and are reduced to a pool of fem-cum.",
+      digestionMsgExt: "<pred>'s middle suddenly compacts down noticeably and their face flushes red as they bite their lower lip. A muffled sloshing sound could be heard seemingly coming from their belly!"
+    }
+  ];
+  var currentVoreCount = document.getElementById("voreList").childElementCount;
+  createVoreList(voreList);
+
+
+
+  function createVoreList() {
+    currentVoreCount = document.getElementById("voreList").childElementCount;
+    console.log('document.getElementById("voreList").childElementCount;', document.getElementById("voreList").childElementCount);
+    if (!currentVoreCount) {
+
+      currentVoreCount = 0;
+    }
+    console.log('currentVoreCount = ', currentVoreCount);
+
+    for(i = currentVoreCount; i < voreList.length; i++) {
+      var br = document.createElement('br');
+      var br2 = document.createElement('br');
+      var br3 = document.createElement('br');
+      var br4 = document.createElement('br');
+      var li = document.createElement("li");
+      var button = document.createElement("button");
+      var examineButton = document.createElement('button');
+      var struggleInsideButton = document.createElement('button');
+      var struggleOutsideButton = document.createElement('button');
+      var digestionInsideButton = document.createElement('button');
+      var digestionOutsideButton = document.createElement('button');
+      var div = document.createElement("div");
+      var div2 = document.createElement("div");
+      var div3 = document.createElement("div");
+      var examineMsgDiv = document.createElement("div");
+      var examineContentDiv = document.createElement("div");
+      var struggleInsideContentDiv = document.createElement("div");
+      var struggleOutsideContentDiv = document.createElement("div");
+      var digestionInsideContentDiv = document.createElement("div");
+      var digestionOutsideContentDiv = document.createElement("div");
+      var destinationLbl = document.createElement('label');
+      var destination = document.createElement('input');
+      var destinationDescripLbl = document.createElement('label');
+      var destinationDescrip = document.createElement('textarea');
+      var verbLbl = document.createElement('label');
+      var verb = document.createElement('input');
+      var digestionTimerLbl = document.createElement('label');
+      var digestionTimer = document.createElement('input');
+      var animationLbl = document.createElement('label');
+      var animation = document.createElement('select');
+      var examineMsgLbl = document.createElement('label');
+      var examineMsgDescrip = document.createElement('textarea');
+      var struggleInsideMsgLbl = document.createElement('label');
+      var struggleInsideMsgDescrip = document.createElement('textarea');
+      var struggleOutsideMsgLbl = document.createElement('label');
+      var struggleOutsideMsgDescrip = document.createElement('textarea');
+      var digestionInsideMsgLbl = document.createElement('label');
+      var digestionInsideMsgDescrip = document.createElement('textarea');
+      var digestionOutsideMsgLbl = document.createElement('label');
+      var digestionOutsideMsgDescrip = document.createElement('textarea');
+
+      //li.className = "voreListItem";
+
+      button.id = 'voreOption'+i;
+      button.className = 'collapsible';
+      button.type = 'button';
+      button.innerHTML = "<h1>" + voreList[i].name; + "</h1>"
+      li.appendChild(button);
+
+      div.id = 'content'+i;
+      div.className = "content";
+      div2.id = 'voreClassifiers'+i;
+      div2.className = 'voreClassifiers';
+      div.appendChild(div2);
+      div3.className = 'activityMessages'
+      div.appendChild(div3);
+
+      destinationLbl.innerHTML = 'Destination: ';
+      destinationLbl.htmlFor = 'destination'+i;
+      div2.appendChild(destinationLbl);
+      //onkeyup='updateBttnName(event)'
+      destination.id = 'destination'+i;
+      destination.name = 'destination';
+      destination.onkeyup = updateBttnName;
+      destination.type = 'text';
+      destination.autocomplete = 'off';
+      destination.className = 'form-control';
+      destination.placeholder = 'Destination';
+      destination.ariaLabel = 'Destination';
+      destination.value = voreList[i].name;
+      div2.appendChild(destination);
+      div2.appendChild(br);
+
+      verbLbl.innerHTML = 'Verb: ';
+      verbLbl.htmlFor = 'verb'+i;
+      div2.appendChild(verbLbl);
+
+      verb.id = 'verb'+i;
+      verb.name = 'verb';
+      verb.type = 'text';
+      verb.autocomplete = 'off';
+      verb.className = 'form-control';
+      verb.placeholder = 'Destination Verb...';
+      verb.ariaLabel = 'verb';
+      verb.value = voreList[i].verb;
+      div2.appendChild(verb);
+      div2.appendChild(br2);
+
+      var test = document.createTextNode ('Digestion Timer: ');
+      div2.appendChild(test);
+
+      digestionTimer.id = 'digestionTimer'+i;
+      digestionTimer.name = 'digestionTimer';
+      digestionTimer.type = 'number';
+      digestionTimer.autocomplete = 'off';
+      digestionTimer.className = 'form-control';
+      digestionTimer.placeholder = 'Digestion Timer (In Seconds)';
+      digestionTimer.ariaLabel = 'digestionTimer';
+      digestionTimer.value = voreList[i].digestionTimer;
+      div2.appendChild(digestionTimer);
+      div2.appendChild(br3);
+
+      var test2 = document.createTextNode ('Animation: ');
+      div2.appendChild(test2);
+
+      animation.id = 'animation'+i;
+      animation.name = 'animation';
+      animation.innerHTML = '<option value="1">Oral Vore</option><option value="2">Anal Vore</option><option value="3">Cock Vore</option><option value="4">Unbirth</option><option value="5">Tail Vore</option><option value="6">Absorbtion</option>';
+      animation.value = voreList[i].animation;
+      div2.appendChild(animation);
+      div2.appendChild(br4);
+
+      destinationDescrip.id = 'destinationDescrip'+i;
+      destinationDescrip.name = 'destinationDescrip';
+      destinationDescrip.autocomplete = 'off';
+      destinationDescrip.className = 'form-control';
+      destinationDescrip.placeholder = "Describe the inside of the prey's destination...";
+      destinationDescrip.areaLabel = 'destinationDescrip';
+      destinationDescrip.innerHTML = voreList[i].descrip;
+      div2.appendChild(destinationDescrip);
+
+      examineButton.id = 'examineButton'+i;
+      examineButton.className = 'collapsible';
+      examineButton.type = 'button';
+      examineButton.innerHTML = "Examine Messages";
+      div3.appendChild(examineButton);
+
+      examineMsgDiv.className = 'content';
+      //examineMsgDiv.innerHTML = 'testing activity messages';
+      examineMsgLbl.innerHTML = 'Describe what people would see when examining you while this destination is "full":';
+      examineMsgLbl.htmlFor = 'examineMsgDescrip'+i;
+      examineMsgDiv.appendChild(examineMsgLbl);
+      examineMsgDescrip.id = 'examineMsgDescrip'+i;
+      examineMsgDescrip.name = 'examineMsgDescrip';
+      examineMsgDescrip.autocomplete = 'off';
+      examineMsgDescrip.className = 'form-control';
+      examineMsgDescrip.placeholder = 'What do you look like when this destination is "full"?';
+      examineMsgDescrip.areaLabel = 'examineMsgDescrip';
+      examineMsgDescrip.innerHTML = voreList[i].examineMsg;
+      examineMsgDiv.appendChild(examineMsgDescrip);
+      div3.appendChild(examineMsgDiv);
+
+      struggleInsideButton.id = 'struggleInsideMsgButton'+i;
+      struggleInsideButton.className = 'collapsible';
+      struggleInsideButton.type = 'button';
+      struggleInsideButton.innerHTML = "Struggle Messages (Interior)";
+      div3.appendChild(struggleInsideButton);
+
+      struggleInsideContentDiv.className = 'content';
+      //struggleInsideMsgDiv.innerHTML = 'testing activity messages';
+      struggleInsideMsgLbl.innerHTML = 'Describe what your prey experiances when struggling:';
+      struggleInsideMsgLbl.htmlFor = 'struggleInsideMsgDescrip'+i;
+      struggleInsideContentDiv.appendChild(struggleInsideMsgLbl);
+      struggleInsideMsgDescrip.id = 'struggleInsideMsgDescrip'+i;
+      struggleInsideMsgDescrip.name = 'struggleInsideMsgDescrip';
+      struggleInsideMsgDescrip.autocomplete = 'off';
+      struggleInsideMsgDescrip.className = 'form-control';
+      struggleInsideMsgDescrip.placeholder = 'What does your prey experiance when struggling while inside this destination?';
+      struggleInsideMsgDescrip.areaLabel = 'struggleInsideMsgDescrip';
+      struggleInsideMsgDescrip.innerHTML = voreList[i].struggleMsgInt;
+      struggleInsideContentDiv.appendChild(struggleInsideMsgDescrip);
+      div3.appendChild(struggleInsideContentDiv);
+
+      struggleOutsideButton.id = 'struggleOutsideMsgButton'+i;
+      struggleOutsideButton.className = 'collapsible';
+      struggleOutsideButton.type = 'button';
+      struggleOutsideButton.innerHTML = "Struggle Messages (Exterior)";
+      div3.appendChild(struggleOutsideButton);
+
+      struggleOutsideContentDiv.className = 'content';
+      //struggleOutsideMsgDiv.innerHTML = 'testing activity messages';
+      struggleOutsideMsgLbl.innerHTML = 'Describe what an onlooker may see when your prey is struggling inside this destination:';
+      struggleOutsideMsgLbl.htmlFor = 'struggleOutsideMsgDescrip'+i;
+      struggleOutsideContentDiv.appendChild(struggleOutsideMsgLbl);
+      struggleOutsideMsgDescrip.id = 'struggleOutsideMsgDescrip'+i;
+      struggleOutsideMsgDescrip.name = 'struggleOutsideMsgDescrip';
+      struggleOutsideMsgDescrip.autocomplete = 'off';
+      struggleOutsideMsgDescrip.className = 'form-control';
+      struggleOutsideMsgDescrip.placeholder = 'What do others see when prey is struggling in here?';
+      struggleOutsideMsgDescrip.areaLabel = 'struggleOutsideMsgDescrip';
+      struggleOutsideMsgDescrip.innerHTML = voreList[i].struggleMsgExt;
+      struggleOutsideContentDiv.appendChild(struggleOutsideMsgDescrip);
+      div3.appendChild(struggleOutsideContentDiv);
+
+      digestionInsideButton.id = 'digestionInsideMsgButton'+i;
+      digestionInsideButton.className = 'collapsible';
+      digestionInsideButton.type = 'button';
+      digestionInsideButton.innerHTML = "Digestion Messages (Interior)";
+      div3.appendChild(digestionInsideButton);
+
+      digestionInsideContentDiv.className = 'content';
+      //digestionInsideMsgDiv.innerHTML = 'testing activity messages';
+      digestionInsideMsgLbl.innerHTML = 'Describe what your prey may experiance in their final moments as they are digested in this destination:';
+      digestionInsideMsgLbl.htmlFor = 'digestionInsideMsgDescrip'+i;
+      digestionInsideContentDiv.appendChild(digestionInsideMsgLbl);
+      digestionInsideMsgDescrip.id = 'digestionInsideMsgDescrip'+i;
+      digestionInsideMsgDescrip.name = 'digestionInsideMsgDescrip';
+      digestionInsideMsgDescrip.autocomplete = 'off';
+      digestionInsideMsgDescrip.className = 'form-control';
+      digestionInsideMsgDescrip.placeholder = 'What does your prey experiance in the moment they are completely digested here?';
+      digestionInsideMsgDescrip.areaLabel = 'digestionInsideMsgDescrip';
+      digestionInsideMsgDescrip.innerHTML = voreList[i].digestionMsgInt;
+      digestionInsideContentDiv.appendChild(digestionInsideMsgDescrip);
+      div3.appendChild(digestionInsideContentDiv);
+
+      digestionOutsideButton.id = 'digestionOutsideMsgButton'+i;
+      digestionOutsideButton.className = 'collapsible';
+      digestionOutsideButton.type = 'button';
+      digestionOutsideButton.innerHTML = "Digestion Messages (Exterior)";
+      div3.appendChild(digestionOutsideButton);
+
+      digestionOutsideContentDiv.className = 'content';
+      //digestionOutsideMsgDiv.innerHTML = 'testing activity messages';
+      digestionOutsideMsgLbl.innerHTML = 'Describe what an outside onlooker may notice as this destination finishes digetsing your prey:';
+      digestionOutsideMsgLbl.htmlFor = 'digestionOutsideMsgDescrip'+i;
+      digestionOutsideContentDiv.appendChild(digestionOutsideMsgLbl);
+      digestionOutsideMsgDescrip.id = 'digestionOutsideMsgDescrip'+i;
+      digestionOutsideMsgDescrip.name = 'digestionOutsideMsgDescrip';
+      digestionOutsideMsgDescrip.autocomplete = 'off';
+      digestionOutsideMsgDescrip.className = 'form-control';
+      digestionOutsideMsgDescrip.placeholder = 'What do others around you notice as you finish digesting prey here?';
+      digestionOutsideMsgDescrip.areaLabel = 'digestionOutsideMsgDescrip';
+      digestionOutsideMsgDescrip.innerHTML = voreList[i].digestionMsgExt;
+      digestionOutsideContentDiv.appendChild(digestionOutsideMsgDescrip);
+      div3.appendChild(digestionOutsideContentDiv);
+
+      li.appendChild(div);
+
+
+      button.addEventListener("click", function() {
+        this.classList.toggle("active");
+        var content = this.nextElementSibling;
+        if (content.style.display === "block") {
+          content.style.display = "none";
+        } else {
+          content.style.display = "block";
+        }
+      });
+      examineButton.addEventListener("click", function() {
+        this.classList.toggle("active");
+        var content = this.nextElementSibling;
+        if (content.style.display === "block") {
+          content.style.display = "none";
+        } else {
+          content.style.display = "block";
+        }
+      });
+      struggleInsideButton.addEventListener("click", function() {
+        this.classList.toggle("active");
+        var content = this.nextElementSibling;
+        if (content.style.display === "block") {
+          content.style.display = "none";
+        } else {
+          content.style.display = "block";
+        }
+      });
+      struggleOutsideButton.addEventListener("click", function() {
+        this.classList.toggle("active");
+        var content = this.nextElementSibling;
+        if (content.style.display === "block") {
+          content.style.display = "none";
+        } else {
+          content.style.display = "block";
+        }
+      });
+      digestionInsideButton.addEventListener("click", function() {
+        this.classList.toggle("active");
+        var content = this.nextElementSibling;
+        if (content.style.display === "block") {
+          content.style.display = "none";
+        } else {
+          content.style.display = "block";
+        }
+      });
+      digestionOutsideButton.addEventListener("click", function() {
+        this.classList.toggle("active");
+        var content = this.nextElementSibling;
+        if (content.style.display === "block") {
+          content.style.display = "none";
+        } else {
+          content.style.display = "block";
+        }
+      });
+
+      document.getElementById("voreList").appendChild(li);
+    }
+  }
+
+  function updateBttnName(event) {
+    //console.log(event.srcElement.id);
+    //console.log('text box value = ', event.srcElement.value);
+    var parent = document.getElementById(event.srcElement.id).parentElement.id;
+    //console.log('parent = ', parent);
+    var grandParent = document.getElementById(parent).parentElement.id;
+    //console.log('grandParent = ', grandParent);
+
+    var parentSibling = document.getElementById(grandParent).previousSibling.id;
+    //console.log('grandParent = ', grandParent);
+    document.getElementById(parentSibling).innerHTML = '<h1>'+event.srcElement.value+'</h1>';
+  }
+
   gender.addEventListener("click", function() {
     console.log('gender clicked');
     document.getElementById("genderPullout").style.display = "block";
     document.getElementById("aboutPullout").style.display = "none";
-    document.getElementById("OOCPullout").style.display = "none";
+    document.getElementById("kinksPullout").style.display = "none";
+    document.getElementById("vorePullout").style.display = "none";
     //document.getElementById("genderPullout").style.transform = translateX(50px);
   });
   about.addEventListener("click", function() {
     console.log('about clicked');
     document.getElementById("genderPullout").style.display = "none";
     document.getElementById("aboutPullout").style.display = "block";
-    document.getElementById("OOCPullout").style.display = "none";
+    document.getElementById("kinksPullout").style.display = "none";
+    document.getElementById("vorePullout").style.display = "none";
   });
-  OOC.addEventListener("click", function() {
-    console.log('about clicked');
+  kinks.addEventListener("click", function() {
+    console.log('kinks clicked');
     document.getElementById("genderPullout").style.display = "none";
     document.getElementById("aboutPullout").style.display = "none";
-    document.getElementById("OOCPullout").style.display = "block";
+    document.getElementById("kinksPullout").style.display = "block";
+    document.getElementById("vorePullout").style.display = "none";
+  });
+  vore.addEventListener("click", function() {
+    console.log('Vore Types clicked');
+    document.getElementById("genderPullout").style.display = "none";
+    document.getElementById("aboutPullout").style.display = "none";
+    document.getElementById("kinksPullout").style.display = "none";
+    document.getElementById("vorePullout").style.display = "block";
   });
   next.addEventListener("click", function() {
     console.log('next clicked');
     document.getElementById("genderPullout").style.display = "none";
     document.getElementById("aboutPullout").style.display = "block";
-    document.getElementById("OOCPullout").style.display = "none";
+    document.getElementById("kinksPullout").style.display = "none";
+    document.getElementById("vorePullout").style.display = "none";
   });
   next2.addEventListener("click", function() {
     console.log('next clicked');
     document.getElementById("genderPullout").style.display = "none";
     document.getElementById("aboutPullout").style.display = "none";
-    document.getElementById("OOCPullout").style.display = "block";
+    document.getElementById("kinksPullout").style.display = "block";
+    document.getElementById("vorePullout").style.display = "none";
+  });
+  next3.addEventListener("click", function() {
+    console.log('next clicked');
+    document.getElementById("genderPullout").style.display = "none";
+    document.getElementById("aboutPullout").style.display = "none";
+    document.getElementById("kinksPullout").style.display = "none";
+    document.getElementById("vorePullout").style.display = "block";
+  });
+  addVore.addEventListener("click", function() {
+    console.log('Add New Vore clicked');
+    voreList.push(
+      { name: "New Vore",
+        verb: "",
+        digestionTimer: "120",
+        animation: "1",
+        descrip: "",
+        examineMsg: "",
+        struggleMsgInt: "",
+        struggleMsgExt: "",
+        digestionMsgInt: "",
+        digestionMsgExt: ""
+      }
+    );
+    //var voreArray = voreList[vorelist.length - 1];
+    createVoreList(voreList[voreList.length - 1]);
+    console.log('voreList = ', voreList[voreList.length - 1]);
   });
 
 
@@ -482,7 +896,7 @@
     var self = this;
     this.socket = io();
     this.otherPlayers = this.physics.add.group();
-    cursors = this.input.keyboard.createCursorKeys();
+    //cursors = this.input.keyboard.createCursorKeys();
     //console.log('self.socket = ', self.socket);
     this.socket.on('currentPlayers', function (players, spells) {
       Object.keys(players).forEach(function (id) {
@@ -1283,23 +1697,23 @@
 
 
   function update() {
-    if (cursors.down.isDown) {
-      this.head.anims.stop();
-      this.body.anims.stop();
-      this.tail.anims.stop();
-      this.eyes.anims.stop();
-    }
-    if (cursors.up.isDown) {
-      this.head.play(localPlayerInfo.head + 'Down');
-      this.body.play(localPlayerInfo.body + 'Down');
-      this.tail.play(localPlayerInfo.tail + 'Down');
-      this.eyes.play(localPlayerInfo.eyes + 'Down');
-    }
-    if (cursors.left.isDown) {
-      this.head.setDepth(4);
-      this.body.setDepth(3);
-      this.tail.setDepth(1);
-      this.eyes.setDepth(2);
-    }
+    // if (cursors.down.isDown) {
+    //   this.head.anims.stop();
+    //   this.body.anims.stop();
+    //   this.tail.anims.stop();
+    //   this.eyes.anims.stop();
+    // }
+    // if (cursors.up.isDown) {
+    //   this.head.play(localPlayerInfo.head + 'Down');
+    //   this.body.play(localPlayerInfo.body + 'Down');
+    //   this.tail.play(localPlayerInfo.tail + 'Down');
+    //   this.eyes.play(localPlayerInfo.eyes + 'Down');
+    // }
+    // if (cursors.left.isDown) {
+    //   this.head.setDepth(4);
+    //   this.body.setDepth(3);
+    //   this.tail.setDepth(1);
+    //   this.eyes.setDepth(2);
+    // }
   }
 </script>

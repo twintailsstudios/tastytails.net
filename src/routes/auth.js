@@ -1,9 +1,9 @@
 const router = require('express').Router();
 const User = require('../model/User');
-const Character = require('../model/Character');
+//const Character = require('../model/Character');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { registerValidation, loginValidation, charCreateValidation } = require('../validation');
+const { registerValidation, loginValidation, charCreateValidation, voreTypeValidation } = require('../validation');
 
 
 
@@ -75,18 +75,85 @@ router.post('/closereg', async (req, res) => {
   res.redirect('/');
 })
 
+// //Going to Character-Bank
+// router.post('/character-bank', async (req, res) => {
+//   const user = await User.findOne({_id: req.cookies.TastyTails});
+//   const charList = user.characters;
+//   console.log('user.characters = ', user.characters)
+//   res.redirect('/character-bank');
+// })
+
 //Create a new Character
 router.post('/createcharacter', async (req, res) => {
   //Lets make sure the character sheet was properly filled out
-  const { error } = charCreateValidation(req.body);
-  if (error) return res.status(405).send(error.details[0].message);
+  //console.log('req.body = ', req.body);
+  var voreTypes = [];
+  for(i = 0; i < req.body.destination.length; i++) {
+    //console.log('req.body.destination[i] = ', req.body.destination[i]);
+    var voreType = {
+      id: i,
+      destination: req.body.destination[i],
+      verb: req.body.verb[i],
+      digestionTimer: req.body.digestionTimer[i],
+      animation: req.body.animation[i],
+      destinationDescrip: req.body.destinationDescrip[i],
+      examineMsgDescrip: req.body.examineMsgDescrip[i],
+      struggleInsideMsgDescrip: req.body.struggleInsideMsgDescrip[i],
+      struggleOutsideMsgDescrip: req.body.struggleOutsideMsgDescrip[i],
+      digestionInsideMsgDescrip: req.body.digestionInsideMsgDescrip[i],
+      digestionOutsideMsgDescrip: req.body.digestionOutsideMsgDescrip[i]
+    }
+    voreTypes.push(voreType);
+    const { error1 } = voreTypeValidation(voreType);
+    if (error1) return res.status(405).send(error1.details[0].message);
+  };
+  //console.log('voreTypes = ', voreTypes);
+
+
+  const { error2 } = charCreateValidation(req.body);
+  if (error2) return res.status(405).send(error2.details[0].message);
 
   //Create a new Character
   const token = req.cookies.TastyTails;
   const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-  console.log('verified = ', verified._id);
+  //console.log('verified = ', verified._id);
   try {
-    const updateChar = await User.updateOne({_id: verified._id}, {$push: {"characters": {"firstName": req.body.firstName}}});
+    const updateChar = await User.updateOne({_id: verified._id}, {$push: {"characters": {
+      "firstName": req.body.firstName,
+      "lastName": req.body.lastName,
+      "nickName": req.body.nickName,
+      "speciesName": req.body.speciesName,
+      "pronouns": req.body.pronouns,
+      "icDescrip": req.body.icDescrip,
+      "oocDescrip": req.body.oocDescrip,
+      "ovStar": req.body.ovStar,
+      "avStar": req.body.avStar,
+      "cvStar": req.body.cvStar,
+      "ubStar": req.body.ubStar,
+      "tvStar": req.body.tvStar,
+      "absStar": req.body.absStar,
+      "svStar": req.body.svStar,
+      "predStar": req.body.predStar,
+      "preyStar": req.body.preyStar,
+      "softStar": req.body.softStar,
+      "hardStar": req.body.hardStar,
+      "digestionStar": req.body.digestionStar,
+      "disposalStar": req.body.disposalStar,
+      "tfStar": req.body.tfStar,
+      "btfStar": req.body.btfStar,
+      "bsStar": req.body.tfStar,
+      "gStar": req.body.tfStar,
+      "sStar": req.body.tfStar,
+      "iaoStar": req.body.tfStar,
+      "voreTypes": voreTypes
+    }}});
+    // try {
+    //   const user = await User.findOne({_id: verified._id});
+    //   charList = user.characters;
+    //
+    // } catch(err){
+    //   res.status(400).send(err);
+    // }
     res.redirect('/character-bank');
   } catch(err){
     res.status(400).send(err);
