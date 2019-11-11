@@ -32,7 +32,7 @@ const charCreateValidation = (data) => {
     lastName: Joi.string().required(),
     nickName: Joi.string(),
     speciesName: Joi.string().required(),
-    pronouns: Joi.string().required(),
+    pronouns: Joi.number().required(),
     icDescrip: Joi.string().required(),
     oocDescrip: Joi.string().required(),
     ovStar: Joi.number(),
@@ -71,7 +71,7 @@ const charCreateValidation = (data) => {
 };
 
 const voreTypeValidation = (data) => {
-  
+
   const schema = {
     destination: Joi.string(),
     verb: Joi.string(),
@@ -87,8 +87,35 @@ const voreTypeValidation = (data) => {
   return Joi.validate(data, schema);
 };
 
+const ratingsValidation = (data) => {
+
+  const schema = {
+    ovStar: Joi.number(),
+    avStar: Joi.number(),
+    cvStar: Joi.number(),
+    ubStar: Joi.number(),
+    tvStar: Joi.number(),
+    absStar: Joi.number(),
+    svStar: Joi.number(),
+    predStar: Joi.number(),
+    preyStar: Joi.number(),
+    softStar: Joi.number(),
+    hardStar: Joi.number(),
+    digestionStar: Joi.number(),
+    disposalStar: Joi.number(),
+    tfStar: Joi.number(),
+    btfStar: Joi.number(),
+    bsStar: Joi.number(),
+    gStar: Joi.number(),
+    sStar: Joi.number(),
+    iaoStar: Joi.number()
+  }
+  return Joi.validate(data, schema);
+};
+
 
 module.exports.registerValidation = registerValidation;
 module.exports.loginValidation = loginValidation;
 module.exports.charCreateValidation = charCreateValidation;
 module.exports.voreTypeValidation = voreTypeValidation;
+module.exports.ratingsValidation = ratingsValidation;

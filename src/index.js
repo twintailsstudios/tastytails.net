@@ -17,7 +17,8 @@ app.set('layout', 'layouts/layout');
 //Import Routes
 const authRoute = require('./routes/auth');
 //const dbInterfaceRoute = require('./routes/dbInterface');
-const indexRouter = require('./routes/index');
+const indexRoute = require('./routes/index');
+const editRoute = require('./routes/edit');
 
 dotenv.config();
 
@@ -37,7 +38,8 @@ app.use(cookieParser());
 //Route Middlewares
 app.use('/api/user', authRoute);
 //app.use('/api/dbInterface', dbInterfaceRoute);
-app.use('/', indexRouter);
+app.use('/', indexRoute);
+app.use('/edit', editRoute);
 
 var players = {};
 
@@ -108,16 +110,43 @@ io.on('connection', function (socket) {
     playerId: socket.id,
     Username:"",
     Description:"",
-    head:"",
-    body:"",
-    tail:"",
-    eyes:"",
-    secondaryBody:"",
-    genitle:"",
-    primaryColor:'0xe0e0e0',
-    secondaryColor:'0xffffff',
-    accentColor:'0xfcf2f2',
-    eyeColor:'0xfcf2f2',
+    head: {
+      sprite: 'head_01',
+      color: '0xe0e0e0',
+      secondarySprite: 'empty',
+      secondaryColor: '0xffffff',
+      accentSprite: 'empty',
+      accentColor: '0x636363'
+    },
+    body: {
+      sprite: 'body_01',
+      color: '0xe0e0e0',
+      secondarySprite: 'empty',
+      secondaryColor: '0xffffff',
+      accentSprite: 'empty',
+      accentColor: '0x636363'
+    },
+    tail: {
+      sprite: 'tail_01',
+      color: '0xe0e0e0',
+      secondarySprite: 'empty',
+      secondaryColor: '0xffffff',
+      accentSprite: 'empty',
+      accentColor: '0x636363'
+    },
+    eyes: {
+      outer: 'eyes_01',
+      iris: 'eyes_02',
+      color: '0xfcf2f2'
+    },
+    hair: {
+      sprite: 'empty',
+      color: '0x636363'
+    },
+    genitles:{
+      sprite: 'empty',
+      secondarySprite: 'empty'
+    },
     specialList:[],
     spellInventory:[],
     consumedBy:null,
@@ -320,20 +349,31 @@ io.on('connection', function (socket) {
   })
 
   socket.on('characterUpdate', function (pushedInfo) {
-    players[socket.id].head = pushedInfo.head;
-    players[socket.id].headColor = pushedInfo.headColor;
-    players[socket.id].body = pushedInfo.body;
-    players[socket.id].bodyColor = pushedInfo.bodyColor;
-    players[socket.id].secondaryBody = pushedInfo.secondaryBody;
-    players[socket.id].tail = pushedInfo.tail;
-    players[socket.id].eyes = pushedInfo.eyes;
-    players[socket.id].genitle = pushedInfo.genitle;
-    players[socket.id].primaryColor = pushedInfo.primaryColor;
-    players[socket.id].secondaryColor = pushedInfo.secondaryColor;
-    players[socket.id].accentColor = pushedInfo.accentColor;
-    players[socket.id].eyeColor = pushedInfo.eyeColor;
-    players[socket.id].Username = pushedInfo.Username;
-    players[socket.id].Description = pushedInfo.Description;
+    players[socket.id] = pushedInfo;
+    // players[socket.id].head.sprite = pushedInfo.head.sprite;
+    // players[socket.id].head.color = pushedInfo.head.color;
+    // players[socket.id].head.secondarySprite = pushedInfo.head.secondarySprite;
+    // players[socket.id].head.secondaryColor = pushedInfo.head.secondaryColor;
+    // players[socket.id].head.accentSprite = pushedInfo.head.accentSprite;
+    // players[socket.id].head.accentColor = pushedInfo.head.accentColor;
+    // players[socket.id].body.sprite = pushedInfo.body.sprite;
+    // players[socket.id].body.color = pushedInfo.body.color;
+    // players[socket.id].body.secondarySprite = pushedInfo.body.secondarySprite;
+    // players[socket.id].body.secondaryColor = pushedInfo.body.secondaryColor;
+    // players[socket.id].body.accentSprite = pushedInfo.body.accentSprite;
+    // players[socket.id].body.accentColor = pushedInfo.body.accentColor;
+    // players[socket.id].tail.sprite = pushedInfo.tail.sprite;
+    // players[socket.id].tail.color = pushedInfo.tail.color;
+    // players[socket.id].tail.secondarySprite = pushedInfo.tail.secondarySprite;
+    // players[socket.id].tail.secondaryColor = pushedInfo.tail.secondaryColor;
+    // players[socket.id].tail.accentSprite = pushedInfo.tail.accentSprite;
+    // players[socket.id].tail.accentColor = pushedInfo.tail.accentColor;
+    // players[socket.id].eyes.outer = pushedInfo.eyes.outer;
+    // players[socket.id].eyes.iris = pushedInfo.eyes.iris;
+    // players[socket.id].eyes.color = pushedInfo.eyes.color;
+    // players[socket.id].genitles = pushedInfo.genitles;
+    // players[socket.id].Username = pushedInfo.Username;
+    // players[socket.id].Description = pushedInfo.Description;
     console.log('updating character...');
     socket.emit('characterUpdated', players[socket.id]);
 

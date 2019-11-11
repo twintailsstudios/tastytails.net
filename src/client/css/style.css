@@ -1,10 +1,14 @@
 <style>
+
+/* Global */
 body {
   background-color: #0b4b90;
   padding: 0;
   margin: 0;
 }
-/* Global */
+footer {
+  /* background-color: pink; */
+}
 .container{
   width: 80%;
   max-width: 100%;
@@ -217,19 +221,20 @@ nav a:hover {
     border-width: 5px;
     border-color: #05336f;
     border-radius: 10px;
-    width: calc(100% - 433px);
-    min-width: 861px;
+    width: 800px;
+    /* width: calc(100% - 433px); */
+    /* min-width: 861px; */
     min-height: 425px;
   }
   #genderPullout{
     display: block;
-
+    /* width: 680px; */
   }
   #collapsibleBox {
     float: left;
     vertical-align: top;
-    max-width: 454px;
-    min-width: 384px;
+    max-width: 400px;
+    min-width: 400px;
     border: solid;
     border-radius: 10px;
     border-width: 5px;
@@ -237,6 +242,28 @@ nav a:hover {
     margin: 5px;
   }
   .collapsible {
+    background-color: #0b4b90;
+    color: white;
+    cursor: pointer;
+    padding: 18px;
+    width: 100%;
+    border: none;
+    text-align: center;
+    outline: none;
+    font-size: 25px;
+  }
+  .voreTypecollapsible {
+    background-color: #0b4b90;
+    color: white;
+    cursor: pointer;
+    padding: 18px;
+    width: 100%;
+    border: none;
+    text-align: center;
+    outline: none;
+    font-size: 15px;
+  }
+  .actMsgcollapsible {
     background-color: #0b4b90;
     color: white;
     cursor: pointer;
@@ -253,7 +280,19 @@ nav a:hover {
   }
 
   .content {
-    padding: 0 18px;
+    padding: 0 5px;
+    display: none;
+    overflow: hidden;
+    background-color: #74b6dc;
+  }
+  .voreTypecontent {
+    padding: 0 5px;
+    display: none;
+    overflow: hidden;
+    background-color: #74b6dc;
+  }
+  .actMsgcontent {
+    padding: 0 5px;
     display: none;
     overflow: hidden;
     background-color: #74b6dc;
@@ -342,15 +381,95 @@ nav a:hover {
     box-shadow: 0 5px #666;
     transform: translateY(4px);
   }
+  .colorQuickSelect {
+    display: none;
+  }
+  .button.colorQuickSelectBtn:before {
+    content: '\f0c5';
+    font-family: fontAwesome;
+    font-size: 25px;
+    color: black;
+  }
+
+  .selectionContainer {
+    background-color: #74b6dc;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    box-shadow: 0 0 8px 0 #666;
+    display: flex;
+    justify-content: space-around;
+    font-size: 25px;
+    width: 380px;
+  }
+  .hexContainer {
+    background-color: #74b6dc;
+    padding: 5px;5px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    box-shadow: 0 0 8px 0 #666;
+    display: flex;
+    justify-content: space-around;
+    font-size: 15px;
+    /* width: 300px; */
+  }
+  .copyDivide {
+    /* display: flex; */
+    /* background-color: green; */
+    text-align: center;
+    font-size: 15px;
+    /* float: right; */
+    height: 100px;
+    width: 160px;
+  }
+  .hexDivide {
+    /* display: flex; */
+    /* background-color: blue; */
+    text-align: center;
+    font-size: 15px;
+    height: 100px;
+    width: 90px;
+  }
+  .dropDownDivide {
+    /* display: flex; */
+    /* background-color: blue; */
+    text-align: center;
+    font-size: 25px;
+    height: 100px;
+    width: 250px;
+  }
+  .colorDivide {
+    /* display: flex; */
+    /* background-color: green; */
+    text-align: center;
+    font-size: 25px;
+    /* float: right; */
+    height: 100px;
+    width: 100px;
+  }
+  .dropDownDivide select {
+    font-family: 'McLaren';
+    font-size: 15px;
+    text-align-last:center;
+  }
+  .hexReadOut {
+    width: 85px;
+  }
 
   #previewContainer{
-    float: right;
+    float: left;
     text-align: center;
     background-color: #74b6dc;
     padding: 10px;
     box-shadow: 0 0 8px 0 #666;
     margin: 10px;
     min-width: 180px
+  }
+  #buttonHolder {
+    padding: 5px;
+    margin: 5px;
+
   }
   .button.left.rotate {
 
@@ -360,15 +479,14 @@ nav a:hover {
 
     max-width: 80px;
   }
-  #next {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
+  #next2 {
+  display:none
+  }
+  #next3 {
+  display:none
   }
   #finish {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
+  display:none
   }
   input[type=text], input[type=number] {
     border: 2px solid #aaa;
@@ -466,8 +584,8 @@ nav a:hover {
   padding: 10px;
   box-shadow: 0 0 8px 0 #666;
   margin: 10px;
-  width: 30%;
-  min-width: 214px;
+  /* width: 30%; */
+  min-width: 200px;
   min-height: 375px;
   }
   #detailsInput{
@@ -501,22 +619,22 @@ nav a:hover {
   }
   #kinksInput{
   float: left;
-  display: flex;
+  /* display: flex; */
   text-align: center;
   font-size: 18px;
-  padding: 10px;
-  box-shadow: 0 0 8px 0 #666;
+  /* padding: 10px; */
+  /* box-shadow: 0 0 8px 0 #666; */
   margin: 10px;
   width: 100%;
-  min-width: 900px;
-  min-height: 375px;
+  /* min-width: 900px; */
+  /* min-height: 375px; */
   justify-content: space-around;
   }
   #kinksInput ul{
     float: left;
     padding: 5px;
     margin: 5px;
-    min-width: 260px;
+    min-width: 230px;
     box-shadow: 0 0 8px 0 #666;
   }
   #kinksInput li{
@@ -533,24 +651,26 @@ nav a:hover {
   .rating label{
     display: block;
     cursor: pointer;
-    width: 50px;
+    width: 45px;
     /* background: #ccc; */
 
   }
   .rating label:before{
     content: '\f004';
     font-family: fontAwesome;
+    text-align: center;
     position: relative;
     display: block;
-    font-size: 50px;
+    font-size: 45px;
     color: black;
   }
   .rating label:after{
     content: '\f004';
     font-family: fontAwesome;
+    text-align: center;
     position: absolute;
     display: block;
-    font-size: 50px;
+    font-size: 45px;
     color: red;
     top: 0;
     opacity: 0;
@@ -567,16 +687,17 @@ nav a:hover {
   #voreTypes{
     padding: 5px;
     margin: 5px;
-
+    text-align: center;
     box-shadow: 0 0 8px 0 #666;
   }
   .voreClassifiers{
     float:left;
     text-align: center;
     padding: 5px;
-    margin: 5px;
-    width: 45%;
-    min-width: 393px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    /* width: 45%; */
+    min-width: 305px;
     min-height: 300px;
     box-shadow: 0 0 8px 0 #666;
   }
@@ -587,7 +708,8 @@ nav a:hover {
   .activityMessages{
     float:right;
     padding: 5px;
-    margin: 5px;
+    margin-top: 5px;
+    margin-bottom: 5px;
     width: 50%;
     min-width: 433px;
     box-shadow: 0 0 8px 0 #666;

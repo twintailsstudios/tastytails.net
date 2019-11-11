@@ -3,7 +3,7 @@ const User = require('../model/User');
 //const Character = require('../model/Character');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { registerValidation, loginValidation, charCreateValidation, voreTypeValidation } = require('../validation');
+const { registerValidation, loginValidation, charCreateValidation, voreTypeValidation, ratingsValidation } = require('../validation');
 
 
 
@@ -87,6 +87,32 @@ router.post('/closereg', async (req, res) => {
 router.post('/createcharacter', async (req, res) => {
   //Lets make sure the character sheet was properly filled out
   //console.log('req.body = ', req.body);
+  var ratings = {
+    ovStar: req.body.ovStar,
+    avStar: req.body.avStar,
+    cvStar: req.body.cvStar,
+    ubStar: req.body.ubStar,
+    tvStar: req.body.tvStar,
+    absStar: req.body.absStar,
+    svStar: req.body.svStar,
+    predStar: req.body.predStar,
+    preyStar: req.body.preyStar,
+    softStar: req.body.softStar,
+    hardStar: req.body.hardStar,
+    digestionStar: req.body.digestionStar,
+    disposalStar: req.body.disposalStar,
+    tfStar: req.body.tfStar,
+    btfStar: req.body.btfStar,
+    bsStar: req.body.bsStar,
+    gStar: req.body.gStar,
+    sStar: req.body.sStar,
+    iaoStar: req.body.iaoStar
+  };
+    const { error3 } = ratingsValidation(ratings);
+    if (error3) return res.status(405).send(error3.details[0].message);
+
+    //console.log('ratings = ', ratings);
+
   var voreTypes = [];
   for(i = 0; i < req.body.destination.length; i++) {
     //console.log('req.body.destination[i] = ', req.body.destination[i]);
@@ -126,25 +152,7 @@ router.post('/createcharacter', async (req, res) => {
       "pronouns": req.body.pronouns,
       "icDescrip": req.body.icDescrip,
       "oocDescrip": req.body.oocDescrip,
-      "ovStar": req.body.ovStar,
-      "avStar": req.body.avStar,
-      "cvStar": req.body.cvStar,
-      "ubStar": req.body.ubStar,
-      "tvStar": req.body.tvStar,
-      "absStar": req.body.absStar,
-      "svStar": req.body.svStar,
-      "predStar": req.body.predStar,
-      "preyStar": req.body.preyStar,
-      "softStar": req.body.softStar,
-      "hardStar": req.body.hardStar,
-      "digestionStar": req.body.digestionStar,
-      "disposalStar": req.body.disposalStar,
-      "tfStar": req.body.tfStar,
-      "btfStar": req.body.btfStar,
-      "bsStar": req.body.tfStar,
-      "gStar": req.body.tfStar,
-      "sStar": req.body.tfStar,
-      "iaoStar": req.body.tfStar,
+      "ratings": ratings,
       "voreTypes": voreTypes
     }}});
     // try {

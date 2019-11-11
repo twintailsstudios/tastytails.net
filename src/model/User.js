@@ -40,7 +40,7 @@ const userSchema = new mongoose.Schema({
         type: String
       },
       pronouns: {
-        type: String
+        type: Number
       },
       icDescrip: {
         type: String
@@ -48,60 +48,89 @@ const userSchema = new mongoose.Schema({
       oocDescrip: {
         type: String
       },
-      ovStar: {
-        type: Number
+      head: {
+        sprite: {
+          type: String
+        },
+        color: {
+          type: String
+        },
+        secondarySprite: {
+          type: String
+        },
+        secondaryColor: {
+          type: String
+        },
+        accentSprite: {
+          type: String
+        },
+        accentColor: {
+          type: String
+        }
       },
-      avStar: {
-        type: Number
+      body: {
+        
       },
-      cvStar: {
-        type: Number
+      ratings: {
+          ovStar: {
+            type: Number
+          },
+          avStar: {
+            type: Number
+          },
+          cvStar: {
+            type: Number
+          },
+          ubStar: {
+            type: Number
+          },
+          tvStar: {
+            type: Number
+          },
+          absStar: {
+            type: Number
+          },
+          svStar: {
+            type: Number
+          },
+          predStar: {
+            type: Number
+          },
+          preyStar: {
+            type: Number
+          },
+          softStar: {
+            type: Number
+          },
+          hardStar: {
+            type: Number
+          },
+          digestionStar: {
+            type: Number
+          },
+          disposalStar: {
+            type: Number
+          },
+          tfStar: {
+            type: Number
+          },
+          btfStar: {
+            type: Number
+          },
+          bsStar: {
+            type: Number
+          },
+          gStar: {
+            type: Number
+          },
+          sStar: {
+            type: Number
+          },
+          iaoStar: {
+            type: Number
+          }
       },
-      ubStar: {
-        type: Number
-      },
-      tvStar: {
-        type: Number
-      },
-      absStar: {
-        type: Number
-      },
-      svStar: {
-        type: Number
-      },
-      predStar: {
-        type: Number
-      },
-      softStar: {
-        type: Number
-      },
-      hardStar: {
-        type: Number
-      },
-      digestoinStar: {
-        type: Number
-      },
-      disposalStar: {
-        type: Number
-      },
-      tfStar: {
-        type: Number
-      },
-      btfStar: {
-        type: Number
-      },
-      bsStar: {
-        type: Number
-      },
-      gsStar: {
-        type: Number
-      },
-      sStar: {
-        type: Number
-      },
-      iaoStar: {
-        type: Number
-      },
+
 
 
 

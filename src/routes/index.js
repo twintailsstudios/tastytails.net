@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const verify = require('./verifyToken');
 const dbInterface = require('./dbInterface');
+//const edit = require('./edit');
 
 router.get('/', (req, res) => {
   const token = req.cookies.TastyTails;
@@ -39,10 +40,12 @@ router.get('/create', verify, (req, res) => {
   } else {
     res.render('create', {
       token: token,
-      loginForm: 0
+      loginForm: 0,
+      charList: 'new'
     });
   }
 })
+
 
 router.get('/error', (req, res) => {
   const token = req.cookies.TastyTails;
@@ -115,7 +118,7 @@ router.get('/registered', (req, res) => {
 
 router.get('/character-bank', verify, async (req, res) => {
   const token = req.cookies.TastyTails;
-
+  //console.log('req = ', req);
   if(!token) return res.render('character-bank', {
       token: null,
       loginForm: 0
@@ -141,6 +144,8 @@ router.get('/character-bank', verify, async (req, res) => {
     });
   }
 })
+
+//router.use('/edit', edit) //tell the router to use edit.js for child routes
 
 
 module.exports = router;

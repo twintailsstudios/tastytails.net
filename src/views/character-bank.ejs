@@ -47,6 +47,9 @@
     border-width: 5px;
     width: 100%;
   }
+  .button.options{
+    font-family: fontAwesome;
+  }
 
 </style>
 
@@ -79,15 +82,33 @@
       var li = document.createElement('li');
       var slotDiv = document.createElement('div');
       var nameDiv = document.createElement('div');
+      var playBttn = document.createElement('button');
+      var editBttn = document.createElement('button');
+      var optionsBttn = document.createElement('button');
 
       bankUl.insertBefore(li, addCharLi);
       //document.getElementById("bankUl").appendChild(li);
 
       slotDiv.className = 'slot';
 
+      optionsBttn.className = 'button options'
+      optionsBttn.innerHTML = '&#xf013'
+      slotDiv.appendChild(optionsBttn);
+
       nameDiv.className = 'name';
       nameDiv.innerHTML = "<h1> Name: </h1><br>" + charList[i].firstName + ' ' + charList[i].lastName;
       slotDiv.appendChild(nameDiv);
+
+      playBttn.className = 'button';
+      playBttn.innerHTML = 'Play!'
+      slotDiv.appendChild(playBttn);
+
+      editBttn.className = 'button'
+      editBttn.innerHTML = 'Edit'
+      slotDiv.appendChild(editBttn);
+
+
+
 
       li.appendChild(slotDiv);
 
