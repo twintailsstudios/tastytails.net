@@ -69,7 +69,71 @@ const userSchema = new mongoose.Schema({
         }
       },
       body: {
-        
+        sprite: {
+          type: String
+        },
+        color: {
+          type: String
+        },
+        secondarySprite: {
+          type: String
+        },
+        secondaryColor: {
+          type: String
+        },
+        accentSprite: {
+          type: String
+        },
+        accentColor: {
+          type: String
+        }
+      },
+      tail: {
+        sprite: {
+          type: String
+        },
+        color: {
+          type: String
+        },
+        secondarySprite: {
+          type: String
+        },
+        secondaryColor: {
+          type: String
+        },
+        accentSprite: {
+          type: String
+        },
+        accentColor: {
+          type: String
+        }
+      },
+      eyes: {
+        outer: {
+          type: String
+        },
+        iris: {
+          type: String
+        },
+        color: {
+          type: String
+        }
+      },
+      hair: {
+        sprite: {
+          type: String
+        },
+        color: {
+          type: String
+        }
+      },
+      genitles:{
+        sprite: {
+          type: String
+        },
+        secondarySprite: {
+          type: String
+        }
       },
       ratings: {
           ovStar: {

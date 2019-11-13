@@ -114,6 +114,7 @@ router.post('/createcharacter', async (req, res) => {
     //console.log('ratings = ', ratings);
 
   var voreTypes = [];
+  console.log('req.body = ', req.body);
   for(i = 0; i < req.body.destination.length; i++) {
     //console.log('req.body.destination[i] = ', req.body.destination[i]);
     var voreType = {
@@ -133,8 +134,45 @@ router.post('/createcharacter', async (req, res) => {
     const { error1 } = voreTypeValidation(voreType);
     if (error1) return res.status(405).send(error1.details[0].message);
   };
-  //console.log('voreTypes = ', voreTypes);
 
+  var head = {
+    sprite: req.body.head,
+    color: req.body.primaryHeadColor.replace("#", "0x"),
+    secondarySprite: req.body.headSecondaryFur,
+    secondaryColor: req.body.secondaryHeadColor.replace("#", "0x"),
+    accentSprite: req.body.headAccentFur,
+    accentColor: req.body.accentHeadColor.replace("#", "0x")
+  }
+  console.log('head = ', head);
+  var body = {
+    sprite: req.body.body,
+    color: req.body.bodyColor.replace("#", "0x"),
+    secondarySprite: req.body.bodySecondaryFur,
+    secondaryColor: req.body.secondaryBodyColor.replace("#", "0x"),
+    accentSprite: req.body.bodyAccentFur,
+    accentColor: req.body.accentBodyColor.replace("#", "0x")
+  }
+  var tail = {
+    sprite: req.body.tail,
+    color: req.body.tailColor.replace("#", "0x"),
+    secondarySprite: req.body.tailSecondaryFur,
+    secondaryColor: req.body.secondaryTailHex.replace("#", "0x"),
+    accentSprite: req.body.tailAccentFur,
+    accentColor: req.body.accentTailColor.replace("#", "0x")
+  }
+  var eyes = {
+    outer: 'eyes_01',
+    iris: 'eyes_02',
+    color: req.body.eyesColor.replace("#", "0x")
+  }
+  var hair = {
+    sprite: req.body.hair,
+    color: req.body.hairColor.replace("#", "0x")
+  }
+  var genitles = {
+    sprite: req.body.genitles,
+    secondarySprite: 'empty'
+  }
 
   const { error2 } = charCreateValidation(req.body);
   if (error2) return res.status(405).send(error2.details[0].message);
@@ -153,7 +191,13 @@ router.post('/createcharacter', async (req, res) => {
       "icDescrip": req.body.icDescrip,
       "oocDescrip": req.body.oocDescrip,
       "ratings": ratings,
-      "voreTypes": voreTypes
+      "voreTypes": voreTypes,
+      "head": head,
+      "body": body,
+      "tail": tail,
+      "eyes": eyes,
+      "hair": hair,
+      "genitles": genitles
     }}});
     // try {
     //   const user = await User.findOne({_id: verified._id});

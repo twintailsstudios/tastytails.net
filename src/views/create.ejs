@@ -20,14 +20,14 @@
           <div class="content">
             <ul>
               <li><div class="selectionContainer">
-                <select name="bodyType">
-                  <option>Feminine</option>
-                  <option>Masculine (unavailable)</option>
+                <select name="body" id="body">
+                  <option value = "body_01">Feminine</option>
+                  <option value = "empty">Masculine (unavailable)</option>
                 </select>
-                <select>
-                  <option>Vagina (unavailable)</option>
-                  <option>Penis (unavailable)</option>
-                  <option>Both (unavailable)</option>
+                <select name="genitles">
+                  <option value = "empty">Vagina (unavailable)</option>
+                  <option value = "empty">Penis (unavailable)</option>
+                  <option value = "empty">Both (unavailable)</option>
                 </select>
               </div></li>
             </ul>
@@ -40,10 +40,10 @@
               <li><div class="selectionContainer">
                 <div class="dropDownDivide">
                   Head:<br>
-                  <select name"head" id="head">
-                    <option value = "0">Vulpine</option>
-                    <option value = "1">Long Eared Rabbit</option>
-                    <option value = "2">Lop Eared Bunny</option>
+                  <select name="head" id="head">
+                    <option value = "head_01">Vulpine</option>
+                    <option value = "head_02">Long Eared Rabbit</option>
+                    <option value = "head_03">Lop Eared Bunny</option>
                   </select>
                 </div>
                 <div class="colorDivide">
@@ -54,11 +54,11 @@
               <li><div class="selectionContainer">
                 <div class="dropDownDivide">
                   Secondary Fur:<br>
-                  <select name"headSecondaryFur" id="headSecondaryFur">
-                    <option value="0">None</option>
-                    <option value="1">Half Mask</option>
-                    <option value="2">Full Mask</option>
-                    <option value="3">Stripes</option>
+                  <select name="headSecondaryFur" id="headSecondaryFur">
+                    <option value="empty">None</option>
+                    <option value="secondaryHead_01">Half Mask</option>
+                    <option value="secondaryHead_02">Full Mask</option>
+                    <option value="secondaryHead_03">Stripes</option>
                   </select>
                 </div>
                 <div class="colorDivide">
@@ -71,11 +71,11 @@
               <li><div class="selectionContainer">
                 <div class="dropDownDivide">
                   Accent Fur: <br>
-                  <select name"headAccentFur" id="headAccentFur">
-                    <option value="0">None</option>
-                    <option value="1">Half Mask</option>
-                    <option value="2">Full Mask</option>
-                    <option value="3">Stripes</option>
+                  <select name="headAccentFur" id="headAccentFur">
+                    <option value="empty">None</option>
+                    <option value="secondaryHead_01">Half Mask</option>
+                    <option value="secondaryHead_02">Full Mask</option>
+                    <option value="secondaryHead_03">Stripes</option>
                   </select>
                 </div>
                 <div class="colorDivide">
@@ -89,9 +89,9 @@
               <li><div class="selectionContainer">
                 <div class="dropDownDivide">
                   Hair: <br>
-                  <select name"hair" id="hair">
-                    <option value="0">None</option>
-                    <option value="1">Long I guess?</option>
+                  <select name="hair" id="hair">
+                    <option value="empty">None</option>
+                    <option value="hair_01">Long I guess?</option>
                   </select>
                 </div>
                 <div class="colorDivide">
@@ -130,11 +130,11 @@
               <li><div class="selectionContainer">
                 <div class="dropDownDivide">
                   Secondary Fur: <br>
-                  <select name"bodySecondaryFur" id="bodySecondaryFur">
-                    <option value="0">None</option>
-                    <option value="1">Half Mask</option>
-                    <option value="2">Full Mask</option>
-                    <option value="3">Stripes</option>
+                  <select name="bodySecondaryFur" id="bodySecondaryFur">
+                    <option value="empty">None</option>
+                    <option value="secondaryBody_01">Half Mask</option>
+                    <option value="secondaryBody_02">Full Mask</option>
+                    <option value="secondaryBody_03">Stripes</option>
                   </select>
                 </div>
                 <div class="colorDivide">
@@ -147,11 +147,11 @@
               <li><div class="selectionContainer">
                 <div class="dropDownDivide">
                   Accent Fur: <br>
-                  <select name"bodyAccentFur" id="bodyAccentFur">
-                    <option value="0">None</option>
-                    <option value="1">Half Mask</option>
-                    <option value="2">Full Mask</option>
-                    <option value="3">Stripes</option>
+                  <select name="bodyAccentFur" id="bodyAccentFur">
+                    <option value="empty">None</option>
+                    <option value="secondaryBody_01">Half Mask</option>
+                    <option value="secondaryBody_02">Full Mask</option>
+                    <option value="secondaryBody_03">Stripes</option>
                   </select>
                 </div>
                 <div class="colorDivide">
@@ -169,10 +169,10 @@
               <li><div class="selectionContainer">
                 <div class="dropDownDivide">
                   Tail: <br>
-                  <select name"tail" id="tail">
-                    <option value="1">Vulpine</option>
-                    <option value="2">Bunny (unavailable)</option>
-                    <option value="0">None</option>
+                  <select name="tail" id="tail">
+                    <option value="tail_01">Vulpine</option>
+                    <option value="empty">Bunny (unavailable)</option>
+                    <option value="empty">None</option>
                   </select>
                 </div>
                 <div class="colorDivide">
@@ -185,11 +185,11 @@
               <li><div class="selectionContainer">
                 <div class="dropDownDivide">
                   Secondary Fur: <br>
-                  <select name"tailSecondaryFur" id="tailSecondaryFur">
-                    <option value="0">None</option>
-                    <option value="1">Half Mask (Unavailable)</option>
-                    <option value="2">Full Mask (Unavailable)</option>
-                    <option value="3">Stripes (Unavailable)</option>
+                  <select name="tailSecondaryFur" id="tailSecondaryFur">
+                    <option value="empty">None</option>
+                    <option value="empty">Half Mask (Unavailable)</option>
+                    <option value="empty">Full Mask (Unavailable)</option>
+                    <option value="empty">Stripes (Unavailable)</option>
                   </select>
                 </div>
                 <div class="colorDivide">
@@ -202,11 +202,11 @@
               <li><div class="selectionContainer">
                 <div class="dropDownDivide">
                   Accent Fur: <br>
-                  <select name"tailAccentFur" id="tailAccentFur">
-                    <option value="0">None</option>
-                    <option value="1">Half Mask (Unavailable)</option>
-                    <option value="2">Full Mask (Unavailable)</option>
-                    <option value="3">Stripes (Unavailable)</option>
+                  <select name="tailAccentFur" id="tailAccentFur">
+                    <option value="empty">None</option>
+                    <option value="empty">Half Mask (Unavailable)</option>
+                    <option value="empty">Full Mask (Unavailable)</option>
+                    <option value="empty">Stripes (Unavailable)</option>
                   </select>
                 </div>
                 <div class="colorDivide">
@@ -627,26 +627,23 @@
 
         <!-- <a href="gameindex.html" id="finish" class="button main" style="vertical-align:middle">Finish</a> -->
       </div>
-      </form>
-
-
-
       <div id="buttonHolder">
         <div id="previewContainer">
           <div id="preview">
 
           </div>
           <div id ="previewRotation">
-            <button id="rotateLeft" class="button left rotate" style="vertical-align:middle"><span> </span></button>
+            <button type ="button" id="rotateLeft" class="button left rotate" style="vertical-align:middle"><span> </span></button>
 
-            <button id="rotateRight" class="button right rotate" style="vertical-align:middle"><span> </span></button>
+            <button type ="button" id="rotateRight" class="button right rotate" style="vertical-align:middle"><span> </span></button>
           </div>
         </div>
+        <button type="button" id="next" class="button main" style="vertical-align:middle"><span>Next </span></button>
+        <button type="button" id="next2" class="button main" style="vertical-align:middle"><span>Next </span></button>
+        <button type="button" id="next3" class="button main" style="vertical-align:middle"><span>Next </span></button>
+        <button type="submit" id="finish" class="button main" style="vertical-align:middle"><span>Finish</span></button>
       </div>
-      <button type="button" id="next" class="button main" style="vertical-align:middle"><span>Next </span></button>
-      <button type="button" id="next2" class="button main" style="vertical-align:middle"><span>Next </span></button>
-      <button type="button" id="next3" class="button main" style="vertical-align:middle"><span>Next </span></button>
-      <button type="submit" id="finish" class="button main" style="vertical-align:middle"><span>Finish</span></button>
+      </form>
     </div>
   </div>
 </section>
@@ -662,6 +659,55 @@
   <% if (charList == 'new') { %>
       var charList = '<%- charList %>';
       console.log('charList = ', charList);
+
+      var localPlayerInfo = {
+        Identifier:'',
+        playerId:'',
+        Username:'',
+        Description:'',
+        head: {
+          sprite: 'head_01',
+          color: '0xe0e0e0',
+          secondarySprite: 'empty',
+          secondaryColor: '0xffffff',
+          accentSprite: 'empty',
+          accentColor: '0x636363'
+        },
+        body: {
+          sprite: 'body_01',
+          color: '0xe0e0e0',
+          secondarySprite: 'empty',
+          secondaryColor: '0xffffff',
+          accentSprite: 'empty',
+          accentColor: '0x636363'
+        },
+        tail: {
+          sprite: 'tail_01',
+          color: '0xe0e0e0',
+          secondarySprite: 'empty',
+          secondaryColor: '0xffffff',
+          accentSprite: 'empty',
+          accentColor: '0x636363'
+        },
+        eyes: {
+          outer: 'eyes_01',
+          iris: 'eyes_02',
+          color: '0xfcf2f2'
+        },
+        hair: {
+          sprite: 'empty',
+          color: '0x636363'
+        },
+        genitles:{
+          sprite: 'empty',
+          secondarySprite: 'empty'
+        },
+        specialList:[],
+        spellInventory:[],
+        consumedBy:''
+      };
+
+
       var voreList = [
         { destination: "Stomach",
           verb: "shoves",
@@ -711,6 +757,8 @@
   <% } else { %>
       var charList = <%- charList %>;
       console.log('charList = ', charList);
+      var localPlayerInfo = charList;
+      console.log('localPlayerInfo at start = ', localPlayerInfo);
       document.getElementById('firstName').value = charList.firstName;
       document.getElementById('lastName').value = charList.lastName;
       document.getElementById('nickName').value = charList.nickName;
@@ -854,7 +902,7 @@
       div2.appendChild(destinationLbl);
       //onkeyup='updateBttnName(event)'
       destination.id = 'destination'+i;
-      destination.destination = 'destination';
+      destination.name = 'destination';
       destination.onkeyup = updateBttnName;
       destination.type = 'text';
       destination.autocomplete = 'off';
@@ -1269,52 +1317,7 @@
   };
 
   var game = new Phaser.Game(config);
-  var localPlayerInfo = {
-    Identifier:'',
-    playerId:'',
-    Username:'',
-    Description:'',
-    head: {
-      sprite: 'head_01',
-      color: '0xe0e0e0',
-      secondarySprite: 'empty',
-      secondaryColor: '0xffffff',
-      accentSprite: 'empty',
-      accentColor: '0x636363'
-    },
-    body: {
-      sprite: 'body_01',
-      color: '0xe0e0e0',
-      secondarySprite: 'empty',
-      secondaryColor: '0xffffff',
-      accentSprite: 'empty',
-      accentColor: '0x636363'
-    },
-    tail: {
-      sprite: 'tail_01',
-      color: '0xe0e0e0',
-      secondarySprite: 'empty',
-      secondaryColor: '0xffffff',
-      accentSprite: 'empty',
-      accentColor: '0x636363'
-    },
-    eyes: {
-      outer: 'eyes_01',
-      iris: 'eyes_02',
-      color: '0xfcf2f2'
-    },
-    hair: {
-      sprite: 'empty',
-      color: '0x636363'
-    },
-    genitles:{
-      sprite: 'empty',
-      secondarySprite: 'empty'
-    },
-    specialList:[],
-    spellInventory:[],
-    consumedBy:''
-  };
+  console.log('localPlayerInfo before preload = ', localPlayerInfo);
 
   function preload() {
     this.load.spritesheet('empty', './../assets/spritesheets/empty.png', {frameWidth: 109, frameHeight: 220});
@@ -1335,6 +1338,7 @@
   }
 
   function create() {
+    console.log('localPlayerInfo in create = ', localPlayerInfo);
     var self = this;
     this.socket = io();
     this.otherPlayers = this.physics.add.group();
@@ -1886,21 +1890,56 @@
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "flex";
     });
+
+
+
+    document.getElementById("body").addEventListener("change", function(i) {
+      console.log('i = ', i.srcElement.value);
+      localPlayerInfo.body.sprite = i.srcElement.value;
+      // if (i.srcElement.options.selectedIndex == 0) {
+      //   localPlayerInfo.head.sprite = 'head_01';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 1) {
+      //   localPlayerInfo.head.sprite = 'head_02';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 2) {
+      //   localPlayerInfo.head.sprite = 'head_03';
+      //
+      // }
+      self.socket.emit('characterUpdate', localPlayerInfo);
+    });
+
+
+
     document.getElementById("head").addEventListener("change", function(i) {
       colorButton = 1;
-      console.log('i = ', i.srcElement.options.selectedIndex);
-      if (i.srcElement.options.selectedIndex == 0) {
-        localPlayerInfo.head.sprite = 'head_01';
-
-      }
-      if (i.srcElement.options.selectedIndex == 1) {
-        localPlayerInfo.head.sprite = 'head_02';
-
-      }
-      if (i.srcElement.options.selectedIndex == 2) {
-        localPlayerInfo.head.sprite = 'head_03';
-
-      }
+      document.getElementsByClassName("colorQuickSelect")[0].style.display = "flex";
+      document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[2].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[3].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[4].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[5].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[6].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[7].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      console.log('i = ', i.srcElement.value);
+      localPlayerInfo.head.sprite = i.srcElement.value;
+      // if (i.srcElement.options.selectedIndex == 0) {
+      //   localPlayerInfo.head.sprite = 'head_01';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 1) {
+      //   localPlayerInfo.head.sprite = 'head_02';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 2) {
+      //   localPlayerInfo.head.sprite = 'head_03';
+      //
+      // }
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
 
@@ -1917,23 +1956,24 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
-      console.log('i = ', i.srcElement.options.selectedIndex);
-      if (i.srcElement.options.selectedIndex == 0) {
-        localPlayerInfo.head.secondarySprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 1) {
-        localPlayerInfo.head.secondarySprite = 'secondaryHead_01';
-
-      }
-      if (i.srcElement.options.selectedIndex == 2) {
-        localPlayerInfo.head.secondarySprite = 'secondaryHead_02';
-
-      }
-      if (i.srcElement.options.selectedIndex == 3) {
-        localPlayerInfo.head.secondarySprite = 'secondaryHead_03';
-
-      }
+      console.log('i = ', i.srcElement.value);
+      localPlayerInfo.head.secondarySprite = i.srcElement.value;
+      // if (i.srcElement.options.selectedIndex == 0) {
+      //   localPlayerInfo.head.secondarySprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 1) {
+      //   localPlayerInfo.head.secondarySprite = 'secondaryHead_01';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 2) {
+      //   localPlayerInfo.head.secondarySprite = 'secondaryHead_02';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 3) {
+      //   localPlayerInfo.head.secondarySprite = 'secondaryHead_03';
+      //
+      // }
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
 
@@ -1950,23 +1990,24 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
-      console.log('i = ', i.srcElement.options.selectedIndex);
-      if (i.srcElement.options.selectedIndex == 0) {
-        localPlayerInfo.head.accentSprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 1) {
-        localPlayerInfo.head.accentSprite = 'secondaryHead_01';
-
-      }
-      if (i.srcElement.options.selectedIndex == 2) {
-        localPlayerInfo.head.accentSprite = 'secondaryHead_02';
-
-      }
-      if (i.srcElement.options.selectedIndex == 3) {
-        localPlayerInfo.head.accentSprite = 'secondaryHead_03';
-
-      }
+      console.log('i = ', i.srcElement.value);
+      localPlayerInfo.head.accentSprite = i.srcElement.value;
+      // if (i.srcElement.options.selectedIndex == 0) {
+      //   localPlayerInfo.head.accentSprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 1) {
+      //   localPlayerInfo.head.accentSprite = 'secondaryHead_01';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 2) {
+      //   localPlayerInfo.head.accentSprite = 'secondaryHead_02';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 3) {
+      //   localPlayerInfo.head.accentSprite = 'secondaryHead_03';
+      //
+      // }
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
 
@@ -1983,23 +2024,24 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
-      console.log('i = ', i.srcElement.options.selectedIndex);
-      if (i.srcElement.options.selectedIndex == 0) {
-        localPlayerInfo.body.secondarySprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 1) {
-        localPlayerInfo.body.secondarySprite = 'secondaryBody_01';
-
-      }
-      if (i.srcElement.options.selectedIndex == 2) {
-        localPlayerInfo.body.secondarySprite = 'secondaryBody_02';
-
-      }
-      if (i.srcElement.options.selectedIndex == 3) {
-        localPlayerInfo.body.secondarySprite = 'secondaryBody_03';
-
-      }
+      console.log('i = ', i.srcElement.value);
+      localPlayerInfo.body.secondarySprite = i.srcElement.value;
+      // if (i.srcElement.options.selectedIndex == 0) {
+      //   localPlayerInfo.body.secondarySprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 1) {
+      //   localPlayerInfo.body.secondarySprite = 'secondaryBody_01';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 2) {
+      //   localPlayerInfo.body.secondarySprite = 'secondaryBody_02';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 3) {
+      //   localPlayerInfo.body.secondarySprite = 'secondaryBody_03';
+      //
+      // }
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
 
@@ -2016,23 +2058,24 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
-      console.log('i = ', i.srcElement.options.selectedIndex);
-      if (i.srcElement.options.selectedIndex == 0) {
-        localPlayerInfo.body.accentSprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 1) {
-        localPlayerInfo.body.accentSprite = 'secondaryBody_01';
-
-      }
-      if (i.srcElement.options.selectedIndex == 2) {
-        localPlayerInfo.body.accentSprite = 'secondaryBody_02';
-
-      }
-      if (i.srcElement.options.selectedIndex == 3) {
-        localPlayerInfo.body.accentSprite = 'secondaryBody_03';
-
-      }
+      console.log('i = ', i.srcElement.value);
+      localPlayerInfo.body.accentSprite = i.srcElement.value;
+      // if (i.srcElement.options.selectedIndex == 0) {
+      //   localPlayerInfo.body.accentSprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 1) {
+      //   localPlayerInfo.body.accentSprite = 'secondaryBody_01';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 2) {
+      //   localPlayerInfo.body.accentSprite = 'secondaryBody_02';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 3) {
+      //   localPlayerInfo.body.accentSprite = 'secondaryBody_03';
+      //
+      // }
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
 
@@ -2049,15 +2092,16 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
-      console.log('i = ', i.srcElement.options.selectedIndex);
-      if (i.srcElement.options.selectedIndex == 0) {
-        localPlayerInfo.hair.sprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 1) {
-        localPlayerInfo.hair.sprite = 'hair_01';
-
-      }
+      console.log('i = ', i.srcElement.value);
+      localPlayerInfo.hair.sprite = i.srcElement.value;
+      // if (i.srcElement.options.selectedIndex == 0) {
+      //   localPlayerInfo.hair.sprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 1) {
+      //   localPlayerInfo.hair.sprite = 'hair_01';
+      //
+      // }
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
 
@@ -2074,23 +2118,24 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "flex";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
-      console.log('i = ', i.srcElement.options.selectedIndex);
-      if (i.srcElement.options.selectedIndex == 0) {
-        localPlayerInfo.tail.sprite = 'tail_01';
-
-      }
-      if (i.srcElement.options.selectedIndex == 1) {
-        localPlayerInfo.tail.sprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 2) {
-        localPlayerInfo.tail.sprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 3) {
-        localPlayerInfo.tail.sprite = 'empty';
-
-      }
+      console.log('i = ', i.srcElement.value);
+      localPlayerInfo.tail.sprite = i.srcElement.value;
+      // if (i.srcElement.options.selectedIndex == 0) {
+      //   localPlayerInfo.tail.sprite = 'tail_01';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 1) {
+      //   localPlayerInfo.tail.sprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 2) {
+      //   localPlayerInfo.tail.sprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 3) {
+      //   localPlayerInfo.tail.sprite = 'empty';
+      //
+      // }
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
 
@@ -2107,23 +2152,24 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "flex";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
-      console.log('i = ', i.srcElement.options.selectedIndex);
-      if (i.srcElement.options.selectedIndex == 0) {
-        localPlayerInfo.tail.secondarySprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 1) {
-        localPlayerInfo.tail.secondarySprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 2) {
-        localPlayerInfo.tail.secondarySprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 3) {
-        localPlayerInfo.tail.secondarySprite = 'empty';
-
-      }
+      console.log('i = ', i.srcElement.value);
+      localPlayerInfo.tail.secondarySprite = i.srcElement.value;
+      // if (i.srcElement.options.selectedIndex == 0) {
+      //   localPlayerInfo.tail.secondarySprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 1) {
+      //   localPlayerInfo.tail.secondarySprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 2) {
+      //   localPlayerInfo.tail.secondarySprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 3) {
+      //   localPlayerInfo.tail.secondarySprite = 'empty';
+      //
+      // }
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
 
@@ -2140,23 +2186,24 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "flex";
-      console.log('i = ', i.srcElement.options.selectedIndex);
-      if (i.srcElement.options.selectedIndex == 0) {
-        localPlayerInfo.tail.accentSprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 1) {
-        localPlayerInfo.tail.accentSprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 2) {
-        localPlayerInfo.tail.accentSprite = 'empty';
-
-      }
-      if (i.srcElement.options.selectedIndex == 3) {
-        localPlayerInfo.tail.accentSprite = 'empty';
-
-      }
+      console.log('i = ', i.srcElement.value);
+      localPlayerInfo.tail.accentSprite = i.srcElement.value;
+      // if (i.srcElement.options.selectedIndex == 0) {
+      //   localPlayerInfo.tail.accentSprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 1) {
+      //   localPlayerInfo.tail.accentSprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 2) {
+      //   localPlayerInfo.tail.accentSprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 3) {
+      //   localPlayerInfo.tail.accentSprite = 'empty';
+      //
+      // }
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
 
@@ -2338,66 +2385,67 @@
 
 
     function addPlayer(self, playerInfo) {
+      console.log('localPlayerInfo at addPlayer Function = ', localPlayerInfo);
       console.log(
         playerInfo.playerId, 'Has entered the Character Creation screen with the following default values: ', '\n',
-        'Set head Sprite to: ', playerInfo.head.sprite, '\n',
-        'Set head Color to: ', playerInfo.head.color, '\n',
-        'Set head Secondary Sprite to: ', playerInfo.head.secondarySprite, '\n',
-        'Set head Secondary Color to: ', playerInfo.head.secondaryColor, '\n',
-        'Set head Accent Sprite to: ', playerInfo.head.accentSprite, '\n',
-        'Set head Accent Color to: ', playerInfo.head.accentColor, '\n',
-        'Set body Sprite to: ', playerInfo.body.sprite, '\n',
-        'Set body Color to: ', playerInfo.body.color, '\n',
-        'Set body Secondary Sprite to: ', playerInfo.body.secondarySprite, '\n',
-        'Set body Secondary Color to: ', playerInfo.body.secondaryColor, '\n',
-        'Set body Accent Sprite to: ', playerInfo.body.accentSprite, '\n',
-        'Set body Accent Color to: ', playerInfo.body.accentColor, '\n',
-        'Set tail Sprite to: ', playerInfo.tail.sprite, '\n',
-        'Set tail Color to: ', playerInfo.tail.color, '\n',
-        'Set tail Secondary Sprite to: ', playerInfo.tail.secondarySprite, '\n',
-        'Set tail Secondary Color to: ', playerInfo.tail.secondaryColor, '\n',
-        'Set tail Accent Sprite to: ', playerInfo.tail.accentSprite, '\n',
-        'Set tail Accent Color to: ', playerInfo.tail.accentColor, '\n',
-        'Set hair Sprite to: ', playerInfo.hair.sprite, '\n',
-        'Set hair Color to: ', playerInfo.hair.color, '\n',
-        'Set outer eyes sprite to:', playerInfo.eyes.outer, '\n',
-        'Set irises to:', playerInfo.eyes.iris, '\n',
-        'Set eye color to:', playerInfo.eyes.color, '\n',
-        'Set genitles to:', playerInfo.genitles.sprite
+        'Set head Sprite to: ', localPlayerInfo.head.sprite, '\n',
+        'Set head Color to: ', localPlayerInfo.head.color, '\n',
+        'Set head Secondary Sprite to: ', localPlayerInfo.head.secondarySprite, '\n',
+        'Set head Secondary Color to: ', localPlayerInfo.head.secondaryColor, '\n',
+        'Set head Accent Sprite to: ', localPlayerInfo.head.accentSprite, '\n',
+        'Set head Accent Color to: ', localPlayerInfo.head.accentColor, '\n',
+        'Set body Sprite to: ', localPlayerInfo.body.sprite, '\n',
+        'Set body Color to: ', localPlayerInfo.body.color, '\n',
+        'Set body Secondary Sprite to: ', localPlayerInfo.body.secondarySprite, '\n',
+        'Set body Secondary Color to: ', localPlayerInfo.body.secondaryColor, '\n',
+        'Set body Accent Sprite to: ', localPlayerInfo.body.accentSprite, '\n',
+        'Set body Accent Color to: ', localPlayerInfo.body.accentColor, '\n',
+        'Set tail Sprite to: ', localPlayerInfo.tail.sprite, '\n',
+        'Set tail Color to: ', localPlayerInfo.tail.color, '\n',
+        'Set tail Secondary Sprite to: ', localPlayerInfo.tail.secondarySprite, '\n',
+        'Set tail Secondary Color to: ', localPlayerInfo.tail.secondaryColor, '\n',
+        'Set tail Accent Sprite to: ', localPlayerInfo.tail.accentSprite, '\n',
+        'Set tail Accent Color to: ', localPlayerInfo.tail.accentColor, '\n',
+        'Set hair Sprite to: ', localPlayerInfo.hair.sprite, '\n',
+        'Set hair Color to: ', localPlayerInfo.hair.color, '\n',
+        'Set outer eyes sprite to:', localPlayerInfo.eyes.outer, '\n',
+        'Set irises to:', localPlayerInfo.eyes.iris, '\n',
+        'Set eye color to:', localPlayerInfo.eyes.color, '\n',
+        'Set genitles to:', localPlayerInfo.genitles.sprite
       );
 
       self.container = self.add.container(0, 0).setSize(109, 220).setInteractive();
 
-      self.head = self.physics.add.sprite(0, 0, playerInfo.head.sprite).setInteractive();
-      self.head.setTint(playerInfo.head.color);
-      self.secondaryHead = self.physics.add.sprite(0, 0, playerInfo.head.secondarySprite).setInteractive();
-      self.secondaryHead.setTint(playerInfo.head.secondaryColor);
-      self.accentHead = self.physics.add.sprite(0, 0, playerInfo.head.accentSprite).setInteractive();
-      self.accentHead.setTint(playerInfo.head.accentColor);
+      self.head = self.physics.add.sprite(0, 0, localPlayerInfo.head.sprite).setInteractive();
+      self.head.setTint(localPlayerInfo.head.color);
+      self.secondaryHead = self.physics.add.sprite(0, 0, localPlayerInfo.head.secondarySprite).setInteractive();
+      self.secondaryHead.setTint(localPlayerInfo.head.secondaryColor);
+      self.accentHead = self.physics.add.sprite(0, 0, localPlayerInfo.head.accentSprite).setInteractive();
+      self.accentHead.setTint(localPlayerInfo.head.accentColor);
 
-      self.body = self.physics.add.sprite(0, 0, playerInfo.body.sprite).setInteractive();
-      self.body.setTint(playerInfo.body.color);
-      self.secondaryBody = self.physics.add.sprite(0, 0, playerInfo.body.secondarySprite).setInteractive();
-      self.secondaryBody.setTint(playerInfo.body.secondaryColor);
-      self.accentBody = self.physics.add.sprite(0, 0, playerInfo.body.accentSprite).setInteractive();
-      self.accentBody.setTint(playerInfo.body.accentColor);
+      self.body = self.physics.add.sprite(0, 0, localPlayerInfo.body.sprite).setInteractive();
+      self.body.setTint(localPlayerInfo.body.color);
+      self.secondaryBody = self.physics.add.sprite(0, 0, localPlayerInfo.body.secondarySprite).setInteractive();
+      self.secondaryBody.setTint(localPlayerInfo.body.secondaryColor);
+      self.accentBody = self.physics.add.sprite(0, 0, localPlayerInfo.body.accentSprite).setInteractive();
+      self.accentBody.setTint(localPlayerInfo.body.accentColor);
 
-      self.tail = self.physics.add.sprite(0, 0, playerInfo.tail.sprite).setInteractive();
-      self.tail.setTint(playerInfo.tail.color);
-      self.secondaryTail = self.physics.add.sprite(0, 0, playerInfo.tail.secondarySprite).setInteractive();
-      self.secondaryTail.setTint(playerInfo.tail.secondaryColor);
-      self.accentTail = self.physics.add.sprite(0, 0, playerInfo.tail.accentSprite).setInteractive();
-      self.accentTail.setTint(playerInfo.tail.accentColor);
+      self.tail = self.physics.add.sprite(0, 0, localPlayerInfo.tail.sprite).setInteractive();
+      self.tail.setTint(localPlayerInfo.tail.color);
+      self.secondaryTail = self.physics.add.sprite(0, 0, localPlayerInfo.tail.secondarySprite).setInteractive();
+      self.secondaryTail.setTint(localPlayerInfo.tail.secondaryColor);
+      self.accentTail = self.physics.add.sprite(0, 0, localPlayerInfo.tail.accentSprite).setInteractive();
+      self.accentTail.setTint(localPlayerInfo.tail.accentColor);
 
-      self.hair = self.physics.add.sprite(0, 0, playerInfo.hair.sprite).setInteractive();
-      self.hair.setTint(playerInfo.hair.color);
+      self.hair = self.physics.add.sprite(0, 0, localPlayerInfo.hair.sprite).setInteractive();
+      self.hair.setTint(localPlayerInfo.hair.color);
 
-      self.eyes = self.physics.add.sprite(0, 0, playerInfo.eyes.outer).setInteractive();
-      self.iris = self.physics.add.sprite(0, 0, playerInfo.eyes.iris).setInteractive();
-      self.iris.setTint(playerInfo.eyes.color);
+      self.eyes = self.physics.add.sprite(0, 0, localPlayerInfo.eyes.outer).setInteractive();
+      self.iris = self.physics.add.sprite(0, 0, localPlayerInfo.eyes.iris).setInteractive();
+      self.iris.setTint(localPlayerInfo.eyes.color);
 
-      self.genitles = self.physics.add.sprite(0, 0, playerInfo.genitles.sprite).setInteractive();
-      //self.genitles.setTint(playerInfo.genitles.color);
+      self.genitles = self.physics.add.sprite(0, 0, localPlayerInfo.genitles.sprite).setInteractive();
+      //self.genitles.setTint(localPlayerInfo.genitles.color);
 
 
       self.container.add([
@@ -2418,19 +2466,19 @@
       //self.container.sendToBack(self.tail);
 
       //self.container.visible = false;
-      self.head.play(playerInfo.head.sprite + 'Down');
-      self.secondaryHead.play(playerInfo.head.secondarySprite + 'Down');
-      self.accentHead.play(playerInfo.head.accentSprite + 'Down');
-      self.body.play(playerInfo.body.sprite + 'Down');
-      self.secondaryBody.play(playerInfo.body.secondarySprite + 'Down');
-      self.accentBody.play(playerInfo.body.accentSprite + 'Down');
-      self.tail.play(playerInfo.tail.sprite + 'Down');
-      self.secondaryTail.play(playerInfo.tail.secondarySprite + 'Down');
-      self.accentTail.play(playerInfo.tail.accentSprite + 'Down');
-      self.hair.play(playerInfo.hair.sprite + 'Down');
-      self.eyes.play(playerInfo.eyes.outer + 'Down');
-      self.iris.play(playerInfo.eyes.iris + 'Down');
-      self.genitles.play(playerInfo.genitles.sprite + 'Down');
+      self.head.play(localPlayerInfo.head.sprite + 'Down');
+      self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Down');
+      self.accentHead.play(localPlayerInfo.head.accentSprite + 'Down');
+      self.body.play(localPlayerInfo.body.sprite + 'Down');
+      self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Down');
+      self.accentBody.play(localPlayerInfo.body.accentSprite + 'Down');
+      self.tail.play(localPlayerInfo.tail.sprite + 'Down');
+      self.secondaryTail.play(localPlayerInfo.tail.secondarySprite + 'Down');
+      self.accentTail.play(localPlayerInfo.tail.accentSprite + 'Down');
+      self.hair.play(localPlayerInfo.hair.sprite + 'Down');
+      self.eyes.play(localPlayerInfo.eyes.outer + 'Down');
+      self.iris.play(localPlayerInfo.eyes.iris + 'Down');
+      self.genitles.play(localPlayerInfo.genitles.sprite + 'Down');
       self.container.sendToBack(self.tail);
 
 
