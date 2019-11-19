@@ -85,6 +85,7 @@
       var playBttn = document.createElement('button');
       var editBttn = document.createElement('button');
       var optionsBttn = document.createElement('button');
+      var a = document.createElement('a');
 
       bankUl.insertBefore(li, addCharLi);
       //document.getElementById("bankUl").appendChild(li);
@@ -103,9 +104,18 @@
       playBttn.innerHTML = 'Play!'
       slotDiv.appendChild(playBttn);
 
+      a.href = "edit/" + charList[i]._id;
       editBttn.className = 'button'
-      editBttn.innerHTML = 'Edit'
-      slotDiv.appendChild(editBttn);
+      editBttn.innerHTML = 'Edit';
+
+      //editBttn.innerHTML = "<a href='edit/" + charList[i]._id + "'>Edit</a>";
+      // editBttn.addEventListener("click", function(charList) {
+      //   location.href= "edit/" + charList[i]._id
+      // });
+      //editBttn.setAttribute("href", "localhost:3000/edit/" + charList[i]._id);
+      a.appendChild(editBttn);
+      slotDiv.appendChild(a);
+
 
 
 

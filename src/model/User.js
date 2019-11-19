@@ -127,6 +127,14 @@ const userSchema = new mongoose.Schema({
           type: String
         }
       },
+      ear: {
+        sprite: {
+          type: String
+        },
+        color: {
+          type: String
+        }
+      },
       genitles:{
         sprite: {
           type: String

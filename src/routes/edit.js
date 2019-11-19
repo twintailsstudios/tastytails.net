@@ -6,7 +6,7 @@ const dbInterface = require('./dbInterface');
 
 router.get('/:charId', async (req, res) => {
   const token = req.cookies.TastyTails;
-  console.log('req = ', req.params);
+  //console.log('req = ', req.params);
   if(!token) return res.render('create', {
       token: null,
       loginForm: 0

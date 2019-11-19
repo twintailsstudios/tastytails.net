@@ -11,8 +11,7 @@
       </div>
 
 
-
-      <form action="/api/user/createcharacter" method="POST">
+<% if (charList == 'new') { %><form action="/api/user/createcharacter" method="POST"><% } else {%><form action="/api/user/editcharacter" method="POST"><%}%>      
       <div id ="genderPullout" class="pullout">
         <div id ="collapsibleBox">
 
@@ -24,7 +23,7 @@
                   <option value = "body_01">Feminine</option>
                   <option value = "empty">Masculine (unavailable)</option>
                 </select>
-                <select name="genitles">
+                <select name="genitles" id="genitles">
                   <option value = "empty">Vagina (unavailable)</option>
                   <option value = "empty">Penis (unavailable)</option>
                   <option value = "empty">Both (unavailable)</option>
@@ -97,6 +96,21 @@
                 <div class="colorDivide">
                   Color: <br>
                   <button type="button" id="hairColorBtn" class="selected"></button>
+                </div>
+
+
+              </div></li>
+              <li><div class="selectionContainer">
+                <div class="dropDownDivide">
+                  Inner Ears: <br>
+                  <select name="ear" id="ear">
+                    <option value="empty">None</option>
+                    <option value="ear_01">Innear Ear Floof</option>
+                  </select>
+                </div>
+                <div class="colorDivide">
+                  Color: <br>
+                  <button type="button" id="earColorBtn" class="selected"></button>
                 </div>
 
 
@@ -270,6 +284,16 @@
             <div class="colorQuickSelect">
               Color Hex Value: <br>
               <input id="hairHex" name="hairColor" type="text" autocomplete="off" class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
+            </div>
+            <div class="colorQuickSelect">
+              <div class="hexDivide">
+                Color Hex Value: <br>
+                <input id="earHex" name="earColor" type="text" autocomplete="off" class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
+              </div>
+              <div class="copyDivide">
+                Copy Your Head's Secondary Color? <br>
+                <button type="button" class="button colorQuickSelectBtn" style="vertical-align:middle"><span></span></button>
+              </div>
             </div>
             <div class="colorQuickSelect">
               Color Hex Value: <br>
@@ -698,6 +722,10 @@
           sprite: 'empty',
           color: '0x636363'
         },
+        ear: {
+          sprite: 'empty',
+          color: '0xe0e0e0'
+        },
         genitles:{
           sprite: 'empty',
           secondarySprite: 'empty'
@@ -706,6 +734,51 @@
         spellInventory:[],
         consumedBy:''
       };
+
+      //Set default color hex values in input fields
+      document.getElementById('primaryHeadHex').value = localPlayerInfo.head.color.replace("0x", "#");
+      document.getElementById('secondaryHeadHex').value = localPlayerInfo.head.secondaryColor.replace("0x", "#");
+      document.getElementById('accentHeadHex').value = localPlayerInfo.head.accentColor.replace("0x", "#");
+      document.getElementById('hairHex').value = localPlayerInfo.hair.color.replace("0x", "#");
+      document.getElementById('earHex').value = localPlayerInfo.ear.color.replace("0x", "#");
+      document.getElementById('eyesHex').value = localPlayerInfo.eyes.color.replace("0x", "#");
+      document.getElementById('bodyHex').value = localPlayerInfo.body.color.replace("0x", "#");
+      document.getElementById('secondaryBodyHex').value = localPlayerInfo.body.secondaryColor.replace("0x", "#");
+      document.getElementById('accentBodyHex').value = localPlayerInfo.body.accentColor.replace("0x", "#");
+      document.getElementById('tailHex').value = localPlayerInfo.tail.color.replace("0x", "#");
+      document.getElementById('secondaryTailHex').value = localPlayerInfo.tail.secondaryColor.replace("0x", "#");
+      document.getElementById('accentTailHex').value = localPlayerInfo.tail.accentColor.replace("0x", "#");
+
+      //set default sprite selections
+      document.getElementById('body').value = localPlayerInfo.body.sprite;
+      document.getElementById('genitles').value = localPlayerInfo.genitles.sprite;
+      document.getElementById('head').value = localPlayerInfo.head.sprite;
+      document.getElementById('headSecondaryFur').value = localPlayerInfo.head.secondarySprite;
+      document.getElementById('headAccentFur').value = localPlayerInfo.head.accentSprite;
+      document.getElementById('hair').value = localPlayerInfo.hair.sprite;
+      document.getElementById('ear').value = localPlayerInfo.ear.sprite;
+      document.getElementById('body').value = localPlayerInfo.body.sprite;
+      document.getElementById('bodySecondaryFur').value = localPlayerInfo.body.secondarySprite;
+      document.getElementById('bodyAccentFur').value = localPlayerInfo.body.accentSprite;
+      document.getElementById('tail').value = localPlayerInfo.tail.sprite;
+      document.getElementById('tailSecondaryFur').value = localPlayerInfo.tail.secondarySprite;
+      document.getElementById('tailAccentFur').value = localPlayerInfo.tail.accentSprite;
+
+      //set default background color for color selection buttons
+      document.getElementsByClassName("selected")[0].style.backgroundColor = localPlayerInfo.head.color.replace("0x", "#");
+      document.getElementsByClassName("selected")[1].style.backgroundColor = localPlayerInfo.head.secondaryColor.replace("0x", "#");
+      document.getElementsByClassName("selected")[2].style.backgroundColor = localPlayerInfo.head.accentColor.replace("0x", "#");
+      document.getElementsByClassName("selected")[3].style.backgroundColor = localPlayerInfo.hair.color.replace("0x", "#");
+      document.getElementsByClassName("selected")[4].style.backgroundColor = localPlayerInfo.ear.color.replace("0x", "#");
+      document.getElementsByClassName("selected")[5].style.backgroundColor = localPlayerInfo.eyes.color.replace("0x", "#");
+      document.getElementsByClassName("selected")[6].style.backgroundColor = localPlayerInfo.body.color.replace("0x", "#");
+      document.getElementsByClassName("selected")[7].style.backgroundColor = localPlayerInfo.body.secondaryColor.replace("0x", "#");
+      document.getElementsByClassName("selected")[8].style.backgroundColor = localPlayerInfo.body.accentColor.replace("0x", "#");
+      document.getElementsByClassName("selected")[9].style.backgroundColor = localPlayerInfo.tail.color.replace("0x", "#");
+      document.getElementsByClassName("selected")[10].style.backgroundColor = localPlayerInfo.tail.secondaryColor.replace("0x", "#");
+      document.getElementsByClassName("selected")[11].style.backgroundColor = localPlayerInfo.tail.accentColor.replace("0x", "#");
+
+
 
 
       var voreList = [
@@ -774,6 +847,48 @@
       document.getElementById('icDescrip').value = charList.icDescrip;
       document.getElementById('oocDescrip').value = charList.oocDescrip;
 
+      //set default hex colors
+      document.getElementById('primaryHeadHex').value = charList.head.color.replace("0x", "#");
+      document.getElementById('secondaryHeadHex').value = charList.head.secondaryColor.replace("0x", "#");
+      document.getElementById('accentHeadHex').value = charList.head.accentColor.replace("0x", "#");
+      document.getElementById('hairHex').value = charList.hair.color.replace("0x", "#");
+      document.getElementById('earHex').value = charList.ear.color.replace("0x", "#");
+      document.getElementById('eyesHex').value = charList.eyes.color.replace("0x", "#");
+      document.getElementById('bodyHex').value = charList.body.color.replace("0x", "#");
+      document.getElementById('secondaryBodyHex').value = charList.body.secondaryColor.replace("0x", "#");
+      document.getElementById('accentBodyHex').value = charList.body.accentColor.replace("0x", "#");
+      document.getElementById('tailHex').value = charList.tail.color.replace("0x", "#");
+      document.getElementById('secondaryTailHex').value = charList.tail.secondaryColor.replace("0x", "#");
+      document.getElementById('accentTailHex').value = charList.tail.accentColor.replace("0x", "#");
+
+      //set default sprite selections
+      document.getElementById('body').value = localPlayerInfo.body.sprite;
+      document.getElementById('genitles').value = localPlayerInfo.genitles.sprite;
+      document.getElementById('head').value = localPlayerInfo.head.sprite;
+      document.getElementById('headSecondaryFur').value = localPlayerInfo.head.secondarySprite;
+      document.getElementById('headAccentFur').value = localPlayerInfo.head.accentSprite;
+      document.getElementById('hair').value = localPlayerInfo.hair.sprite;
+      document.getElementById('ear').value = localPlayerInfo.ear.sprite;
+      document.getElementById('body').value = localPlayerInfo.body.sprite;
+      document.getElementById('bodySecondaryFur').value = localPlayerInfo.body.secondarySprite;
+      document.getElementById('bodyAccentFur').value = localPlayerInfo.body.accentSprite;
+      document.getElementById('tail').value = localPlayerInfo.tail.sprite;
+      document.getElementById('tailSecondaryFur').value = localPlayerInfo.tail.secondarySprite;
+      document.getElementById('tailAccentFur').value = localPlayerInfo.tail.accentSprite;
+
+      //set default background color for color selection buttons
+      document.getElementsByClassName("selected")[0].style.backgroundColor = localPlayerInfo.head.color.replace("0x", "#");
+      document.getElementsByClassName("selected")[1].style.backgroundColor = localPlayerInfo.head.secondaryColor.replace("0x", "#");
+      document.getElementsByClassName("selected")[2].style.backgroundColor = localPlayerInfo.head.accentColor.replace("0x", "#");
+      document.getElementsByClassName("selected")[3].style.backgroundColor = localPlayerInfo.hair.color.replace("0x", "#");
+      document.getElementsByClassName("selected")[4].style.backgroundColor = localPlayerInfo.ear.color.replace("0x", "#");
+      document.getElementsByClassName("selected")[5].style.backgroundColor = localPlayerInfo.eyes.color.replace("0x", "#");
+      document.getElementsByClassName("selected")[6].style.backgroundColor = localPlayerInfo.body.color.replace("0x", "#");
+      document.getElementsByClassName("selected")[7].style.backgroundColor = localPlayerInfo.body.secondaryColor.replace("0x", "#");
+      document.getElementsByClassName("selected")[8].style.backgroundColor = localPlayerInfo.body.accentColor.replace("0x", "#");
+      document.getElementsByClassName("selected")[9].style.backgroundColor = localPlayerInfo.tail.color.replace("0x", "#");
+      document.getElementsByClassName("selected")[10].style.backgroundColor = localPlayerInfo.tail.secondaryColor.replace("0x", "#");
+      document.getElementsByClassName("selected")[11].style.backgroundColor = localPlayerInfo.tail.accentColor.replace("0x", "#");
 
       ratingClass = document.getElementsByClassName("rating");
       //console.log('ratingClass = ', ratingClass[0].firstElementChild.name);
@@ -797,9 +912,6 @@
       }
 
       var voreList = charList.voreTypes;
-
-
-
   <% } %>
 
   var coll = document.getElementsByClassName("collapsible");
@@ -1327,6 +1439,7 @@
     this.load.spritesheet('body_01', './../assets/spritesheets/body_01.png', {frameWidth: 182, frameHeight: 190});
     this.load.spritesheet('tail_01', './../assets/spritesheets/tail_01.png', {frameWidth: 182, frameHeight: 190});
     this.load.spritesheet('hair_01', './../assets/spritesheets/hair_01.png', {frameWidth: 182, frameHeight: 190});
+    this.load.spritesheet('ear_01', './../assets/spritesheets/ear_01.png', {frameWidth: 182, frameHeight: 190});
     this.load.spritesheet('eyes_01', './../assets/spritesheets/eyes_01.png', {frameWidth: 182, frameHeight: 190});
     this.load.spritesheet('eyes_02', './../assets/spritesheets/eyes_02.png', {frameWidth: 182, frameHeight: 190});
     this.load.spritesheet('secondaryBody_01', './../assets/spritesheets/secondaryBody_01.png', {frameWidth: 182, frameHeight: 190});
@@ -1531,36 +1644,41 @@
           console.log('hair.color gameColorCode = ', localPlayerInfo.hair.color);
         }
         if(colorButton == 5) {
+          localPlayerInfo.ear.color = gameColorCode;
+          document.getElementById('earHex').value = hexColorCode;
+          console.log('ear.color gameColorCode = ', localPlayerInfo.ear.color);
+        }
+        if(colorButton == 6) {
           localPlayerInfo.eyes.color = gameColorCode;
           document.getElementById('eyesHex').value = hexColorCode;
           console.log('eyes.color gameColorCode = ', localPlayerInfo.eyes.color);
         }
-        if(colorButton == 6) {
+        if(colorButton == 7) {
           localPlayerInfo.body.color = gameColorCode;
           document.getElementById('bodyHex').value = hexColorCode;
           console.log('body.color gameColorCode = ', localPlayerInfo.body.color);
         }
-        if(colorButton == 7) {
+        if(colorButton == 8) {
           localPlayerInfo.body.secondaryColor = gameColorCode;
           document.getElementById('secondaryBodyHex').value = hexColorCode;
           console.log('body.secondaryColor gameColorCode = ', localPlayerInfo.body.secondaryColor);
         }
-        if(colorButton == 8) {
+        if(colorButton == 9) {
           localPlayerInfo.body.accentColor = gameColorCode;
           document.getElementById('accentBodyHex').value = hexColorCode;
           console.log('body.accentColor gameColorCode = ', localPlayerInfo.body.accentColor);
         }
-        if(colorButton == 9) {
+        if(colorButton == 10) {
           localPlayerInfo.tail.color = gameColorCode;
           document.getElementById('tailHex').value = hexColorCode;
           console.log('body.accentColor gameColorCode = ', localPlayerInfo.body.accentColor);
         }
-        if(colorButton == 10) {
+        if(colorButton == 11) {
           localPlayerInfo.tail.secondaryColor = gameColorCode;
           document.getElementById('secondaryTailHex').value = hexColorCode;
           console.log('body.accentColor gameColorCode = ', localPlayerInfo.body.accentColor);
         }
-        if(colorButton == 11) {
+        if(colorButton == 12) {
           localPlayerInfo.tail.accentColor = gameColorCode;
           document.getElementById('accentTailHex').value = hexColorCode;
           console.log('body.accentColor gameColorCode = ', localPlayerInfo.body.accentColor);
@@ -1599,53 +1717,60 @@
       document.getElementsByClassName("selected")[3].style.backgroundColor = i.srcElement.value;
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
+    document.getElementById("earHex").addEventListener("input", function(i) {
+      console.log('colorUpdate i = ', i.srcElement.value);
+      var gameColorCode = i.srcElement.value.replace("#", "0x");
+      localPlayerInfo.ear.color = gameColorCode;
+      document.getElementsByClassName("selected")[4].style.backgroundColor = i.srcElement.value;
+      self.socket.emit('characterUpdate', localPlayerInfo);
+    });
     document.getElementById("eyesHex").addEventListener("input", function(i) {
       console.log('colorUpdate i = ', i.srcElement.value);
       var gameColorCode = i.srcElement.value.replace("#", "0x");
       localPlayerInfo.eyes.color = gameColorCode;
-      document.getElementsByClassName("selected")[4].style.backgroundColor = i.srcElement.value;
+      document.getElementsByClassName("selected")[5].style.backgroundColor = i.srcElement.value;
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
     document.getElementById("bodyHex").addEventListener("input", function(i) {
       console.log('colorUpdate i = ', i.srcElement.value);
       var gameColorCode = i.srcElement.value.replace("#", "0x");
       localPlayerInfo.body.color = gameColorCode;
-      document.getElementsByClassName("selected")[5].style.backgroundColor = i.srcElement.value;
+      document.getElementsByClassName("selected")[6].style.backgroundColor = i.srcElement.value;
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
     document.getElementById("secondaryBodyHex").addEventListener("input", function(i) {
       console.log('colorUpdate i = ', i.srcElement.value);
       var gameColorCode = i.srcElement.value.replace("#", "0x");
       localPlayerInfo.body.secondaryBodyColor = gameColorCode;
-      document.getElementsByClassName("selected")[6].style.backgroundColor = i.srcElement.value;
+      document.getElementsByClassName("selected")[7].style.backgroundColor = i.srcElement.value;
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
     document.getElementById("accentBodyHex").addEventListener("input", function(i) {
       console.log('colorUpdate i = ', i.srcElement.value);
       var gameColorCode = i.srcElement.value.replace("#", "0x");
       localPlayerInfo.body.accentColor = gameColorCode;
-      document.getElementsByClassName("selected")[7].style.backgroundColor = i.srcElement.value;
+      document.getElementsByClassName("selected")[8].style.backgroundColor = i.srcElement.value;
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
     document.getElementById("tailHex").addEventListener("input", function(i) {
       console.log('colorUpdate i = ', i.srcElement.value);
       var gameColorCode = i.srcElement.value.replace("#", "0x");
       localPlayerInfo.tail.color = gameColorCode;
-      document.getElementsByClassName("selected")[8].style.backgroundColor = i.srcElement.value;
+      document.getElementsByClassName("selected")[9].style.backgroundColor = i.srcElement.value;
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
     document.getElementById("secondaryTailHex").addEventListener("input", function(i) {
       console.log('colorUpdate i = ', i.srcElement.value);
       var gameColorCode = i.srcElement.value.replace("#", "0x");
       localPlayerInfo.tail.secondaryColor = gameColorCode;
-      document.getElementsByClassName("selected")[9].style.backgroundColor = i.srcElement.value;
+      document.getElementsByClassName("selected")[10].style.backgroundColor = i.srcElement.value;
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
     document.getElementById("accentTailHex").addEventListener("input", function(i) {
       console.log('colorUpdate i = ', i.srcElement.value);
       var gameColorCode = i.srcElement.value.replace("#", "0x");
       localPlayerInfo.tail.accentColor = gameColorCode;
-      document.getElementsByClassName("selected")[10].style.backgroundColor = i.srcElement.value;
+      document.getElementsByClassName("selected")[11].style.backgroundColor = i.srcElement.value;
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
     document.getElementsByClassName("colorQuickSelectBtn")[0].addEventListener("click", function() {
@@ -1665,51 +1790,61 @@
       self.socket.emit('characterUpdate', localPlayerInfo);
     })
     document.getElementsByClassName("colorQuickSelectBtn")[2].addEventListener("click", function() {
+      var gameColorCode = localPlayerInfo.head.secondaryColor;
+      var hexColorCode = gameColorCode.replace("0x", "#");
+      console.log('you were right!');
+      localPlayerInfo.ear.color = gameColorCode
+      document.getElementById("earHex").value = hexColorCode;
+      document.getElementsByClassName("selected")[4].style.backgroundColor = hexColorCode;
+      self.socket.emit('characterUpdate', localPlayerInfo);
+    })
+    document.getElementsByClassName("colorQuickSelectBtn")[3].addEventListener("click", function() {
       var gameColorCode = localPlayerInfo.head.color;
       var hexColorCode = gameColorCode.replace("0x", "#");
       localPlayerInfo.body.color = gameColorCode
       document.getElementById("bodyHex").value = hexColorCode;
-      document.getElementsByClassName("selected")[5].style.backgroundColor = hexColorCode;
-      self.socket.emit('characterUpdate', localPlayerInfo);
-    })
-    document.getElementsByClassName("colorQuickSelectBtn")[3].addEventListener("click", function() {
-      var gameColorCode = localPlayerInfo.head.secondaryColor;
-      var hexColorCode = gameColorCode.replace("0x", "#");
-      localPlayerInfo.body.secondaryColor = gameColorCode
-      document.getElementById("secondaryBodyHex").value = hexColorCode;
       document.getElementsByClassName("selected")[6].style.backgroundColor = hexColorCode;
       self.socket.emit('characterUpdate', localPlayerInfo);
     })
     document.getElementsByClassName("colorQuickSelectBtn")[4].addEventListener("click", function() {
-      var gameColorCode = localPlayerInfo.head.accentColor;
+      var gameColorCode = localPlayerInfo.head.secondaryColor;
       var hexColorCode = gameColorCode.replace("0x", "#");
-      localPlayerInfo.body.accentColor = gameColorCode
-      document.getElementById("accentBodyHex").value = hexColorCode;
+      localPlayerInfo.body.secondaryColor = gameColorCode
+      document.getElementById("secondaryBodyHex").value = hexColorCode;
       document.getElementsByClassName("selected")[7].style.backgroundColor = hexColorCode;
       self.socket.emit('characterUpdate', localPlayerInfo);
     })
     document.getElementsByClassName("colorQuickSelectBtn")[5].addEventListener("click", function() {
-      var gameColorCode = localPlayerInfo.body.color;
+      console.log('you called dis shit!');
+      var gameColorCode = localPlayerInfo.head.accentColor;
       var hexColorCode = gameColorCode.replace("0x", "#");
-      localPlayerInfo.tail.color = gameColorCode
-      document.getElementById("tailHex").value = hexColorCode;
+      localPlayerInfo.body.accentColor = gameColorCode
+      document.getElementById("accentBodyHex").value = hexColorCode;
       document.getElementsByClassName("selected")[8].style.backgroundColor = hexColorCode;
       self.socket.emit('characterUpdate', localPlayerInfo);
     })
     document.getElementsByClassName("colorQuickSelectBtn")[6].addEventListener("click", function() {
-      var gameColorCode = localPlayerInfo.body.secondaryColor;
+      var gameColorCode = localPlayerInfo.body.color;
       var hexColorCode = gameColorCode.replace("0x", "#");
-      localPlayerInfo.tail.secondaryColor = gameColorCode
-      document.getElementById("secondaryTailHex").value = hexColorCode;
+      localPlayerInfo.tail.color = gameColorCode
+      document.getElementById("tailHex").value = hexColorCode;
       document.getElementsByClassName("selected")[9].style.backgroundColor = hexColorCode;
       self.socket.emit('characterUpdate', localPlayerInfo);
     })
     document.getElementsByClassName("colorQuickSelectBtn")[7].addEventListener("click", function() {
+      var gameColorCode = localPlayerInfo.body.secondaryColor;
+      var hexColorCode = gameColorCode.replace("0x", "#");
+      localPlayerInfo.tail.secondaryColor = gameColorCode
+      document.getElementById("secondaryTailHex").value = hexColorCode;
+      document.getElementsByClassName("selected")[10].style.backgroundColor = hexColorCode;
+      self.socket.emit('characterUpdate', localPlayerInfo);
+    })
+    document.getElementsByClassName("colorQuickSelectBtn")[8].addEventListener("click", function() {
       var gameColorCode = localPlayerInfo.body.accentColor;
       var hexColorCode = gameColorCode.replace("0x", "#");
-      localPlayerInfo.body.accentColor = gameColorCode
+      localPlayerInfo.tail.accentColor = gameColorCode
       document.getElementById("accentTailHex").value = hexColorCode;
-      document.getElementsByClassName("selected")[10].style.backgroundColor = hexColorCode;
+      document.getElementsByClassName("selected")[11].style.backgroundColor = hexColorCode;
       self.socket.emit('characterUpdate', localPlayerInfo);
     })
     // function colorUpdate(i) {
@@ -1739,6 +1874,7 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
     });
     secondaryHeadColorBtn.addEventListener("click", function() {
       console.log('secondaryHeadColorBtn clicked');
@@ -1754,6 +1890,7 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
     });
     accentHeadColorBtn.addEventListener("click", function() {
       console.log('accentHeadColorBtn clicked');
@@ -1769,6 +1906,7 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
     });
     hairColorBtn.addEventListener("click", function() {
       console.log('hairColorBtn clicked');
@@ -1784,39 +1922,42 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
     });
-    eyeColorBtn.addEventListener("click", function() {
-      console.log('eyeColorBtn clicked');
+    earColorBtn.addEventListener("click", function() {
+      console.log('earColorBtn clicked');
       colorButton = 5;
       document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[2].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[3].style.display = "none";
-      document.getElementsByClassName("colorQuickSelect")[4].style.display = "block";
+      document.getElementsByClassName("colorQuickSelect")[4].style.display = "flex";
       document.getElementsByClassName("colorQuickSelect")[5].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[6].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[7].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
     });
-    bodyColorBtn.addEventListener("click", function() {
-      console.log('bodyColorBtn clicked');
+    eyeColorBtn.addEventListener("click", function() {
+      console.log('eyeColorBtn clicked');
       colorButton = 6;
       document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[2].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[3].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[4].style.display = "none";
-      document.getElementsByClassName("colorQuickSelect")[5].style.display = "flex";
+      document.getElementsByClassName("colorQuickSelect")[5].style.display = "block";
       document.getElementsByClassName("colorQuickSelect")[6].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[7].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
     });
-    secondaryBodyColorBtn.addEventListener("click", function() {
-      console.log('secondaryBodyColorBtn clicked');
+    bodyColorBtn.addEventListener("click", function() {
+      console.log('bodyColorBtn clicked');
       colorButton = 7;
       document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
@@ -1829,9 +1970,10 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
     });
-    accentBodyColorBtn.addEventListener("click", function() {
-      console.log('accentBodyColorBtn clicked');
+    secondaryBodyColorBtn.addEventListener("click", function() {
+      console.log('secondaryBodyColorBtn clicked');
       colorButton = 8;
       document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
@@ -1844,9 +1986,10 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
     });
-    tailColorBtn.addEventListener("click", function() {
-      console.log('tailColorBtn clicked');
+    accentBodyColorBtn.addEventListener("click", function() {
+      console.log('accentBodyColorBtn clicked');
       colorButton = 9;
       document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
@@ -1859,9 +2002,10 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "flex";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
     });
-    secondaryTailColorBtn.addEventListener("click", function() {
-      console.log('secondaryTailColorBtn clicked');
+    tailColorBtn.addEventListener("click", function() {
+      console.log('tailColorBtn clicked');
       colorButton = 10;
       document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
@@ -1874,9 +2018,10 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "flex";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
     });
-    accentTailColorBtn.addEventListener("click", function() {
-      console.log('accentTailColorBtn clicked');
+    secondaryTailColorBtn.addEventListener("click", function() {
+      console.log('secondaryTailColorBtn clicked');
       colorButton = 11;
       document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
@@ -1889,6 +2034,23 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "flex";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
+    });
+    accentTailColorBtn.addEventListener("click", function() {
+      console.log('accentTailColorBtn clicked');
+      colorButton = 12;
+      document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[2].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[3].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[4].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[5].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[6].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[7].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "flex";
     });
 
 
@@ -1915,7 +2077,7 @@
 
     document.getElementById("head").addEventListener("change", function(i) {
       colorButton = 1;
-      document.getElementsByClassName("colorQuickSelect")[0].style.display = "flex";
+      document.getElementsByClassName("colorQuickSelect")[0].style.display = "block";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[2].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[3].style.display = "none";
@@ -1926,6 +2088,7 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
       console.log('i = ', i.srcElement.value);
       localPlayerInfo.head.sprite = i.srcElement.value;
       // if (i.srcElement.options.selectedIndex == 0) {
@@ -1956,6 +2119,7 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
       console.log('i = ', i.srcElement.value);
       localPlayerInfo.head.secondarySprite = i.srcElement.value;
       // if (i.srcElement.options.selectedIndex == 0) {
@@ -1990,6 +2154,7 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
       console.log('i = ', i.srcElement.value);
       localPlayerInfo.head.accentSprite = i.srcElement.value;
       // if (i.srcElement.options.selectedIndex == 0) {
@@ -2012,18 +2177,19 @@
     });
 
     document.getElementById("bodySecondaryFur").addEventListener("change", function(i) {
-      colorButton = 7;
+      colorButton = 8;
       document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[2].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[3].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[4].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[5].style.display = "none";
-      document.getElementsByClassName("colorQuickSelect")[6].style.display = "flex";
-      document.getElementsByClassName("colorQuickSelect")[7].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[6].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[7].style.display = "flex";
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
       console.log('i = ', i.srcElement.value);
       localPlayerInfo.body.secondarySprite = i.srcElement.value;
       // if (i.srcElement.options.selectedIndex == 0) {
@@ -2046,7 +2212,7 @@
     });
 
     document.getElementById("bodyAccentFur").addEventListener("change", function(i) {
-      colorButton = 8;
+      colorButton = 9;
       document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[2].style.display = "none";
@@ -2054,10 +2220,11 @@
       document.getElementsByClassName("colorQuickSelect")[4].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[5].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[6].style.display = "none";
-      document.getElementsByClassName("colorQuickSelect")[7].style.display = "flex";
-      document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[7].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[8].style.display = "flex";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
       console.log('i = ', i.srcElement.value);
       localPlayerInfo.body.accentSprite = i.srcElement.value;
       // if (i.srcElement.options.selectedIndex == 0) {
@@ -2092,6 +2259,7 @@
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
       console.log('i = ', i.srcElement.value);
       localPlayerInfo.hair.sprite = i.srcElement.value;
       // if (i.srcElement.options.selectedIndex == 0) {
@@ -2105,8 +2273,35 @@
       self.socket.emit('characterUpdate', localPlayerInfo);
     });
 
+    document.getElementById("ear").addEventListener("change", function(i) {
+      colorButton = 5;
+      document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[2].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[3].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[4].style.display = "flex";
+      document.getElementsByClassName("colorQuickSelect")[5].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[6].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[7].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
+      console.log('i = ', i.srcElement.value);
+      localPlayerInfo.ear.sprite = i.srcElement.value;
+      // if (i.srcElement.options.selectedIndex == 0) {
+      //   localPlayerInfo.ear.sprite = 'empty';
+      //
+      // }
+      // if (i.srcElement.options.selectedIndex == 1) {
+      //   localPlayerInfo.ear.sprite = 'ear_01';
+      //
+      // }
+      self.socket.emit('characterUpdate', localPlayerInfo);
+    });
+
     document.getElementById("tail").addEventListener("change", function(i) {
-      colorButton = 9;
+      colorButton = 10;
       document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[2].style.display = "none";
@@ -2115,9 +2310,10 @@
       document.getElementsByClassName("colorQuickSelect")[5].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[6].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[7].style.display = "none";
-      document.getElementsByClassName("colorQuickSelect")[8].style.display = "flex";
-      document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[9].style.display = "flex";
       document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
       console.log('i = ', i.srcElement.value);
       localPlayerInfo.tail.sprite = i.srcElement.value;
       // if (i.srcElement.options.selectedIndex == 0) {
@@ -2140,7 +2336,7 @@
     });
 
     document.getElementById("tailSecondaryFur").addEventListener("change", function(i) {
-      colorButton = 10;
+      colorButton = 11;
       document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[2].style.display = "none";
@@ -2150,8 +2346,9 @@
       document.getElementsByClassName("colorQuickSelect")[6].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[7].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
-      document.getElementsByClassName("colorQuickSelect")[9].style.display = "flex";
-      document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[10].style.display = "flex";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "none";
       console.log('i = ', i.srcElement.value);
       localPlayerInfo.tail.secondarySprite = i.srcElement.value;
       // if (i.srcElement.options.selectedIndex == 0) {
@@ -2174,7 +2371,7 @@
     });
 
     document.getElementById("tailAccentFur").addEventListener("change", function(i) {
-      colorButton = 11;
+      colorButton = 12;
       document.getElementsByClassName("colorQuickSelect")[0].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[1].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[2].style.display = "none";
@@ -2185,7 +2382,8 @@
       document.getElementsByClassName("colorQuickSelect")[7].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[8].style.display = "none";
       document.getElementsByClassName("colorQuickSelect")[9].style.display = "none";
-      document.getElementsByClassName("colorQuickSelect")[10].style.display = "flex";
+      document.getElementsByClassName("colorQuickSelect")[10].style.display = "none";
+      document.getElementsByClassName("colorQuickSelect")[11].style.display = "flex";
       console.log('i = ', i.srcElement.value);
       localPlayerInfo.tail.accentSprite = i.srcElement.value;
       // if (i.srcElement.options.selectedIndex == 0) {
@@ -2238,47 +2436,85 @@
     function rotationfunct(self, rotation) {
       if (rotation == 1) {
         self.head.play(localPlayerInfo.head.sprite + 'Down');
+        self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Down');
+        self.accentHead.play(localPlayerInfo.head.accentSprite + 'Down');
         self.body.play(localPlayerInfo.body.sprite + 'Down');
+        self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Down');
+        self.accentBody.play(localPlayerInfo.body.accentSprite + 'Down');
         self.tail.play(localPlayerInfo.tail.sprite + 'Down');
+        self.secondaryTail.play(localPlayerInfo.tail.secondarySprite + 'Down');
+        self.accentTail.play(localPlayerInfo.tail.accentSprite + 'Down');
+        self.hair.play(localPlayerInfo.hair.sprite + 'Down');
+        self.ear.play(localPlayerInfo.ear.sprite + 'Down');
         self.eyes.play(localPlayerInfo.eyes.outer + 'Down');
         self.iris.play(localPlayerInfo.eyes.iris + 'Down');
-        self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Down');
-        self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Down');
+        self.genitles.play(localPlayerInfo.genitles.sprite + 'Down');
+        self.container.sendToBack(self.accentTail);
+        self.container.sendToBack(self.secondaryTail);
         self.container.sendToBack(self.tail);
       }
       if (rotation == 2) {
         self.head.play(localPlayerInfo.head.sprite + 'Right');
+        self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Right');
+        self.accentHead.play(localPlayerInfo.head.accentSprite + 'Right');
         self.body.play(localPlayerInfo.body.sprite + 'Right');
+        self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Right');
+        self.accentBody.play(localPlayerInfo.body.accentSprite + 'Right');
         self.tail.play(localPlayerInfo.tail.sprite + 'Right');
+        self.secondaryTail.play(localPlayerInfo.tail.secondarySprite + 'Right');
+        self.accentTail.play(localPlayerInfo.tail.accentSprite + 'Right');
+        self.hair.play(localPlayerInfo.hair.sprite + 'Right');
+        self.ear.play(localPlayerInfo.ear.sprite + 'Right');
         self.eyes.play(localPlayerInfo.eyes.outer + 'Right');
         self.iris.play(localPlayerInfo.eyes.iris + 'Right');
-        self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Right');
-        self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Right');
+        self.genitles.play(localPlayerInfo.genitles.sprite + 'Right');
+        self.container.sendToBack(self.accentTail);
+        self.container.sendToBack(self.secondaryTail);
         self.container.sendToBack(self.tail);
       }
       if (rotation == 3) {
         self.head.play(localPlayerInfo.head.sprite + 'Up');
+        self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Up');
+        self.accentHead.play(localPlayerInfo.head.accentSprite + 'Up');
         self.body.play(localPlayerInfo.body.sprite + 'Up');
+        self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Up');
+        self.accentBody.play(localPlayerInfo.body.accentSprite + 'Up');
         self.tail.play(localPlayerInfo.tail.sprite + 'Up');
+        self.secondaryTail.play(localPlayerInfo.tail.secondarySprite + 'Up');
+        self.accentTail.play(localPlayerInfo.tail.accentSprite + 'Up');
+        self.hair.play(localPlayerInfo.hair.sprite + 'Up');
+        self.ear.play(localPlayerInfo.ear.sprite + 'Up');
         self.eyes.play(localPlayerInfo.eyes.outer + 'Up');
         self.iris.play(localPlayerInfo.eyes.iris + 'Up');
-        self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Up');
-        self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Up');
-        self.container.sendToBack(self.secondaryBody);
+        self.genitles.play(localPlayerInfo.genitles.sprite + 'Up');
+        self.container.sendToBack(self.hair);
         self.container.sendToBack(self.eyes);
         self.container.sendToBack(self.iris);
+        self.container.sendToBack(self.accentBody);
+        self.container.sendToBack(self.secondaryBody);
         self.container.sendToBack(self.body);
+        self.container.sendToBack(self.accentHead);
+        self.container.sendToBack(self.secondaryHead);
+        self.container.sendToBack(self.ear);
         self.container.sendToBack(self.head);
-
       }
       if (rotation == 4) {
         self.head.play(localPlayerInfo.head.sprite + 'Left');
+        self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Left');
+        self.accentHead.play(localPlayerInfo.head.accentSprite + 'Left');
         self.body.play(localPlayerInfo.body.sprite + 'Left');
+        self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Left');
+        self.accentBody.play(localPlayerInfo.body.accentSprite + 'Left');
         self.tail.play(localPlayerInfo.tail.sprite + 'Left');
+        self.secondaryTail.play(localPlayerInfo.tail.secondarySprite + 'Left');
+        self.accentTail.play(localPlayerInfo.tail.accentSprite + 'Left');
+        self.hair.play(localPlayerInfo.hair.sprite + 'Left');
+        self.ear.play(localPlayerInfo.ear.sprite + 'Left');
         self.eyes.play(localPlayerInfo.eyes.outer + 'Left');
         self.iris.play(localPlayerInfo.eyes.iris + 'Left');
-        self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Left');
-        self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Left');
+        self.genitles.play(localPlayerInfo.genitles.sprite + 'Left');
+        self.container.sendToBack(self.accentTail);
+        self.container.sendToBack(self.secondaryTail);
         self.container.sendToBack(self.tail);
       }
 
@@ -2310,6 +2546,8 @@
             'Set tail Accent Color to: ', playerInfo.tail.accentColor, '\n',
             'Set hair Sprite to: ', playerInfo.hair.sprite, '\n',
             'Set hair Color to: ', playerInfo.hair.color, '\n',
+            'Set ear Sprite to: ', playerInfo.ear.sprite, '\n',
+            'Set ear Color to: ', playerInfo.ear.color, '\n',
             'Set outer eyes sprite to:', playerInfo.eyes.outer, '\n',
             'Set irises to:', playerInfo.eyes.iris, '\n',
             'Set eye color to:', playerInfo.eyes.color, '\n',
@@ -2326,6 +2564,7 @@
             self.secondaryTail.play(playerInfo.tail.secondarySprite + 'Down');
             self.accentTail.play(playerInfo.tail.accentSprite + 'Down');
             self.hair.play(playerInfo.hair.sprite + 'Down');
+            self.ear.play(playerInfo.ear.sprite + 'Down');
             self.eyes.play(playerInfo.eyes.outer + 'Down');
             self.iris.play(playerInfo.eyes.iris + 'Down');
             self.genitles.play(playerInfo.genitles.sprite + 'Down');
@@ -2333,35 +2572,66 @@
           }
           if (rotation == 2) {
             self.head.play(playerInfo.head.sprite + 'Right');
+            self.secondaryHead.play(playerInfo.head.secondarySprite + 'Right');
+            self.accentHead.play(playerInfo.head.accentSprite + 'Right');
             self.body.play(playerInfo.body.sprite + 'Right');
+            self.secondaryBody.play(playerInfo.body.secondarySprite + 'Right');
+            self.accentBody.play(playerInfo.body.accentSprite + 'Right');
             self.tail.play(playerInfo.tail.sprite + 'Right');
+            self.secondaryTail.play(playerInfo.tail.secondarySprite + 'Right');
+            self.accentTail.play(playerInfo.tail.accentSprite + 'Right');
+            self.hair.play(playerInfo.hair.sprite + 'Right');
+            self.ear.play(playerInfo.ear.sprite + 'Right');
             self.eyes.play(playerInfo.eyes.outer + 'Right');
             self.iris.play(playerInfo.eyes.iris + 'Right');
-            self.secondaryBody.play(playerInfo.body.secondarySprite + 'Right');
-            self.secondaryHead.play(playerInfo.head.secondarySprite + 'Right');
+            self.genitles.play(playerInfo.genitles.sprite + 'Right');
+            self.container.sendToBack(self.accentTail);
+            self.container.sendToBack(self.secondaryTail);
             self.container.sendToBack(self.tail);
           }
           if (rotation == 3) {
             self.head.play(playerInfo.head.sprite + 'Up');
+            self.secondaryHead.play(playerInfo.head.secondarySprite + 'Up');
+            self.accentHead.play(playerInfo.head.accentSprite + 'Up');
             self.body.play(playerInfo.body.sprite + 'Up');
+            self.secondaryBody.play(playerInfo.body.secondarySprite + 'Up');
+            self.accentBody.play(playerInfo.body.accentSprite + 'Up');
             self.tail.play(playerInfo.tail.sprite + 'Up');
+            self.secondaryTail.play(playerInfo.tail.secondarySprite + 'Up');
+            self.accentTail.play(playerInfo.tail.accentSprite + 'Up');
+            self.hair.play(playerInfo.hair.sprite + 'Up');
+            self.ear.play(playerInfo.ear.sprite + 'Up');
             self.eyes.play(playerInfo.eyes.outer + 'Up');
             self.iris.play(playerInfo.eyes.iris + 'Up');
-            self.secondaryBody.play(playerInfo.body.secondarySprite + 'Up');
-            self.secondaryHead.play(playerInfo.head.secondarySprite + 'Up');
-            self.container.sendToBack(self.secondaryBody);
+            self.genitles.play(playerInfo.genitles.sprite + 'Up');
+            self.container.sendToBack(self.hair);
             self.container.sendToBack(self.eyes);
+            self.container.sendToBack(self.iris);
+            self.container.sendToBack(self.accentBody);
+            self.container.sendToBack(self.secondaryBody);
             self.container.sendToBack(self.body);
+            self.container.sendToBack(self.accentHead);
+            self.container.sendToBack(self.secondaryHead);
+            self.container.sendToBack(self.ear);
             self.container.sendToBack(self.head);
           }
           if (rotation == 4) {
             self.head.play(playerInfo.head.sprite + 'Left');
+            self.secondaryHead.play(playerInfo.head.secondarySprite + 'Left');
+            self.accentHead.play(playerInfo.head.accentSprite + 'Left');
             self.body.play(playerInfo.body.sprite + 'Left');
+            self.secondaryBody.play(playerInfo.body.secondarySprite + 'Left');
+            self.accentBody.play(playerInfo.body.accentSprite + 'Left');
             self.tail.play(playerInfo.tail.sprite + 'Left');
+            self.secondaryTail.play(playerInfo.tail.secondarySprite + 'Left');
+            self.accentTail.play(playerInfo.tail.accentSprite + 'Left');
+            self.hair.play(playerInfo.hair.sprite + 'Left');
+            self.ear.play(playerInfo.ear.sprite + 'Left');
             self.eyes.play(playerInfo.eyes.outer + 'Left');
             self.iris.play(playerInfo.eyes.iris + 'Left');
-            self.secondaryBody.play(playerInfo.body.secondarySprite + 'Left');
-            self.secondaryHead.play(playerInfo.head.secondarySprite + 'Left');
+            self.genitles.play(playerInfo.genitles.sprite + 'Left');
+            self.container.sendToBack(self.accentTail);
+            self.container.sendToBack(self.secondaryTail);
             self.container.sendToBack(self.tail);
           }
 
@@ -2375,6 +2645,7 @@
           self.secondaryTail.setTint(playerInfo.tail.secondaryColor);
           self.accentTail.setTint(playerInfo.tail.accentColor);
           self.hair.setTint(playerInfo.hair.color);
+          self.ear.setTint(playerInfo.ear.color);
           self.iris.setTint(playerInfo.eyes.color);
 
 
@@ -2408,6 +2679,8 @@
         'Set tail Accent Color to: ', localPlayerInfo.tail.accentColor, '\n',
         'Set hair Sprite to: ', localPlayerInfo.hair.sprite, '\n',
         'Set hair Color to: ', localPlayerInfo.hair.color, '\n',
+        'Set ear Sprite to: ', localPlayerInfo.ear.sprite, '\n',
+        'Set ear Color to: ', localPlayerInfo.ear.color, '\n',
         'Set outer eyes sprite to:', localPlayerInfo.eyes.outer, '\n',
         'Set irises to:', localPlayerInfo.eyes.iris, '\n',
         'Set eye color to:', localPlayerInfo.eyes.color, '\n',
@@ -2440,6 +2713,9 @@
       self.hair = self.physics.add.sprite(0, 0, localPlayerInfo.hair.sprite).setInteractive();
       self.hair.setTint(localPlayerInfo.hair.color);
 
+      self.ear = self.physics.add.sprite(0, 0, localPlayerInfo.ear.sprite).setInteractive();
+      self.ear.setTint(localPlayerInfo.ear.color);
+
       self.eyes = self.physics.add.sprite(0, 0, localPlayerInfo.eyes.outer).setInteractive();
       self.iris = self.physics.add.sprite(0, 0, localPlayerInfo.eyes.iris).setInteractive();
       self.iris.setTint(localPlayerInfo.eyes.color);
@@ -2452,7 +2728,9 @@
         self.tail,
         self.secondaryTail,
         self.accentTail,
+
         self.head,
+        self.ear,
         self.secondaryHead,
         self.accentHead,
         self.eyes,
@@ -2476,6 +2754,7 @@
       self.secondaryTail.play(localPlayerInfo.tail.secondarySprite + 'Down');
       self.accentTail.play(localPlayerInfo.tail.accentSprite + 'Down');
       self.hair.play(localPlayerInfo.hair.sprite + 'Down');
+      self.ear.play(localPlayerInfo.ear.sprite + 'Down');
       self.eyes.play(localPlayerInfo.eyes.outer + 'Down');
       self.iris.play(localPlayerInfo.eyes.iris + 'Down');
       self.genitles.play(localPlayerInfo.genitles.sprite + 'Down');
@@ -2961,6 +3240,40 @@
     self.anims.create({
       key: 'hair_01Stop',
       frames: self.anims.generateFrameNumbers('hair_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'ear_01Down',
+      frames: self.anims.generateFrameNumbers('ear_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'ear_01Right',
+      frames: self.anims.generateFrameNumbers('ear_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'ear_01Left',
+      frames: self.anims.generateFrameNumbers('ear_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'ear_01Up',
+      frames: self.anims.generateFrameNumbers('ear_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'ear_01Stop',
+      frames: self.anims.generateFrameNumbers('ear_01', { start: 0, end: 0 }),
       frameRate: 8,
       repeat: -1,
     });

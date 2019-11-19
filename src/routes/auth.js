@@ -114,7 +114,7 @@ router.post('/createcharacter', async (req, res) => {
     //console.log('ratings = ', ratings);
 
   var voreTypes = [];
-  console.log('req.body = ', req.body);
+  //console.log('req.body = ', req.body);
   for(i = 0; i < req.body.destination.length; i++) {
     //console.log('req.body.destination[i] = ', req.body.destination[i]);
     var voreType = {
@@ -143,7 +143,7 @@ router.post('/createcharacter', async (req, res) => {
     accentSprite: req.body.headAccentFur,
     accentColor: req.body.accentHeadColor.replace("#", "0x")
   }
-  console.log('head = ', head);
+  //console.log('head = ', head);
   var body = {
     sprite: req.body.body,
     color: req.body.bodyColor.replace("#", "0x"),
@@ -156,7 +156,7 @@ router.post('/createcharacter', async (req, res) => {
     sprite: req.body.tail,
     color: req.body.tailColor.replace("#", "0x"),
     secondarySprite: req.body.tailSecondaryFur,
-    secondaryColor: req.body.secondaryTailHex.replace("#", "0x"),
+    secondaryColor: req.body.secondaryTailColor.replace("#", "0x"),
     accentSprite: req.body.tailAccentFur,
     accentColor: req.body.accentTailColor.replace("#", "0x")
   }
@@ -168,6 +168,10 @@ router.post('/createcharacter', async (req, res) => {
   var hair = {
     sprite: req.body.hair,
     color: req.body.hairColor.replace("#", "0x")
+  }
+  var ear = {
+    sprite: req.body.ear,
+    color: req.body.earColor.replace("#", "0x")
   }
   var genitles = {
     sprite: req.body.genitles,
@@ -197,6 +201,7 @@ router.post('/createcharacter', async (req, res) => {
       "tail": tail,
       "eyes": eyes,
       "hair": hair,
+      "ear": ear,
       "genitles": genitles
     }}});
     // try {
@@ -212,6 +217,137 @@ router.post('/createcharacter', async (req, res) => {
   }
 })
 
+router.post('/editcharacter', async (req, res) => {
+  //Lets make sure the character sheet was properly filled out
+  var ratings = {
+    ovStar: req.body.ovStar,
+    avStar: req.body.avStar,
+    cvStar: req.body.cvStar,
+    ubStar: req.body.ubStar,
+    tvStar: req.body.tvStar,
+    absStar: req.body.absStar,
+    svStar: req.body.svStar,
+    predStar: req.body.predStar,
+    preyStar: req.body.preyStar,
+    softStar: req.body.softStar,
+    hardStar: req.body.hardStar,
+    digestionStar: req.body.digestionStar,
+    disposalStar: req.body.disposalStar,
+    tfStar: req.body.tfStar,
+    btfStar: req.body.btfStar,
+    bsStar: req.body.bsStar,
+    gStar: req.body.gStar,
+    sStar: req.body.sStar,
+    iaoStar: req.body.iaoStar
+  };
+    const { error3 } = ratingsValidation(ratings);
+    if (error3) return res.status(405).send(error3.details[0].message);
+
+    //console.log('ratings = ', ratings);
+
+  var voreTypes = [];
+  //console.log('req.body = ', req.body);
+  for(i = 0; i < req.body.destination.length; i++) {
+    //console.log('req.body.destination[i] = ', req.body.destination[i]);
+    var voreType = {
+      id: i,
+      destination: req.body.destination[i],
+      verb: req.body.verb[i],
+      digestionTimer: req.body.digestionTimer[i],
+      animation: req.body.animation[i],
+      destinationDescrip: req.body.destinationDescrip[i],
+      examineMsgDescrip: req.body.examineMsgDescrip[i],
+      struggleInsideMsgDescrip: req.body.struggleInsideMsgDescrip[i],
+      struggleOutsideMsgDescrip: req.body.struggleOutsideMsgDescrip[i],
+      digestionInsideMsgDescrip: req.body.digestionInsideMsgDescrip[i],
+      digestionOutsideMsgDescrip: req.body.digestionOutsideMsgDescrip[i]
+    }
+    voreTypes.push(voreType);
+    const { error1 } = voreTypeValidation(voreType);
+    if (error1) return res.status(405).send(error1.details[0].message);
+  };
+
+  var head = {
+    sprite: req.body.head,
+    color: req.body.primaryHeadColor.replace("#", "0x"),
+    secondarySprite: req.body.headSecondaryFur,
+    secondaryColor: req.body.secondaryHeadColor.replace("#", "0x"),
+    accentSprite: req.body.headAccentFur,
+    accentColor: req.body.accentHeadColor.replace("#", "0x")
+  }
+  //console.log('head = ', head);
+  var body = {
+    sprite: req.body.body,
+    color: req.body.bodyColor.replace("#", "0x"),
+    secondarySprite: req.body.bodySecondaryFur,
+    secondaryColor: req.body.secondaryBodyColor.replace("#", "0x"),
+    accentSprite: req.body.bodyAccentFur,
+    accentColor: req.body.accentBodyColor.replace("#", "0x")
+  }
+  var tail = {
+    sprite: req.body.tail,
+    color: req.body.tailColor.replace("#", "0x"),
+    secondarySprite: req.body.tailSecondaryFur,
+    secondaryColor: req.body.secondaryTailColor.replace("#", "0x"),
+    accentSprite: req.body.tailAccentFur,
+    accentColor: req.body.accentTailColor.replace("#", "0x")
+  }
+  var eyes = {
+    outer: 'eyes_01',
+    iris: 'eyes_02',
+    color: req.body.eyesColor.replace("#", "0x")
+  }
+  var hair = {
+    sprite: req.body.hair,
+    color: req.body.hairColor.replace("#", "0x")
+  }
+  var ear = {
+    sprite: req.body.ear,
+    color: req.body.earColor.replace("#", "0x")
+  }
+  var genitles = {
+    sprite: req.body.genitles,
+    secondarySprite: 'empty'
+  }
+
+  const { error2 } = charCreateValidation(req.body);
+  if (error2) return res.status(405).send(error2.details[0].message);
+
+  //Create a new Character
+  const token = req.cookies.TastyTails;
+  const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+  //console.log('verified = ', verified._id);
+  try {
+    const updateChar = await User.updateOne({_id: verified._id}, {$set: {"characters": {
+      "firstName": req.body.firstName,
+      "lastName": req.body.lastName,
+      "nickName": req.body.nickName,
+      "speciesName": req.body.speciesName,
+      "pronouns": req.body.pronouns,
+      "icDescrip": req.body.icDescrip,
+      "oocDescrip": req.body.oocDescrip,
+      "ratings": ratings,
+      "voreTypes": voreTypes,
+      "head": head,
+      "body": body,
+      "tail": tail,
+      "eyes": eyes,
+      "hair": hair,
+      "ear": ear,
+      "genitles": genitles
+    }}});
+    // try {
+    //   const user = await User.findOne({_id: verified._id});
+    //   charList = user.characters;
+    //
+    // } catch(err){
+    //   res.status(400).send(err);
+    // }
+    res.redirect('/character-bank');
+  } catch(err){
+    res.status(400).send(err);
+  }
+})
 
 
 

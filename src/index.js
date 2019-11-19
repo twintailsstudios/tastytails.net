@@ -143,6 +143,10 @@ io.on('connection', function (socket) {
       sprite: 'empty',
       color: '0x636363'
     },
+    ear: {
+      sprite: 'empty',
+      color: '0xe0e0e0'
+    },
     genitles:{
       sprite: 'empty',
       secondarySprite: 'empty'
