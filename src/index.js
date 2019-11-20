@@ -19,6 +19,7 @@ const authRoute = require('./routes/auth');
 //const dbInterfaceRoute = require('./routes/dbInterface');
 const indexRoute = require('./routes/index');
 const editRoute = require('./routes/edit');
+const playRoute = require('./routes/play');
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use('/api/user', authRoute);
 //app.use('/api/dbInterface', dbInterfaceRoute);
 app.use('/', indexRoute);
 app.use('/edit', editRoute);
+app.use('/play', playRoute);
 
 var players = {};
 

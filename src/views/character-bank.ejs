@@ -27,7 +27,7 @@
     opacity: .5;
     z-index: 1;
   }
-  .slot a{
+  #emptySlot a{
     display: block;
     position: absolute;
 
@@ -85,7 +85,8 @@
       var playBttn = document.createElement('button');
       var editBttn = document.createElement('button');
       var optionsBttn = document.createElement('button');
-      var a = document.createElement('a');
+      var aEdit = document.createElement('a');
+      var aPlay = document.createElement('a');
 
       bankUl.insertBefore(li, addCharLi);
       //document.getElementById("bankUl").appendChild(li);
@@ -100,11 +101,12 @@
       nameDiv.innerHTML = "<h1> Name: </h1><br>" + charList[i].firstName + ' ' + charList[i].lastName;
       slotDiv.appendChild(nameDiv);
 
+      aPlay.href = "play/" + charList[i]._id;
       playBttn.className = 'button';
       playBttn.innerHTML = 'Play!'
-      slotDiv.appendChild(playBttn);
+      aPlay.appendChild(playBttn);
 
-      a.href = "edit/" + charList[i]._id;
+      aEdit.href = "edit/" + charList[i]._id;
       editBttn.className = 'button'
       editBttn.innerHTML = 'Edit';
 
@@ -113,8 +115,9 @@
       //   location.href= "edit/" + charList[i]._id
       // });
       //editBttn.setAttribute("href", "localhost:3000/edit/" + charList[i]._id);
-      a.appendChild(editBttn);
-      slotDiv.appendChild(a);
+      aEdit.appendChild(editBttn);
+      slotDiv.appendChild(aPlay);
+      slotDiv.appendChild(aEdit);
 
 
 
