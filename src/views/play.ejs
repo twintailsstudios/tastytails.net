@@ -562,7 +562,7 @@
   </div>
 
   <!--Character Select Menu-->
-  <div id="characterSelectBackground" tabindex="1">
+  <!-- <div id="characterSelectBackground" tabindex="1">
   </div>
   <div id="characterSelect" tabindex="1">
     <center><h1>Create a Character</h1></center>
@@ -595,7 +595,7 @@
         Input Character Description here: <br> <textarea id="descrip" autocomplete="off" class="form-control" placeholder="description" aria-label="description"></textarea>
       </div>
     </div>
-  </div>
+  </div> -->
 
     <!--Tab UI Menu-->
     <div id="menu" tabindex="1">
@@ -832,8 +832,11 @@
 
   <script src="//cdn.jsdelivr.net/npm/phaser@3.13.0/dist/phaser.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/index.js" type="module"></script>
-
+  <script type="module" src="/js/index.js"></script>
+  <!-- <script type="module">
+    const serverPlayerInfo = <% charList %>
+    export { serverPlayerInfo };
+  </script> -->
   <!--Checks if the game is focusedm or the chat is focused-->
   <script>
   function alertFunction() {
@@ -887,5 +890,4 @@
     return false;
   }
   </script>
-
 </body>

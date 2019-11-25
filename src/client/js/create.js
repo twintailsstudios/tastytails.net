@@ -1,8 +1,7 @@
 import { game } from './index.js'//, socket
-//import things from "./index.js"
-//import resize from './resize.js'
-//import Character from './entities/character.js'
-//import ui from './ui.js'
+// import { serverPlayerInfo } from '/';
+// var serverInfo = serverPlayerInfo.serverPlayerInfo;
+
 var avatarSelected = false;
 
 let avatarInfo = {
@@ -10,12 +9,66 @@ let avatarInfo = {
   body:"emptyplayer"
 };
 
-var localPlayerInfo = {playerId:'', username:'', descrip:'', headColor:'',bodyColor:'', specialList:[]};
+var localPlayerInfo = {
+  Identifier:'',
+  playerId:'',
+  Username:'',
+  Description:'',
+  head: {
+    sprite: 'head_01',
+    color: '0xe0e0e0',
+    secondarySprite: 'empty',
+    secondaryColor: '0xffffff',
+    accentSprite: 'empty',
+    accentColor: '0x636363'
+  },
+  body: {
+    sprite: 'body_01',
+    color: '0xe0e0e0',
+    secondarySprite: 'empty',
+    secondaryColor: '0xffffff',
+    accentSprite: 'empty',
+    accentColor: '0x636363'
+  },
+  tail: {
+    sprite: 'tail_01',
+    color: '0xe0e0e0',
+    secondarySprite: 'empty',
+    secondaryColor: '0xffffff',
+    accentSprite: 'empty',
+    accentColor: '0x636363'
+  },
+  eyes: {
+    outer: 'eyes_01',
+    iris: 'eyes_02',
+    color: '0xfcf2f2'
+  },
+  hair: {
+    sprite: 'empty',
+    color: '0x636363'
+  },
+  ear: {
+    sprite: 'empty',
+    color: '0xe0e0e0'
+  },
+  genitles:{
+    sprite: 'empty',
+    secondarySprite: 'empty'
+  },
+  x: 4820,
+  y: 5020,
+  specialList:[],
+  spellInventory:[],
+  consumedBy:null,
+  rotation: 0
+};
 var voreTypes = [];
 var clicked = {Identifier: ''};
 var toDestroy = '';
 var container = null;
 var cam1 = null;
+var arrows = 0;
+//var chatFocused = false;
 //var otherContainer = null;
 
 
@@ -49,6 +102,7 @@ var create = new Phaser.Class({
     this.pic;
   },
   create() {
+    var test = 'this is a test';
     var self = this;
     this.socket = io();
     console.log('this.socket = ', this.socket);
@@ -59,7 +113,9 @@ var create = new Phaser.Class({
       Object.keys(players).forEach(function (id) {
         console.log('Local players socket ID = ', players[id].playerId);
         if (players[id].playerId === self.socket.id) {
-          addPlayer(self, players[id]);
+          localPlayerInfo.playerId = self.socket.id;
+          self.socket.emit('characterUpdate', localPlayerInfo);
+          //addPlayer(self, players[id]);
         } else {
           addOtherPlayers(self, players[id]);
         }
@@ -71,6 +127,22 @@ var create = new Phaser.Class({
       addOtherPlayers(self, playerInfo);
     });
 
+    this.socket.on('characterUpdated', function (playerInfo) {
+      //console.log('characterUpdated is called');
+      //console.log('characterUpdated', '\n', 'playerInfo.playerId = ', playerInfo.playerId, '\n', 'self.socket.id = ', self.socket.id);
+        if (playerInfo.playerId === self.socket.id) {
+          //console.log('playerInfo.playerId === self.socket.id');
+          addPlayer(self, playerInfo);
+        }
+        for (let i = 0; i < otherPlayers.length; i++) {
+          //let movingPlayer = otherPlayers[i];
+          if (playerInfo.playerId === otherPlayers[i].playerId) {
+            addOtherPlayers(self, playerInfo);
+            console.log(playerInfo.playerId, 'chose username: ', playerInfo.username, '\n', 'Set head to: ', playerInfo.head, 'and body to: ', playerInfo.body, '\n', 'and head color to:', playerInfo.headColor,  'and body color to:', playerInfo.bodyColor, 'and they have described themselves as: ', playerInfo.descrip);
+            return;
+          }
+        }
+    });
     this.socket.on('avatarSelection', function (playerInfo) {
       /*self.otherPlayers.getChildren().forEach(function (otherPlayer) {
         if (playerInfo.playerId === otherPlayer.playerId) {
@@ -78,14 +150,7 @@ var create = new Phaser.Class({
           console.log(playerInfo.playerId, 'chose username: ', playerInfo.username, '\n', 'Set head to: ', playerInfo.head, 'and body to: ', playerInfo.body, '\n', 'and head color to:', playerInfo.headColor,  'and body color to:', playerInfo.bodyColor, 'and they have described themselves as: ', playerInfo.descrip);
         }
       });*/
-      for (let i = 0; i < otherPlayers.length; i++) {
-        //let movingPlayer = otherPlayers[i];
-        if (playerInfo.playerId === otherPlayers[i].playerId) {
-          addOtherPlayers(self, playerInfo);
-          console.log(playerInfo.playerId, 'chose username: ', playerInfo.username, '\n', 'Set head to: ', playerInfo.head, 'and body to: ', playerInfo.body, '\n', 'and head color to:', playerInfo.headColor,  'and body color to:', playerInfo.bodyColor, 'and they have described themselves as: ', playerInfo.descrip);
-          return;
-        }
-      }
+
     });
 
     this.socket.on('disconnect', function (playerId) {
@@ -113,8 +178,110 @@ var create = new Phaser.Class({
     this.socket.on('playerMoved', function (playerInfo) {
       //console.log('playerMoved called successfully');
       if (playerInfo.playerId === self.socket.id) {
+        localPlayerInfo.rotation = playerInfo.rotation;
         //console.log(playerInfo.x, playerInfo.y);
         self.container.setPosition(playerInfo.x, playerInfo.y);
+        if (playerInfo.rotation == 0) {
+          //console.log('animations are being called');
+          self.head.play(localPlayerInfo.head.sprite + 'Stop');
+          self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Stop');
+          self.accentHead.play(localPlayerInfo.head.accentSprite + 'Stop');
+          self.body.play(localPlayerInfo.body.sprite + 'Stop');
+          self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Stop');
+          self.accentBody.play(localPlayerInfo.body.accentSprite + 'Stop');
+          self.tail.play(localPlayerInfo.tail.sprite + 'Stop');
+          self.secondaryTail.play(localPlayerInfo.tail.secondarySprite + 'Stop');
+          self.accentTail.play(localPlayerInfo.tail.accentSprite + 'Stop');
+          self.hair.play(localPlayerInfo.hair.sprite + 'Stop');
+          self.ear.play(localPlayerInfo.ear.sprite + 'Stop');
+          self.eyes.play(localPlayerInfo.eyes.outer + 'Stop');
+          self.iris.play(localPlayerInfo.eyes.iris + 'Stop');
+          self.genitles.play(localPlayerInfo.genitles.sprite + 'Stop');
+        }
+        if (playerInfo.rotation == 1) {
+          //console.log('animations are being called');
+          self.head.play(localPlayerInfo.head.sprite + 'Down', true);
+          self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Down', true);
+          self.accentHead.play(localPlayerInfo.head.accentSprite + 'Down', true);
+          self.body.play(localPlayerInfo.body.sprite + 'Down', true);
+          self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Down', true);
+          self.accentBody.play(localPlayerInfo.body.accentSprite + 'Down', true);
+          self.tail.play(localPlayerInfo.tail.sprite + 'Down', true);
+          self.secondaryTail.play(localPlayerInfo.tail.secondarySprite + 'Down', true);
+          self.accentTail.play(localPlayerInfo.tail.accentSprite + 'Down', true);
+          self.hair.play(localPlayerInfo.hair.sprite + 'Down', true);
+          self.ear.play(localPlayerInfo.ear.sprite + 'Down', true);
+          self.eyes.play(localPlayerInfo.eyes.outer + 'Down', true);
+          self.iris.play(localPlayerInfo.eyes.iris + 'Down', true);
+          self.genitles.play(localPlayerInfo.genitles.sprite + 'Down', true);
+          self.container.sendToBack(self.accentTail);
+          self.container.sendToBack(self.secondaryTail);
+          self.container.sendToBack(self.tail);
+        }
+        if (playerInfo.rotation == 2) {
+          self.head.play(localPlayerInfo.head.sprite + 'Right', true);
+          self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Right', true);
+          self.accentHead.play(localPlayerInfo.head.accentSprite + 'Right', true);
+          self.body.play(localPlayerInfo.body.sprite + 'Right', true);
+          self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Right', true);
+          self.accentBody.play(localPlayerInfo.body.accentSprite + 'Right', true);
+          self.tail.play(localPlayerInfo.tail.sprite + 'Right', true);
+          self.secondaryTail.play(localPlayerInfo.tail.secondarySprite + 'Right', true);
+          self.accentTail.play(localPlayerInfo.tail.accentSprite + 'Right', true);
+          self.hair.play(localPlayerInfo.hair.sprite + 'Right', true);
+          self.ear.play(localPlayerInfo.ear.sprite + 'Right', true);
+          self.eyes.play(localPlayerInfo.eyes.outer + 'Right', true);
+          self.iris.play(localPlayerInfo.eyes.iris + 'Right', true);
+          self.genitles.play(localPlayerInfo.genitles.sprite + 'Right', true);
+          self.container.sendToBack(self.accentTail);
+          self.container.sendToBack(self.secondaryTail);
+          self.container.sendToBack(self.tail);
+        }
+        if (playerInfo.rotation == 3) {
+          self.head.play(localPlayerInfo.head.sprite + 'Up', true);
+          self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Up', true);
+          self.accentHead.play(localPlayerInfo.head.accentSprite + 'Up', true);
+          self.body.play(localPlayerInfo.body.sprite + 'Up', true);
+          self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Up', true);
+          self.accentBody.play(localPlayerInfo.body.accentSprite + 'Up', true);
+          self.tail.play(localPlayerInfo.tail.sprite + 'Up', true);
+          self.secondaryTail.play(localPlayerInfo.tail.secondarySprite + 'Up', true);
+          self.accentTail.play(localPlayerInfo.tail.accentSprite + 'Up', true);
+          self.hair.play(localPlayerInfo.hair.sprite + 'Up', true);
+          self.ear.play(localPlayerInfo.ear.sprite + 'Up', true);
+          self.eyes.play(localPlayerInfo.eyes.outer + 'Up', true);
+          self.iris.play(localPlayerInfo.eyes.iris + 'Up', true);
+          self.genitles.play(localPlayerInfo.genitles.sprite + 'Up', true);
+          self.container.sendToBack(self.hair);
+          self.container.sendToBack(self.eyes);
+          self.container.sendToBack(self.iris);
+          self.container.sendToBack(self.accentBody);
+          self.container.sendToBack(self.secondaryBody);
+          self.container.sendToBack(self.body);
+          self.container.sendToBack(self.accentHead);
+          self.container.sendToBack(self.secondaryHead);
+          self.container.sendToBack(self.ear);
+          self.container.sendToBack(self.head);
+        }
+        if (playerInfo.rotation == 4) {
+          self.head.play(localPlayerInfo.head.sprite + 'Left', true);
+          self.secondaryHead.play(localPlayerInfo.head.secondarySprite + 'Left', true);
+          self.accentHead.play(localPlayerInfo.head.accentSprite + 'Left', true);
+          self.body.play(localPlayerInfo.body.sprite + 'Left', true);
+          self.secondaryBody.play(localPlayerInfo.body.secondarySprite + 'Left', true);
+          self.accentBody.play(localPlayerInfo.body.accentSprite + 'Left', true);
+          self.tail.play(localPlayerInfo.tail.sprite + 'Left', true);
+          self.secondaryTail.play(localPlayerInfo.tail.secondarySprite + 'Left', true);
+          self.accentTail.play(localPlayerInfo.tail.accentSprite + 'Left', true);
+          self.hair.play(localPlayerInfo.hair.sprite + 'Left', true);
+          self.ear.play(localPlayerInfo.ear.sprite + 'Left', true);
+          self.eyes.play(localPlayerInfo.eyes.outer + 'Left', true);
+          self.iris.play(localPlayerInfo.eyes.iris + 'Left', true);
+          self.genitles.play(localPlayerInfo.genitles.sprite + 'Left', true);
+          self.container.sendToBack(self.accentTail);
+          self.container.sendToBack(self.secondaryTail);
+          self.container.sendToBack(self.tail);
+        }
       } else {
         //console.log('someone else is moving')
         /*otherPlayers.getChildren().forEach(function (otherPlayer) {
@@ -879,338 +1046,755 @@ var create = new Phaser.Class({
 
     //creating the avatar selection screen
     function addPlayer(self, playerInfo) {
+      console.log('localPlayerInfo at addPlayer Function = ', localPlayerInfo);
+      console.log(
+        playerInfo.playerId, 'Has entered the Character Creation screen with the following default values: ', '\n',
+        'Set head Sprite to: ', playerInfo.head.sprite, '\n',
+        'Set head Color to: ', playerInfo.head.color, '\n',
+        'Set head Secondary Sprite to: ', playerInfo.head.secondarySprite, '\n',
+        'Set head Secondary Color to: ', playerInfo.head.secondaryColor, '\n',
+        'Set head Accent Sprite to: ', playerInfo.head.accentSprite, '\n',
+        'Set head Accent Color to: ', playerInfo.head.accentColor, '\n',
+        'Set body Sprite to: ', playerInfo.body.sprite, '\n',
+        'Set body Color to: ', playerInfo.body.color, '\n',
+        'Set body Secondary Sprite to: ', playerInfo.body.secondarySprite, '\n',
+        'Set body Secondary Color to: ', playerInfo.body.secondaryColor, '\n',
+        'Set body Accent Sprite to: ', playerInfo.body.accentSprite, '\n',
+        'Set body Accent Color to: ', playerInfo.body.accentColor, '\n',
+        'Set tail Sprite to: ', playerInfo.tail.sprite, '\n',
+        'Set tail Color to: ', playerInfo.tail.color, '\n',
+        'Set tail Secondary Sprite to: ', playerInfo.tail.secondarySprite, '\n',
+        'Set tail Secondary Color to: ', playerInfo.tail.secondaryColor, '\n',
+        'Set tail Accent Sprite to: ', playerInfo.tail.accentSprite, '\n',
+        'Set tail Accent Color to: ', playerInfo.tail.accentColor, '\n',
+        'Set hair Sprite to: ', playerInfo.hair.sprite, '\n',
+        'Set hair Color to: ', playerInfo.hair.color, '\n',
+        'Set ear Sprite to: ', playerInfo.ear.sprite, '\n',
+        'Set ear Color to: ', playerInfo.ear.color, '\n',
+        'Set outer eyes sprite to:', playerInfo.eyes.outer, '\n',
+        'Set irises to:', playerInfo.eyes.iris, '\n',
+        'Set eye color to:', playerInfo.eyes.color, '\n',
+        'Set genitles to:', playerInfo.genitles.sprite
+      );
 
-      //predefining variables
-      if (avatarSelected == false) {
-        var characterSelect = null;
-        var speciesSelect = 0;
-        var bodySelect = 0;
-        var speciesSelect3 = null;
-        localPlayerInfo.playerId = playerInfo.playerId
-        console.log(playerInfo.playerId, 'is creating their avatar...');
+      //self.container = self.add.container(0, 0).setSize(109, 220).setInteractive();
+      self.container = self.add.container(playerInfo.x, playerInfo.y).setSize(109, 220).setInteractive();
 
-        var input = document.getElementById("speciesArrowLeft");
-        input.addEventListener("click", function(event) {
-          event.preventDefault();
-          document.getElementById("speciesArrowLeft").style.backgroundColor = "green";
-          document.getElementById("speciesArrowRight").style.backgroundColor = "transparent";
-          if (speciesSelect <= 1) {
-					console.log('speciesSelect is <= 1');
-          speciesSelectionWindow(speciesSelect)
-				    }
-					else {
-						speciesSelect--;
-						console.log('speciesSelect = ', speciesSelect);
-            speciesSelectionWindow(speciesSelect)
-					}
+      self.head = self.physics.add.sprite(0, 0, playerInfo.head.sprite).setInteractive();
+      self.head.setTint(playerInfo.head.color);
+      self.secondaryHead = self.physics.add.sprite(0, 0, playerInfo.head.secondarySprite).setInteractive();
+      self.secondaryHead.setTint(playerInfo.head.secondaryColor);
+      self.accentHead = self.physics.add.sprite(0, 0, playerInfo.head.accentSprite).setInteractive();
+      self.accentHead.setTint(playerInfo.head.accentColor);
 
-        });
-        function speciesSelectionWindow(speciesSelect) {
-          if (speciesSelect == 1) {
-            console.log('value 1 = purple');
-            speciesLable.innerHTML = '<center>Species1</center>'
-          document.getElementById('speciesSelectionWindow').src = "assets/images/testBody_02.png";
-          purpleHeadSelected();
-          }
-          if (speciesSelect == 2) {
-            console.log('value 2 = green');
-            speciesLable.innerHTML = '<center>Species2</center>'
-            document.getElementById('speciesSelectionWindow').src = "assets/images/testBody.png";
-            greenHeadSelected();
-          }
-          if (speciesSelect == 3) {
-            console.log('value 3 = blue');
-            speciesLable.innerHTML = '<center>Species3</center>'
-            document.getElementById('speciesSelectionWindow').src = "assets/images/testBody_03.png";
-            blueHeadSelected();
-          }
-        };
+      self.body = self.physics.add.sprite(0, 0, playerInfo.body.sprite).setInteractive();
+      self.body.setTint(playerInfo.body.color);
+      self.secondaryBody = self.physics.add.sprite(0, 0, playerInfo.body.secondarySprite).setInteractive();
+      self.secondaryBody.setTint(playerInfo.body.secondaryColor);
+      self.accentBody = self.physics.add.sprite(0, 0, playerInfo.body.accentSprite).setInteractive();
+      self.accentBody.setTint(playerInfo.body.accentColor);
 
+      self.tail = self.physics.add.sprite(0, 0, playerInfo.tail.sprite).setInteractive();
+      self.tail.setTint(playerInfo.tail.color);
+      self.secondaryTail = self.physics.add.sprite(0, 0, playerInfo.tail.secondarySprite).setInteractive();
+      self.secondaryTail.setTint(playerInfo.tail.secondaryColor);
+      self.accentTail = self.physics.add.sprite(0, 0, playerInfo.tail.accentSprite).setInteractive();
+      self.accentTail.setTint(playerInfo.tail.accentColor);
 
-        var input = document.getElementById("speciesArrowRight");
-        input.addEventListener("click", function(event) {
-          event.preventDefault();
-          document.getElementById("speciesArrowLeft").style.backgroundColor = "transparent";
-          document.getElementById("speciesArrowRight").style.backgroundColor = "green";
-          if (speciesSelect >= 3) {
-					console.log('speciesSelect is >= 3');
-          speciesSelectionWindow(speciesSelect)
-  				}
-					else {
-						speciesSelect++;
-						console.log('speciesSelect = ', speciesSelect);
-            speciesSelectionWindow(speciesSelect)
-					}
-        });
+      self.hair = self.physics.add.sprite(0, 0, playerInfo.hair.sprite).setInteractive();
+      self.hair.setTint(playerInfo.hair.color);
 
+      self.ear = self.physics.add.sprite(0, 0, playerInfo.ear.sprite).setInteractive();
+      self.ear.setTint(playerInfo.ear.color);
 
+      self.eyes = self.physics.add.sprite(0, 0, playerInfo.eyes.outer).setInteractive();
+      self.iris = self.physics.add.sprite(0, 0, playerInfo.eyes.iris).setInteractive();
+      self.iris.setTint(playerInfo.eyes.color);
 
-
-
-
+      self.genitles = self.physics.add.sprite(0, 0, playerInfo.genitles.sprite).setInteractive();
+      //self.genitles.setTint(playerInfo.genitles.color);
 
 
+      self.container.add([
+        self.tail,
+        self.secondaryTail,
+        self.accentTail,
+        self.head,
+        self.ear,
+        self.secondaryHead,
+        self.accentHead,
+        self.eyes,
+        self.iris,
+        self.hair,
+        self.body,
+        self.secondaryBody,
+        self.accentBody,
+        self.genitles
+      ]);
+      self.container.sendToBack(self.tail);
 
-        var input = document.getElementById("bodyArrowLeft");
-        input.addEventListener("click", function(event) {
-          event.preventDefault();
-          document.getElementById("bodyArrowLeft").style.backgroundColor = "green";
-          document.getElementById("bodyArrowRight").style.backgroundColor = "transparent";
-          if (bodySelect <= 1) {
-					console.log('bodySelect is <= 1');
-          bodySelectionWindow(bodySelect)
-				    }
-					else {
-						bodySelect--;
-						console.log('bodySelect = ', bodySelect);
-            bodySelectionWindow(bodySelect)
-					}
+      //self.container.visible = false;
+      //localPlayerInfo.sprite = self.stack
 
-        });
-        function bodySelectionWindow(bodySelect) {
-          if (bodySelect == 1) {
-            console.log('value 1 = purple');
-            bodyLable.innerHTML = '<center>Secondary Fur Pattern Color1</center>'
-          document.getElementById('bodySelectionWindow').src = "assets/images/testFur_02.png";
-          bodySelected();
-          }
-          if (bodySelect == 2) {
-            console.log('value 2 = green');
-            bodyLable.innerHTML = '<center>Secondary Fur Pattern Color2</center>'
-            document.getElementById('bodySelectionWindow').src = "assets/images/testFur.png";
-            bodySelected2();
-          }
-          if (bodySelect == 3) {
-            console.log('value 3 = blue');
-            bodyLable.innerHTML = '<center>No Secondary Fur Pattern</center>'
-            document.getElementById('bodySelectionWindow').src = "assets/spritesheets/emptyplayer.png";
-            noBodySelected();
-          }
-        };
+      let cam1 = self.cameras.main.setSize(920, 920).startFollow(self.container).setName('Camera 1');
 
+      self.container.setSize(8, 8);
+      //self.container.setOffset(11, 40);
+      //self.container.setCollideWorldBounds(false);
 
-        var input = document.getElementById("bodyArrowRight");
-        input.addEventListener("click", function(event) {
-          event.preventDefault();
-          document.getElementById("bodyArrowLeft").style.backgroundColor = "transparent";
-          document.getElementById("bodyArrowRight").style.backgroundColor = "green";
-          if (bodySelect >= 3) {
-					console.log('bodySelect is >= 3');
-          bodySelectionWindow(bodySelect)
-  				}
-					else {
-						bodySelect++;
-						console.log('bodySelect = ', bodySelect);
-            bodySelectionWindow(bodySelect)
-					}
-        });
+      document.getElementById('phaserApp').focus();
 
-
-
-
-
-
-
-
-
-
-        var input = document.getElementById("logInBttn");
-        input.addEventListener("click", function(event) {
-          event.preventDefault();
-          if (bodySelect == 0) {
-            document.getElementById("bodyLable").style.color = "red";
-            logInBttn.innerHTML = '<center>Click to <br> Log in <br> (Missing Fur Pattern Selection)</center>'
-          }
-          if (speciesSelect == 0) {
-            document.getElementById("speciesLable").style.color = "red";
-            logInBttn.innerHTML = '<center>Click to <br> Log in <br> (Missing Species Selection)</center>'
-          }
-
-          document.getElementById("logInBttn").style.backgroundColor = "green";
-          playerInfo.username = document.getElementById("uN").value;
-          localPlayerInfo.username = playerInfo.username;
-          if (playerInfo.username == '') {
-            document.getElementById("usernameInput").style.color = "red";
-            logInBttn.innerHTML = '<center>Click to <br> Log in <br> (Missing Username Selection)</center>'
-            return;
-          }
-          logInBttnSelected();
-        });
-
-
-        function purpleHeadSelected() {
-			     avatarInfo.head = 'testBody';
-           playerInfo.username = document.getElementById("uN").value;
-           playerInfo.descrip = document.getElementById("descrip").value;
-           playerInfo.headColor = document.getElementById("myColor1").value;
-           //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username, headColor: playerInfo.headColor });
-           console.log(playerInfo.playerId, 'Selected the purple head');
-           console.log('selected head color = ', playerInfo.headColor);
-           console.log('player description = ', playerInfo.descrip);
-           console.log('username on head selction = ', playerInfo.username);
-           //createSprite();
-
-		    };
-
-
-        function greenHeadSelected() {
-			     avatarInfo.head = 'testBody02';
-           playerInfo.username = document.getElementById("uN").value;
-           playerInfo.descrip = document.getElementById("descrip").value;
-           playerInfo.headColor = document.getElementById("myColor1").value;
-           //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username, headColor: playerInfo.headColor });
-           console.log(playerInfo.playerId, 'Selected the green head');
-           console.log('selected head color = ', playerInfo.headColor);
-           console.log('player description = ', playerInfo.descrip);
-           console.log('username on head selction = ', playerInfo.username);
-           //createSprite();
-		    };
-
-
-        function blueHeadSelected() {
-			    avatarInfo.head = 'testBody03';
-          playerInfo.username = document.getElementById("uN").value;
-          playerInfo.descrip = document.getElementById("descrip").value;
-          playerInfo.headColor = document.getElementById("myColor1").value;
-          //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username });
-          console.log(playerInfo.playerId, 'Selected the blue head');
-          console.log('selected head color = ', playerInfo.headColor);
-          console.log('player description = ', playerInfo.descrip);
-          console.log('username on head selction = ', playerInfo.username);
-          //createSprite();
-		    };
-
-
-        function bodySelected() {
-			     avatarInfo.body = 'testFur02';
-           playerInfo.username = document.getElementById("uN").value;
-           playerInfo.descrip = document.getElementById("descrip").value;
-           playerInfo.bodyColor = document.getElementById("myColor2").value;
-           //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username });
-           console.log(playerInfo.playerId, 'Selected body');
-           console.log('selected body color = ', playerInfo.bodyColor);
-           //createSprite();
-		    };
-
-
-        function bodySelected2() {
-			     avatarInfo.body = 'testFur';
-           playerInfo.username = document.getElementById("uN").value;
-           playerInfo.descrip = document.getElementById("descrip").value;
-           playerInfo.bodyColor = document.getElementById("myColor2").value;
-           //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username });
-           console.log(playerInfo.playerId, 'Selected body');
-           console.log('selected body color = ', playerInfo.bodyColor);
-           //createSprite();
-		    };
-
-
-        function noBodySelected() {
-			     avatarInfo.body = 'emptyplayer';
-           playerInfo.username = document.getElementById("uN").value;
-           playerInfo.descrip = document.getElementById("descrip").value;
-           playerInfo.bodyColor = document.getElementById("myColor2").value;
-           //self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username });
-           console.log(playerInfo.playerId, 'Selected body');
-           console.log('selected body color = ', playerInfo.bodyColor);
-           //createSprite();
-		    };
-
-
-        function logInBttnSelected() {
-          speciesSelectionWindow(speciesSelect)
-          bodySelectionWindow(bodySelect)
-          playerInfo.headColor = playerInfo.headColor.replace('#','0x');
-          playerInfo.bodyColor = playerInfo.bodyColor.replace('#','0x');
-          localPlayerInfo.descrip = playerInfo.descrip;
-          localPlayerInfo.headColor = playerInfo.headColor;
-          localPlayerInfo.bodyColor = playerInfo.bodyColor;
-          self.socket.emit('avatarSelected', { head: avatarInfo.head, body: avatarInfo.body, username: playerInfo.username, headColor: playerInfo.headColor, bodyColor: playerInfo.bodyColor, descrip: playerInfo.descrip });
-          console.log('log in button clicked by', playerInfo.playerId, '\n', 'confirming selections of: ', '\n', 'Username = ', playerInfo.username, '\n', 'Head Color = ', playerInfo.headColor, '\n', 'Body Color = ', playerInfo.bodyColor, '\n', 'Descriptoin = ', playerInfo.descrip);
-          createSprite();
-		    };
-
-        function createSprite (){
-          let avatar = {};
-          self.container = self.add.container(playerInfo.x, playerInfo.y).setInteractive();
-          if(avatarInfo.head)avatar.head = self.physics.add.image(0, 0, avatarInfo.head).setInteractive();
-          avatar.head.setTint(playerInfo.headColor);
-          console.log('Modified color to head is: ', playerInfo.headColor);
-
-          if(avatarInfo.body)avatar.body = self.physics.add.image(0, 0, avatarInfo.body).setInteractive();
-          avatar.body.setTint(playerInfo.bodyColor);
-          console.log('Modified color to body is: ', playerInfo.bodyColor);
-
-          self.container.add([ avatar.head, avatar.body ]);
-
-          avatar.body.on('pointerdown', function (pointer) {
-            if (pointer.rightButtonDown()) {
-              clicked = playerInfo;
-            } else {
-              console.log('sprite was Left clicked');
-            }
-          });
-
-          document.getElementById('phaserApp').focus();
-          document.getElementById('characterSelect').style.display = "none"
-          document.getElementById('characterSelectBackground').style.display = "none"
-
-          self.avatar = avatar;
-          applyPhysics();
-          avatarSelected = true;
+      self.body.on('pointerdown', function (pointer) {
+        if (pointer.rightButtonDown()) {
+          clicked = playerInfo;
+        } else {
+          console.log('sprite was Left clicked');
         }
-      }
+      });
 
-      function applyPhysics () {
-        //console.log('applyPhysics function called');
-        let newSprite;
-
-        cam1 = self.cameras.main.setSize(920, 920).startFollow(self.container).setName('Camera 1');
-        self.avatar.head.setSize(8, 8);
-        self.avatar.head.setOffset(11, 40);
-        self.avatar.head.setCollideWorldBounds(false);
-
-        self.avatar.body.setSize(8, 8);
-        self.avatar.body.setOffset(11, 40);
-        self.avatar.body.setCollideWorldBounds(false);
-      }
+      avatarSelected = true;
     };
-
     function addOtherPlayers(self, playerInfo) {
       console.log("addOtherPlayers called");
       console.log('addOtherPlayers function username = ', playerInfo.username);
       console.log('addOtherPlayers function Head Tint = ', playerInfo.headColor);
       console.log('addOtherPlayers function Head Tint = ', playerInfo.bodyColor);
-      //console.log('addOtherPlayer function called and playerInfo.head = ', playerInfo.head, 'and, ', playerInfo.body);
-      var otherContainer = self.add.container(playerInfo.x, playerInfo.y).setInteractive();
-      const otherPlayerHead = self.add.sprite(0, 0, playerInfo.head).setInteractive();
-      const otherPlayerBody = self.add.sprite(0, 0, playerInfo.body).setInteractive();
-      otherContainer.add([ otherPlayerHead, otherPlayerBody ]);
+      console.log('addOtherPlayer function called and playerInfo.head = ', playerInfo.head, 'and, ', playerInfo.body);
+      //var otherContainer = self.add.container(playerInfo.x, playerInfo.y).setInteractive();
+      //const otherPlayerHead = self.add.sprite(0, 0, playerInfo.head).setInteractive();
+      //const otherPlayerbody = self.add.sprite(0, 0, playerInfo.body).setInteractive();
+      //otherContainer.add([ otherPlayerHead, otherPlayerbody ]);
 
+      //otherContainer.playerId = playerInfo.playerId;
+      ////self.otherPlayers.add(otherContainer);
+      //otherPlayers.push(otherContainer);
+      //console.log('self.otherPlayers = ', self.otherPlayers);
+
+      //otherPlayerHead.setTint(playerInfo.headColor);
+      //otherPlayerbody.setTint(playerInfo.bodyColor);
+
+      var otherContainer = self.add.container(playerInfo.x, playerInfo.y).setSize(109, 220).setInteractive();
+
+      const otherPlayerHead = self.add.sprite(0, 0, playerInfo.head.sprite).setInteractive();
+      otherPlayerHead.setTint(playerInfo.head.color);
+      const otherPlayersecondaryHead = self.add.sprite(0, 0, playerInfo.head.secondarySprite).setInteractive();
+      otherPlayersecondaryHead.setTint(playerInfo.head.secondaryColor);
+      const otherPlayeraccentHead = self.add.sprite(0, 0, playerInfo.head.accentSprite).setInteractive();
+      otherPlayeraccentHead.setTint(playerInfo.head.accentColor);
+
+      const otherPlayerbody = self.add.sprite(0, 0, playerInfo.body.sprite).setInteractive();
+      otherPlayerbody.setTint(playerInfo.body.color);
+      const otherPlayersecondaryBody = self.add.sprite(0, 0, playerInfo.body.secondarySprite).setInteractive();
+      otherPlayersecondaryBody.setTint(playerInfo.body.secondaryColor);
+      const otherPlayeraccentBody = self.add.sprite(0, 0, playerInfo.body.accentSprite).setInteractive();
+      otherPlayeraccentBody.setTint(playerInfo.body.accentColor);
+
+      const otherPlayertail = self.add.sprite(0, 0, playerInfo.tail.sprite).setInteractive();
+      otherPlayertail.setTint(playerInfo.tail.color);
+      const otherPlayersecondaryTail = self.add.sprite(0, 0, playerInfo.tail.secondarySprite).setInteractive();
+      otherPlayersecondaryTail.setTint(playerInfo.tail.secondaryColor);
+      const otherPlayeraccentTail = self.add.sprite(0, 0, playerInfo.tail.accentSprite).setInteractive();
+      otherPlayeraccentTail.setTint(playerInfo.tail.accentColor);
+
+      const otherPlayerhair = self.add.sprite(0, 0, playerInfo.hair.sprite).setInteractive();
+      otherPlayerhair.setTint(playerInfo.hair.color);
+
+      const otherPlayerear = self.add.sprite(0, 0, playerInfo.ear.sprite).setInteractive();
+      otherPlayerear.setTint(playerInfo.ear.color);
+
+      const otherPlayereyes = self.add.sprite(0, 0, playerInfo.eyes.outer).setInteractive();
+      const otherPlayeriris = self.add.sprite(0, 0, playerInfo.eyes.iris).setInteractive();
+      otherPlayeriris.setTint(playerInfo.eyes.color);
+
+      const otherPlayergenitles = self.add.sprite(0, 0, playerInfo.genitles.sprite).setInteractive();
+      //otherPlayergenitles.setTint(playerInfo.genitles.color);
+
+
+      otherContainer.add([
+        otherPlayertail,
+        otherPlayersecondaryTail,
+        otherPlayeraccentTail,
+        otherPlayerHead,
+        otherPlayerear,
+        otherPlayersecondaryHead,
+        otherPlayeraccentHead,
+        otherPlayereyes,
+        otherPlayeriris,
+        otherPlayerhair,
+        otherPlayerbody,
+        otherPlayersecondaryBody,
+        otherPlayeraccentBody,
+        otherPlayergenitles
+      ]);
+      otherContainer.sendToBack(otherPlayertail);
+
+      //console.log('otherPlayerotherPlayers = ', otherPlayerotherPlayers);
       otherContainer.playerId = playerInfo.playerId;
       //self.otherPlayers.add(otherContainer);
       otherPlayers.push(otherContainer);
-      console.log('self.otherPlayers = ', self.otherPlayers);
+      // console.log('self.otherPlayers = ', self.otherPlayers);
 
 
-        otherPlayerHead.setTint(playerInfo.headColor);
-        otherPlayerBody.setTint(playerInfo.bodyColor);
 
-        otherPlayerBody.on('pointerdown', function (pointer){
-          if (pointer.rightButtonDown()) {
-            clicked = playerInfo;
-          } else {
-            console.log('sprite was Left clicked');
-          }
-        });
+      otherPlayerbody.on('pointerdown', function (pointer){
+        if (pointer.rightButtonDown()) {
+          clicked = playerInfo;
+        } else {
+          console.log('sprite was Left clicked');
+        }
+      });
     };
+
+    self.anims.create({
+      key: 'head_01Down',
+      frames: self.anims.generateFrameNumbers('head_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_01Right',
+      frames: self.anims.generateFrameNumbers('head_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_01Left',
+      frames: self.anims.generateFrameNumbers('head_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_01Up',
+      frames: self.anims.generateFrameNumbers('head_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_01Stop',
+      frames: self.anims.generateFrameNumbers('head_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'head_02Down',
+      frames: self.anims.generateFrameNumbers('head_02', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_02Right',
+      frames: self.anims.generateFrameNumbers('head_02', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_02Left',
+      frames: self.anims.generateFrameNumbers('head_02', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_02Up',
+      frames: self.anims.generateFrameNumbers('head_02', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_02Stop',
+      frames: self.anims.generateFrameNumbers('head_02', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'head_03Down',
+      frames: self.anims.generateFrameNumbers('head_03', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_03Right',
+      frames: self.anims.generateFrameNumbers('head_03', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_03Left',
+      frames: self.anims.generateFrameNumbers('head_03', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_03Up',
+      frames: self.anims.generateFrameNumbers('head_03', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'head_03Stop',
+      frames: self.anims.generateFrameNumbers('head_03', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'body_01Down',
+      frames: self.anims.generateFrameNumbers('body_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'body_01Right',
+      frames: self.anims.generateFrameNumbers('body_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'body_01Left',
+      frames: self.anims.generateFrameNumbers('body_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'body_01Up',
+      frames: self.anims.generateFrameNumbers('body_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'body_01Stop',
+      frames: self.anims.generateFrameNumbers('body_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'tail_01Down',
+      frames: self.anims.generateFrameNumbers('tail_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'tail_01Right',
+      frames: self.anims.generateFrameNumbers('tail_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'tail_01Left',
+      frames: self.anims.generateFrameNumbers('tail_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'tail_01Up',
+      frames: self.anims.generateFrameNumbers('tail_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'tail_01Stop',
+      frames: self.anims.generateFrameNumbers('tail_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'eyes_01Down',
+      frames: self.anims.generateFrameNumbers('eyes_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'eyes_01Right',
+      frames: self.anims.generateFrameNumbers('eyes_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'eyes_01Left',
+      frames: self.anims.generateFrameNumbers('eyes_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'eyes_01Up',
+      frames: self.anims.generateFrameNumbers('eyes_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'eyes_01Stop',
+      frames: self.anims.generateFrameNumbers('eyes_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'eyes_02Down',
+      frames: self.anims.generateFrameNumbers('eyes_02', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'eyes_02Right',
+      frames: self.anims.generateFrameNumbers('eyes_02', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'eyes_02Left',
+      frames: self.anims.generateFrameNumbers('eyes_02', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'eyes_02Up',
+      frames: self.anims.generateFrameNumbers('eyes_02', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'eyes_02Stop',
+      frames: self.anims.generateFrameNumbers('eyes_02', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'secondaryBody_01Down',
+      frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_01Right',
+      frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_01Left',
+      frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_01Up',
+      frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_01Stop',
+      frames: self.anims.generateFrameNumbers('secondaryBody_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'secondaryBody_02Down',
+      frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_02Right',
+      frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_02Left',
+      frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_02Up',
+      frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_02Stop',
+      frames: self.anims.generateFrameNumbers('secondaryBody_02', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'secondaryBody_03Down',
+      frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_03Right',
+      frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_03Left',
+      frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_03Up',
+      frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryBody_03Stop',
+      frames: self.anims.generateFrameNumbers('secondaryBody_03', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'secondaryHead_01Down',
+      frames: self.anims.generateFrameNumbers('secondaryHead_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryHead_01Right',
+      frames: self.anims.generateFrameNumbers('secondaryHead_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryHead_01Left',
+      frames: self.anims.generateFrameNumbers('secondaryHead_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryHead_01Up',
+      frames: self.anims.generateFrameNumbers('secondaryHead_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryHead_01Stop',
+      frames: self.anims.generateFrameNumbers('secondaryHead_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'secondaryHead_02Down',
+      frames: self.anims.generateFrameNumbers('secondaryHead_02', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryHead_02Right',
+      frames: self.anims.generateFrameNumbers('secondaryHead_02', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryHead_02Left',
+      frames: self.anims.generateFrameNumbers('secondaryHead_02', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryHead_02Up',
+      frames: self.anims.generateFrameNumbers('secondaryHead_02', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryHead_02Stop',
+      frames: self.anims.generateFrameNumbers('secondaryHead_02', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'secondaryHead_03Down',
+      frames: self.anims.generateFrameNumbers('secondaryHead_03', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryHead_03Right',
+      frames: self.anims.generateFrameNumbers('secondaryHead_03', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryHead_03Left',
+      frames: self.anims.generateFrameNumbers('secondaryHead_03', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryHead_03Up',
+      frames: self.anims.generateFrameNumbers('secondaryHead_03', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'secondaryHead_03Stop',
+      frames: self.anims.generateFrameNumbers('secondaryHead_03', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'hair_01Down',
+      frames: self.anims.generateFrameNumbers('hair_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'hair_01Right',
+      frames: self.anims.generateFrameNumbers('hair_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'hair_01Left',
+      frames: self.anims.generateFrameNumbers('hair_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'hair_01Up',
+      frames: self.anims.generateFrameNumbers('hair_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'hair_01Stop',
+      frames: self.anims.generateFrameNumbers('hair_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'ear_01Down',
+      frames: self.anims.generateFrameNumbers('ear_01', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'ear_01Right',
+      frames: self.anims.generateFrameNumbers('ear_01', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'ear_01Left',
+      frames: self.anims.generateFrameNumbers('ear_01', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'ear_01Up',
+      frames: self.anims.generateFrameNumbers('ear_01', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'ear_01Stop',
+      frames: self.anims.generateFrameNumbers('ear_01', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    self.anims.create({
+      key: 'emptyDown',
+      frames: self.anims.generateFrameNumbers('empty', { start: 1, end: 8 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'emptyRight',
+      frames: self.anims.generateFrameNumbers('empty', { start: 10, end: 17 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'emptyLeft',
+      frames: self.anims.generateFrameNumbers('empty', { start: 19, end: 26 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'emptyUp',
+      frames: self.anims.generateFrameNumbers('empty', { start: 28, end: 35 }),
+      frameRate: 8,
+      repeat: -1,
+      showOnStart: true
+    });
+    self.anims.create({
+      key: 'emptyStop',
+      frames: self.anims.generateFrameNumbers('empty', { start: 0, end: 0 }),
+      frameRate: 8,
+      repeat: -1,
+    });
   },
 
   update() {
 
     //makes phaser stop listening for keyboard inputs when user is focused on the chat div
     if (chatFocused == false) {
-      //console.log('chatFocused = ', chatFocused);
       this.input.keyboard.addKey(this.cursors.up);
       this.input.keyboard.addKey(this.cursors.down);
       this.input.keyboard.addKey(this.cursors.left);
@@ -1219,7 +1803,6 @@ var create = new Phaser.Class({
       //console.log('keyboard enabled');
     }
     else {
-      //console.log('chatFocused = ', chatFocused);
       this.input.keyboard.removeKey(this.cursors.up);
       this.input.keyboard.removeKey(this.cursors.down);
       this.input.keyboard.removeKey(this.cursors.left);
@@ -1228,27 +1811,29 @@ var create = new Phaser.Class({
       //console.log('keyboard disabled');
     }
 
-    if (this.avatar) {
+    //if (this.avatar) {
       //makes it so that variables left, right, up, and down are not checked for while undefined when user is focused on chat div
       if (avatarSelected == true) {
+        //console.log('avatarSelected = ', avatarSelected);
         if (chatFocused == false) {
+          //console.log('chatFocused = ', chatFocused);
           if (this.cursors.left.isDown) {
             //console.log(localPlayerInfo.playerId);
             this.socket.emit('movementLeft', localPlayerInfo.playerId);
-
+            arrows = 0;
           } else {
             if (this.cursors.right.isDown) {
               this.socket.emit('movementRight', localPlayerInfo.playerId);
-
+              arrows = 0;
             }
           }
           if (this.cursors.up.isDown) {
             this.socket.emit('movementUp', localPlayerInfo.playerId);
-
+            arrows = 0;
           } else {
             if (this. cursors.down.isDown) {
               this.socket.emit('movementDown', localPlayerInfo.playerId);
-
+              arrows = 0;
             }
           }
           if (this.cursors.left.isUp && this.cursors.right.isUp) {
@@ -1257,9 +1842,16 @@ var create = new Phaser.Class({
           if (this.cursors.up.isUp && this.cursors.down.isUp) {
 
           }
+          if (arrows == 0) {
+            if (this.cursors.left.isUp && this.cursors.right.isUp && this.cursors.up.isUp && this.cursors.down.isUp) {
+              //console.log('no arrow keys are being pressed');
+              this.socket.emit('movementStop', localPlayerInfo.playerId);
+              arrows = 1;
+            }
+          }
         }
       }
-    }
+    //}
   }
 });
 

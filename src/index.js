@@ -158,6 +158,7 @@ io.on('connection', function (socket) {
     consumedBy:null,
     x: 4820,
     y: 5020,
+    rotation: 0
   };
 
 
@@ -175,6 +176,10 @@ io.on('connection', function (socket) {
     io.emit('disconnect', socket.id);
   });
 
+  socket.on('sendCharProfile', function () {
+
+  });
+
   // when a player moves, update the player data
   socket.on('movementLeft', function (playerId) {
     //console.log(playerId);
@@ -185,6 +190,7 @@ io.on('connection', function (socket) {
           y: players[socket.id].y,
         };
         temporary.x = temporary.x - 2.5;
+        players[socket.id].rotation = 4;
         //console.log(players[socket.id]);
         collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
       } else {
@@ -201,6 +207,7 @@ io.on('connection', function (socket) {
           y: players[socket.id].y,
         };
         temporary.x = temporary.x + 2.5;
+        players[socket.id].rotation = 2;
         //console.log(players[socket.id]);
         collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
       } else {
@@ -217,6 +224,7 @@ io.on('connection', function (socket) {
           y: players[socket.id].y,
         };
         temporary.y = temporary.y - 2.5;
+        players[socket.id].rotation = 3;
         //console.log(players[socket.id]);
         collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
       } else {
@@ -227,12 +235,34 @@ io.on('connection', function (socket) {
   socket.on('movementDown', function (playerId) {
     //console.log(playerId);
     if (playerId === players[socket.id].playerId) {
+      //console.log('playerId equals a socket.id.playerId');
       if (players[socket.id].consumedBy === null) {
+        //console.log('player not consumed');
         var temporary = {
           x: players[socket.id].x,
           y: players[socket.id].y,
         };
         temporary.y = temporary.y + 2.5;
+        players[socket.id].rotation = 1;
+        //console.log(players[socket.id]);
+        collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
+      } else {
+        return;
+      }
+    }
+  })
+  socket.on('movementStop', function (playerId) {
+    //console.log(playerId);
+    if (playerId === players[socket.id].playerId) {
+      //console.log('playerId equals a socket.id.playerId');
+      if (players[socket.id].consumedBy === null) {
+        //console.log('player not consumed');
+        var temporary = {
+          x: players[socket.id].x,
+          y: players[socket.id].y,
+        };
+        temporary.y = temporary.y + 2.5;
+        players[socket.id].rotation = 0;
         //console.log(players[socket.id]);
         collision(players[socket.id].x, players[socket.id].y, temporary.x, temporary.y);
       } else {
@@ -252,6 +282,7 @@ io.on('connection', function (socket) {
       //console.log('blocked');
       return;
     } else {
+      //console.log('not blocked');
       players[socket.id].x = tempX
       players[socket.id].y = tempY
       io.sockets.emit('playerMoved', players[socket.id]);
@@ -356,30 +387,6 @@ io.on('connection', function (socket) {
 
   socket.on('characterUpdate', function (pushedInfo) {
     players[socket.id] = pushedInfo;
-    // players[socket.id].head.sprite = pushedInfo.head.sprite;
-    // players[socket.id].head.color = pushedInfo.head.color;
-    // players[socket.id].head.secondarySprite = pushedInfo.head.secondarySprite;
-    // players[socket.id].head.secondaryColor = pushedInfo.head.secondaryColor;
-    // players[socket.id].head.accentSprite = pushedInfo.head.accentSprite;
-    // players[socket.id].head.accentColor = pushedInfo.head.accentColor;
-    // players[socket.id].body.sprite = pushedInfo.body.sprite;
-    // players[socket.id].body.color = pushedInfo.body.color;
-    // players[socket.id].body.secondarySprite = pushedInfo.body.secondarySprite;
-    // players[socket.id].body.secondaryColor = pushedInfo.body.secondaryColor;
-    // players[socket.id].body.accentSprite = pushedInfo.body.accentSprite;
-    // players[socket.id].body.accentColor = pushedInfo.body.accentColor;
-    // players[socket.id].tail.sprite = pushedInfo.tail.sprite;
-    // players[socket.id].tail.color = pushedInfo.tail.color;
-    // players[socket.id].tail.secondarySprite = pushedInfo.tail.secondarySprite;
-    // players[socket.id].tail.secondaryColor = pushedInfo.tail.secondaryColor;
-    // players[socket.id].tail.accentSprite = pushedInfo.tail.accentSprite;
-    // players[socket.id].tail.accentColor = pushedInfo.tail.accentColor;
-    // players[socket.id].eyes.outer = pushedInfo.eyes.outer;
-    // players[socket.id].eyes.iris = pushedInfo.eyes.iris;
-    // players[socket.id].eyes.color = pushedInfo.eyes.color;
-    // players[socket.id].genitles = pushedInfo.genitles;
-    // players[socket.id].Username = pushedInfo.Username;
-    // players[socket.id].Description = pushedInfo.Description;
     console.log('updating character...');
     socket.emit('characterUpdated', players[socket.id]);
 

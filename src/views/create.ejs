@@ -11,7 +11,7 @@
       </div>
 
 
-<% if (charList == 'new') { %><form action="/api/user/createcharacter" method="POST"><% } else {%><form action="/api/user/editcharacter" method="POST"><%}%>      
+<% if (charList == 'new') { %><form action="/api/user/createcharacter" method="POST"><% } else {%><form action="/api/user/editcharacter" method="POST"><%}%>
       <div id ="genderPullout" class="pullout">
         <div id ="collapsibleBox">
 
@@ -2517,42 +2517,41 @@
         self.container.sendToBack(self.secondaryTail);
         self.container.sendToBack(self.tail);
       }
-
     }
 
     this.socket.on('characterUpdated', function (playerInfo) {
       //console.log('characterUpdated', '\n', 'playerInfo.playerId = ', playerInfo.playerId, '\n', 'self.socket.id = ', self.socket.id);
         if (playerInfo.playerId === self.socket.id) {
           //addOtherPlayers(self, playerInfo);
-          console.log(
-            playerInfo.playerId, 'Called new animation successfully: ', '\n',
-            'Set head Sprite to: ', playerInfo.head.sprite, '\n',
-            'Set head Color to: ', playerInfo.head.color, '\n',
-            'Set head Secondary Sprite to: ', playerInfo.head.secondarySprite, '\n',
-            'Set head Secondary Color to: ', playerInfo.head.secondaryColor, '\n',
-            'Set head Accent Sprite to: ', playerInfo.head.accentSprite, '\n',
-            'Set head Accent Color to: ', playerInfo.head.accentColor, '\n',
-            'Set body Sprite to: ', playerInfo.body.sprite, '\n',
-            'Set body Color to: ', playerInfo.body.color, '\n',
-            'Set body Secondary Sprite to: ', playerInfo.body.secondarySprite, '\n',
-            'Set body Secondary Color to: ', playerInfo.body.secondaryColor, '\n',
-            'Set body Accent Sprite to: ', playerInfo.body.accentSprite, '\n',
-            'Set body Accent Color to: ', playerInfo.body.accentColor, '\n',
-            'Set tail Sprite to: ', playerInfo.tail.sprite, '\n',
-            'Set tail Color to: ', playerInfo.tail.color, '\n',
-            'Set tail Secondary Sprite to: ', playerInfo.tail.secondarySprite, '\n',
-            'Set tail Secondary Color to: ', playerInfo.tail.secondaryColor, '\n',
-            'Set tail Accent Sprite to: ', playerInfo.tail.accentSprite, '\n',
-            'Set tail Accent Color to: ', playerInfo.tail.accentColor, '\n',
-            'Set hair Sprite to: ', playerInfo.hair.sprite, '\n',
-            'Set hair Color to: ', playerInfo.hair.color, '\n',
-            'Set ear Sprite to: ', playerInfo.ear.sprite, '\n',
-            'Set ear Color to: ', playerInfo.ear.color, '\n',
-            'Set outer eyes sprite to:', playerInfo.eyes.outer, '\n',
-            'Set irises to:', playerInfo.eyes.iris, '\n',
-            'Set eye color to:', playerInfo.eyes.color, '\n',
-            'Set genitles to:', playerInfo.genitles.sprite
-          );
+          // console.log(
+          //   playerInfo.playerId, 'Called new animation successfully: ', '\n',
+          //   'Set head Sprite to: ', playerInfo.head.sprite, '\n',
+          //   'Set head Color to: ', playerInfo.head.color, '\n',
+          //   'Set head Secondary Sprite to: ', playerInfo.head.secondarySprite, '\n',
+          //   'Set head Secondary Color to: ', playerInfo.head.secondaryColor, '\n',
+          //   'Set head Accent Sprite to: ', playerInfo.head.accentSprite, '\n',
+          //   'Set head Accent Color to: ', playerInfo.head.accentColor, '\n',
+          //   'Set body Sprite to: ', playerInfo.body.sprite, '\n',
+          //   'Set body Color to: ', playerInfo.body.color, '\n',
+          //   'Set body Secondary Sprite to: ', playerInfo.body.secondarySprite, '\n',
+          //   'Set body Secondary Color to: ', playerInfo.body.secondaryColor, '\n',
+          //   'Set body Accent Sprite to: ', playerInfo.body.accentSprite, '\n',
+          //   'Set body Accent Color to: ', playerInfo.body.accentColor, '\n',
+          //   'Set tail Sprite to: ', playerInfo.tail.sprite, '\n',
+          //   'Set tail Color to: ', playerInfo.tail.color, '\n',
+          //   'Set tail Secondary Sprite to: ', playerInfo.tail.secondarySprite, '\n',
+          //   'Set tail Secondary Color to: ', playerInfo.tail.secondaryColor, '\n',
+          //   'Set tail Accent Sprite to: ', playerInfo.tail.accentSprite, '\n',
+          //   'Set tail Accent Color to: ', playerInfo.tail.accentColor, '\n',
+          //   'Set hair Sprite to: ', playerInfo.hair.sprite, '\n',
+          //   'Set hair Color to: ', playerInfo.hair.color, '\n',
+          //   'Set ear Sprite to: ', playerInfo.ear.sprite, '\n',
+          //   'Set ear Color to: ', playerInfo.ear.color, '\n',
+          //   'Set outer eyes sprite to:', playerInfo.eyes.outer, '\n',
+          //   'Set irises to:', playerInfo.eyes.iris, '\n',
+          //   'Set eye color to:', playerInfo.eyes.color, '\n',
+          //   'Set genitles to:', playerInfo.genitles.sprite
+          // );
           if (rotation == 1) {
             self.head.play(playerInfo.head.sprite + 'Down');
             self.secondaryHead.play(playerInfo.head.secondarySprite + 'Down');
