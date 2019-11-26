@@ -833,10 +833,11 @@
   <script src="//cdn.jsdelivr.net/npm/phaser@3.13.0/dist/phaser.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script type="module" src="/js/index.js"></script>
-  <!-- <script type="module">
+  <script type="module">
     const serverPlayerInfo = <% charList %>
-    export { serverPlayerInfo };
-  </script> -->
+    console.log('serverPlayerInfo = ', serverPlayerInfo);
+    export serverPlayerInfo;
+  </script>
   <!--Checks if the game is focusedm or the chat is focused-->
   <script>
   function alertFunction() {
