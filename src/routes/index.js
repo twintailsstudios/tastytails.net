@@ -117,17 +117,23 @@ router.get('/registered', (req, res) => {
 })
 
 router.get('/character-bank', verify, async (req, res) => {
+  console.log('ran /character-bank');
   const token = req.cookies.TastyTails;
-  //console.log('req = ', req);
+  console.log('req.cookies.TastyTails = ', req.cookies.TastyTails);
+  // console.log('req = ', req);
   if(!token) return res.render('character-bank', {
       token: null,
       loginForm: 0
     });
 
   try {
+    console.log('trying');
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+    console.log('process.env.TOEN_SECRET')
+    console.log('verified = ', verified);
     const characters = await dbInterface.charList(token);
-    //console.log('characters in the index.js = ', characters);
+    // console.log('characters in the index.js = ', characters);
+    console.log('successfully called dbInterface.charList() function.');
     req.user = verified;
     res.render('character-bank', {
       token: token,
@@ -136,10 +142,11 @@ router.get('/character-bank', verify, async (req, res) => {
 
     });
   } catch (err) {
+    console.log('err = ', err)
     res.status(400).render('error', {
       token: null,
       loginForm: 0,
-      error: 'Invalid Token',
+      error: err,
       errDescrip: "Try logging out and logging back in. If you are still having issues, you can try clearing your browser's cache and cookies and then logging back in."
     });
   }

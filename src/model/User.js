@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const Character = require('./Character');
+
 const Schema = mongoose.Schema;
 
 const userSchema = new mongoose.Schema({
@@ -128,10 +128,16 @@ const userSchema = new mongoose.Schema({
         }
       },
       ear: {
-        sprite: {
+        outerSprite: {
           type: String
         },
-        color: {
+        outerColor: {
+          type: String
+        },
+        innerSprite: {
+          type: String
+        },
+        innerColor: {
           type: String
         }
       },
@@ -140,6 +146,14 @@ const userSchema = new mongoose.Schema({
           type: String
         },
         secondarySprite: {
+          type: String
+        }
+      },
+      beak:{
+        beakSprite: {
+          type: String
+        },
+        beakHex: {
           type: String
         }
       },

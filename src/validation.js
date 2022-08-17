@@ -6,28 +6,28 @@ const registerValidation = (data) => {
   const date = new Date();
   const validDate = ((date.getMonth() + 1) + '-' + date.getDate() + '-' +  (date.getFullYear() - 18));
 
-  const schema = {
+  const schema = Joi.object({
     email: Joi.string().min(6).required().email(),
     password: Joi.string().min(6).required(),
     password_confirmation: Joi.string().valid(Joi.ref('password')).min(6).required(),
     birthday: Joi.date().max(validDate).iso().required()
-  }
-  return Joi.validate(data, schema);
+  })
+  return schema.validate(data);
 };
 
 //Login Validation
 const loginValidation = (data) => {
-  const schema = {
+  const schema = Joi.object({
     email: Joi.string().min(6).required().email(),
     password: Joi.string().min(6).required()
-  }
-  return Joi.validate(data, schema);
+  });
+  return schema.validate(data);
 };
 
 //Character Creation Validation
 const charCreateValidation = (data) => {
 
-  const schema = {
+  const schema = Joi.object({
     firstName: Joi.string().required(),
     lastName: Joi.string().required(),
     nickName: Joi.string(),
@@ -66,13 +66,13 @@ const charCreateValidation = (data) => {
     digestionOutsideMsgDescrip: Joi.array()
 
 
-  }
-  return Joi.validate(data, schema);
+  })
+  return schema.validate(data);
 };
 
 const voreTypeValidation = (data) => {
 
-  const schema = {
+  const schema = Joi.object({
     destination: Joi.string(),
     verb: Joi.string(),
     digestionTimer: Joi.number(),
@@ -83,13 +83,13 @@ const voreTypeValidation = (data) => {
     struggleOutsideMsgDescrip: Joi.string(),
     digestionInsideMsgDescrip: Joi.string(),
     digestionOutsideMsgDescrip: Joi.string()
-  }
-  return Joi.validate(data, schema);
+  })
+  return schema.validate(data);
 };
 
 const ratingsValidation = (data) => {
 
-  const schema = {
+  const schema = Joi.object({
     ovStar: Joi.number(),
     avStar: Joi.number(),
     cvStar: Joi.number(),
@@ -109,8 +109,8 @@ const ratingsValidation = (data) => {
     gStar: Joi.number(),
     sStar: Joi.number(),
     iaoStar: Joi.number()
-  }
-  return Joi.validate(data, schema);
+  })
+  return schema.validate(data);
 };
 
 

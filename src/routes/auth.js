@@ -75,13 +75,13 @@ router.post('/closereg', async (req, res) => {
   res.redirect('/');
 })
 
-// //Going to Character-Bank
-// router.post('/character-bank', async (req, res) => {
-//   const user = await User.findOne({_id: req.cookies.TastyTails});
-//   const charList = user.characters;
-//   console.log('user.characters = ', user.characters)
-//   res.redirect('/character-bank');
-// })
+//Going to Character-Bank
+router.post('/character-bank', async (req, res) => {
+  const user = await User.findOne({_id: req.cookies.TastyTails});
+  const charList = user.characters;
+  console.log('user.characters = ', user.characters)
+  res.redirect('/character-bank');
+})
 
 //Create a new Character
 router.post('/createcharacter', async (req, res) => {
@@ -114,7 +114,7 @@ router.post('/createcharacter', async (req, res) => {
     //console.log('ratings = ', ratings);
 
   var voreTypes = [];
-  //console.log('req.body = ', req.body);
+  console.log('req.body = ', req.body);
   for(i = 0; i < req.body.destination.length; i++) {
     //console.log('req.body.destination[i] = ', req.body.destination[i]);
     var voreType = {
@@ -161,8 +161,8 @@ router.post('/createcharacter', async (req, res) => {
     accentColor: req.body.accentTailColor.replace("#", "0x")
   }
   var eyes = {
-    outer: 'eyes_01',
-    iris: 'eyes_02',
+    outer: req.body.eyesOuter,
+    iris: req.body.eyesIris,
     color: req.body.eyesColor.replace("#", "0x")
   }
   var hair = {
@@ -170,12 +170,27 @@ router.post('/createcharacter', async (req, res) => {
     color: req.body.hairColor.replace("#", "0x")
   }
   var ear = {
-    sprite: req.body.ear,
-    color: req.body.earColor.replace("#", "0x")
+    outerSprite: req.body.outerEar,
+    outerColor: req.body.outerEarColor.replace("#", "0x"),
+    innerSprite: req.body.innerEar,
+    innerColor: req.body.innerEarColor.replace("#", "0x")
   }
+  console.log('ear =', ear);
   var genitles = {
     sprite: req.body.genitles,
     secondarySprite: 'empty'
+  }
+  var hands = {
+    sprite: req.body.handsFur,
+    color: req.body.handsColor
+  }
+  var feet = {
+    sprite: req.body.feetFur,
+    color: req.body.feetColor
+  }
+  var beak = {
+    sprite: req.body.beakSprite,
+    color: req.body.beakHex
   }
 
   const { error2 } = charCreateValidation(req.body);
@@ -185,6 +200,7 @@ router.post('/createcharacter', async (req, res) => {
   const token = req.cookies.TastyTails;
   const verified = jwt.verify(token, process.env.TOKEN_SECRET);
   //console.log('verified = ', verified._id);
+  console.log('token = ', token);
   try {
     const updateChar = await User.updateOne({_id: verified._id}, {$push: {"characters": {
       "firstName": req.body.firstName,
@@ -202,7 +218,10 @@ router.post('/createcharacter', async (req, res) => {
       "eyes": eyes,
       "hair": hair,
       "ear": ear,
-      "genitles": genitles
+      "genitles": genitles,
+      "hands": hands,
+      "feet": feet,
+      "beak": beak
     }}});
     // try {
     //   const user = await User.findOne({_id: verified._id});
@@ -309,6 +328,14 @@ router.post('/editcharacter', async (req, res) => {
     sprite: req.body.genitles,
     secondarySprite: 'empty'
   }
+  var hands = {
+    sprite: req.body.handsFur,
+    color: req.body.handsColor
+  }
+  var feet = {
+    sprite: req.body.feetFur,
+    color: req.body.feetColor
+  }
 
   const { error2 } = charCreateValidation(req.body);
   if (error2) return res.status(405).send(error2.details[0].message);
@@ -317,6 +344,7 @@ router.post('/editcharacter', async (req, res) => {
   const token = req.cookies.TastyTails;
   const verified = jwt.verify(token, process.env.TOKEN_SECRET);
   //console.log('verified = ', verified._id);
+  console.log('token = ', token);
   try {
     const updateChar = await User.updateOne({_id: verified._id}, {$set: {"characters": {
       "firstName": req.body.firstName,
@@ -334,7 +362,9 @@ router.post('/editcharacter', async (req, res) => {
       "eyes": eyes,
       "hair": hair,
       "ear": ear,
-      "genitles": genitles
+      "genitles": genitles,
+      "hands": hands,
+      "feet": feet
     }}});
     // try {
     //   const user = await User.findOne({_id: verified._id});
@@ -349,6 +379,15 @@ router.post('/editcharacter', async (req, res) => {
   }
 })
 
-
+router.post('/message', async (req, res) => {
+  //Lets Validate the Data Before Adding a User
+  const { error } = registerValidation(req.body);
+  if (error) return res.status(405).send(error.details[0].message);
+  try {
+    console.log('you successfully left a message!');
+  } catch(err){
+    res.status(400).send(err);
+  }
+});
 
 module.exports = router;

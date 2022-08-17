@@ -13,10 +13,12 @@ router.get('/:charId', async (req, res) => {
     });
     //res.send('this is the edit page');
   try {
-    //console.log('charid (from client) = ', req.params.charId);
+    console.log('getting the play.js function.');
+    console.log('charid (from client) = ', req.params.charId);
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+    console.log('verified successfully.');
     const characters = await dbInterface.charSelect(token, req.params.charId);
-    //console.log('characters in the index.js = ', characters);
+    console.log('characters in the index.js = ', characters);
     req.user = verified;
     res.render('play', {
       token: token,
@@ -26,10 +28,11 @@ router.get('/:charId', async (req, res) => {
     });
 
   } catch (err) {
+    console.log(err);
     res.status(400).render('error', {
       token: null,
       loginForm: 0,
-      error: 'Invalid Token',
+      error: err,
       errDescrip: "Try logging out and logging back in. If you are still having issues, you can try clearing your browser's cache and cookies and then logging back in."
     });
   }
