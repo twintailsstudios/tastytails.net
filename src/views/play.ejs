@@ -791,7 +791,7 @@
                 player.list[11].play(players[id].eyes.outer + 'Stop' + 'Down');
                 player.list[12].play(players[id].eyes.iris + 'Stop' + 'Down');
                 player.list[13].play(players[id].hair.sprite + 'Stop' + 'Down');
-                player.list[14].play(players[id].genitles.sprite + 'Stop' + 'Down');
+                // player.list[14].play(players[id].genitles.sprite + 'Stop' + 'Down');
                 // playerContainer.list[14].play(players[id].hands.sprite + 'Stop' + 'Down');
                 // playerContainer.list[15].play(players[id].feet.sprite + 'Stop' + 'Down');
               }
@@ -828,7 +828,7 @@
         console.log('release keys called')
         if (focused == false) {
           self.input.keyboard.enabled = true;
-
+          self.input.keyboard.enableGlobalCapture();
           console.log('in game arrow keys enabled');
         }
         else {
@@ -1021,11 +1021,14 @@
           console.log('Connected to Socket...');
           //----- Client is recieving message sent from server -----//
           this.socket.on('output', function(data){
-            console.log(data);
+            console.log('all chat messages = ', data);
             //----- Checking if there are any messages saved in history -----//
             if(data.length){
+              // console.log('data has length');
               for(var x = 0;x < data.length;x++){
-                if(data[x].deleted.status == false){
+                // console.log('for loop happening');
+                if(data[x].deleted.status == 'false'){
+                  // console.log('data.deleted.status == false');
                   //----- Runs function to check wether chat history is scrolled all the way down to bottom -----//
                   const isScrolledToBottom = scrollChecker();
 
@@ -1103,6 +1106,7 @@
                   postSpan.innerHTML = data[x].message[data[x].message.length-1].content;
                   //----- Insert message as 3rd item in the div that will hold the entire post -----//
                   spoilerSpan.appendChild(postSpan);
+                  console.log(postSpan);
 
 
                   var editSpan = document.createElement('div');
@@ -1332,6 +1336,7 @@
 
                   //----- Attach whole post div to the end of message history -----//
                   messages.appendChild(message);
+                  console.log('messages div thingy = ', messages);
 
                   spoilerSpan.style.marginLeft = timeSpan.offsetWidth+'px';
                   //----- Once th eabove code has run, the message will have been successfully added to chat history -----//
@@ -1442,8 +1447,8 @@
                 // Emit to server input
                 console.log('sending message...');
                 console.log(document.getElementById('spoilers').value);
-                socket.emit('input', {
-                  name:username.value,
+                self.socket.emit('input', {
+                  name:localPlayerInfo.firstName+' '+localPlayerInfo.lastName,
                   message:textarea.innerHTML,
                   spoiler:document.getElementById('spoilers').value
                 });
@@ -1577,7 +1582,7 @@
               if(event.which === 13 && event.shiftKey == false){
                 // Emit to server input
                 console.log('sending EDITED message...');
-                socket.emit('inputEdit', {
+                self.socket.emit('inputEdit', {
                   _id:messageId,
                   message:messageContent.innerHTML,
                 });
@@ -1636,7 +1641,7 @@
               const deletedMsg = document.getElementById(messageId);
               console.log('deletedMsg = ', deletedMsg);
               deletedMsg.remove();
-              socket.emit('deleteMessage', {
+              self.socket.emit('deleteMessage', {
                 _id:messageId
               });
               deleteDialogue.remove();
@@ -1648,7 +1653,7 @@
             console.log('spoilEdited function called successfully');
             console.log('messageId = ', messageId);
             console.log('spoiler = ', spoiler);
-            socket.emit('sendSpoilEdit', {
+            self.socket.emit('sendSpoilEdit', {
               _id:messageId,
               spoiler:spoiler
             });
@@ -1657,7 +1662,7 @@
 
           //----- Handles socket events fired when pressing the "clear" button -----//
           clearBtn.addEventListener('click', function(){
-            socket.emit('clear');
+            self.socket.emit('clear');
           });
           //----- After clear button is pressed and messages are removed from mongo -----//
           //----- This clears local chat history upon receiving confirmation from socket -----//
@@ -2788,15 +2793,15 @@
       console.log('this.debugMode = ', this.game.config.physics.arcade.debug);
       if (this.game.config.physics.arcade.debug == true) {
         debugGraphics = this.add.graphics();
-        this.input.keyboard.on('keydown-C', function (event) {
-          showDebug = !showDebug;
-          drawDebug();
-        });
-        // frameRate = this.add.text(700, 16, 'FrameRate: ' + game.loop.actualFps, {
-        //   fontSize: '18px',
-        //   fill: '#ffffff'
-        // });
-        // frameRate.setScrollFactor(0);
+          this.input.keyboard.on('keydown-C', function (event) {
+            showDebug = !showDebug;
+            drawDebug();
+          });
+          // frameRate = this.add.text(700, 16, 'FrameRate: ' + game.loop.actualFps, {
+          //   fontSize: '18px',
+          //   fill: '#ffffff'
+          // });
+          // frameRate.setScrollFactor(0);
       } else {
         console.log('debug mode turned off');
       }
