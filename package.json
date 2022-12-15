@@ -30,7 +30,7 @@
     "datauri": "^3.0.0",
     "dotenv": "^8.6.0",
     "ejs": "^3.1.8",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "express-ejs-layouts": "^2.5.0",
     "express-session": "^1.17.1",
     "http-server": "^0.12.3",
