@@ -1,10 +1,11 @@
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const log = require('../logger');
 
 module.exports = function(req, res, next) {
-  console.log('running verifyToken');
+  log('running verifyToken');
   const token = req.cookies.TastyTails;
-  //console.log(token);
+  //log(token);
   if(!token) return res.status(401).render('error', {
     token: null,
     loginForm: 0,
@@ -16,7 +17,7 @@ module.exports = function(req, res, next) {
   try {
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
     req.user = verified;
-    console.log('user Verified');
+    log('user Verified');
     next();
   } catch (err) {
     res.status(400).render('error', {

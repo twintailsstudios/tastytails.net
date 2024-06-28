@@ -8,11 +8,15 @@ const io = require('socket.io')(http);
 const path = require('path');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
-const {MongoClient} = require('mongoDB');
+const { MongoClient } = require('mongodb');
 const ObjectId = require('mongodb').ObjectID;
 const cookieParser = require('cookie-parser');
 const jsdom = require('jsdom');
 const Chats = require('./model/Chat');
+const User = require('./model/User');
+const jwt = require('jsonwebtoken');
+
+const log = require('./logger');
 
 const phaserOnNodejs = require('@geckos.io/phaser-on-nodejs');
 const Phaser = require('phaser');
@@ -35,45 +39,53 @@ const playRoute = require('./routes/play');
 
 dotenv.config();
 
+const {
+  testFunction,
+  getDebugGraphics
+} = require('./gameFunctions');
+
+log('testFunction = ', testFunction());
 //connect to DB
-console.log('DB_CONNECT = ', process.env.DB_CONNECT);
+log('DB_CONNECT = ', process.env.DB_CONNECT);
 mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true, useUnifiedTopology: true }, () => {
-    console.log('connected');
+    log('connected');
     // messageReceived();
   }, e => console.error(e)
 )
 const db = mongoose.connection
 db.on('error', error => console.error(error))
-db.once('open', () => console.log('Connected to DB'))
-// console.log('db = ', db.collection('chats'));
+db.once('open', () => log('Connected to DB'))
+// log('db = ', db.collection('chats'));
+
+var playgop = [];
 
 async function messageReceived(){
   try{
     const chat = new Chats({name: 'Kyle'});
     await chat.save();
-    console.log('Chat Saved');
-    console.log(chat);
+    log('Chat Saved');
+    log(chat);
   } catch(err){
-    console.log(err);
+    log(err);
   }
 }
 
 io.on('connection', function (socket) {
-  console.log('a user connected: ', socket.id);
+  log('a user connected: ', socket.id);
   socket.on('join', (data)=>{
     socket.join(data.room);
     io.in(data.room).emit('message', `New User Joined ${data.room} root!`);
   });
-  console.log('does this even work??');
+  log('does this even work??');
 });
 
 
 
 // databasesList = db().admin().listDatabases();
-// console.log("Databases:");
-// databasesList.databases.forEach(db => console.log(` - ${db.name}`));
+// log("Databases:");
+// databasesList.databases.forEach(db => log(` - ${db.name}`));
 
-// main().catch(err => console.log(err));
+// main().catch(err => log(err));
 
 
 // async function main() {
@@ -83,8 +95,8 @@ io.on('connection', function (socket) {
 //   try {
 //     // Connect to the MongoDB cluster
 //     await client.connect();
-//     console.log('client.db() = ', client.db());
-//     console.log('Connected to DB');
+//     log('client.db() = ', client.db());
+//     log('Connected to DB');
 //     // Make the appropriate DB calls
 //     await listDatabases(client);
 //     } catch (e) {
@@ -94,8 +106,8 @@ io.on('connection', function (socket) {
 //
 // async function listDatabases(client){
 //   databasesList = await client.db().admin().listDatabases();
-//   console.log("Databases:");
-//   databasesList.databases.forEach(db => console.log(` - ${db.name}`));
+//   log("Databases:");
+//   databasesList.databases.forEach(db => log(` - ${db.name}`));
 // };
 
 //Middlewares
@@ -127,7 +139,7 @@ app.use('/', express.static(path.join(__dirname, 'client')))
 //----- Authoritative Phaser Server -----//
 
 const tilemap = require('./client/assets/tilemaps/level2.json');
-//console.log(tilemap.layers);
+//log(tilemap.layers);
 let blockingLayer = {};
 let spawningLayer = {};
 let remainder = {};
@@ -149,11 +161,11 @@ for (let info = 0; info < spawningLayer.data.length; info++) {
     remainder = (Math.floor(Math.floor(info % 200) * 48));
     division = (Math.floor(Math.floor(Math.floor(info) / 200)) * 48);
     spawnLocation.push({ x: remainder + 24, y: division + 24 })
-    //console.log('info = ', info, 'remainder = ', remainder, 'division = ', division, 'spawnTile = ', spawnTile);
+    //log('info = ', info, 'remainder = ', remainder, 'division = ', division, 'spawnTile = ', spawnTile);
   }
 }
-//console.log('spawnLocaiton: ', spawnLocation);
-//console.log('blockingLayer: ', blockingLayer);
+//log('spawnLocaiton: ', spawnLocation);
+//log('blockingLayer: ', blockingLayer);
 
 
 
@@ -198,23 +210,23 @@ let spawnLocations = [
 let blockingLayers = [
   0, 0, 21100, 0
 ];
-//console.log('spawnLocations = ', spawnLocations);
+//log('spawnLocations = ', spawnLocations);
 
 var random_tile = null;
   random_tile = Math.floor((Math.random() * spawnLocations.length))
     spells[0].x = spawnLocations[random_tile].x
     spells[0].y = spawnLocations[random_tile].y
-    console.log('spells[0] = ', spells[0].x, spells[0].y);
+    log('spells[0] = ', spells[0].x, spells[0].y);
 
   random_tile = Math.floor((Math.random() * spawnLocations.length))
     spells[1].x = spawnLocations[random_tile].x
     spells[1].y = spawnLocations[random_tile].y
-    console.log('spells[1] = ', spells[1].x, spells[1].y);
+    log('spells[1] = ', spells[1].x, spells[1].y);
 
   random_tile = Math.floor((Math.random() * spawnLocations.length))
     spells[2].x = spawnLocations[random_tile].x
     spells[2].y = spawnLocations[random_tile].y
-    console.log('spells[2] = ', spells[2].x, spells[2].y);
+    log('spells[2] = ', spells[2].x, spells[2].y);
 
 const config = {
   autoFocus: false,
@@ -236,26 +248,104 @@ const config = {
   }
 };
 
-console.log('ServerSide Authoritative Phaser Instance is Running...');
+log('ServerSide Authoritative Phaser Instance is Running...');
 
 function preload() {
-  console.log('Preloading Assets Serverside...');
+  log('Preloading Assets Serverside...');
   //this.load.image('spritesheet', './assets/images/spritesheet.png');
   this.load.image('tileset', path.join(__dirname, 'client/assets/tilemaps/tileset.png'));
   this.load.image('scroll', path.join(__dirname, 'client/assets/images/Scroll_01.png'));
   this.load.image('scroll2', path.join(__dirname, 'client/assets/images/Scroll_02.png'));
 
-  this.load.spritesheet('empty', path.join(__dirname, 'client/assets/spritesheets/empty.png'), {frameWidth: 109, frameHeight: 220});
-  this.load.spritesheet('head_01', path.join(__dirname, 'client/assets/spritesheets/head_01.png'), {frameWidth: 182, frameHeight: 190});
-  this.load.spritesheet('body_01', path.join(__dirname, 'client/assets/spritesheets/body_01.png'), {frameWidth: 182, frameHeight: 190});
-  this.load.spritesheet('tail_01', path.join(__dirname, 'client/assets/spritesheets/tail_01.png'), {frameWidth: 182, frameHeight: 190});
-  this.load.spritesheet('hair_01', path.join(__dirname, 'client/assets/spritesheets/hair_01.png'), {frameWidth: 182, frameHeight: 190});
-  this.load.spritesheet('ear_01', path.join(__dirname, 'client/assets/spritesheets/ear_01.png'), {frameWidth: 182, frameHeight: 190});
-  this.load.spritesheet('eyes_01', path.join(__dirname, 'client/assets/spritesheets/eyes_whites_01.png'), {frameWidth: 182, frameHeight: 190});
-  this.load.spritesheet('secondaryBody_01', path.join(__dirname, 'client/assets/spritesheets/secondaryBody_01.png'), {frameWidth: 182, frameHeight: 190});
-  this.load.spritesheet('secondaryBody_02', path.join(__dirname, 'client/assets/spritesheets/secondaryBody_02.png'), {frameWidth: 182, frameHeight: 190});
-  this.load.spritesheet('secondaryBody_03', path.join(__dirname, 'client/assets/spritesheets/secondaryBody_03.png'), {frameWidth: 182, frameHeight: 190});
-  this.load.spritesheet('secondaryHead_01', path.join(__dirname, 'client/assets/spritesheets/head_01-secondaryHead_01.png'), {frameWidth: 182, frameHeight: 190});
+  // Body Sprites
+  this.load.spritesheet('body_01', path.join(__dirname, 'client/assets/spritesheets/body_01.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Secondary Body Sprites
+  this.load.spritesheet('body_01-secondary_01', path.join(__dirname, 'client/assets/spritesheets/body_01-secondary_01.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('body_01-secondary_02', path.join(__dirname, 'client/assets/spritesheets/body_01-secondary_02.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('body_01-secondary_03', path.join(__dirname, 'client/assets/spritesheets/body_01-secondary_03.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('body_01-secondary_04', path.join(__dirname, 'client/assets/spritesheets/body_01-secondary_04.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Accent Body Sprites
+  this.load.spritesheet('body_01-accent-01', path.join(__dirname, 'client/assets/spritesheets/body_01-accent_01.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('body_01-accent-02', path.join(__dirname, 'client/assets/spritesheets/body_01-accent_02.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Ear Sprites
+  this.load.spritesheet('ears_01-outer', path.join(__dirname, 'client/assets/spritesheets/ears_01-outer.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('ears_01-inner', path.join(__dirname, 'client/assets/spritesheets/ears_01-inner.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('ears_04-outer', path.join(__dirname, 'client/assets/spritesheets/ears_04-outer.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('ears_04-inner', path.join(__dirname, 'client/assets/spritesheets/ears_04-inner.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Eyes Sprites
+  this.load.spritesheet('eyes_02', path.join(__dirname, 'client/assets/spritesheets/eyes_02.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('eyes_01', path.join(__dirname, 'client/assets/spritesheets/eyes_01.png'), {frameWidth: 215, frameHeight: 198});
+  
+  // Head Sprites
+  this.load.spritesheet('head_01', path.join(__dirname, 'client/assets/spritesheets/head_01.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_02', path.join(__dirname, 'client/assets/spritesheets/head_02.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_03', path.join(__dirname, 'client/assets/spritesheets/head_03.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_04', path.join(__dirname, 'client/assets/spritesheets/head_04.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_05', path.join(__dirname, 'client/assets/spritesheets/head_05.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_06', path.join(__dirname, 'client/assets/spritesheets/head_06.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Secondary Head Sprites for head_01
+  this.load.spritesheet('head_01-secondary_01', path.join(__dirname, 'client/assets/spritesheets/head_01-secondary_01.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_01-secondary_02', path.join(__dirname, 'client/assets/spritesheets/head_01-secondary_02.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_01-secondary_03', path.join(__dirname, 'client/assets/spritesheets/head_01-secondary_03.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_01-secondary_04', path.join(__dirname, 'client/assets/spritesheets/head_01-secondary_04.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_01-secondary_05', path.join(__dirname, 'client/assets/spritesheets/head_01-secondary_05.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Secondary Head Sprites for head_02
+  this.load.spritesheet('head_02-secondary_01', path.join(__dirname, 'client/assets/spritesheets/head_02-secondary_01.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_02-secondary_02', path.join(__dirname, 'client/assets/spritesheets/head_02-secondary_02.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_02-secondary_03', path.join(__dirname, 'client/assets/spritesheets/head_02-secondary_03.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_02-secondary_04', path.join(__dirname, 'client/assets/spritesheets/head_02-secondary_04.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_02-secondary_05', path.join(__dirname, 'client/assets/spritesheets/head_02-secondary_05.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Secondary Head Sprites for head_03
+  this.load.spritesheet('head_03-secondary_01', path.join(__dirname, 'client/assets/spritesheets/head_03-secondary_01.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_03-secondary_02', path.join(__dirname, 'client/assets/spritesheets/head_03-secondary_02.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_03-secondary_03', path.join(__dirname, 'client/assets/spritesheets/head_03-secondary_03.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_03-secondary_04', path.join(__dirname, 'client/assets/spritesheets/head_03-secondary_04.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_03-secondary_05', path.join(__dirname, 'client/assets/spritesheets/head_03-secondary_05.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Secondary Head Sprites for head_04
+  this.load.spritesheet('head_04-secondary_01', path.join(__dirname, 'client/assets/spritesheets/head_04-secondary_01.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_04-secondary_02', path.join(__dirname, 'client/assets/spritesheets/head_04-secondary_02.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_04-secondary_03', path.join(__dirname, 'client/assets/spritesheets/head_04-secondary_03.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_04-secondary_04', path.join(__dirname, 'client/assets/spritesheets/head_04-secondary_04.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_04-secondary_05', path.join(__dirname, 'client/assets/spritesheets/head_04-secondary_05.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Secondary Head Sprites for head_05
+  this.load.spritesheet('head_05_beak', path.join(__dirname, 'client/assets/spritesheets/head_05_beak.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_05-secondary_01', path.join(__dirname, 'client/assets/spritesheets/head_05-secondary_01.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_05-secondary_02', path.join(__dirname, 'client/assets/spritesheets/head_05-secondary_02.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_05-secondary_03', path.join(__dirname, 'client/assets/spritesheets/head_05-secondary_03.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_05-secondary_04', path.join(__dirname, 'client/assets/spritesheets/head_05-secondary_04.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_05-secondary_05', path.join(__dirname, 'client/assets/spritesheets/head_05-secondary_05.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Secondary Head Sprites for head_06
+  this.load.spritesheet('head_06-secondary_01', path.join(__dirname, 'client/assets/spritesheets/head_06-secondary_01.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_06-secondary_02', path.join(__dirname, 'client/assets/spritesheets/head_06-secondary_02.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_06-secondary_03', path.join(__dirname, 'client/assets/spritesheets/head_06-secondary_03.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_06-secondary_04', path.join(__dirname, 'client/assets/spritesheets/head_06-secondary_04.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('head_06-secondary_05', path.join(__dirname, 'client/assets/spritesheets/head_06-secondary_05.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Tail Sprites
+  this.load.spritesheet('tail_01', path.join(__dirname, 'client/assets/spritesheets/tail_01.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('tail_02', path.join(__dirname, 'client/assets/spritesheets/tail_02.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('tail_03', path.join(__dirname, 'client/assets/spritesheets/tail_03.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('tail_04', path.join(__dirname, 'client/assets/spritesheets/tail_04.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Secondary Tail Sprites
+  this.load.spritesheet('tail_01-secondary_02', path.join(__dirname, 'client/assets/spritesheets/tail_01-secondary_02.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('tail_01-secondary_03', path.join(__dirname, 'client/assets/spritesheets/tail_01-secondary_03.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('tail_01-secondary_04', path.join(__dirname, 'client/assets/spritesheets/tail_01-secondary_04.png'), {frameWidth: 215, frameHeight: 198});
+
+  // Hair Sprites
+  this.load.spritesheet('hair-front_01', path.join(__dirname, 'client/assets/spritesheets/hair-front_01.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('hair-front_02', path.join(__dirname, 'client/assets/spritesheets/hair-front_02.png'), {frameWidth: 215, frameHeight: 198});
+  this.load.spritesheet('hair-front_03', path.join(__dirname, 'client/assets/spritesheets/hair-front_03.png'), {frameWidth: 215, frameHeight: 198});
 
   //This loads the map json file that says what coordinates have what pictures
   // this.load.tilemapTiledJSON('level_2', './assets/tilemaps/level2.json');
@@ -279,7 +369,7 @@ function preload() {
   this.load.spritesheet('door_pub', path.join(__dirname, 'client/assets/spritesheets/door_pub.png'), {frameWidth: 197, frameHeight: 255});
   this.load.image('pub_exit_rug', path.join(__dirname, 'client/assets/tilemaps/pub_exit_rug.png'));
   this.load.image('door_spa', path.join(__dirname, 'client/assets/spritesheets/door_spa.png'));
-  console.log('Serverside Preloading Complete!');
+  log('Serverside Preloading Complete!');
 }
 
 function create() {
@@ -299,15 +389,15 @@ function create() {
   // const ground_layer = map.createStaticLayer('blocked', tileset, 0, 0);
   // const ground2_layer = map.createStaticLayer('blocked2', tileset, 0, 0);
   // const spawn_layer = map.createStaticLayer('spawn', tileset, 0, 0);
-  const spawn = map.createStaticLayer('spawn', tileset, 0, 0);
-  const shadows = map.createStaticLayer('shadows', tileset, 0, 0);
-  const blocked_tiles = map.createStaticLayer('blocked_tiles', tileset, 0, 0);
-  const buildings2 = map.createStaticLayer('buildings_2', tileset, 0, 0);
-  const trees = map.createStaticLayer('trees', tileset, 0, 0);
-  const obj_spawning = map.createStaticLayer('obj_spawning', tileset, 0, 0);
-  const water = map.createStaticLayer('water', tileset, 0, 0);
-  const paths = map.createStaticLayer('paths', tileset, 0, 0);
-  const grass = map.createStaticLayer('grass', tileset, 0, 0);
+  const spawn = map.createLayer('spawn', tileset, 0, 0);
+  const shadows = map.createLayer('shadows', tileset, 0, 0);
+  const blocked_tiles = map.createLayer('blocked_tiles', tileset, 0, 0);
+  const buildings2 = map.createLayer('buildings_2', tileset, 0, 0);
+  const trees = map.createLayer('trees', tileset, 0, 0);
+  const obj_spawning = map.createLayer('obj_spawning', tileset, 0, 0);
+  const water = map.createLayer('water', tileset, 0, 0);
+  const paths = map.createLayer('paths', tileset, 0, 0);
+  const grass = map.createLayer('grass', tileset, 0, 0);
 
   //----- Defines the height that each map layer is displayed at and what tile IDs player can collide with -----//
   // roof2_layer.depth = 4;
@@ -448,20 +538,20 @@ function create() {
 
 
   function useDoor(zoomer, door) {
-    //console.log('use door function called');
-    // console.log('door_clothing_store = ', door_clothing_store);
-    // console.log('door = ', door);
-    // console.log('zoomer = ', zoomer.texture.key);
+    //log('use door function called');
+    // log('door_clothing_store = ', door_clothing_store);
+    // log('door = ', door);
+    // log('zoomer = ', zoomer.texture.key);
     // if(door == door_clothing_store) {
-      // console.log('Clothing Store door was used');
-      //console.log('door_clothing_store', door_clothing_store);
-      // console.log('standing in door');
-      // console.log('door.playerId = ', door.playerId);
-      // console.log('playerContainer.playerId = ', playerContainer.playerId);
+      // log('Clothing Store door was used');
+      //log('door_clothing_store', door_clothing_store);
+      // log('standing in door');
+      // log('door.playerId = ', door.playerId);
+      // log('playerContainer.playerId = ', playerContainer.playerId);
 
       if (door.playerId === playerContainer.playerId) {
-        // console.log('playerId verified');
-        //console.log(players[playerContainer.playerId]);
+        // log('playerId verified');
+        //log(players[playerContainer.playerId]);
         playerContainer.door = zoomer.texture.key;
       }
     // }
@@ -469,8 +559,8 @@ function create() {
 
   //----- This is called whenever a player connects to the URL for the game -----//
   io.on('connection', function (socket) {
-    getAllChats(socket);
-    console.log('a user connected: ', socket.id);
+    // log('socket = ', socket);
+    log('a user connected: ', socket.id);
     socket.on('join', (data)=>{
       socket.join(data.room);
       io.in(data.room).emit('message', `New User Joined ${data.room} root!`);
@@ -534,12 +624,13 @@ function create() {
         secondarySprite: 'empty'
       },
       voreTypes:[],
-      spellInventory:[],
+      spellList:[],
       consumedBy:null,
-      // x: 4820,
-      // y: 5020,
-      x: 3291,
-      y: 4287,
+      position: {
+        x: 3291,
+        y: 4287,
+        time: null
+      },
       input: {
         left: false,
         right: false,
@@ -547,17 +638,23 @@ function create() {
         down: false
       },
       rotation: 0,
-      isMoving: false
+      isMoving: false,
+      locationHistory:[],
+      debug: {
+        x: null,
+        y: null,
+        width: null,
+        height: null
+      }
     };
 
-    //Create function to send status
-    sendStatus = function(s){
-      socket.emit('status', s);
-    }
 
 
 
-
+    //requesting latest messages
+    socket.on('getAllChats', function(data) {
+      getAllChats(data, socket);
+    });
     //Handle input events
     socket.on('input', function(data) {
       let name = data.name;
@@ -570,19 +667,19 @@ function create() {
         sendStatus('Please enter a name and message');
       } else {
         //Insert Message
-        console.log('server received message');
+        log('server received message');
 
         //----- Checkes if starts with command -----//
         if (data.message.startsWith('/me', 0)){
-          console.log('message started with /me');
+          log('message started with /me');
         }
 
-        console.log('spoiler status is = ',data.spoiler);
+        log('spoiler status is = ',data.spoiler);
         addMessage(data, socket);
       }
     });
     socket.on('inputEdit', function(data){
-      console.log('inputEdit Called');
+      log('inputEdit Called');
       editMessage(data, socket)
     })
     socket.on('deleteMessage', function(data){
@@ -611,7 +708,7 @@ function create() {
     socket.on('disconnect', function () {
       //----- Below Function is called to remove the player object from the Serverside instance of Phaser -----//
       removePlayer(self, socket.id);
-      console.log('user disconnected: ', socket.id);
+      log('user disconnected: ', socket.id);
       //----- Below removes the disconnecting player from the local "players" array -----//
       delete players[socket.id];
       //----- Emit a message to all players to remove this player from their respective games -----//
@@ -632,12 +729,18 @@ function create() {
     //   handleDoorTransport(self, socket.id, door);
     // })
 
+    socket.on('getDebugBounds', function () {
+      let var1 = getDebugGraphics(blocked_tiles);
+      // log('var1 = ', var1);
+      socket.emit('sendDebugBounds', var1);
+    })
+
 
 
 
 
     socket.on('examineClicked', function (clicked) {
-      console.log('Examine clicked.Identifier = ', clicked.Identifier);
+      log('Examine clicked.Identifier = ', clicked.Identifier);
       if (clicked.Identifier === 'spell') {
         for (let i = 0; i < spells.length; i++) {
           if (clicked.Name === spells[i].Name)  {
@@ -647,46 +750,47 @@ function create() {
         }
       }
       if (clicked.Identifier === 'player') {
-        //console.log('clicked.playerId = ', clicked.playerId);
-        //console.log('players = ', players);
-        //console.log('Object.keys(players).length = ', Object.keys(players).length);
-        Object.keys(players).forEach(function(p)  {
-          if (clicked.playerId === players[p].playerId)  {
-            let examinedItem = players[p];
-            //console.log('examinedItem = ', examinedItem)
-            socket.emit('examinedInfo', examinedItem);
-          }
-        });
+        //log('clicked.playerId = ', clicked.playerId);
+        //log('players = ', players);
+        //log('Object.keys(players).length = ', Object.keys(players).length);
+        // Object.keys(players).forEach(function(p)  {
+        //   if (clicked.playerId === players[p].playerId)  {
+        //     let examinedItem = players[p];
+        //     //log('examinedItem = ', examinedItem)
+        //     socket.emit('examinedInfo', examinedItem);
+        //   }
+        // });
+        examiningPlayer(clicked, socket);
       }
         //if (spellInfo.locationX - self.avatar.head.x >= -100 && spellInfo.locationX - self.avatar.head.x <= 100 && spellInfo.locationY - self.avatar.head.y >= -100 && spellInfo.locationY - self.avatar.head.y <= 100)
     })
 
     socket.on('pickUpClicked', function (clicked) {
-      //console.log('Pick Up clicked.Identifier = ', clicked.Identifier);
+      //log('Pick Up clicked.Identifier = ', clicked.Identifier);
       if (clicked.Identifier === 'spell') {
         for (let i = 0; i < spells.length; i++) {
           if (clicked.Name === spells[i].Name)  {
             let pickedUpItem = spells[i];
-            if (pickedUpItem.x - players[socket.id].x >= -100 && pickedUpItem.x - players[socket.id].x <= 100 && pickedUpItem.y - players[socket.id].y >= -100 && pickedUpItem.y - players[socket.id].y <= 100) {
-              console.log('in range to pick up item');
-              players[socket.id].spellInventory.push(pickedUpItem);
-              //console.log('players[socket.id].spellInventory = ', players[socket.id].spellInventory);
-              socket.emit('pickedUpItem', players[socket.id].spellInventory);
+            if (pickedUpItem.x - players[socket.id].position.x >= -100 && pickedUpItem.x - players[socket.id].position.x <= 100 && pickedUpItem.y - players[socket.id].position.y >= -100 && pickedUpItem.y - players[socket.id].position.y <= 100) {
+              log('in range to pick up item');
+              players[socket.id].spellList.push(pickedUpItem);
+              //log('players[socket.id].spellList = ', players[socket.id].spellList);
+              socket.emit('pickedUpItem', players[socket.id].spellList);
             }else {
-              console.log('NOT in range to pick up item');
+              log('NOT in range to pick up item');
               //socket.emit('examinedInfo', examinedItem);
             }
           }
         }
       }
       if (clicked.Identifier === 'player') {
-        //console.log('clicked.playerId = ', clicked.playerId);
-        //console.log('players = ', players);
-        //console.log('Object.keys(players).length = ', Object.keys(players).length);
+        //log('clicked.playerId = ', clicked.playerId);
+        //log('players = ', players);
+        //log('Object.keys(players).length = ', Object.keys(players).length);
         Object.keys(players).forEach(function(p)  {
           if (clicked.playerId === players[p].playerId)  {
             let pickedUpItem = players[p];
-            console.log('Attempting to pick up player = ', pickedUpItem.Username);
+            log('Attempting to pick up player = ', pickedUpItem.Username);
             //socket.emit('examinedInfo', examinedItem);
           }
         });
@@ -694,44 +798,138 @@ function create() {
         //if (spellInfo.locationX - self.avatar.head.x >= -100 && spellInfo.locationX - self.avatar.head.x <= 100 && spellInfo.locationY - self.avatar.head.y >= -100 && spellInfo.locationY - self.avatar.head.y <= 100)
     })
 
+    socket.on('grabClicked', function (clicked) {
+      players[socket.id].locationHistory = [];
+      // log('grabber socket.id = ', socket.id);
+      // log('players[socket.id] = ', players[socket.id].playerId);
+      players[socket.id].locationHistory.push({ x: players[socket.id].position.x, y: players[socket.id].position.y});
+      log('grab clicked.Identifier = ', clicked.Identifier);
+      // log('grab clicked = ', clicked);
+      if (clicked.Identifier === 'player') {
+        // log('players = ', players)
+        grabbingPlayer(clicked, socket);
+      }
+        //if (spellInfo.locationX - self.avatar.head.x >= -100 && spellInfo.locationX - self.avatar.head.x <= 100 && spellInfo.locationY - self.avatar.head.y >= -100 && spellInfo.locationY - self.avatar.head.y <= 100)
+    })
+
+    
+
+    socket.on('gripFirmly', function(clicked) {
+      // log('grippedFirmly happened.');
+      // log('gripFirmly clicked = ', clicked);
+      let charId = clicked._id;
+      players[clicked.playerId].grippedFirmlyBy = players[socket.id].playerId;
+      players[socket.id].isGripping = players[clicked.playerId].playerId;
+
+      console.group('\n\n gripFirmly function called: \n');
+        if(players[clicked.playerId].heldBy === players[socket.id].playerId){
+          players[clicked.playerId].heldBy = null;
+          players[socket.id].isHolding = null;
+          grippedFirmlyPlayer = players[clicked.playerId];
+          console.table([
+          {
+            'Gripping Plyr firstName: ': players[socket.id].firstName,
+            'Gripping Plyr lastName: ': players[socket.id].lastName,
+            'Gripping Plyr Mongo._id': players[socket.id]._id,
+            'Gripping Plyr Socket.id': players[socket.id].playerId,
+            'Gripping Plyr Identifier': players[socket.id].Identifier,
+            'Gripping Plyr Gripped Firmly By': players[socket.id].grippedFirmlyBy,
+            'Gripping Plyr is Holding': players[socket.id].isGripping,
+            'Gripping Plyr X': players[socket.id].position.x,
+            'Gripping Plyr Y': players[socket.id].position.y
+          }
+        ]);
+
+        log('\n\n');
+
+        console.table([
+          {
+            'Gripped Plyr firstName: ': grippedFirmlyPlayer.firstName,
+            'Gripped Plyr lastName: ': grippedFirmlyPlayer.lastName,
+            'Gripped Plyr Mongo._id': grippedFirmlyPlayer._id,
+            'Gripped Plyr Socket.id': grippedFirmlyPlayer.playerId,
+            'Gripped Plyr Identifier': grippedFirmlyPlayer.Identifier,
+            'Gripped Plyr Gripped Firmly By': grippedFirmlyPlayer.grippedFirmlyBy,
+            'Gripped Plyr is Gripping': grippedFirmlyPlayer.isGripping,
+            'Gripped Plyr X': grippedFirmlyPlayer.position.x,
+            'Gripped Plyr Y': grippedFirmlyPlayer.position.y
+          }
+        ]);
+      console.groupEnd();
+      socket.emit('grippedFirmlyInfo', grippedFirmlyPlayer);        
+      } else {
+        var error = 'You are not holding this player';
+        log('Error Message: ', error);
+      }
+    })
+
+    socket.on('playerRightClicked', function(info){
+      // log('info = ', info);
+      var clickedList = [];
+
+      log('\n', 'playerRightClicked function called', '\n');
+      log('Mongo._id of requesting player = ', players[socket.id]._id);
+      log('Socket.id of requesting player = ', players[socket.id].playerId);
+      log('Requesting players name = ', players[socket.id].firstName);
+
+      log('just to make sense of it = ', info.rightClickedList[0]);
+
+      log('Mongo._id of clicked player = ', players[info.rightClickedList[0].playerId]._id);
+      log('Socket.id of clicked player = ', players[info.rightClickedList[0].playerId].playerId);
+      log('clicked players name = ', players[info.rightClickedList[0].playerId].firstName);
+
+      var playerList = {
+        name: players[info.rightClickedList[0].playerId].firstName,
+        playerId: players[info.rightClickedList[0].playerId].playerId,
+        Identifier: players[info.rightClickedList[0].playerId].Identifier,
+        heldBy: players[info.rightClickedList[0].playerId].heldBy,
+        grippedFirmlyBy: players[info.rightClickedList[0].playerId].grippedFirmlyBy
+      };
+      clickedList.push(playerList);
+
+      socket.emit('playerRightClickedResponse', clickedList);
+    })
+
+
+
     socket.on('specialCreateBttnSelected', function (voreInfo){
-      //console.log('voreInfo from player = ', voreInfo);
+      //log('voreInfo from player = ', voreInfo);
       players[socket.id].voreTypes.push(voreInfo);
-      console.log('Addition to ', players[socket.id].Username, 's custom vore options = ', players[socket.id].voreTypes[players[socket.id].voreTypes.length -1]);
+      log('Addition to ', players[socket.id].Username, 's custom vore options = ', players[socket.id].voreTypes[players[socket.id].voreTypes.length -1]);
       socket.emit('newVoreAction', players[socket.id].voreTypes[players[socket.id].voreTypes.length -1]);
     })
 
     socket.on('voreContextMenuClicked', function (clicked, attemptedVoreActionName) {
-      console.log('Vore Action clicked.Identifier = ', clicked.Identifier);
+      log('Vore Action clicked.Identifier = ', clicked.Identifier);
       if (clicked.Identifier === 'player') {
         Object.keys(players).forEach(function(p)  {
           if (clicked.playerId === players[p].playerId)  {
             let preyAttempt = players[p];
             if (preyAttempt._id != players[socket.id]._id) {
-              if (preyAttempt.x - players[socket.id].x >= -100 && preyAttempt.x - players[socket.id].x <= 100 && preyAttempt.y - players[socket.id].y >= -100 && preyAttempt.y - players[socket.id].y <= 100) {
-                console.log('players[socket.id]', players[socket.id]);
-                console.log('attemptedVoreActionName', attemptedVoreActionName);
+              if (preyAttempt.x - players[socket.id].position.x >= -100 && preyAttempt.position.x - players[socket.id].position.x <= 100 && preyAttempt.position.y - players[socket.id].position.y >= -100 && preyAttempt.position.y - players[socket.id].position.y <= 100) {
+                log('players[socket.id]', players[socket.id]);
+                log('attemptedVoreActionName', attemptedVoreActionName);
                 for (let i = 0; i < players[socket.id].voreTypes.length; i++) {
-                  //console.log('players[socket.id].voreTypes[i]', players[socket.id].voreTypes[i]);
-                  //console.log('attemptedVoreActionName', attemptedVoreActionName);
+                  //log('players[socket.id].voreTypes[i]', players[socket.id].voreTypes[i]);
+                  //log('attemptedVoreActionName', attemptedVoreActionName);
                   if (players[socket.id].voreTypes[i].destination === attemptedVoreActionName) {
-                    //console.log(players[socket.id].Username, ' is attempting to', players[socket.id].voreTypes[i].Verb, ' ', preyAttempt.Username, ' into their ', players[socket.id].voreTypes[i].Name);
+                    //log(players[socket.id].Username, ' is attempting to', players[socket.id].voreTypes[i].Verb, ' ', preyAttempt.Username, ' into their ', players[socket.id].voreTypes[i].Name);
                     var msg = players[socket.id].firstName + ' is attempting to ' + players[socket.id].voreTypes[i].verb + ' ' + preyAttempt.firstName + ' into their ' + players[socket.id].voreTypes[i].destination;
                     var pred = players[socket.id];
                     var prey = preyAttempt;
-                    console.log('msg = ', msg);
+                    log('msg = ', msg);
                     io.sockets.emit('message', msg);
                     io.sockets.emit('playerConsumed', pred, prey);
                     players[p].consumedBy = pred;
-                    players[p].x = 0;
-                    players[p].y = 0;
+                    players[p].position.x = 0;
+                    players[p].position.y = 0;
                   }
                 }
               } else {
-                console.log('Too Far Away From Player: ', preyAttempt.firstName, ' to Vore Them');
+                log('Too Far Away From Player: ', preyAttempt.firstName, ' to Vore Them');
               }
             } else {
-              console.log(players[socket.id].firstName, ' Is a dumbass who is trying to eat themselves');
+              log(players[socket.id].firstName, ' Is a dumbass who is trying to eat themselves');
             }
           }
         });
@@ -743,48 +941,9 @@ function create() {
 
     //----- This function is used whenever a player clicks "apply" to update the settings of one of their vore chambers -----//
     socket.on('voreUpdate', function (voreUpdate, cookie){
-      console.log('Settings for Vore Chamber Updated: ', voreUpdate, '\n', 'cookie = ', cookie);
+      log('Settings for Vore Chamber to Update: ', voreUpdate, '\n', 'cookie = ', cookie);
       //players[socket.id] = ;
-      players[socket.id].voreTypes
-      for (let i = 0; i < players[socket.id].voreTypes.length; i++) {
-        if(voreUpdate.voreFormId == players[socket.id].voreTypes[i]._id) {
-          players[socket.id].voreTypes[i].digestionTimer = voreUpdate.digestionTimer;
-          players[socket.id].voreTypes[i].animation = voreUpdate.animation;
-        }
-      }
-
-      const token = cookie.replace('TastyTails=','');
-      console.log('token = ', token)
-      // const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-
-      socket.emit('updateMongo', cookie);
-
-      // try {
-      //   const updateChar = await User.updateOne({_id: verified._id}, {$set: {"characters": {
-      //     "firstName": req.body.firstName,
-      //     "lastName": req.body.lastName,
-      //     "nickName": req.body.nickName,
-      //     "speciesName": req.body.speciesName,
-      //     "pronouns": req.body.pronouns,
-      //     "icDescrip": req.body.icDescrip,
-      //     "oocDescrip": req.body.oocDescrip,
-      //     "ratings": ratings,
-      //     "voreTypes": voreTypes,
-      //     "head": head,
-      //     "body": body,
-      //     "tail": tail,
-      //     "eyes": eyes,
-      //     "hair": hair,
-      //     "ear": ear,
-      //     "genitles": genitles,
-      //     "hands": hands,
-      //     "feet": feet
-      //   }}});
-      //
-      //   res.redirect('/character-bank');
-      // } catch(err){
-      //   res.status(400).send(err);
-      // }
+      voreChamberUpdate(voreUpdate, cookie, socket);
     })
 
 
@@ -794,9 +953,11 @@ function create() {
 
     socket.on('characterUpdate', function (pushedInfo) {
       players[socket.id] = pushedInfo;
+      
       //----- Calls a function to add the newly connected player into the server side instance of Phaser -----//
       addPlayer(self, players[socket.id]);
-      console.log('updating character...');
+      
+      log('updating character...');
       // update all other players of the new player
       socket.broadcast.emit('newPlayer', players[socket.id]);
       socket.emit('characterUpdated', players[socket.id]);
@@ -810,7 +971,7 @@ function create() {
       players[socket.id].Description = avatarSave.descrip;
       players[socket.id].headColor = avatarSave.headColor;
       players[socket.id].bodyColor = avatarSave.bodyColor;
-      console.log('Player ID: ', socket.id, 'has chosen: ', '\n', 'Username = ', players[socket.id].Username, '\n', 'Description = ', players[socket.id].Description, '\n', 'avatar.head = ', players[socket.id].head, '\n', 'avatar.body = ', players[socket.id].body,  '\n', 'Head Color = ', players[socket.id].headColor, '\n', 'Body Color =', players[socket.id].bodyColor);
+      log('Player ID: ', socket.id, 'has chosen: ', '\n', 'Username = ', players[socket.id].Username, '\n', 'Description = ', players[socket.id].Description, '\n', 'avatar.head = ', players[socket.id].head, '\n', 'avatar.body = ', players[socket.id].body,  '\n', 'Head Color = ', players[socket.id].headColor, '\n', 'Body Color =', players[socket.id].bodyColor);
       // emit a message to all players about the updated player avatar
       socket.broadcast.emit('avatarSelection', players[socket.id]);
     });
@@ -820,10 +981,10 @@ function create() {
 
     //----- Function for Sending Messages in Chat -----//
     socket.on('message', (data) => {
-      //console.log('players variable = ', players);
-      //console.log('socket.id variable = ', socket.id);
-      //console.log('players[socket.id] variable = ', players[socket.id]);
-      console.log(players[socket.id].Username);
+      //log('players variable = ', players);
+      //log('socket.id variable = ', socket.id);
+      //log('players[socket.id] variable = ', players[socket.id]);
+      log(players[socket.id].Username);
       io.in(data.room).emit('message', data.msg, players[socket.id].Username);
 
       //let author = game.user.all[socket.id]
@@ -834,35 +995,144 @@ function create() {
 
 }
 // this.players.getChildren().forEach((player) => {
-//   console.log('player input = ', players[player.playerId].input);
-//   console.log('player = ', players[player.playerId]);
+//   log('player input = ', players[player.playerId].input);
+//   log('player = ', players[player.playerId]);
 // });
 function update() {
   this.players.getChildren().forEach((otherContainer) => {
     const input = players[otherContainer.playerId].input;
-     //console.log('this.container.playerId = ', this.container.playerId);
-     //console.log('players[player.playerId].playerId = ', players[player.playerId].playerId);
-     //console.log('zeep = ', player.playerId)
-    // if (otherContainer.playerId === players[player.playerId].playerId) {
-      //console.log('found the correct self.container');
-      if (input.left) {
-        //console.log('player = ', player);
+    if(players[otherContainer.playerId].grabbedBy) {
+      // log(players[otherContainer.playerId].firstName, 'is being held');
+      const grabbedBy = players[otherContainer.playerId].grabbedBy;
+      if(players[otherContainer.playerId].position.x > (players[grabbedBy].position.x + 30)){
+        // log('grabbed player is to the right of grabber');
         otherContainer.body.setVelocityX(-250);
-        // console.log('otherContainer = ', otherContainer);
-        //console.log('zim =', players[player.playerId]);
-        //console.log('zam = ', this.container);
-        //console.log('zoom = ', player);
-          //console.log('player = ', players[player.playerId].playerId, '\n', 'input = ', players[player.playerId].input, '\n', 'whole player object = ', players[player.playerId]);
+        players[otherContainer.playerId].rotation = 1;
+        players[otherContainer.playerId].isMoving = true;
+        if(players[otherContainer.playerId].position.y > (players[grabbedBy].position.y)) {
+          log('moving left and grabbed player Y is below grabber');
+          log('Grabber Y = ', players[grabbedBy].position.y,  '\n', 'Grabbed Y = ', players[otherContainer.playerId].position.y);
+          // otherContainer.body.setVelocityY(-125);
+          otherContainer.body.position.y = (players[grabbedBy].position.y);
+        } else if(players[otherContainer.playerId].position.y < (players[grabbedBy].position.y)) {
+          log('moving left and grabbed player Y is above grabber');
+          log('Grabber Y = ', players[grabbedBy].position.y,  '\n', 'Grabbed Y = ', players[otherContainer.playerId].position.y);
+          // otherContainer.body.setVelocityY(125);
+          otherContainer.body.position.y = (players[grabbedBy].position.y);
+        }  else {
+          log('moving left and grabbed player Y equal to grabber');
+          log('Grabber Y = ', players[grabbedBy].position.y,  '\n', 'Grabbed Y = ', players[otherContainer.playerId].position.y);
+          otherContainer.body.setVelocityY(0);
+        }
+      } else if(players[otherContainer.playerId].position.x < (players[grabbedBy].position.x - 30)){
+        // log('grabbed player is to the left of grabber');
+        otherContainer.body.setVelocityX(250);
+        players[otherContainer.playerId].rotation = 2;
+        players[otherContainer.playerId].isMoving = true;
+        if(players[otherContainer.playerId].y > (players[grabbedBy].y)) {
+          log('moving right and grabbed player Y is below grabber');
+          log('Grabber Y = ', players[grabbedBy].y,  '\n', 'Grabbed Y = ', players[otherContainer.playerId].y);
+          // otherContainer.body.setVelocityY(-125);
+          otherContainer.body.y = (players[grabbedBy].y);
+        } else if(players[otherContainer.playerId].y < (players[grabbedBy].y)) {
+          log('moving right and grabbed player Y is above grabber');
+          log('Grabber Y = ', players[grabbedBy].y,  '\n', 'Grabbed Y = ', players[otherContainer.playerId].y);
+          // otherContainer.body.setVelocityY(125);
+          otherContainer.body.y = (players[grabbedBy].y);
+        } else if(players[otherContainer.playerId].y == (players[grabbedBy].y)) {
+          log('moving right and grabbed player Y equal to grabber');
+          log('Grabber Y = ', players[grabbedBy].y,  '\n', 'Grabbed Y = ', players[otherContainer.playerId].y);
+          otherContainer.body.setVelocityY(0);
+          // otherContainer.body.y = (players[grabbedBy].y);
+        }
+      } else {
+        otherContainer.body.setVelocityX(0);
+      }
+
+      if(players[otherContainer.playerId].y > (players[grabbedBy].y + 60)){
+        log('grabbed player is below the grabber');
+        otherContainer.body.setVelocityY(-250);
+        // otherContainer.body.y = (players[grabbedBy].y);
+        players[otherContainer.playerId].rotation = 3;
+        players[otherContainer.playerId].isMoving = true;
+        if(players[otherContainer.playerId].position.x > (players[grabbedBy].position.x)) {
+          log('moving down and grabbed player X to the left of grabber');
+          log('Grabber X = ', players[grabbedBy].position.x,  '\n', 'Grabbed X = ', players[otherContainer.playerId].position.x);
+          // otherContainer.body.setVelocityX(-125);
+          otherContainer.body.position.x = (players[grabbedBy].position.x);
+        } else if(players[otherContainer.playerId].position.x < (players[grabbedBy].position.x)) {
+          log('moving down and grabbed player X to the right of grabber');
+          log('Grabber X = ', players[grabbedBy].position.x,  '\n', 'Grabbed X = ', players[otherContainer.playerId].position.x);
+          // otherContainer.body.setVelocityX(125);
+          otherContainer.body.x = (players[grabbedBy].position.x);
+        }  else if(players[otherContainer.playerId].position.x == (players[grabbedBy].position.x)) {
+          log('moving down and grabbed player X equal to grabber');
+          log('Grabber X = ', players[grabbedBy].position.x,  '\n', 'Grabbed X = ', players[otherContainer.playerId].position.x);
+          otherContainer.body.setVelocityX(0);
+        }
+      } else if(players[otherContainer.playerId].y < (players[grabbedBy].y - 60)){
+        log('grabbed player is above the grabber');
+        otherContainer.body.setVelocityY(250);
+        // otherContainer.body.y = (players[grabbedBy].y);
+        players[otherContainer.playerId].rotation = 4;
+        players[otherContainer.playerId].isMoving = true;
+        if(players[otherContainer.playerId].position.x > (players[grabbedBy].position.x)) {
+          log('moving up and grabbed player X is to the right of grabber');
+          log('Grabber X = ', players[grabbedBy].position.x,  '\n', 'Grabbed X = ', players[otherContainer.playerId].position.x);
+          // otherContainer.body.setVelocityX(-125);
+          otherContainer.body.x = (players[grabbedBy].position.x);
+        } else if(players[otherContainer.playerId].position.x < (players[grabbedBy].position.x)) {
+          log('moving up and grabbed player X is to the left of grabber');
+          log('Grabber X = ', players[grabbedBy].x,  '\n', 'Grabbed X = ', players[otherContainer.playerId].x);
+          // otherContainer.body.setVelocityX(125);
+          otherContainer.body.x = (players[grabbedBy].position.x);
+        } else if(players[otherContainer.playerId].position.x == (players[grabbedBy].position.x)) {
+          log('moving up and grabbed player X equal to grabber');
+          log('Grabber X = ', players[grabbedBy].x,  '\n', 'Grabbed x = ', players[otherContainer.playerId].position.x);
+          otherContainer.body.setVelocityX(0);
+          // otherContainer.body.position.x = (players[grabbedBy].position.x);
+        }
+      } else {
+        otherContainer.body.setVelocityY(0);
+      }
+
+      if(otherContainer.body.velocity.y == 0 && otherContainer.body.velocity.x == 0) {
+        players[otherContainer.playerId].isMoving = false;
+      }
+      if(input.left || input.right || input.up || input.down) {
+        players[otherContainer.playerId].grabbedBy = null;
+      }
+    } else {
+      if (input.left) {
+        //log('player = ', player);
+        otherContainer.body.setVelocityX(-250);
+        // log('otherContainer = ', otherContainer);
+        //log('zim =', players[player.playerId]);
+        //log('zam = ', this.container);
+        //log('zoom = ', player);
+          //log('player = ', players[player.playerId].playerId, '\n', 'input = ', players[player.playerId].input, '\n', 'whole player object = ', players[player.playerId]);
           players[otherContainer.playerId].rotation = 1;
           players[otherContainer.playerId].isMoving = true;
-           // console.log(players[player.playerId].firstName,"'s X coordinate is: ", this.container.body.x);
-           // console.log(players[player.playerId].firstName,"'s Y coordinate is: ", this.container.body.y);
+
+
+          // log('players[otherContainer.playerId] = ', players[otherContainer.playerId]);
+          // log('otherContainer.body = ', otherContainer.body.y);
+          // log('players[otherContainer.playerId].debug = ', players[otherContainer.playerId].debug);
+          players[otherContainer.playerId].debug.x = otherContainer.body.x;
+          players[otherContainer.playerId].debug.y = otherContainer.body.y;
+          players[otherContainer.playerId].debug.width = otherContainer.body.width;
+          players[otherContainer.playerId].debug.height = otherContainer.body.height;
+          // log('debug moving left = ', players[otherContainer.playerId].debug.x);
+
+
+           // log(players[player.playerId].firstName,"'s X coordinate is: ", this.container.body.x);
+           // log(players[player.playerId].firstName,"'s Y coordinate is: ", this.container.body.y);
       } else if (input.right) {
         otherContainer.body.setVelocityX(250);
         players[otherContainer.playerId].rotation = 2;
         players[otherContainer.playerId].isMoving = true;
-        // console.log(players[player.playerId].firstName,"'s X coordinate is: ", this.container.body.x);
-        // console.log(players[player.playerId].firstName,"'s Y coordinate is: ", this.container.body.y);
+        // log(players[player.playerId].firstName,"'s X coordinate is: ", this.container.body.x);
+        // log(players[player.playerId].firstName,"'s Y coordinate is: ", this.container.body.y);
       } else {
         otherContainer.body.setVelocityX(0);
       }
@@ -871,73 +1141,75 @@ function update() {
         otherContainer.body.setVelocityY(-250);
         players[otherContainer.playerId].rotation = 3;
         players[otherContainer.playerId].isMoving = true;
-        // console.log(players[player.playerId].firstName,"'s X coordinate is: ", this.container.body.x);
-        // console.log(players[player.playerId].firstName,"'s Y coordinate is: ", this.container.body.y);
+        // log(players[player.playerId].firstName,"'s X coordinate is: ", this.container.body.x);
+        // log(players[player.playerId].firstName,"'s Y coordinate is: ", this.container.body.y);
       } else if (input.down) {
         otherContainer.body.setVelocityY(250);
         players[otherContainer.playerId].rotation = 4;
         players[otherContainer.playerId].isMoving = true;
-        // console.log(players[player.playerId].firstName,"'s X coordinate is: ", this.container.body.x);
-        // console.log(players[player.playerId].firstName,"'s Y coordinate is: ", this.container.body.y);
+        // log(players[player.playerId].firstName,"'s X coordinate is: ", this.container.body.x);
+        // log(players[player.playerId].firstName,"'s Y coordinate is: ", this.container.body.y);
       } else {
         otherContainer.body.setVelocityY(0);
       }
-      // console.log(otherContainer.body.velocity.x);
-      // console.log(otherContainer.body.velocity.y);
+      // log(otherContainer.body.velocity.x);
+      // log(otherContainer.body.velocity.y);
       if(otherContainer.body.velocity.y == 0 && otherContainer.body.velocity.x == 0) {
         players[otherContainer.playerId].isMoving = false;
       }
+    }
+    
 
       if(otherContainer.door) {
         if(otherContainer.door == 'door_clothing_store') {
-          console.log('player in door status: ', otherContainer.door);
+          log('player in door status: ', otherContainer.door);
           otherContainer.body.x = 10544;
           otherContainer.body.y = 4529;
-          players[otherContainer.playerId].x = otherContainer.body.x;
-          players[otherContainer.playerId].y = otherContainer.body.y;
+          players[otherContainer.playerId].position.x = otherContainer.body.position.x;
+          players[otherContainer.playerId].position.y = otherContainer.body.position.y;
           otherContainer.door = '';
         }
         if(otherContainer.door == 'clothing_store_exit_rug') {
-          console.log('player in door status: ', otherContainer.door);
-          otherContainer.body.x = 6398;
-          otherContainer.body.y = 5632;
-          players[otherContainer.playerId].x = otherContainer.body.x;
-          players[otherContainer.playerId].y = otherContainer.body.y;
+          log('player in door status: ', otherContainer.door);
+          otherContainer.body.position.x = 6398;
+          otherContainer.body.position.y = 5632;
+          players[otherContainer.playerId].position.x = otherContainer.body.position.x;
+          players[otherContainer.playerId].position.y = otherContainer.body.position.y;
           otherContainer.door = '';
         }
         if (otherContainer.door == 'door_pub') {
-          console.log('player in door status: ', otherContainer.door);
+          log('player in door status: ', otherContainer.door);
           otherContainer.body.x = 10806;
           otherContainer.body.y = 3337;
-          players[otherContainer.playerId].x = otherContainer.body.x;
+          players[otherContainer.playerId].position.x = otherContainer.body.position.x;
           players[otherContainer.playerId].y = otherContainer.body.y;
           otherContainer.door = '';
         }
         if (otherContainer.door == 'pub_exit_rug') {
-          console.log('player in door status: ', otherContainer.door);
+          log('player in door status: ', otherContainer.door);
           otherContainer.body.x = 4292;
           otherContainer.body.y = 4165;
-          players[otherContainer.playerId].x = otherContainer.body.x;
-          players[otherContainer.playerId].y = otherContainer.body.y;
+          players[otherContainer.playerId].position.x = otherContainer.body.x;
+          players[otherContainer.playerId].position.y = otherContainer.body.y;
           otherContainer.door = '';
         }
         if (otherContainer.door == 'door_spa') {
-          console.log('player in door status: ', otherContainer.door);
+          log('player in door status: ', otherContainer.door);
           otherContainer.body.x = 10266;
           otherContainer.body.y = 973;
-          players[otherContainer.playerId].x = otherContainer.body.x;
-          players[otherContainer.playerId].y = otherContainer.body.y;
+          players[otherContainer.playerId].position.x = otherContainer.body.x;
+          players[otherContainer.playerId].position.y = otherContainer.body.y
           otherContainer.door = '';
         }
       } else {
-        players[otherContainer.playerId].x = otherContainer.body.x;
-        players[otherContainer.playerId].y = otherContainer.body.y;
-        // console.log('Player X Position: ', players[otherContainer.playerId].x);
-        // console.log('Player Y Position: ', players[otherContainer.playerId].y);
+        players[otherContainer.playerId].position.x = otherContainer.body.x;
+        players[otherContainer.playerId].position.y = otherContainer.body.y;
+        // log('Player X Position: ', players[otherContainer.playerId].position.x);
+        // log('Player Y Position: ', players[otherContainer.playerId].position.y);
       }
       //players[player.playerId].rotation = player.rotation;
     // }
-    // console.log('player = ', players[player.playerId].playerId, 'input = ', players[player.playerId].input);
+    // log('player = ', players[player.playerId].playerId, 'input = ', players[player.playerId].input);
   });
 
   io.emit('playerUpdates', players);
@@ -945,87 +1217,30 @@ function update() {
 
 //----- This is called whenever a player connects via socket.io -----//
 function addPlayer(self, playerInfo) {
-  //const player = self.physics.add.image(playerInfo.x, playerInfo.y, 'body').setOrigin(0.5, 0.5);
-  playerContainer = self.add.container(playerInfo.x, playerInfo.y).setInteractive();
-  self.physics.world.enable(playerContainer);
-  //----- the 30, -87 defines the placement of the sprite in the container -----//
-  const playerContainerhead = self.add.sprite(30, -87, playerInfo.head.sprite);
-  playerContainerhead.setTint(playerInfo.head.color);
-  const playerContainersecondaryHead = self.add.sprite(30, -87, playerInfo.head.secondarySprite);
-  playerContainersecondaryHead.setTint(playerInfo.head.secondaryColor);
-  const playerContaineraccentHead = self.add.sprite(30, -87, playerInfo.head.accentSprite);
-  playerContaineraccentHead.setTint(playerInfo.head.accentColor);
-
-  const playerContainerbody = self.add.sprite(30, -87, playerInfo.body.sprite);
-  playerContainerbody.setTint(playerInfo.body.color);
-  const playerContainersecondaryBody = self.add.sprite(30, -87, playerInfo.body.secondarySprite);
-  playerContainersecondaryBody.setTint(playerInfo.body.secondaryColor);
-  const playerContaineraccentBody = self.add.sprite(30, -87, playerInfo.body.accentSprite);
-  playerContaineraccentBody.setTint(playerInfo.body.accentColor);
-
-  const playerContainertail = self.add.sprite(30, -87, playerInfo.tail.sprite);
-  playerContainertail.setTint(playerInfo.tail.color);
-  const playerContainersecondaryTail = self.add.sprite(30, -87, playerInfo.tail.secondarySprite);
-  playerContainersecondaryTail.setTint(playerInfo.tail.secondaryColor);
-  const playerContaineraccentTail = self.add.sprite(30, -87, playerInfo.tail.accentSprite);
-  playerContaineraccentTail.setTint(playerInfo.tail.accentColor);
-
-  const playerContainerhair = self.add.sprite(30, -87, playerInfo.hair.sprite);
-  playerContainerhair.setTint(playerInfo.hair.color);
-
-  const playerContainerear = self.add.sprite(30, -87, playerInfo.ear.outerSprite);
-  playerContainerear.setTint(playerInfo.ear.outerColor);
-
-  const playerContainereyes = self.add.sprite(30, -87, playerInfo.eyes.outer);
-  const playerContaineriris = self.add.sprite(30, -87, playerInfo.eyes.iris);
-  playerContaineriris.setTint(playerInfo.eyes.color);
-
-  const playerContainergenitles = self.add.sprite(30, -87, playerInfo.genitles.sprite);
-  //self.genitles.setTint(playerInfo.genitles.color);
+  let playerContainer = self.physics.add.sprite(playerInfo.position.x, playerInfo.position.y, playerInfo.head.sprite);
+  playerContainer.setOrigin(1, 1); // Set anchor point to top-left corner
+  playerContainer.setSize(60, 15);
+  
 
 
-  playerContainer.add([
-    playerContainertail,
-    playerContainersecondaryTail,
-    playerContaineraccentTail,
-    playerContainerbody,
-    playerContainersecondaryBody,
-    playerContaineraccentBody,
-    playerContainerhead,
-    playerContainerear,
-    playerContainersecondaryHead,
-    playerContaineraccentHead,
-    playerContainereyes,
-    playerContaineriris,
-    playerContainerhair,
-    playerContainergenitles
-  ]);
-  playerContainer.sendToBack(self.tail);
-  // playerContainer.bringToTop(self.tail);
-  // playerContainer.moveDown(self.tail);
-  // playerContainer.moveTo(self.tail);
-  // playerContainer.moveUp(self.tail);
-
+  
   playerContainer.playerId = playerInfo.playerId;
   self.players.add(playerContainer);
 
 
-  playerContainer.body.setSize(60, 15);
-  //playerContainer.body.setOffset(-30, -90);
-  //playerContainer.body.setCollideWorldBounds(true);
 
-  //playerContainer.setInteractive();
-  console.log(playerInfo.firstName, ' added to Serverside Phaser Instance successfully!');
-  //console.log('playerContainer = ', playerContainer);
-  console.log('self.players.playerId = ', self.players.playerId);
-  //console.log('player coordinates are: X= ', playerInfo.x, 'Y= ', playerInfo.y);
+  log(playerInfo.firstName, ' added to Serverside Phaser Instance successfully!');
+  // log('playerContainer = ', playerContainer);
+  // log('self.players.playerId = ', self.players.playerId);
+  // log('coordinatesX = ', playerContainer.x, 'coordinates Y = ', playerContainer.y);
+  // log('player coordinates are: X= ', playerInfo.position.x, 'Y= ', playerInfo.position.y);
 }
 
 //----- This is called whenever a player disconnects via socket.io -----//
 function removePlayer(self, playerId) {
   self.players.getChildren().forEach((player) => {
     if (playerId === player.playerId) {
-      console.log('player ID match found...Destroying player.');
+      log('player ID match found...Destroying player.');
       player.destroy();
     }
   });
@@ -1035,6 +1250,7 @@ function removePlayer(self, playerId) {
 function handlePlayerInput(self, playerId, input) {
   self.players.getChildren().forEach((playerContainer) => {
     if (playerId === playerContainer.playerId) {
+      // log('coordinatesX = ', players[playerContainer.playerId].position.x, 'coordinates Y = ', players[playerContainer.playerId].position.y);
       players[playerContainer.playerId].input = input;
     }
   });
@@ -1042,35 +1258,136 @@ function handlePlayerInput(self, playerId, input) {
 
 //----- This is called whenever a player enters a door in game -----//
 function handleDoorTransport(self, playerId, door) {
-  console.log('standing in door');
+  log('standing in door');
   if (playerId === playerContainer.playerId) {
-    console.log('playerId verified');
-    console.log(players[playerContainer.playerId]);
-    players[playerContainer.playerId].x = 10561;
-    players[playerContainer.playerId].y = 4499
+    log('playerId verified');
+    log(players[playerContainer.playerId]);
+    players[playerContainer.playerId].position.x = 10561;
+    players[playerContainer.playerId].position.y = 4499
+  }
+}
+
+async function examiningPlayer(clicked, socket){
+  let charId = clicked._id;
+  log('character ID = ', charId);
+  try{
+    // const result = await User.find(ObjectId(charId));
+    const result = await User.find({"characters._id":  charId});
+    // const result = await User.match(ObjectId(charId));
+    // log('Result = ', result[0]);
+    for (let i = 0; i < result[0].characters.length; i++) {
+      // log('Result = ', result.characters[i]);
+      if(result[0].characters[i]._id == charId) {
+        log('successfully found character!!!');
+        // log('Result = ', result.characters[i]);
+        var examinedItem = {
+          firstName: result[0].characters[i].firstName,
+          lastName: result[0].characters[i].lastName,
+          speciesName: result[0].characters[i].speciesName,
+          icDescrip: result[0].characters[i].icDescrip,
+          oocDescrip: result[0].characters[i].oocDescrip,
+          Identifier: 'player'
+        }
+      }
+    }
+    // await result.save();
+    socket.emit('examinedInfo', examinedItem);
+  } catch(e){
+    log('Error in attempting to find Examined Player. Error message: ', e);
+  }
+}
+
+
+
+async function voreChamberUpdate(voreUpdate, cookie, socket){
+  players[socket.id].voreTypes
+  let id = voreUpdate.voreFormId;
+  let token = voreUpdate.token.replace('TastyTails=','');;
+  let charId = voreUpdate.charId;
+  // const token = cookie.replace('TastyTails=','');
+  // log('token = ', token)
+  let chamberSettings = voreUpdate.chamberSettings;
+  let digestionTimer = voreUpdate.digestionTimer;
+  let leavesRemains = voreUpdate.leavesRemains;
+  let remainsType = voreUpdate.remainsType;
+  let remainsExit = voreUpdate.remainsExit;
+  let soulInteraction = voreUpdate.soulInteraction;
+
+  const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+  log('player ID = ', verified);
+  log('character ID = ', charId);
+  log('Vore Chamber ID to Edit: ', id);
+
+
+  try{
+    const result = await User.findById(ObjectId(verified._id));
+    // log('Result = ', result.characters);
+    for (let i = 0; i < result.characters.length; i++) {
+      // log('Result = ', result.characters[i]);
+      if(result.characters[i]._id == charId) {
+        log('successfully found character!!!');
+        // log('Result = ', result.characters[i]);
+        for (let n = 0; n < result.characters[i].voreTypes.length; n++) {
+          // log(result.characters[i].voreTypes[n]._id);
+          result.characters[i].voreTypes[n]._id == id;
+          if(result.characters[i].voreTypes[n]._id == id) {
+            log('successfully found Vore Chamber to Edit!!!');
+            log('Vore Chamber ID to Edit: ', id);
+            log('Vore Chamber Details: ', result.characters[i].voreTypes[n]);
+            result.characters[i].voreTypes[n].chamberSettings = chamberSettings;
+            result.characters[i].voreTypes[n].digestionTimer = digestionTimer;
+            result.characters[i].voreTypes[n].leavesRemains = leavesRemains;
+            result.characters[i].voreTypes[n].remainsType = remainsType;
+            result.characters[i].voreTypes[n].remainsExit = remainsExit;
+            result.characters[i].voreTypes[n].soulInteraction = soulInteraction;
+
+            await result.save();
+            socket.emit('chamberSettingsUpdate');
+          }
+        }
+      }
+    }
+  } catch(e){
+    log('Error updating Vore Chamber Settings. Error message: ', e);
   }
 }
 
 async function listDatabases(client){
   databasesList = await client.db().admin().listDatabases();
-  console.log("Databases:");
-  databasesList.databases.forEach(db => console.log(` - ${db.name}`));
+  log("Databases:");
+  databasesList.databases.forEach(db => log(` - ${db.name}`));
 };
 
 //Get chats from mongo colletion
-async function getAllChats(socket){
+async function getAllChats(data, socket){
+  let token = data.token;
+  let charId = data.charId;
+  const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+
   try {
-    const chats = await Chats.find();
-    console.log('chats = ', chats);
-    socket.emit('output', chats);
+    const chats = await Chats.find().sort({'message.time': -1}).limit(5);
+    const allMsgs = [];
+    for (let i = 0; i < chats.length; i++) {
+      let message = {
+        _id: chats[i]._id,
+        name: chats[i].name,
+        message: chats[i].message,
+        spoiler: chats[i].spoiler,
+        deleted: chats[i].deleted,
+        identifier: chats[i].identifier.character
+      }
+      allMsgs.push(message);
+    }
+    // log('chats = ', allMsgs);
+    socket.emit('output', allMsgs.reverse());
   } catch (e){
-    console.log('error getting all chats. Error Message = ', e);
+    log('error getting all chats. Error Message = ', e);
   }
 }
 
 async function addMessage(data, socket){
   var urlifiedMessage = urlify(data.message);
-  console.log('messageVersions = ', urlifiedMessage);
+  log('messageVersions = ', urlifiedMessage);
   let name = data.name;
   let message = urlifiedMessage;
   let spoilerStatus = {
@@ -1092,6 +1409,12 @@ async function addMessage(data, socket){
     status: false,
     deletionTime: null
   }
+  let token = data.token;
+  let charId = data.charId;
+
+  const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+  log('player ID = ', verified);
+  log('character ID = ', charId);
 
 
   function removeTags(str) {
@@ -1106,7 +1429,7 @@ async function addMessage(data, socket){
   }
   let charCount = removeTags(data.message).length;
   // data.message.length;
-  console.log('charCount = ', charCount);
+  log('charCount = ', charCount);
   if(charCount > 10000){
     socket.emit('tooManyChars', charCount, data.message);
   } else{
@@ -1115,37 +1438,45 @@ async function addMessage(data, socket){
         name: name,
         message: messageVersions,
         spoiler: spoilerStatus,
-        deleted: removal
+        deleted: removal,
+        identifier: {
+          account: verified,
+          character: charId
+        }
       });
       await result.save();
-      console.log(result);
-      // console.log('post time = ', result.message[result.message.length-1].time);
-      console.log('post content = ', result.message[result.message.length-1].content);
-      io.emit('output', [result]);
+      // log(result);
+      // log('post time = ', result.message[result.message.length-1].time);
+      const clientMsg = {
+        _id: result._id,
+        name: result.name,
+        message: result.message,
+        spoiler: result.spoiler,
+        deleted: result.deleted,
+        identifier: result.identifier.character
+      }
+      log('post content = ', result.message[result.message.length-1].content);
+      io.emit('output', [clientMsg]);
     } catch(e){
-      console.log('error sending message to MongoDB. Error Message: ', e);
+      log('error sending message to MongoDB. Error Message: ', e);
     }
     // const result = await client.db("test").collection("chats").insertOne({name: name, message: messageVersions, spoiler: spoilerStatus, deleted: removal});
-    // console.log('new message saved with the following info: \n', result.insertedId, '\n', result.name, '\n', result.message);
-    // console.log(result);
+    // log('new message saved with the following info: \n', result.insertedId, '\n', result.name, '\n', result.message);
+    // log(result);
     // const success = await client.db("test").collection("chats").findOne({_id: result.insertedId});
-    // console.log(success);
-    // console.log('post time = ', success.message[success.message.length-1].time);
-    // console.log('post content = ', success.message[success.message.length-1].content);
+    // log(success);
+    // log('post time = ', success.message[success.message.length-1].time);
+    // log('post content = ', success.message[success.message.length-1].content);
 
     // io.emit('output', [success]);
     //Send status object
-    sendStatus({
-      message:'Message Sent',
-      clear: true
-    });
   }
 }
 
 async function editMessage(data, socket){
-  console.log('edited data.message (before urlify) =', data.message);
+  log('edited data.message (before urlify) =', data.message);
   var urlifiedMessage = urlify(data.message);
-  console.log('urlifiedMessage = ', urlifiedMessage);
+  log('urlifiedMessage = ', urlifiedMessage);
   let id = new ObjectId(data._id);
   let message = urlifiedMessage;
   let time = new Date().toUTCString();
@@ -1155,28 +1486,41 @@ async function editMessage(data, socket){
       time:time
     }
   ]
-  console.log('Editing messge: ');
-  console.log('Edited id = ', id);
-  console.log('Edited message = ', message);
-  console.log('New Time = ', time);
-  console.log('messageVersions Object = ', messageVersions);
+  let token = data.token;
+  let charId = data.charId;
+  const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+
+  log('player ID = ', verified);
+  log('character ID = ', charId);
+  log('Editing messge: ');
+  log('Edited id = ', id);
+  log('Edited message = ', message);
+  log('New Time = ', time);
+  log('messageVersions Object = ', messageVersions);
 
   try{
     const result = await Chats.findById(ObjectId(id));
-    result.message.push(message);
-    await result.save();
-    console.log(result);
-    // console.log('post time = ', result.message[result.message.length-1].time);
-    console.log('post content = ', result.message[result.message.length-1].content);
-    io.emit('editOutput', result);
+    // log('result = ', result);
+    log('result.identifier = ', result.identifier);
+    if (result.identifier.account == verified._id && result.identifier.character == charId){
+      result.message.push(message);
+      await result.save();
+      log(result);
+      // log('post time = ', result.message[result.message.length-1].time);
+      log('post content = ', result.message[result.message.length-1].content);
+      io.emit('editOutput', result);
+    }else{
+      log('attempting to edit incorrect message...');
+      socket.emit('editOutput', result);
+    }
   } catch(e){
-    console.log('error getting edited message to MongoDB. Error Message: ', e);
+    log('error getting edited message to MongoDB. Error Message: ', e);
   }
 
   // const result = await client.db("test").collection("chats").updateOne({_id: ObjectId(id)}, {$push: {"message": message}});
   //
-  // console.log(`${result.matchedCount} document(s) matched the query criteria.`);
-  // console.log(`${result.modifiedCount} document(s) was/were updated.`);
+  // log(`${result.matchedCount} document(s) matched the query criteria.`);
+  // log(`${result.modifiedCount} document(s) was/were updated.`);
   //
   // const success = await client.db("test").collection("chats").findOne({_id: ObjectId(id)});
   //
@@ -1187,26 +1531,38 @@ async function editMessage(data, socket){
 async function deleteMessage(data, socket){
   let id = new ObjectId(data._id);
   let time = new Date().toUTCString();
+  let token = data.token;
+  let charId = data.charId;
+  const verified = jwt.verify(token, process.env.TOKEN_SECRET);
   let removal = {
       status: true,
       deletionTime:time
     }
-  console.log('Deleting messge: ');
-  console.log('Deleted id = ', id);
-  console.log('Deletion Time = ', time);
+
+
+  log('Deleting messge: ');
+  log('Deleted id = ', id);
+  log('Deletion Time = ', time);
 
   try{
-    const result = await Chats.updateOne({_id:ObjectId(id)}, {deleted:removal});
-    console.log(result);
-    io.emit('editOutput', result);
+    const result = await Chats.findById(ObjectId(id));
+    if (result.identifier.account == verified._id && result.identifier.character == charId){
+      // const delresult = await Chats.updateOne({_id:ObjectId(id)}, {deleted:removal});
+      result.deleted = removal;
+      await result.save();
+      // log(delresult);
+      io.emit('editOutput', result);
+    }else{
+      log('attempting to delete incorrect message...');
+    }
   } catch(e){
-    console.log('error getting edited message to MongoDB. Error Message: ', e);
+    log('error getting edited message to MongoDB. Error Message: ', e);
   }
 
   // const result = await client.db("test").collection("chats").updateOne({_id: ObjectId(id)}, {$set: {deleted: removal}});
   //
-  // console.log(`${result.matchedCount} document(s) matched the query criteria.`);
-  // console.log(`${result.modifiedCount} document(s) was/were updated.`);
+  // log(`${result.matchedCount} document(s) matched the query criteria.`);
+  // log(`${result.modifiedCount} document(s) was/were updated.`);
   //
   // const success = await client.db("test").collection("chats").findOne({_id: ObjectId(id)});
   //
@@ -1216,24 +1572,33 @@ async function deleteMessage(data, socket){
 async function changeSpoilerLabel(data, socket){
   let id = new ObjectId(data._id);
   let spoiler = data.spoiler;
+  let token = data.token;
+  let charId = data.charId;
+  const verified = jwt.verify(token, process.env.TOKEN_SECRET);
 
-  console.log('Editing spoiler: ');
-  console.log('Edited id = ', id);
-  console.log('Edited spoil status = ', spoiler);
+  log('Editing spoiler: ');
+  log('Edited id = ', id);
+  log('Edited spoil status = ', spoiler);
 
   try{
-    const result = await Chats.updateOne({_id:ObjectId(id)}, {$set: {'spoiler.status': spoiler}});
-    const success = await Chats.findById(ObjectId(id));
-    console.log(success);
-    io.emit('editSpoilerOutput', success);
+    // const result = await Chats.updateOne({_id:ObjectId(id)}, {$set: {'spoiler.status': spoiler}});
+    const result = await Chats.findById(ObjectId(id));
+    if (result.identifier.account == verified._id && result.identifier.character == charId){
+      result.spoiler.status = spoiler;
+      await result.save();
+      log(result);
+      io.emit('editSpoilerOutput', result);
+    }else{
+      log('wanting to vote on spoiler change...');
+    }
   } catch(e){
-    console.log('error getting edited message to MongoDB. Error Message: ', e);
+    log('error getting edited message to MongoDB. Error Message: ', e);
   }
 
   // const result = await client.db("test").collection("chats").updateOne({_id: ObjectId(id)}, {$set: {'spoiler.status': spoiler}});
   //
-  // console.log(`${result.matchedCount} document(s) matched the query criteria.`);
-  // console.log(`${result.modifiedCount} document(s) was/were updated.`);
+  // log(`${result.matchedCount} document(s) matched the query criteria.`);
+  // log(`${result.modifiedCount} document(s) was/were updated.`);
   //
   // const success = await client.db("test").collection("chats").findOne({_id: ObjectId(id)});
   //
@@ -1249,9 +1614,9 @@ function urlify(text) {
   const ahrefCheck = /((<a href=")(\/\/)?(((?:(http|https|Http|Https|rtsp|Rtsp):\/\/(?:(?:[a-zA-Z0-9\$\-\_\.\+\!\*\'\(\)\,\;\?\&\=]|(?:\%[a-fA-F0-9]{2})){1,64}(?:\:(?:[a-zA-Z0-9\$\-\_\.\+\!\*\'\(\)\,\;\?\&\=]|(?:\%[a-fA-F0-9]{2})){1,25})?\@)?)?((?:(?:[a-zA-Z0-9][a-zA-Z0-9\-]{0,64}\.)+(?:(?:aero|arpa|asia|a[cdefgilmnoqrstuwxz])|(?:biz|b[abdefghijmnorstvwyz])|(?:cat|com|coop|c[acdfghiklmnoruvxyz])|d[ejkmoz]|(?:edu|e[cegrstu])|f[ijkmor]|(?:gov|g[abdefghilmnpqrstuwy])|h[kmnrtu]|(?:info|int|i[delmnoqrst])|(?:jobs|j[emop])|k[eghimnrwyz]|l[abcikrstuvy]|(?:mil|mobi|museum|m[acdghklmnopqrstuvwxyz])|(?:name|net|n[acefgilopruz])|(?:org|om)|(?:pro|p[aefghklmnrstwy])|qa|r[eouw]|s[abcdeghijklmnortuvyz]|(?:tel|travel|t[cdfghjklmnoprtvwz])|u[agkmsyz]|v[aceginu]|w[fs]|y[etu]|z[amw]))|(?:(?:25[0-5]|2[0-4][0-9]|[0-1][0-9]{2}|[1-9][0-9]|[1-9])\.(?:25[0-5]|2[0-4][0-9]|[0-1][0-9]{2}|[1-9][0-9]|[1-9]|0)\.(?:25[0-5]|2[0-4][0-9]|[0-1][0-9]{2}|[1-9][0-9]|[1-9]|0)\.(?:25[0-5]|2[0-4][0-9]|[0-1][0-9]{2}|[1-9][0-9]|[0-9])))(?:\:\d{1,5})?)(\/(?:(?:[a-zA-Z0-9\;\/\?\:\@\&\=\#\~\-\.\+\!\*\'\(\)\,\_])|(?:\%[a-fA-F0-9]{2}))*)?(?:\b|$)?)(\" target\=\"\_blank\"\>)(((?:(http|https|Http|Https|rtsp|Rtsp):\/\/(?:(?:[a-zA-Z0-9\$\-\_\.\+\!\*\'\(\)\,\;\?\&\=]|(?:\%[a-fA-F0-9]{2})){1,64}(?:\:(?:[a-zA-Z0-9\$\-\_\.\+\!\*\'\(\)\,\;\?\&\=]|(?:\%[a-fA-F0-9]{2})){1,25})?\@)?)?((?:(?:[a-zA-Z0-9][a-zA-Z0-9\-]{0,64}\.)+(?:(?:aero|arpa|asia|a[cdefgilmnoqrstuwxz])|(?:biz|b[abdefghijmnorstvwyz])|(?:cat|com|coop|c[acdfghiklmnoruvxyz])|d[ejkmoz]|(?:edu|e[cegrstu])|f[ijkmor]|(?:gov|g[abdefghilmnpqrstuwy])|h[kmnrtu]|(?:info|int|i[delmnoqrst])|(?:jobs|j[emop])|k[eghimnrwyz]|l[abcikrstuvy]|(?:mil|mobi|museum|m[acdghklmnopqrstuvwxyz])|(?:name|net|n[acefgilopruz])|(?:org|om)|(?:pro|p[aefghklmnrstwy])|qa|r[eouw]|s[abcdeghijklmnortuvyz]|(?:tel|travel|t[cdfghjklmnoprtvwz])|u[agkmsyz]|v[aceginu]|w[fs]|y[etu]|z[amw]))|(?:(?:25[0-5]|2[0-4][0-9]|[0-1][0-9]{2}|[1-9][0-9]|[1-9])\.(?:25[0-5]|2[0-4][0-9]|[0-1][0-9]{2}|[1-9][0-9]|[1-9]|0)\.(?:25[0-5]|2[0-4][0-9]|[0-1][0-9]{2}|[1-9][0-9]|[1-9]|0)\.(?:25[0-5]|2[0-4][0-9]|[0-1][0-9]{2}|[1-9][0-9]|[0-9])))(?:\:\d{1,5})?)(\/(?:(?:[a-zA-Z0-9\;\/\?\:\@\&\=\#\~\-\.\+\!\*\'\(\)\,\_])|(?:\%[a-fA-F0-9]{2}))*)?(?:\b|$)?)(<\/a>))/gi
 
   return text.replace(urlRegex, function(url) {
-    console.log('raw url without href = ', url);
+    log('raw url without href = ', url);
     const r = new RegExp('^(?:[a-z]+:)?//', 'i');
-      console.log('r.test = ', r.test(url));
+      log('r.test = ', r.test(url));
       if(r.test(url)){
         var absoluteUrl = url
         return '<a href="'+ absoluteUrl +'" target="_blank">' + absoluteUrl + '</a>';
@@ -1268,7 +1633,7 @@ function urlify(text) {
   //
   // return text.replace(urlRegex, function(url) {
   //   const r = new RegExp('^(?:[a-z]+:)?//', 'i');
-  //   console.log('r.test = ', r.test(url));
+  //   log('r.test = ', r.test(url));
   //   if(r.test(url)){
   //     return '<a href="'+ url +'" target="_blank">' + url + '</a>';
   //   }else{
@@ -1296,7 +1661,7 @@ function setupAuthoritativePhaser() {
     //----- The following code is meant to prevent a 'Uncought [TypeError: URL.createObjectURL is not a function]' error message from occuring -----//
     dom.window.URL.createObjectURL = (blob) => {
       if (blob){
-        //console.log('blob = ', blob);
+        //log('blob = ', blob);
         return datauri.format(blob.type, blob[Object.getOwnPropertySymbols(blob)[0]]._buffer).content;
       }
     };
@@ -1307,15 +1672,15 @@ function setupAuthoritativePhaser() {
       dom.window.io = io;
       //----- Launches the server using Port 3000 -----//
       http.listen(3000, function () {
-        console.log(`Listening on ${http.address().port}`);
+        log(`Listening on ${http.address().port}`);
       });
     };
   }).catch((error) => {
-    console.log(error.message);
+    log(error.message);
   });
 }
 
 // setupAuthoritativePhaser();
 http.listen(3000, function () {
-  console.log(`Listening on ${http.address().port}`);
+  log(`Listening on ${http.address().port}`);
 });

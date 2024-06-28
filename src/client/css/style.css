@@ -1,8 +1,6 @@
-<style>
-
 /* Global */
 body {
-  background-color: #0b4b90;
+  background-color: #1a452d;
   padding: 0;
   margin: 0;
 }
@@ -192,7 +190,7 @@ nav a:hover {
     /**display: none;*/
     margin:20px 0 0 0;
     background-color: #0b4b90;
-    height:500px;
+    height: 99%;
     min-width: 1355px;
     min-height: 510px;
   }
@@ -400,17 +398,7 @@ nav a:hover {
   .pickr .pcr-button {
     width: 50px;
     height: 50px;
-    /* border-radius: 100%; */
-    /* border: 2px solid rgba(15, 15, 15, 0.2); */
-    /* background-color: rgb(255, 255, 255); */
   }
-  /* .pickr .pcr-button:active {
-    box-shadow: 0 5px #666;
-    transform: translateY(4px);
-  } */
-  /* .pcr-app {
-    position: inherit;
-  } */
   .pcr-app[data-theme=classic]{
     width: auto;
   }
@@ -809,11 +797,11 @@ nav a:hover {
   background-color: #0b4b90;
   z-index: -20;
   height: 930px;
-  width: 850px;
+  width: 50%;
   float: right;
 }
 #menu {
-  height: 43%;
+  height: 35.5%;
 }
 .navBar {
   height: 40px;
@@ -1079,7 +1067,8 @@ button.accordion:hover, button.accordion.is-open {
 
 .chat-message {
   /* background-color: #191932; */
-  margin: 15px;
+  margin: 15px 15px 0px 15px;
+  padding-bottom: 15px;
   display:block;
 }
 
@@ -1259,6 +1248,7 @@ button.accordion:hover, button.accordion.is-open {
 
 /* ----- Styles the chat control buttons -----*/
 #message-box-container{
+  width: 99%;
   display: inline-block;
   outline: none;
   box-shadow: 0px 0px 8px 0px #666;
@@ -1392,6 +1382,7 @@ background-color: #8f9f83;
 }
 
 .dropdown-menu{
+  /* display: none; */
   position: absolute;
   left: 0;
   top: calc(100% + .25rem);
@@ -1410,14 +1401,17 @@ background-color: #8f9f83;
 
 .dropdown.active >.link + .dropdown-menu{
 opacity: 1;
-transform: translateY(0);
+/* transform: translateY(0); */
+transform: translate(-275px, -255px);
 pointer-events: auto;
+display: grid;
 }
 
 .information-grid{
-  display: grid;
+  display: none;
   grid-template-columns: repeat(2, max-content);
   gap: 2rem;
+  transform: translateY(-10px);
 }
 
 .dropdown-links{
@@ -1437,7 +1431,7 @@ pointer-events: auto;
 /* ----- Styles the Message Input Box -----*/
 #textarea {
   height: 100px;
-  width:500px;
+  /* width: 100%; */
   padding: 5px;
   outline: none;
   /* box-shadow: 0px 6px 8px -2px #666; */
@@ -1498,5 +1492,3 @@ pointer-events: auto;
   border-top-color: var(--tooltip-color);
   transform-origin: top center;
 }
-
-</style>

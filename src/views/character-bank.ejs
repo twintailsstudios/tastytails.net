@@ -15,49 +15,47 @@
   }
   #emptySlot{
     position: relative;
-    background-color: #74b6dc;
+    background-color: rgb(143, 159, 131);
     border-style: dashed;
     border-width: 5px;
     border-color: #666;
     border-radius: 10px;
 
-    height: 95%;
-    width: 95%;
+    height: 100%;
+    width: 100%;
     text-align: center;
     opacity: .5;
     z-index: 1;
+    margin: 5px 0 10px 0 
   }
   #emptySlot a{
     display: block;
     position: absolute;
-
+    font-weight: bold;
     text-align: center;
     text-decoration: none;
     z-index: 2;
   }
-  #bank ul{
+  #bank #bankUl{
     display: flex;
     flex-wrap: wrap;
     justify-content: space-around;
   }
-  .name{
-    margin: 5px;
-    padding: 5px;
-    border: solid;
-    border-width: 5px;
-    width: 100%;
-  }
+
   .button.options{
     font-family: fontAwesome;
   }
 
 </style>
-
+<link rel="stylesheet" href="../../css/character-bank_style.css">
 <body>
   <section id ="characterBank">
     <div class ="container">
       <div id ="bank">
-        <h1>Character Bank</h1>
+        <div id ="bank-title">
+          <h1>Character Bank</h1>
+          <button class="button" id="addNew"><a href ="/create">+ Add New</a></button>
+        </div>
         <ul id= "bankUl">
           <li id ="addChar">
             <div class ="slot">
@@ -74,58 +72,276 @@
 </body>
 <% if (charList !== null) { %>
   <script>
-    var charList = <%- charList %>;
-    console.log('charList = ', charList);
+    // Escape and parse the charList variable safely
+    var rawCharList = `<%- JSON.stringify(charList)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, '\\\'')
+    .replace(/"/g, '&quot;')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029') %>`;
+    var charList = JSON.parse(rawCharList.replace(/&quot;/g, '"'));
+    
+    console.log('Top of the list charList = ', charList);
 
     for (i = 0; i < charList.length; i++) {
-      var addCharLi = document.getElementById("addChar");
-      var li = document.createElement('li');
-      var slotDiv = document.createElement('div');
-      var nameDiv = document.createElement('div');
-      var playBttn = document.createElement('button');
-      var editBttn = document.createElement('button');
-      var optionsBttn = document.createElement('button');
-      var aEdit = document.createElement('a');
-      var aPlay = document.createElement('a');
 
+      var bankDiv = document.getElementById('bank');
+
+      //----- Start of delete confirmation modal -----//
+      let modalBackground = document.createElement('div');
+      modalBackground.className = 'modalBackground';
+      modalBackground.id = 'modalBackground' + i;
+      bankDiv.appendChild(modalBackground);
+
+      let deleteConfirmModal = document.createElement('div');
+      deleteConfirmModal.className = 'delConfirmModal';
+      deleteConfirmModal.id = 'delConfirmModal' + i;
+      modalBackground.appendChild(deleteConfirmModal);
+
+      let delConfirmModalContent = document.createElement('div');
+      delConfirmModalContent.className = 'delConfirmModalContent';
+      delConfirmModalContent.id = 'delConfirmModalContent' + i;
+      deleteConfirmModal.appendChild(delConfirmModalContent);
+
+      let delConfirmModalTitle = document.createElement('h1');
+      if (charList[i].firstName !== '' && charList[i].firstName !== null) {
+        delConfirmModalTitle.innerHTML = 'Delete ' + charList[i].firstName + ' ' + charList[i].lastName + '?';
+      } else {
+        delConfirmModalTitle.innerHTML = 'Delete Unknown?';
+      }
+      
+      delConfirmModalContent.appendChild(delConfirmModalTitle);
+
+      let delConfirmModalText = document.createElement('p');
+      delConfirmModalText.innerHTML = 'Are you sure you want to delete this character? <br> Once they are gone, they can not be brought back. If you choose to continue, all of the following will be lost:';
+      delConfirmModalContent.appendChild(delConfirmModalText);
+
+      let delConfirmModalList = document.createElement('ul');
+      delConfirmModalList.className = 'delConfirmModalList';
+      delConfirmModalContent.appendChild(delConfirmModalList);
+
+      let delConfirmModalListItem1 = document.createElement('li');
+      delConfirmModalListItem1.innerHTML = 'Character Looks/Design';
+      delConfirmModalList.appendChild(delConfirmModalListItem1);
+
+      let delConfirmModalListItem2 = document.createElement('li');
+      delConfirmModalListItem2.innerHTML = 'Written Character Bio';
+      delConfirmModalList.appendChild(delConfirmModalListItem2);
+
+      let delConfirmModalListItem3 = document.createElement('li');
+      delConfirmModalListItem3.innerHTML = 'Character Kinks Preferences';
+      delConfirmModalList.appendChild(delConfirmModalListItem3);
+
+      let delConfirmModalListItem4 = document.createElement('li');
+      delConfirmModalListItem4.innerHTML = 'All Custom Written Vore Interactions';
+      delConfirmModalList.appendChild(delConfirmModalListItem4);
+
+      let delConfirmModalCheckContainer = document.createElement('div');
+      delConfirmModalCheckContainer.className = 'delConfirmModalCheckContainer';
+      delConfirmModalContent.appendChild(delConfirmModalCheckContainer);
+
+      let delConfirmPermissionCheck = document.createElement('input');
+      delConfirmPermissionCheck.type = 'checkbox';
+      delConfirmPermissionCheck.id = 'delConfirmPermissionCheck' + i;
+      delConfirmModalCheckContainer.appendChild(delConfirmPermissionCheck);
+
+      let delConfirmPermissionCheckLabel = document.createElement('label');
+      delConfirmPermissionCheckLabel.htmlFor = 'delConfirmPermissionCheck' + i;
+      delConfirmPermissionCheckLabel.innerHTML = 'I understand that this action is permanent and cannot be undone.';
+      delConfirmModalCheckContainer.appendChild(delConfirmPermissionCheckLabel);
+
+      let delCharForm = document.createElement('form');
+      delCharForm.method = 'POST';
+      delCharForm.action = '/api/user/deletecharacter/';
+      delConfirmModalContent.appendChild(delCharForm);
+
+      let delConfirmModalBttns = document.createElement('div');
+      delConfirmModalBttns.className = 'delConfirmModalBttns';
+      delConfirmModalBttns.id = 'delConfirmModalBttns' + i;
+      delCharForm.appendChild(delConfirmModalBttns);
+
+      let delCharFormInput = document.createElement('input');
+      delCharFormInput.type = 'hidden';
+      delCharFormInput.name = 'charId';
+      delCharFormInput.value = charList[i]._id;
+      delCharForm.appendChild(delCharFormInput);
+
+      let delConfirmModalYes = document.createElement('button');
+      delConfirmModalYes.className = 'delConfirmModalYes';
+      delConfirmModalYes.type = 'submit';
+      if (charList[i].firstName !== '' && charList[i].firstName !== null) {
+        delConfirmModalYes.innerHTML = 'Yes, Delete ' + charList[i].firstName + ' ' + charList[i].lastName;
+      } else {
+        delConfirmModalYes.innerHTML = 'Yes, Delete Unknown';
+      }
+      delConfirmModalBttns.appendChild(delConfirmModalYes);
+
+      let delConfirmModalNo = document.createElement('button');
+      delConfirmModalNo.className = 'delConfirmModalNo';
+      delConfirmModalNo.innerHTML = 'No, Go Back';
+      delConfirmModalBttns.appendChild(delConfirmModalNo);
+
+      //delete confirmation onclick functions
+      delConfirmPermissionCheck.onclick = function() {
+        delConfirmModalYes.classList.toggle('release');
+      };
+
+      delConfirmModalNo.onclick = function() {
+        delConfirmPermissionCheck.checked = false;
+        delConfirmModalYes.classList.remove('release');
+        modalBackground.classList.toggle('visible');
+      };
+      delConfirmModalNo.addEventListener('click', function(event) {
+        event.preventDefault();
+        // Your code here...
+      });
+
+      //----- End of delete confirmation modal -----//
+  
+      //----- Start of character slot -----//
+      let li = document.createElement('li');
+      
+
+      let addCharLi = document.getElementById("addChar");
       bankUl.insertBefore(li, addCharLi);
       //document.getElementById("bankUl").appendChild(li);
 
+      let slotDiv = document.createElement('div');
       slotDiv.className = 'slot';
+      li.appendChild(slotDiv);
 
+      let optionsContainer = document.createElement('div');
+      optionsContainer.className = 'optionsContainer';
+      slotDiv.appendChild(optionsContainer);
+
+      let nickNameDiv = document.createElement('div');
+      nickNameDiv.className = 'nickName';
+      if (charList[i].nickName !== '' && charList[i].nickName !== null) {
+        nickNameDiv.innerHTML = "<h2>" + charList[i].nickName + "</h2>";
+      } else {
+        if (charList[i].firstName !== '' && charList[i].firstName !== null) {
+          nickNameDiv.innerHTML = "<h2>" + charList[i].firstName + ' ' + charList[i].lastName[0] + "." + "</h2>";
+      } else {
+        nickNameDiv.innerHTML = "Unknown";
+      }
+        
+      }
+      optionsContainer.appendChild(nickNameDiv);
+      
+
+      let optionsBttn = document.createElement('button');
       optionsBttn.className = 'button options'
+      optionsBttn.id = 'optionsBttn' + i;
       optionsBttn.innerHTML = '&#xf013'
-      slotDiv.appendChild(optionsBttn);
+      optionsContainer.appendChild(optionsBttn);
 
+      let optMnu = document.createElement('div');
+      optMnu.id = 'optionsMenu' + i;
+      optMnu.className = 'optionsMenu';
+      optionsContainer.appendChild(optMnu);
+
+      let optUl = document.createElement('ul');
+      optMnu.appendChild(optUl);
+
+      let optLi1 = document.createElement('li');
+      optUl.appendChild(optLi1);
+
+      let aDelete = document.createElement('a');
+      aDelete.href = "#" + charList[i]._id;
+      aDelete.innerHTML = 'Delete';
+      optLi1.appendChild(aDelete);
+      aDelete.onclick = function() {
+        modalBackground.classList.toggle('visible');
+      };
+
+      let detailsContainer = document.createElement('div');
+      detailsContainer.className = 'detailsContainer';
+      slotDiv.appendChild(detailsContainer);
+
+      let nameDiv = document.createElement('div');
       nameDiv.className = 'name';
-      nameDiv.innerHTML = "<h1> Name: </h1><br>" + charList[i].firstName + ' ' + charList[i].lastName;
-      slotDiv.appendChild(nameDiv);
+      if (charList[i].firstName !== '' && charList[i].firstName !== null) {
+        nameDiv.innerHTML = "Full Name: " + charList[i].firstName + ' ' + charList[i].lastName;
+      } else {
+        nameDiv.innerHTML = "Full Name: Unknown";
+      }
+      detailsContainer.appendChild(nameDiv);
 
+      let pronounsDiv = document.createElement('div');
+      pronounsDiv.className = 'pronouns';
+      if(charList[i].pronouns !== '' && charList[i].pronouns !== null && charList[i].pronouns == 1 || charList[i].pronouns == 2 || charList[i].pronouns == 3) {
+        if (charList[i].pronouns === 1) {
+          pronounsDiv.innerHTML = "Pronouns: She/Her";
+        } 
+        if (charList[i].pronouns === 2) {
+          pronounsDiv.innerHTML = "Pronouns: He/Him";
+        }
+        if (charList[i].pronouns === 3) {
+          pronounsDiv.innerHTML = "Pronouns: They/Them";
+        }
+      } else {
+        pronounsDiv.innerHTML = "Pronouns: Unknown";
+      }
+      detailsContainer.appendChild(pronounsDiv);
+
+      let speciesDiv = document.createElement('div');
+      speciesDiv.className = 'species';
+      if (charList[i].speciesName !== '' && charList[i].speciesName !== null) {
+        speciesDiv.innerHTML = "Species: " + charList[i].speciesName;
+      } else {
+        speciesDiv.innerHTML = "Species: Unknown";
+      }
+      detailsContainer.appendChild(speciesDiv);
+
+      
+      let bttnGroup = document.createElement('div');
+      bttnGroup.className = 'bttnGroup';
+      slotDiv.appendChild(bttnGroup);
+
+      let aPlay = document.createElement('a');
       aPlay.href = "play/" + charList[i]._id;
+      let playBttn = document.createElement('button');
       playBttn.className = 'button';
       playBttn.innerHTML = 'Play!'
       aPlay.appendChild(playBttn);
 
+      let aEdit = document.createElement('a');
       aEdit.href = "edit/" + charList[i]._id;
+      let editBttn = document.createElement('button');
       editBttn.className = 'button'
       editBttn.innerHTML = 'Edit';
 
-      //editBttn.innerHTML = "<a href='edit/" + charList[i]._id + "'>Edit</a>";
-      // editBttn.addEventListener("click", function(charList) {
-      //   location.href= "edit/" + charList[i]._id
-      // });
-      //editBttn.setAttribute("href", "localhost:3000/edit/" + charList[i]._id);
       aEdit.appendChild(editBttn);
-      slotDiv.appendChild(aPlay);
-      slotDiv.appendChild(aEdit);
+      bttnGroup.appendChild(aPlay);
+      bttnGroup.appendChild(aEdit);
+
+      //character slot functions
+      optionsBttn.onclick = function() {
+        optMnu.classList.toggle('visible');
+      };
+      optMnu.addEventListener('click', function(event) {
+        event.stopPropagation();
+      });
+
+      //----- End of character slot -----//
 
 
 
 
 
-      li.appendChild(slotDiv);
+      
 
     }
+    var optionsMenuList = document.querySelectorAll('.optionsMenu');
+    document.body.addEventListener('click', function(event) {
+      for (let i = 0; i < optionsMenuList.length; i++) {
+        if (event.target !== optionsMenuList[i] && event.target !== optionsMenuList[i].previousElementSibling) {
+          optionsMenuList[i].classList.remove('visible');
+        }
+      }
+    });
   </script>
 <% } else { %>
   <script>

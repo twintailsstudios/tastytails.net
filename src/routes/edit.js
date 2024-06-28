@@ -3,26 +3,28 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const verify = require('./verifyToken');
 const dbInterface = require('./dbInterface');
+const log = require('../logger');
+
 
 router.get('/:charId', async (req, res) => {
   const token = req.cookies.TastyTails;
-  //console.log('req = ', req.params);
+  // console.log('req = ', req.params);
   if(!token) return res.render('create', {
       token: null,
       loginForm: 0
     });
-    //res.send('this is the edit page');
+    // res.send('this is the edit page');
   try {
-    //console.log('charid (from client) = ', req.params.charId);
+    console.log('charid (from client) = ', req.params.charId);
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
     const characters = await dbInterface.charSelect(token, req.params.charId);
-    //console.log('characters in the index.js = ', characters);
+    // console.log('characters in the index.js = ', characters);
     req.user = verified;
     res.render('create', {
       token: token,
       loginForm: 0,
-      charList: JSON.stringify(characters)
-
+      // charList: JSON.stringify(characters)
+      charList: characters
     });
 
   } catch (err) {

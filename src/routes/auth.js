@@ -4,6 +4,7 @@ const User = require('../model/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { registerValidation, loginValidation, charCreateValidation, voreTypeValidation, ratingsValidation } = require('../validation');
+const log = require('../logger');
 
 
 
@@ -79,44 +80,44 @@ router.post('/closereg', async (req, res) => {
 router.post('/character-bank', async (req, res) => {
   const user = await User.findOne({_id: req.cookies.TastyTails});
   const charList = user.characters;
-  console.log('user.characters = ', user.characters)
+  log('user.characters = ', user.characters)
   res.redirect('/character-bank');
 })
 
 //Create a new Character
 router.post('/createcharacter', async (req, res) => {
   //Lets make sure the character sheet was properly filled out
-  //console.log('req.body = ', req.body);
+  //log('req.body = ', req.body);
   var ratings = {
-    ovStar: req.body.ovStar,
-    avStar: req.body.avStar,
-    cvStar: req.body.cvStar,
-    ubStar: req.body.ubStar,
-    tvStar: req.body.tvStar,
-    absStar: req.body.absStar,
-    svStar: req.body.svStar,
-    predStar: req.body.predStar,
-    preyStar: req.body.preyStar,
-    softStar: req.body.softStar,
-    hardStar: req.body.hardStar,
-    digestionStar: req.body.digestionStar,
-    disposalStar: req.body.disposalStar,
-    tfStar: req.body.tfStar,
-    btfStar: req.body.btfStar,
-    bsStar: req.body.bsStar,
-    gStar: req.body.gStar,
-    sStar: req.body.sStar,
-    iaoStar: req.body.iaoStar
+    ovStar: req.body.ovStar ? req.body.ovStar : null,
+    avStar: req.body.avStar ? req.body.avStar : null,
+    cvStar: req.body.cvStar ? req.body.cvStar : null,
+    ubStar: req.body.ubStar ? req.body.ubStar : null,
+    tvStar: req.body.tvStar ? req.body.tvStar : null,
+    absStar: req.body.absStar ? req.body.absStar : null,
+    svStar: req.body.svStar ? req.body.svStar : null,
+    predStar: req.body.predStar ? req.body.predStar : null,
+    preyStar: req.body.preyStar ? req.body.preyStar : null,
+    softStar: req.body.softStar ? req.body.softStar : null,
+    hardStar: req.body.hardStar ? req.body.hardStar : null,
+    digestionStar: req.body.digestionStar ? req.body.digestionStar : null,
+    disposalStar: req.body.disposalStar ? req.body.disposalStar : null,
+    tfStar: req.body.tfStar ? req.body.tfStar : null,
+    btfStar: req.body.btfStar ? req.body.btfStar : null,
+    bsStar: req.body.bsStar ? req.body.bsStar : null,
+    gStar: req.body.gStar ? req.body.gStar : null,
+    sStar: req.body.sStar ? req.body.sStar : null,
+    iaoStar: req.body.iaoStar ? req.body.iaoStar : null
   };
     const { error3 } = ratingsValidation(ratings);
     if (error3) return res.status(405).send(error3.details[0].message);
 
-    //console.log('ratings = ', ratings);
+    // log('ratings = ', ratings);
 
   var voreTypes = [];
-  console.log('req.body = ', req.body);
+  // log('req.body = ', req.body);
   for(i = 0; i < req.body.destination.length; i++) {
-    //console.log('req.body.destination[i] = ', req.body.destination[i]);
+    //log('req.body.destination[i] = ', req.body.destination[i]);
     var voreType = {
       id: i,
       destination: req.body.destination[i],
@@ -143,9 +144,18 @@ router.post('/createcharacter', async (req, res) => {
     accentSprite: req.body.headAccentFur,
     accentColor: req.body.accentHeadColor.replace("#", "0x")
   }
-  //console.log('head = ', head);
+  //log('head = ', head);
+  var headAccessories = {
+    sprite: req.body.headAccessories,
+    color: req.body.headAccessoriesColor.replace("#", "0x")
+  }
+  // log('headAccessories = ', headAccessories);
+  var bodyShape = {
+    sprite: req.body.bodyShape
+  }
+  // log('bodyShape = ', bodyShape);
   var body = {
-    sprite: req.body.body,
+    sprite: req.body.mainBodyType,
     color: req.body.bodyColor.replace("#", "0x"),
     secondarySprite: req.body.bodySecondaryFur,
     secondaryColor: req.body.secondaryBodyColor.replace("#", "0x"),
@@ -175,7 +185,7 @@ router.post('/createcharacter', async (req, res) => {
     innerSprite: req.body.innerEar,
     innerColor: req.body.innerEarColor.replace("#", "0x")
   }
-  console.log('ear =', ear);
+  // log('ear =', ear);
   var genitles = {
     sprite: req.body.genitles,
     secondarySprite: 'empty'
@@ -192,6 +202,18 @@ router.post('/createcharacter', async (req, res) => {
     sprite: req.body.beakSprite,
     color: req.body.beakHex
   }
+  var position = {
+    x: 0,
+    y: 0,
+    time: null
+  }
+  var input = {
+    left: false,
+    right: false,
+    down: true,
+    up: false
+  }
+  // log('beak = ', beak);
 
   const { error2 } = charCreateValidation(req.body);
   if (error2) return res.status(405).send(error2.details[0].message);
@@ -199,8 +221,8 @@ router.post('/createcharacter', async (req, res) => {
   //Create a new Character
   const token = req.cookies.TastyTails;
   const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-  //console.log('verified = ', verified._id);
-  console.log('token = ', token);
+  //log('verified = ', verified._id);
+  log('token = ', token);
   try {
     const updateChar = await User.updateOne({_id: verified._id}, {$push: {"characters": {
       "firstName": req.body.firstName,
@@ -213,7 +235,9 @@ router.post('/createcharacter', async (req, res) => {
       "ratings": ratings,
       "voreTypes": voreTypes,
       "head": head,
+      "headAccessories": headAccessories,
       "body": body,
+      "bodyShape": bodyShape,
       "tail": tail,
       "eyes": eyes,
       "hair": hair,
@@ -221,8 +245,17 @@ router.post('/createcharacter', async (req, res) => {
       "genitles": genitles,
       "hands": hands,
       "feet": feet,
-      "beak": beak
+      "beak": beak,
+      "position": position,
+      "consumedBy": null,
+      "rotation": 0,
+      "isMoving": false,
+      "input": input,
+      "itentifier": "player",
+
+      "deleted": false
     }}});
+    log('updateChar = ', updateChar);
     // try {
     //   const user = await User.findOne({_id: verified._id});
     //   charList = user.characters;
@@ -239,35 +272,35 @@ router.post('/createcharacter', async (req, res) => {
 router.post('/editcharacter', async (req, res) => {
   //Lets make sure the character sheet was properly filled out
   var ratings = {
-    ovStar: req.body.ovStar,
-    avStar: req.body.avStar,
-    cvStar: req.body.cvStar,
-    ubStar: req.body.ubStar,
-    tvStar: req.body.tvStar,
-    absStar: req.body.absStar,
-    svStar: req.body.svStar,
-    predStar: req.body.predStar,
-    preyStar: req.body.preyStar,
-    softStar: req.body.softStar,
-    hardStar: req.body.hardStar,
-    digestionStar: req.body.digestionStar,
-    disposalStar: req.body.disposalStar,
-    tfStar: req.body.tfStar,
-    btfStar: req.body.btfStar,
-    bsStar: req.body.bsStar,
-    gStar: req.body.gStar,
-    sStar: req.body.sStar,
-    iaoStar: req.body.iaoStar
+    ovStar: req.body.ovStar ? req.body.ovStar : null,
+    avStar: req.body.avStar ? req.body.avStar : null,
+    cvStar: req.body.cvStar ? req.body.cvStar : null,
+    ubStar: req.body.ubStar ? req.body.ubStar : null,
+    tvStar: req.body.tvStar ? req.body.tvStar : null,
+    absStar: req.body.absStar ? req.body.absStar : null,
+    svStar: req.body.svStar ? req.body.svStar : null,
+    predStar: req.body.predStar ? req.body.predStar : null,
+    preyStar: req.body.preyStar ? req.body.preyStar : null,
+    softStar: req.body.softStar ? req.body.softStar : null,
+    hardStar: req.body.hardStar ? req.body.hardStar : null,
+    digestionStar: req.body.digestionStar ? req.body.digestionStar : null,
+    disposalStar: req.body.disposalStar ? req.body.disposalStar : null,
+    tfStar: req.body.tfStar ? req.body.tfStar : null,
+    btfStar: req.body.btfStar ? req.body.btfStar : null,
+    bsStar: req.body.bsStar ? req.body.bsStar : null,
+    gStar: req.body.gStar ? req.body.gStar : null,
+    sStar: req.body.sStar ? req.body.sStar : null,
+    iaoStar: req.body.iaoStar ? req.body.iaoStar : null
   };
     const { error3 } = ratingsValidation(ratings);
     if (error3) return res.status(405).send(error3.details[0].message);
 
-    //console.log('ratings = ', ratings);
+    // log('ratings = ', ratings);
 
   var voreTypes = [];
-  //console.log('req.body = ', req.body);
+  //log('req.body = ', req.body);
   for(i = 0; i < req.body.destination.length; i++) {
-    //console.log('req.body.destination[i] = ', req.body.destination[i]);
+    //log('req.body.destination[i] = ', req.body.destination[i]);
     var voreType = {
       id: i,
       destination: req.body.destination[i],
@@ -294,9 +327,18 @@ router.post('/editcharacter', async (req, res) => {
     accentSprite: req.body.headAccentFur,
     accentColor: req.body.accentHeadColor.replace("#", "0x")
   }
-  //console.log('head = ', head);
+  //log('head = ', head);
+  var headAccessories = {
+    sprite: req.body.headAccessories,
+    color: req.body.headAccessoriesColor.replace("#", "0x")
+  }
+  // log('headAccessories = ', headAccessories);
+  var bodyShape = {
+    sprite: req.body.bodyShape
+  }
+  // log('bodyShape = ', bodyShape);
   var body = {
-    sprite: req.body.body,
+    sprite: req.body.mainBodyType,
     color: req.body.bodyColor.replace("#", "0x"),
     secondarySprite: req.body.bodySecondaryFur,
     secondaryColor: req.body.secondaryBodyColor.replace("#", "0x"),
@@ -312,8 +354,8 @@ router.post('/editcharacter', async (req, res) => {
     accentColor: req.body.accentTailColor.replace("#", "0x")
   }
   var eyes = {
-    outer: 'eyes_01',
-    iris: 'eyes_02',
+    outer: req.body.eyesOuter,
+    iris: req.body.eyesIris,
     color: req.body.eyesColor.replace("#", "0x")
   }
   var hair = {
@@ -321,9 +363,12 @@ router.post('/editcharacter', async (req, res) => {
     color: req.body.hairColor.replace("#", "0x")
   }
   var ear = {
-    sprite: req.body.ear,
-    color: req.body.earColor.replace("#", "0x")
+    outerSprite: req.body.outerEar,
+    outerColor: req.body.outerEarColor.replace("#", "0x"),
+    innerSprite: req.body.innerEar,
+    innerColor: req.body.innerEarColor.replace("#", "0x")
   }
+  // log('ear =', ear);
   var genitles = {
     sprite: req.body.genitles,
     secondarySprite: 'empty'
@@ -336,36 +381,80 @@ router.post('/editcharacter', async (req, res) => {
     sprite: req.body.feetFur,
     color: req.body.feetColor
   }
+  var beak = {
+    sprite: req.body.beakSprite,
+    color: req.body.beakHex
+  }
 
   const { error2 } = charCreateValidation(req.body);
   if (error2) return res.status(405).send(error2.details[0].message);
 
-  //Create a new Character
+  //Push changes to existing Character
   const token = req.cookies.TastyTails;
   const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-  //console.log('verified = ', verified._id);
-  console.log('token = ', token);
+  //log('verified = ', verified._id);
+  log('token = ', token);
   try {
-    const updateChar = await User.updateOne({_id: verified._id}, {$set: {"characters": {
-      "firstName": req.body.firstName,
-      "lastName": req.body.lastName,
-      "nickName": req.body.nickName,
-      "speciesName": req.body.speciesName,
-      "pronouns": req.body.pronouns,
-      "icDescrip": req.body.icDescrip,
-      "oocDescrip": req.body.oocDescrip,
-      "ratings": ratings,
-      "voreTypes": voreTypes,
-      "head": head,
-      "body": body,
-      "tail": tail,
-      "eyes": eyes,
-      "hair": hair,
-      "ear": ear,
-      "genitles": genitles,
-      "hands": hands,
-      "feet": feet
-    }}});
+    const url = req.rawHeaders[33];
+    const characterId = url.split('/').pop();
+    log('req = ', req.rawHeaders[33]);
+    log('verified._id = ', verified._id);
+    log('characterId = ', characterId);
+    const updateChar = await User.findOneAndUpdate({_id: verified._id, "characters._id": characterId }, {$set: {
+      "characters.$.firstName": req.body.firstName,
+      "characters.$.lastName": req.body.lastName,
+      "characters.$.nickName": req.body.nickName,
+      "characters.$.speciesName": req.body.speciesName,
+      "characters.$.pronouns": req.body.pronouns,
+      "characters.$.icDescrip": req.body.icDescrip,
+      "characters.$.oocDescrip": req.body.oocDescrip,
+      "characters.$.ratings": ratings,
+      "characters.$.voreTypes": voreTypes,
+      "characters.$.head": head,
+      "characters.$.headAccessories": headAccessories,
+      "characters.$.body": body,
+      "characters.$.bodyShape": bodyShape,
+      "characters.$.tail": tail,
+      "characters.$.eyes": eyes,
+      "characters.$.hair": hair,
+      "characters.$.ear": ear,
+      "characters.$.genitles": genitles,
+      "characters.$.hands": hands,
+      "characters.$.feet": feet,
+      "characters.$.beak": beak
+    }},
+    {new: true});
+    // log('updateChar = ', updateChar);
+    // try {
+    //   const user = await User.findOne({_id: verified._id});
+    //   charList = user.characters;
+    //
+    // } catch(err){
+    //   res.status(400).send(err);
+    // }
+    res.redirect('/character-bank');
+  } catch(err){
+    res.status(400).send(err);
+  }
+})
+
+router.post('/deletecharacter', async (req, res) => {
+  log('you are trying to delete a character');
+  //Push changes to existing Character
+  const token = req.cookies.TastyTails;
+  const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+  //log('verified = ', verified._id);
+  log('token = ', token);
+  try {
+    log('req = ', req.body.charId);
+    log('verified._id = ', verified._id);
+    const characterId = req.body.charId;
+    log('characterId = ', characterId);
+    const updateChar = await User.findOneAndUpdate({_id: verified._id, "characters._id": characterId }, {$set: {
+      "characters.$.deleted": true
+    }},
+    {new: true});
+    // log('updateChar = ', updateChar);
     // try {
     //   const user = await User.findOne({_id: verified._id});
     //   charList = user.characters;
@@ -384,7 +473,7 @@ router.post('/message', async (req, res) => {
   const { error } = registerValidation(req.body);
   if (error) return res.status(405).send(error.details[0].message);
   try {
-    console.log('you successfully left a message!');
+    log('you successfully left a message!');
   } catch(err){
     res.status(400).send(err);
   }

@@ -42,6 +42,14 @@ const chatSchema = new mongoose.Schema({
     deletionTime: {
       type: Date
     }
+  },
+  identifier: {
+    account: {
+      type: String
+    },
+    character: {
+      type: String
+    }
   }
 });
 

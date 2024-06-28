@@ -3,7 +3,8 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const verify = require('./verifyToken');
 const dbInterface = require('./dbInterface');
-//const edit = require('./edit');
+const edit = require('./edit');
+const log = require('../logger');
 
 router.get('/', (req, res) => {
   const token = req.cookies.TastyTails;
@@ -117,32 +118,40 @@ router.get('/registered', (req, res) => {
 })
 
 router.get('/character-bank', verify, async (req, res) => {
-  console.log('ran /character-bank');
+  log('ran /character-bank');
   const token = req.cookies.TastyTails;
-  console.log('req.cookies.TastyTails = ', req.cookies.TastyTails);
-  // console.log('req = ', req);
+  log('req.cookies.TastyTails = ' , req.cookies.TastyTails);
+  // log('req = ', req);
   if(!token) return res.render('character-bank', {
       token: null,
       loginForm: 0
     });
 
   try {
-    console.log('trying');
+    log('trying');
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-    console.log('process.env.TOEN_SECRET')
-    console.log('verified = ', verified);
-    const characters = await dbInterface.charList(token);
-    // console.log('characters in the index.js = ', characters);
-    console.log('successfully called dbInterface.charList() function.');
+    log('process.env.TOKEN_SECRET')
+    log('verified = ', verified);
+    let characters = await dbInterface.charList(token);
+    // log('characters in the index.js = ', characters);
+    log('successfully called dbInterface.charList() function.');
+
+    // characters = characters.map(character => {
+    //   return {
+    //     ...character,
+    //     _id: character._id.toString()
+    //   };
+    // });
+
     req.user = verified;
     res.render('character-bank', {
       token: token,
       loginForm: 0,
-      charList: JSON.stringify(characters)
-
+      // charList: JSON.stringify(characters)
+      charList: characters
     });
   } catch (err) {
-    console.log('err = ', err)
+    log('err = ', err)
     res.status(400).render('error', {
       token: null,
       loginForm: 0,
@@ -152,7 +161,7 @@ router.get('/character-bank', verify, async (req, res) => {
   }
 })
 
-//router.use('/edit', edit) //tell the router to use edit.js for child routes
+// router.use('/edit', edit) //tell the router to use edit.js for child routes
 
 
 module.exports = router;

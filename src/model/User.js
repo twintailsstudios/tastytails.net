@@ -68,6 +68,19 @@ const userSchema = new mongoose.Schema({
           type: String
         }
       },
+      headAccessories: {
+        sprite: {
+          type: String
+        },
+        color: {
+          type: String
+        }
+      },
+      bodyShape: {
+        sprite: {
+          type: String
+        }
+      },
       body: {
         sprite: {
           type: String
@@ -85,6 +98,22 @@ const userSchema = new mongoose.Schema({
           type: String
         },
         accentColor: {
+          type: String
+        }
+      },
+      hands: {
+        sprite: {
+          type: String
+        },
+        color: {
+          type: String
+        }
+      },
+      feet: {
+        sprite: {
+          type: String
+        },
+        color: {
           type: String
         }
       },
@@ -145,15 +174,21 @@ const userSchema = new mongoose.Schema({
         sprite: {
           type: String
         },
+        color: {
+          type: String
+        },
         secondarySprite: {
+          type: String
+        },
+        secondaryColor: {
           type: String
         }
       },
       beak:{
-        beakSprite: {
+        sprite: {
           type: String
         },
-        beakHex: {
+        color: {
           type: String
         }
       },
@@ -261,6 +296,53 @@ const userSchema = new mongoose.Schema({
         type: [{
 
         }]
+      },
+
+      position: {
+        x: {
+          type: Number
+        },
+        y: {
+          type: Number
+        },
+        time: {
+          type: Date
+        }
+      },
+
+      consumedBy: {
+        type: String
+      },
+
+      rotation: {
+        type: Number
+      },
+
+      isMoving: {
+        type: Boolean
+      },
+
+      identifier:{
+        type: String
+      },
+
+      input: {
+        left: {
+          type: Boolean
+        },
+        right: {
+          type: Boolean
+        },
+        down: {
+          type: Boolean
+        },
+        up: {
+          type: Boolean
+        }
+      },
+
+      deleted: {
+        type: Boolean
       }
     }]
   }

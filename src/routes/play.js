@@ -18,12 +18,13 @@ router.get('/:charId', async (req, res) => {
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
     console.log('verified successfully.');
     const characters = await dbInterface.charSelect(token, req.params.charId);
-    console.log('characters in the index.js = ', characters);
+    // console.log('characters in the index.js = ', characters);
     req.user = verified;
     res.render('play', {
       token: token,
       loginForm: 0,
-      charList: JSON.stringify(characters)
+      // charList: JSON.stringify(characters)
+      charList: characters
 
     });
 
