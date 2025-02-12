@@ -61,6 +61,34 @@
 
 <section id="game">
     <div id="phaserApp" tabindex="0" oncontextmenu="return showContextMenu(event);">
+      <div id="intentContainer">
+        <input type="radio" name="intent" checked="checked" id="friendly"></input>
+        <label for="friendly">Friendly</label>
+        <input type="radio" name="intent" id="grabbing"></input>
+        <label for="grabbing">Grabbing</label>
+        <input type="radio" name="intent" id="hostile"></input>
+        <label for="hostile">Hostile</label>
+      </div>
+
+      <div id="itemBar">
+        <ul>
+          <li>
+            <div class="item" id="item1" draggable="true"></div>
+          </li>
+          <li>
+            <div class="item" id="item2" draggable="true"></div>
+          </li>
+          <li>
+            <div class="item" id="item3" draggable="true"></div>
+          </li>
+          <li>
+            <div class="item" id="item4" draggable="true"></div>
+          </li>
+          <li>
+            <div class="item" id="item5" draggable="true"></div>
+          </li>
+        </ul>
+      </div>
 
       <!--Right Click Custom Menu-->
       <div id="contextMenu" class="context-menu">

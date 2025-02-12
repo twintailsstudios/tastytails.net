@@ -47,11 +47,14 @@ const {
 log('testFunction = ', testFunction());
 //connect to DB
 log('DB_CONNECT = ', process.env.DB_CONNECT);
-mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true, useUnifiedTopology: true }, () => {
-    log('connected');
-    // messageReceived();
-  }, e => console.error(e)
-)
+mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(
+    log('connected')
+  // messageReceived();
+  )
+  .catch(err => console.error(err));
+
+
 const db = mongoose.connection
 db.on('error', error => console.error(error))
 db.once('open', () => log('Connected to DB'))
@@ -234,6 +237,8 @@ const config = {
   parent: 'phaser-example',
   width: 800,
   height: 930,
+  banner: false,
+  audio: false,
   physics: {
     default: 'arcade',
     arcade: {

@@ -513,7 +513,11 @@
   <body>
 
     <div id="phaserApp" tabindex="0" oncontextmenu="return showContextMenu(event);">
-
+      <div id="intentContainer">
+        <button id="friendly">Friendly</button>
+        <button id="grabbing">Grabbing</button>
+        <button id="hostile">Hostile</button>     
+      </div>
       <!--Right Click Custom Menu-->
       <div id="contextMenu" class="context-menu">
         <div class="normalMenu" >
@@ -653,7 +657,7 @@
               <button id="addSpecialType" type="button">+ Add Special Type</button>
             </div>
             <div id="specialContents">
-              <h1>Contents:<h1/>
+              <h1>Contents:</h1>
             </div>
             <div id="specialDetails">
               <button id="specialTitle0" class="collapsible">Open Collapsible          +</button>
@@ -833,7 +837,7 @@
 
 
 
-    <script src="//cdn.jsdelivr.net/npm/phaser@3.13.0/dist/phaser.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/phaser@v3.87.0/dist/phaser.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/index.js" type="module"></script>
 
