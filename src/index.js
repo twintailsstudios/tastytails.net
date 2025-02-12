@@ -54,7 +54,6 @@ mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true, useUnifiedTopo
   )
   .catch(err => console.error(err));
 
-
 const db = mongoose.connection
 db.on('error', error => console.error(error))
 db.once('open', () => log('Connected to DB'))
