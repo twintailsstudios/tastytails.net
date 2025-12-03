@@ -1,0 +1,468 @@
+        /* -------------------------------------------------- */
+        /* UI Kit & Theming Variables                         */
+        /* -------------------------------------------------- */
+        /* * This :root block contains all the core CSS variables that define the UI's theme.
+         * To create a new theme or reskin the UI, a developer can simply change these values.
+         * The themes in the <script> tag work by overwriting these default values.
+        */
+        :root {
+            /* Color Palette */
+            --bg-primary: #2f1e11;       /* Main background, like rich soil */
+            --bg-secondary: #543825;     /* UI panels, like warm wood */
+            --bg-tertiary: #6f4e37;      /* Hover states, like lighter wood */
+            --bg-quickbar: rgba(47, 30, 17, 0.85); /* The main quick bar background */
+            --bg-slot: rgba(84, 56, 37, 0.5);   /* Background for inventory slots */
+            --bg-tab-active: rgba(84, 56, 37, 0.8); /* Active tab background */
+            --bg-error: #c04c36;         /* Error message background */
+
+            --text-primary: #f5e5c7;     /* Primary text, like parchment */
+            --text-secondary: #d3b895;   /* Secondary text, like faded parchment */
+            --text-inverse: white;       /* Text for dark backgrounds like errors */
+            
+            --accent-primary: #ffb000;   /* Highlights and active elements, like honey gold */
+            --border-primary: #4a2c1a;   /* Borders, like dark wood grain */
+
+            /* Capacity Gauge Colors */
+            --gauge-ok: #7a9a3b;         /* Gauge fill when not full, like leafy green */
+            --gauge-warning: #ffb000;    /* Gauge fill when nearing capacity */
+            --gauge-full: #c04c36;       /* Gauge fill when full, like autumn red */
+
+            /* Sizing & Effects */
+            --radius-sm: 3px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-pill: 10px;
+            --blur-primary: blur(8px);
+            --shadow-primary: 0 8px 20px rgba(0, 0, 0, 0.4);
+            --shadow-active: 0 0 15px var(--accent-primary); /* Glow effect for active elements */
+        }
+
+        /* -------------------------------------------------- */
+        /* Base & Global Styles                             */
+        /* -------------------------------------------------- */
+        body {
+            font-family: 'Vollkorn', serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden; /* Prevent scrolling of the whole page */
+            /* Add smooth transitions for when the theme changes */
+            transition: background-color 0.3s ease, color 0.3s ease; 
+        }
+
+        /* -------------------------------------------------- */
+        /* Item & Slot Styles                               */
+        /* -------------------------------------------------- */
+
+        /* Base style for any clickable item */
+        .inventory-item {
+            width: 56px; 
+            height: 56px;
+            border: 2px solid var(--border-primary);
+            background-color: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            cursor: pointer; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem; /* For emoji content */
+            user-select: none; /* Prevent text selection */
+            transition: all 0.2s ease;
+            margin: 2px;
+        }
+        
+        /* Items inside the quick bar or hands are positioned absolutely for stacking */
+        .quick-bar-slot .inventory-item, .hand-slot .inventory-item {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            transition: top 0.3s ease, left 0.3s ease, transform 0.3s ease;
+            z-index: 5;
+        }
+
+        /* Base style for any slot container */
+        .slot {
+            width: 80px;
+            height: 80px;
+            border: 3px solid var(--border-primary);
+            background-color: var(--bg-slot);
+            border-radius: var(--radius-md);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5); /* Inner shadow for depth */
+            transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 4px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        /* Pocket slots are wider to accommodate stacking and labels */
+        .quick-bar-slot {
+             width: 150px;
+        }
+        
+        /* The text label for a pocket's name */
+        .pocket-label {
+            position: absolute;
+            top: 4px;
+            left: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            opacity: 0.9;
+            pointer-events: none; /* Allows clicks to pass through to the slot */
+            z-index: 6;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        }
+
+        /* -------------------------------------------------- */
+        /* Quick Bar Layout & Components                    */
+        /* -------------------------------------------------- */
+
+        /* The main container for the entire quick bar UI */
+        .quick-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px;
+            background-color: var(--bg-quickbar);
+            backdrop-filter: var(--blur-primary); /* Frosted glass effect */
+            border: 2px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-primary);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 350px; /* Default minimum width */
+            /* Animate all properties, with a specific animation for width changes */
+            transition: all 0.3s ease, min-width 0.4s ease-in-out;
+        }
+        
+        /* The area containing the pocket slots, which collapses */
+        .quick-bar-main-area {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 0 10px;
+            height: 95px; /* Fixed height for smooth collapse animation */
+            overflow: hidden;
+            opacity: 1;
+            transition: height 0.3s ease, opacity 0.2s ease, margin-top 0.3s ease;
+        }
+
+        /* Container for the Action Hands and toggle */
+        #action-hands-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border-primary);
+            margin-bottom: 8px;
+            transition: all 0.3s ease; /* Transition for collapse */
+        }
+
+        /* Style for the Left and Right Hand slots */
+        .hand-slot {
+            cursor: pointer;
+            width: 80px;
+        }
+        
+        /* The background paw print icon in the hand slots */
+        .hand-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            color: var(--text-secondary); /* Changed for better visibility */
+            opacity: 0.3;
+            pointer-events: none;
+            z-index: 0;
+            transition: color 0.3s ease;
+        }
+        
+        /* Style for the currently active hand */
+        .hand-slot.active-hand {
+            border-color: var(--accent-primary);
+            box-shadow: var(--shadow-active); /* Adds a glow effect */
+        }
+        
+        /* Mirror the right hand icon */
+        #right-hand .hand-icon {
+            transform: translate(-50%, -50%) scaleX(-1);
+        }
+
+        /* --- Active Hand Toggle Styles --- */
+        #active-hand-toggle {
+            width: 32px;
+            height: 48px;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            padding: 4px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        #active-hand-toggle:hover {
+            border-color: var(--accent-primary);
+        }
+        #active-hand-toggle .hand-icon {
+            position: static;
+            width: 18px;
+            height: 18px;
+            opacity: 0.5;
+            transition: opacity 0.2s ease, color 0.2s ease;
+        }
+        #active-hand-toggle .hand-icon.active {
+            opacity: 1;
+            color: var(--accent-primary);
+        }
+        /* Ensure the top icon in the toggle is not transformed */
+        #toggle-icon-left {
+            transform: none;
+        }
+        /* Mirror the bottom icon in the toggle */
+        #toggle-icon-right {
+            transform: scaleX(-1);
+        }
+
+        /* --- Quick Bar Footer & Collapse Styles --- */
+        .quick-bar-footer {
+            position: relative;
+            border-top: 2px solid var(--border-primary);
+            padding-top: 8px;
+            transition: border-color 0.3s ease;
+        }
+        
+        /* The button to collapse/expand the quick bar slots */
+        .quick-bar-toggle-btn {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 20px;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-pill);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+        .quick-bar-toggle-btn:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+        
+        /* Styles applied when the bar is collapsed */
+        .quick-bar.collapsed .quick-bar-main-area {
+            height: 0;
+            opacity: 0;
+            margin-top: 0; /* Remove margin when collapsed */
+        }
+        .quick-bar.collapsed #action-hands-container {
+            border-bottom-color: transparent;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        /* The little arrow icon in the toggle button */
+        #toggle-icon {
+            transition: transform 0.3s ease;
+            transform: rotate(180deg); /* Points down when open */
+        }
+        .quick-bar.collapsed #toggle-icon {
+            transform: rotate(0deg); /* Points up when collapsed */
+        }
+
+        /* Container for the clothing tabs */
+        .quick-bar-tabs {
+            display: flex;
+            gap: 4px;
+        }
+        
+        /* Individual clothing tab button */
+        .quick-bar-tab {
+            padding: 6px 12px;
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            background-color: transparent;
+            border: 2px solid transparent;
+            border-bottom: none;
+            position: relative;
+            top: -2px; /* Lifts them slightly to connect with the border */
+            transition: all 0.2s ease;
+        }
+        
+        /* Style for active or hovered tabs */
+        .quick-bar-tab.active, .quick-bar-tab:hover {
+            background-color: var(--bg-tab-active);
+            color: var(--text-primary);
+            border-color: var(--border-primary);
+        }
+
+        /* The flex container that holds the visible pocket slots */
+        .quick-bar-slots-display {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-grow: 1;
+        }
+        
+        /* -------------------------------------------------- */
+        /* Other UI Components                              */
+        /* -------------------------------------------------- */
+
+        /* The side panel for equipping clothing */
+        .side-panel {
+            width: 250px;
+            background-color: var(--bg-secondary);
+            border-right: 2px solid var(--border-primary);
+            padding: 20px;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+
+        /* The main content area to the right of the side panel */
+        .main-content {
+            margin-left: 250px;
+        }
+        
+        /* The capacity gauge at the bottom of a slot */
+        .capacity-gauge {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            right: 4px;
+            height: 8px;
+            background-color: #0000004d; /* Dark, semi-transparent channel */
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            border: 1px solid var(--border-primary);
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+            transition: border-color 0.3s ease;
+        }
+        .gauge-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: var(--radius-sm);
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+
+        /* The small popup for "Not enough capacity!" messages */
+        .info-popup {
+            position: fixed;
+            transform: translate(-50%, -120%); /* Position above the cursor */
+            padding: 8px 16px;
+            background-color: var(--bg-error);
+            color: var(--text-inverse);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 600;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.5s ease-out, background-color 0.3s ease;
+            border: 1px solid var(--text-primary);
+        }
+        .info-popup.fade-out {
+            opacity: 0;
+        }
+
+        /* --- Settings Menu Styles --- */
+        #settings-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        #settings-btn {
+            width: 48px;
+            height: 48px;
+            background-color: var(--bg-secondary);
+            border: 2px solid var(--border-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow-primary);
+            transition: all 0.3s ease;
+        }
+        #settings-btn svg {
+            width: 28px;
+            height: 28px;
+            color: var(--text-primary);
+            transition: transform 0.5s ease, color 0.3s ease;
+        }
+        #settings-btn:hover svg {
+            transform: rotate(90deg);
+        }
+        #theme-menu {
+            position: absolute;
+            top: 60px;
+            right: 0;
+            width: 200px;
+            background-color: var(--bg-secondary);
+            border: 2px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: 12px;
+            box-shadow: var(--shadow-primary);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            /* Hidden by default */
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none;
+            transition: all 0.2s ease;
+        }
+        #theme-menu.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        #theme-menu h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            text-align: center;
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--border-primary);
+            padding-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+        .theme-btn {
+            padding: 8px 12px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: 'Vollkorn', serif;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+        .theme-btn:hover {
+            background-color: var(--accent-primary);
+            color: var(--bg-secondary);
+        }

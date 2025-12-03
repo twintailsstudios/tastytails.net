@@ -1,0 +1,178 @@
+:root {
+    /* Palette: Warm Medieval Tavern */
+    --palette-bg: #2c241b;
+    /* Dark base background */
+    --palette-wood-dark: #3e2723;
+    /* Dark wood borders/headers */
+    --palette-wood-light: #5d4037;
+    /* Lighter wood accents/buttons */
+    --palette-parchment: #f3e5ab;
+    /* Main card background */
+    --palette-parchment-dark: #e6d598;
+    /* Hover states/borders */
+    --palette-gold: #ffc107;
+    /* Accents and highlights */
+    --palette-text-dark: #3e2723;
+    /* Main Ink color */
+    --palette-text-light: #f5f5f5;
+    /* Light text on dark backgrounds */
+    --palette-accent-red: #8b0000;
+    /* Delete/Logout actions */
+    --palette-accent-blue: #283593;
+    /* "Play" primary action */
+
+    /* Functional Mappings - Backgrounds */
+    --bg-body: var(--palette-bg);
+    --bg-header: var(--palette-wood-dark);
+    --bg-panel-blue: var(--palette-wood-light);
+    --bg-content-light-blue: var(--palette-parchment);
+    --bg-collapsible-hover: var(--palette-wood-dark);
+    --bg-msg-even: var(--palette-wood-light);
+    --bg-intent-label: rgba(0, 0, 0, 0.5);
+
+    /* Functional Mappings - Text */
+    --text-white: var(--palette-text-light);
+    --text-nav-hover: var(--palette-gold);
+    --text-dark: var(--palette-text-dark);
+
+    /* Functional Mappings - Buttons */
+    --btn-bg: var(--palette-accent-blue);
+    --btn-active: var(--palette-gold);
+
+    /* Functional Mappings - Borders */
+    --border-dark-blue: var(--palette-wood-dark);
+    --border-accent-light: var(--palette-gold);
+
+    /* Functional Mappings - Inputs */
+    --input-focus-green: var(--palette-gold);
+
+    /* Functional Mappings - Intents */
+    --intent-friendly: #4CAF50;
+    --intent-grabbing: #FFC107;
+    --intent-hostile: #F44336;
+}
+
+/* --- Typography --- */
+body {
+    font-family: 'Lato', sans-serif;
+    background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+    /* Subtle wood texture */
+}
+
+h1,
+h2,
+h3 {
+    font-family: 'Cinzel', serif;
+}
+
+/* --- Header --- */
+header {
+    background: linear-gradient(to bottom, var(--palette-wood-dark), var(--palette-wood-light));
+    border-bottom: 4px solid #FFD700;
+    /* Brighter Yellow */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+h1 {
+    color: var(--palette-gold);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    letter-spacing: 2px;
+}
+
+/* --- Navigation --- */
+nav {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+    /* Subtle yellow separator for nav */
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+}
+
+.nav-links li {
+    list-style: none;
+    display: inline-block;
+}
+
+.nav-links a {
+    color: var(--palette-parchment);
+    font-family: 'Cinzel', serif;
+    font-size: 1.1rem;
+    margin-right: 20px;
+    transition: color 0.3s;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-links a:hover {
+    color: var(--palette-gold);
+    text-shadow: 0 0 8px var(--palette-gold);
+}
+
+.user-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.logout-btn {
+    background: transparent;
+    border: 1px solid var(--palette-parchment);
+    color: var(--palette-parchment);
+    padding: 5px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    transition: all 0.3s;
+}
+
+.logout-btn:hover {
+    background: var(--palette-accent-red);
+    border-color: var(--palette-accent-red);
+    color: white;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    background: var(--palette-wood-dark);
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.8rem;
+    margin-top: auto;
+}
+
+/* Page Title */
+.page-title {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.page-title h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 3rem;
+    color: var(--palette-parchment);
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+.page-title p {
+    font-style: italic;
+    color: var(--palette-parchment-dark);
+    margin-top: 10px;
+}
+
+/* Page-specific styles moved to landing.css and character-bank.css */

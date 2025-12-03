@@ -1,71 +1,98 @@
-<body>
-  <% if (loginForm == 1) { %> <section class="registrationBox">
-    <div class="container">
-      <div class="popUpContainer">
-        <div class="close">
-          <form action="/api/user/closereg" method="POST">
-            <button type="submit"><span>&#x1F5D9;</span></button>
-          </form>
-        </div>
-        <header class="reg1">
-        <h1>Create an Account</h1>
-        <p>Join the fun!</p>
-        </header>
-        <header class="login">
-        <h1>Log In</h1>
-        <p>Been here before? Log in below.</p>
-        </header>
-        <div class="registrationContainer">
+<link rel="stylesheet" href="/css/landing.css">
+<% if (loginForm==1) { %>
+  <section class="registrationBox">
+    <div class="popUpContainer">
 
-          <form action="/api/user/register" method="POST">
-            <ul>
-              <li><input type="email" id="email" name="email" placeholder="Enter Email..." required></li>
-              <li><input type="password" id="password" name="password" placeholder="Enter Password..." required></li>
-              <li><input type="password" id="password_confirmation" name="password_confirmation" placeholder="Verify Password..." required></li>
-              <li><input type="date" id="birthday" name="birthday" placeholder="Enter Birthdate..." required></li>
-
-
-            </ul>
-            <button type="submit" class="button">Sign Up!</button>
-          </form>
-        </div>
-
-        <div class="loginContainer">
-
-          <form action="/api/user/login" method="POST">
-            <ul>
-              <li><input type="email" id="email" name="email" placeholder="Enter Email..." required></li>
-              <li><input type="password" id="password" name="password" placeholder="Enter Password..." required></li>
-            </ul>
-            <button type="submit" class="button">Login</button>
-          </form>
-        </div>
+      <!-- Close Button -->
+      <div class="close">
+        <form action="/api/user/closereg" method="POST">
+          <button type="submit"><i class="fa-solid fa-xmark"></i></button>
+        </form>
       </div>
-  </div>
-  </section> <% } %>
 
-  <section id ="home">
-    <div class="container">
-      <center>
-        <h1>TastyTails</h1>
-        <h2>~Under Construction~</h2>
+      <!-- LEFT COLUMN: REGISTER -->
+      <div class="registrationContainer">
+        <header class="reg1">
+          <h1>Create Account</h1>
+          <p>Join the Guild!</p>
+        </header>
+        <form action="/api/user/register" method="POST">
+          <ul>
+            <li><input type="email" id="reg_email" name="email" placeholder="Enter Email..." required></li>
+            <li><input type="password" id="reg_password" name="password" placeholder="Enter Password..." required>
+            </li>
+            <li><input type="password" id="reg_confirm" name="password_confirmation" placeholder="Verify Password..."
+                required></li>
+            <li><input type="text" onfocus="(this.type='date')" id="birthday" name="birthday"
+                placeholder="Date of Birth..." required></li>
+          </ul>
+          <button type="submit" class="button">Sign Up!</button>
+        </form>
+      </div>
 
+      <!-- DIVIDER LINE -->
+      <div class="divider"></div>
 
+      <!-- RIGHT COLUMN: LOGIN -->
+      <div class="loginContainer">
+        <header class="login">
+          <h1>Log In</h1>
+          <p>Welcome back, traveler.</p>
+        </header>
+        <form action="/api/user/login" method="POST">
+          <ul>
+            <li><input type="email" id="login_email" name="email" placeholder="Enter Email..." required></li>
+            <li><input type="password" id="login_password" name="password" placeholder="Enter Password..." required>
+            </li>
+          </ul>
+          <button type="submit" class="button">Login</button>
+        </form>
+      </div>
 
-
-
-        <% if (token !== null) { %>
-          <a href="/character-bank">Click Here to play Alpha</a><br>
-        <% } else { %>
-          <a href="/loginForm">Click Here to play Alpha</a><br>
-        <% } %>
-
-
-
-
-
-        <img src="assets/images/Tasty_Tails_under_construction.png" alt="Under Construction">
-      </center>
-  </div>
+    </div>
   </section>
-</body>
+  <% } %>
+
+    <main>
+      <div class="notice-board">
+        <!-- Decorative Nails -->
+        <div class="nail tl"></div>
+        <div class="nail tr"></div>
+        <div class="nail bl"></div>
+        <div class="nail br"></div>
+
+        <h2 class="notice-title">Under Construction</h2>
+        <div class="notice-subtitle">~ Pardon the Dust! ~</div>
+
+        <p class="notice-text">
+          The tavern is currently being expanded. The builders are hammering away, and the paint is still wet.
+          However, the guild registry is open for business!
+        </p>
+
+        <% if (token !==null) { %>
+          <a href="/character-bank" class="cta-btn">
+            <i class="fa-solid fa-scroll"></i> Play the Alpha!
+          </a>
+          <% } else { %>
+            <form action="/api/user/loginForm" method="POST" style="display:inline;">
+              <button type="submit" class="cta-btn" style="border:none; cursor:pointer;">
+                <i class="fa-solid fa-key"></i> Login to Enter
+              </button>
+            </form>
+            <% } %>
+
+              <br>
+
+              <!-- Image Container (Handles missing image gracefully) -->
+              <div class="construction-img-container">
+                <!-- Using an onerror to hide the image tag if your specific asset isn't found in this env -->
+                <img src="assets/images/Tasty_Tails_under_construction.png" alt="Under Construction"
+                  onerror="this.style.display='none'; document.getElementById('backup-icon').style.display='block';">
+
+                <!-- Fallback Icon shown if image is missing -->
+                <div id="backup-icon" class="construction-icon" style="display:none;">
+                  <i class="fa-solid fa-hammer"></i>
+                </div>
+              </div>
+      </div>
+    </main>

@@ -1,53 +1,74 @@
-const reset = "\x1b[0m"; // ANSI color code for reset
-const fgYellow = "\x1b[33m"; // ANSI color code for yellow
-const fgGreen = "\x1b[32m"; // ANSI color code for green
-const fgRed = "\x1b[31m"; // ANSI color code for red
-const fgCyan = "\x1b[36m"; // ANSI color code for cyan
-const fgBlue = "\x1b[34m"; // ANSI color code for blue
-const fgMagenta = "\x1b[35m" // ANSI color code for magenta
-const fgWhite = "\x1b[37m"; // ANSI color code for white
+const path = require('path');
 
+const colors = {
+    reset: "\x1b[0m",
+    red: "\x1b[31m",
+    green: "\x1b[32m",
+    yellow: "\x1b[33m",
+    blue: "\x1b[34m",
+    magenta: "\x1b[35m",
+    cyan: "\x1b[36m",
+    white: "\x1b[37m",
+};
 
-const indent = '    '; // 4 spaces
-function log(data, next, next2, next3) {
+const fileColors = {
+    'index.js': colors.green,
+    'server-loop.js': colors.blue,
+    'auth.js': colors.yellow,
+    'verifyToken.js': colors.magenta,
+    'dbInterface.js': colors.cyan,
+};
+
+const defaultColor = colors.white;
+
+function getCallerInfo() {
     const error = new Error();
-    // console.log('error.stack = ', error.stack);
-    const callerLine = error.stack.split("\n")[2];
-    const callerLineParts = callerLine.split('\\');
-    const secondLastWord = callerLineParts[callerLineParts.length - 2];
-    // console.log('secondLastWord = ', secondLastWord);
-    // console.log('callerLine = ', callerLine);
-    const fileName = callerLine.split('\\').pop();
-    // console.log(fileName);
-    const parts = fileName.split(':');
-    const callerFile = parts.shift();
-    var afterColon = parts.join(':');
-    afterColon = afterColon.slice(0, -1);
+    const stack = error.stack.split('\n');
+    // Stack trace format varies, but usually the 3rd line (index 2) is the caller of 'log'
+    // If 'log' is called directly. If called via log.error, it might be deeper.
 
-    if (secondLastWord === 'routes') {
-        if (callerFile.includes('dbInterface.js')) {
-            console.log(fgCyan, 'Src File: ', callerFile, indent, 'at line: ', afterColon, '\n ', indent, data, next ? next : '', next2 ? next2 : '', next3 ? next3 : '', reset);
-          } else if (callerFile.includes('index.js')) {
-            console.log(fgGreen, 'Src File: ', callerFile, indent, 'at line: ', afterColon, '\n ', indent, data, next ? next : '', next2 ? next2 : '', next3 ? next3 : '', reset);
-            } else if(callerFile.includes('auth.js')) {
-                console.log(fgYellow, 'Src File: ', callerFile, indent, 'at line: ', afterColon, '\n ', indent, data, next ? next : '', next2 ? next2 : '', next3 ? next3 : '', reset);
-                } else if (callerFile.includes('verifyToken.js')) {
-                    console.log(fgMagenta, 'Src File: ', callerFile, indent, 'at line: ', afterColon, '\n ', indent, data, next ? next : '', next2 ? next2 : '', next3 ? next3 : '', reset);
-                } else {
-                    console.log(fgWhite, 'Src File: ', callerFile, indent, 'at line: ', afterColon, '\n ', indent, data, next ? next : '', next2 ? next2 : '', next3 ? next3 : '', reset);
-                }
-    } else {
-        if (callerFile.includes('index.js')) {
-            console.log(fgRed, 'Src File: ', callerFile, indent, 'at line: ', afterColon, '\n ', indent, data, next ? next : '', next2 ? next2 : '', next3 ? next3 : '', reset);
-        } else{
-            console.log(fgWhite, 'Src File: ', callerFile, indent, 'at line: ', afterColon, '\n ', indent, data, next ? next : '', next2 ? next2 : '', next3 ? next3 : '', reset);
+    // We need to find the first line that isn't this file.
+    for (let i = 2; i < stack.length; i++) {
+        const line = stack[i];
+        if (!line.includes(__filename)) {
+            // Parse line to get filename and line number
+            // Example: "    at Object.<anonymous> (C:\path\to\file.js:10:5)"
+            // or "    at functionName (C:\path\to\file.js:10:5)"
+            const match = line.match(/[\(\s](.*):(\d+):\d+\)?$/);
+            if (match) {
+                const fullPath = match[1];
+                const lineNumber = match[2];
+                const fileName = path.basename(fullPath);
+                return { fileName, lineNumber };
+            }
         }
     }
-    
-    // console.log(callerFile);
-    // if (typeof next === 'object' && next !== null) {
-    //     next = JSON.stringify(next, null, 2); // Convert object to string
-    // }
+    return { fileName: 'unknown', lineNumber: '?' };
 }
+
+function formatLog(color, fileName, lineNumber, args) {
+    const indent = '    ';
+    const fileTag = `Src File: ${fileName}`;
+    const lineTag = `at line: ${lineNumber}`;
+
+    // Combine args into a string if possible, or just pass them to console.log
+    // But to match the requested format:
+    // Src File:  index.js     at line:  26 
+    //      Successfully connected to MongoDB!
+
+    console.log(color, fileTag, indent, lineTag, '\n ', indent, ...args, colors.reset);
+}
+
+function log(...args) {
+    const { fileName, lineNumber } = getCallerInfo();
+    const color = fileColors[fileName] || defaultColor;
+    formatLog(color, fileName, lineNumber, args);
+}
+
+log.error = function (...args) {
+    const { fileName, lineNumber } = getCallerInfo();
+    // Error logs are always red
+    formatLog(colors.red, fileName, lineNumber, args);
+};
 
 module.exports = log;

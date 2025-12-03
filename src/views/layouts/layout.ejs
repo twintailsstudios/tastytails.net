@@ -1,86 +1,103 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta name="viewport" content="width=device-width">
-    <meta name="description" content="A place where you can eat and be eaten by your friends!">
-    <meta name="keywords" content="vore, game, vore game, unbirth, anal vore, tail vore, transformation, TF, tasty, tails, tastytails, tasty tails, furry, yiff, role-playing, role-play, role play, RP, lewd, OwO,">
-    <meta name="author" content="Kimberly Tilson">
-    <title>TastyTails | Home</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css"/> <!-- 'classic' theme -->
-    <link rel="stylesheet" href="./../css/style.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    <link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css?family=McLaren&display=swap" rel="stylesheet">
 
-  </head>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+<head>
+  <meta name="viewport" content="width=device-width">
+  <meta name="description" content="A place where you can eat and be eaten by your friends!">
+  <meta name="keywords"
+    content="vore, game, vore game, unbirth, anal vore, tail vore, transformation, TF, tasty, tails, tastytails, tasty tails, furry, yiff, role-playing, role-play, role play, RP, lewd, OwO,">
+  <meta name="author" content="Kimberly Tilson">
+  <title>TastyTails | Home</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css" />
+  <!-- 'classic' theme -->
+  <link rel="stylesheet" href="./../css/master.css">
+  <link rel="stylesheet" href="./../css/style.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css?family=McLaren&display=swap" rel="stylesheet">
+
+</head>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
   body {
-    background-color: #0b4b90;
     padding: 0;
     margin: 0;
-    
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
   }
-  </style>
 
-  <body>
-    <header>
-      <div class="container">
-        <div class="headerLogo">
-          <h1> TastyTails</h1>
-        </div>
+  /* Ensure footer sticks to bottom */
+  main,
+  .content-wrapper {
+    flex: 1;
+  }
+</style>
+
+<body>
+  <header>
+    <div class="container">
+      <div class="headerLogo">
+        <h1><i class="fa-solid fa-dragon"></i> TastyTails</h1>
       </div>
-    </header>
-    <% if (loginForm == 1) { %> <div id="smoke">
+    </div>
+  </header>
+  <% if (loginForm==1) { %>
+    <div id="smoke">
 
-    </div> <% } %>
-    <nav>
-      <div class="container">
-        <ul>
-          <li>
-            <a href="/">Home</a>
-          </li>
-          <% if (token !== null) { %>
+    </div>
+    <% } %>
+      <nav>
+        <div class="container nav-container">
+          <ul class="nav-links">
             <li>
-              <a href="/character-bank">Character Bank</a>
+              <a href="/"><i class="fa-solid fa-house"></i> Home</a>
             </li>
-          <% } %>
+            <% if (token !==null) { %>
+              <li>
+                <a href="/character-bank"><i class="fa-solid fa-users"></i> Character Bank</a>
+              </li>
+              <% } %>
 
-        </ul>
-        <div class="loginBox">
-          <% if (token !== null) { %>
-            <form action="/api/user/logout" method="POST">
-              <button type="submit" class="button">Logout</button>
-            </form>
-          <% } else { %>
-            <form action="/api/user/loginForm" method="POST">
-              <button type="submit" onClick="hideFunction()" class="button" >Login</button>
-            </form>
-          <% } %>
-          <div class="loggedIn">
-            <p>You're Logged In!</p>
+          </ul>
+          <div class="loginBox user-controls">
+            <% if (token !==null) { %>
+              <form action="/api/user/logout" method="POST">
+                <button type="submit" class="logout-btn">Logout</button>
+              </form>
+              <% } else { %>
+                <form action="/api/user/loginForm" method="POST">
+                  <button type="submit" onClick="hideFunction()" class="logout-btn">Login</button>
+                </form>
+                <% } %>
+                  <div class="loggedIn">
+                    <% if (token !==null) { %>
+                      <p style="color: var(--palette-parchment-dark); font-size: 0.9rem;">Logged In</p>
+                      <% } %>
+                  </div>
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
 
-    <%- body %>
+      <%- body %>
 
-    <footer>
-      <div class="container">
-        <p>TastyTails~</p>
-      </div>
-    </footer>
+        <footer>
+          <div class="container">
+            <p>TastyTails~</p>
+          </div>
+        </footer>
 
-    <script>
-      function hideFunction() {
-        var element = document.getElementsByClassName("registrationBox");
-        element[0].classList.toggle("hide");
-        element = document.getElementById("smoke");
-        element.classList.toggle("hide");
-      }
-    </script>
-  </body>
+        <script>
+          function hideFunction() {
+            var element = document.getElementsByClassName("registrationBox");
+            element[0].classList.toggle("hide");
+            element = document.getElementById("smoke");
+            element.classList.toggle("hide");
+          }
+        </script>
+</body>
+
 </html>

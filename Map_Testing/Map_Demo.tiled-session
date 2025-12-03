@@ -1,0 +1,47 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "Demo_tileset.tsx",
+    "expandedProjectPaths": [
+        "."
+    ],
+    "fileStates": {
+        "Demo_Map.tmx": {
+            "scale": 0.33,
+            "selectedLayer": 3,
+            "viewCenter": {
+                "x": 1018.1818181818182,
+                "y": 863.6363636363636
+            }
+        },
+        "Demo_tileset.json": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "Demo_tileset.tsx": {
+            "scaleInDock": 1.5,
+            "scaleInEditor": 2
+        }
+    },
+    "last.exportedFilePath": "C:/Users/kkmcl/Documents/GitHub/tastytails.net/Map_Testing",
+    "last.imagePath": "C:/Users/kkmcl/Documents/GitHub/tastytails.net/src/client/assets/tilemaps",
+    "lastUsedTilesetExportFilter": "JSON tileset files (*.tsj *.json)",
+    "map.height": 40,
+    "map.lastUsedExportFilter": "JSON map files (*.tmj *.json)",
+    "map.lastUsedFormat": "tmx",
+    "map.width": 40,
+    "openFiles": [
+        "Demo_tileset.tsx",
+        "Demo_Map.tmx",
+        "Demo_tileset.tsx"
+    ],
+    "project": "Map_Demo.tiled-project",
+    "recentFiles": [
+        "Demo_tileset.json",
+        "Demo_tileset.tsx",
+        "Demo_Map.tmx"
+    ],
+    "tileset.lastUsedFormat": "tsx"
+}

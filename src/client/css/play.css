@@ -1,0 +1,1013 @@
+/* === COLOR PALETTE === */
+:root {
+    --wood-dark: #3e2723;
+    --wood-light: #5d4037;
+    --wood-accent: #795548;
+    --leather-dark: #2a1b15;
+    --parchment: #f3e5ab;
+    --parchment-light: #faf3e0;
+    --parchment-dark: #e6d598;
+    --gold: #ffc107;
+    --text-dark: #3e2723;
+    --accent-red: #8b0000;
+    --accent-blue: #283593;
+    --magic-glow: rgba(255, 193, 7, 0.4);
+    --bg-color: #2c241b;
+}
+
+@keyframes pulseGold {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+    }
+}
+
+/* Global */
+body {
+    background-color: var(--bg-color);
+    background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+    color: var(--text-light);
+    font-family: 'Lato', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+/* --- HEADER & NAV --- */
+/* Note: Header styles might be in a shared file, but adding here for completeness if needed or specific overrides */
+
+/* === PLAY MODE (FULL SCREEN) === */
+body.play-mode header,
+body.play-mode footer,
+body.play-mode nav {
+    display: none !important;
+}
+
+body.play-mode #game-wrapper {
+    height: 100vh;
+}
+
+/* Nav Toggle Button */
+.nav-toggle-btn {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 10000;
+    width: 40px;
+    height: 40px;
+    background: var(--wood-dark);
+    color: var(--gold);
+    border: 2px solid var(--wood-light);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+}
+
+.nav-toggle-btn:hover {
+    transform: scale(1.1);
+    background: var(--wood-light);
+    color: var(--parchment);
+}
+
+/* Visible Nav in Play Mode */
+body.play-mode.nav-visible nav {
+    display: block !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 9999;
+    background: rgba(44, 36, 27, 0.95);
+    /* Semi-transparent background */
+    backdrop-filter: blur(5px);
+    border-bottom: 4px solid var(--wood-dark);
+    animation: slideDown 0.3s ease-out;
+}
+
+body.play-mode.nav-visible nav .nav-container {
+    padding: 10px 20px;
+}
+
+/* === MAIN GAME LAYOUT === */
+#game-wrapper {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 60px);
+    /* Adjust based on header height */
+    overflow: hidden;
+}
+
+/* --- LEFT COLUMN: PHASER GAME --- */
+#phaserApp {
+    flex: 1;
+    background-color: #000;
+    border-right: 8px solid var(--wood-dark);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    float: none;
+    /* Override float */
+    width: 100%;
+    /* Override width */
+    height: 100%;
+    /* Override height */
+    min-width: 0;
+    /* Critical for flexbox shrinking */
+}
+
+#phaserApp canvas {
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+}
+
+/* Overlay Controls (Intent) - Animated Sigils */
+#intentContainer {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: auto;
+    /* Override right */
+    bottom: auto;
+    /* Override bottom */
+    background: rgba(0, 0, 0, 0.5);
+    padding: 5px;
+    border-radius: 30px;
+    z-index: 10;
+    display: flex;
+    gap: 10px;
+    border: 2px solid var(--wood-light);
+    backdrop-filter: blur(2px);
+    transition: transform 0.2s;
+}
+
+#intentContainer:hover {
+    transform: scale(1.02);
+}
+
+#intentContainer input {
+    display: none;
+}
+
+#intentContainer label {
+    width: 45px;
+    height: 45px;
+    background: var(--wood-dark);
+    color: var(--parchment);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px solid var(--gold);
+    font-size: 1.4rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    /* Bouncy transition */
+}
+
+#intentContainer label:hover {
+    transform: translateY(-3px) scale(1.1);
+    color: var(--gold);
+}
+
+#intentContainer input:checked+label {
+    background: var(--gold);
+    color: var(--wood-dark);
+    transform: scale(1.15);
+    box-shadow: 0 0 15px var(--gold);
+    animation: popIn 0.3s ease-out;
+}
+
+/* Item Bar (Floating Shelf) */
+#itemBar {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--wood-dark);
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: 3px solid var(--wood-light);
+    z-index: 10;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
+    transition: transform 0.3s ease;
+}
+
+#itemBar:hover {
+    transform: translateX(-50%) translateY(-5px);
+}
+
+#itemBar ul {
+    display: flex;
+    gap: 12px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.item {
+    width: 50px;
+    height: 50px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px inset var(--wood-accent);
+    border-radius: 6px;
+    transition: all 0.2s ease-in-out;
+    cursor: grab;
+}
+
+.item:hover {
+    border-color: var(--gold);
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1) rotate(3deg);
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+}
+
+.item:active {
+    cursor: grabbing;
+    padding: 0;
+    border-bottom: 4px solid var(--wood-light);
+    height: auto;
+    /* Override fixed height */
+}
+
+/* --- RIGHT COLUMN: THE JOURNAL (SIDE PANEL) --- */
+#sidePanel {
+    flex: 1;
+    background-color: var(--parchment);
+    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    display: flex;
+    flex-direction: column;
+    border-left: 8px solid var(--wood-dark);
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.5);
+    color: var(--text-dark);
+    /* flex-shrink: 0; Removed to allow shrinking */
+    min-width: 0;
+    /* Critical for flex containers to not overflow */
+    overflow: hidden;
+    /* Contain children */
+    position: relative;
+    float: none;
+    /* Override float */
+    height: auto;
+    /* Override fixed height */
+    padding: 0;
+    margin: 0;
+    z-index: 0;
+}
+
+/* Tabs Navigation - Animated Wood */
+.navBar {
+    background: var(--wood-dark);
+    padding: 0;
+    border-bottom: 4px solid var(--wood-light);
+    height: auto;
+    /* Override fixed height */
+}
+
+.navBar ul {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+}
+
+.menuTabs {
+    flex: 1;
+    text-align: center;
+    padding: 12px 5px;
+    color: var(--parchment-dark);
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    background: var(--wood-light);
+    margin-right: 1px;
+    border-top: 3px solid transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 60px;
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    float: none;
+    /* Override float */
+    width: auto;
+    /* Override width */
+    height: auto;
+    /* Override height */
+    border-radius: 0;
+    /* Override border-radius */
+    margin: 0;
+    /* Override margin */
+}
+
+.menuTabs i {
+    font-size: 1.1rem;
+    margin-bottom: 2px;
+    transition: transform 0.2s;
+}
+
+.menuTabs:hover {
+    background: #6d4c41;
+    color: var(--gold);
+    padding-top: 8px;
+    /* Slight lift effect */
+    padding-bottom: 16px;
+}
+
+.menuTabs:hover i {
+    transform: scale(1.2);
+}
+
+.menuTabs.active {
+    background: var(--parchment);
+    color: var(--wood-dark);
+    border-top-color: var(--gold);
+    font-weight: bold;
+    transform-origin: bottom;
+    z-index: 2;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Content Display Area */
+#menuDisplay {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    font-family: 'Lato', sans-serif;
+    position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: var(--wood-light) var(--parchment);
+    background-color: transparent;
+    /* Override */
+    border-bottom: none;
+    /* Override */
+    height: auto;
+    /* Override */
+    color: inherit;
+    /* Override */
+}
+
+/* Page Slide Animation */
+.tabDisplay {
+    display: none;
+    /* JS toggles this */
+    /* Smooth slide-up fade */
+    animation: fadeInUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    background-color: transparent;
+    /* Override */
+    height: auto;
+    /* Override */
+    box-shadow: none;
+    /* Override */
+}
+
+/* "Pinned Note" Style */
+.paper-note {
+    background-color: var(--parchment-light);
+    border: 1px solid #d7c496;
+    padding: 15px;
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+    margin-bottom: 20px;
+    font-family: 'Caveat Brush', cursive;
+    font-size: 1.2rem;
+    color: #5d4037;
+    transform: rotate(-0.5deg);
+    transition: transform 0.3s;
+}
+
+.paper-note:hover {
+    transform: rotate(0deg) scale(1.01);
+}
+
+.paper-note::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 12px;
+    background: radial-gradient(circle at 30% 30%, #a9a9a9, #444);
+    border-radius: 50%;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+h3 {
+    font-family: 'Cinzel', serif;
+    color: var(--accent-red);
+    border-bottom: 2px dashed var(--wood-light);
+    padding-bottom: 5px;
+    margin-top: 0;
+    font-size: 1.3rem;
+}
+
+/* Accordions */
+.accordion {
+    background-color: rgba(62, 39, 35, 0.1);
+    color: var(--wood-dark);
+    cursor: pointer;
+    padding: 12px 10px;
+    width: 100%;
+    border: none;
+    border-bottom: 1px dashed var(--wood-light);
+    text-align: left;
+    outline: none;
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.accordion:hover {
+    background-color: rgba(62, 39, 35, 0.2);
+    padding-left: 15px;
+    /* Slide text */
+    color: var(--accent-blue);
+}
+
+.accordion::after {
+    content: '\f078';
+    /* FontAwesome Down Chevron */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    transition: transform 0.3s;
+}
+
+.accordion.is-open::after {
+    transform: rotate(180deg);
+}
+
+.accordion.is-open {
+    background-color: var(--wood-light);
+    color: var(--gold);
+}
+
+.accordion-content {
+    padding: 0 10px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0, 1, 0, 1);
+    /* Smooth ease-out */
+    background-color: rgba(255, 255, 255, 0.3);
+    margin-bottom: 5px;
+    border: none;
+    /* Override */
+    height: auto;
+    /* Override */
+    position: static;
+    /* Override */
+}
+
+/* Spellbook Table */
+#spellsTable {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+}
+
+#spellsTable tr {
+    transition: transform 0.2s;
+}
+
+#spellsTable tr:hover {
+    transform: scale(1.02);
+}
+
+#spellsTable td {
+    background: rgba(255, 255, 255, 0.3);
+    padding: 10px;
+    border-top: 1px solid var(--wood-light);
+    border-bottom: 1px solid var(--wood-light);
+    vertical-align: middle;
+}
+
+#spellsTable td:first-child {
+    border-left: 1px solid var(--wood-light);
+    border-radius: 4px 0 0 4px;
+}
+
+#spellsTable td:last-child {
+    border-right: 1px solid var(--wood-light);
+    border-radius: 0 4px 4px 0;
+}
+
+#tableName {
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    color: var(--wood-dark);
+}
+
+#tableDescrip {
+    height: auto;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 1024px) {
+    #game-wrapper {
+        flex-direction: column;
+        overflow-y: auto;
+        height: auto;
+    }
+
+    #phaserApp {
+        height: 60vh;
+        width: 100%;
+        border-right: none;
+        border-bottom: 8px solid var(--wood-dark);
+    }
+
+    #sidePanel {
+        width: 100%;
+        height: 60vh;
+        border-left: none;
+    }
+}
+
+/* === EXTRACTED INLINE STYLES === */
+.menu-container {
+    flex: 2;
+    /* Increased to 2 to make menu taller than chat */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 5;
+}
+
+.spell-icon-cell {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #ccc;
+}
+
+.spell-name-cell {
+    padding: 5px;
+}
+
+.map-note {
+    text-align: center;
+}
+
+.map-icon {
+    font-size: 3rem;
+    color: #aaa;
+    margin: 20px;
+}
+
+.vore-list {
+    list-style: none;
+    padding: 0;
+}
+
+.options-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+/* --- VORE TAB SPECIFIC STYLES ---
+           Styles for the Accordion List logic.
+        */
+.vore-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--wood-dark);
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+}
+
+.vore-header h2 {
+    font-family: 'Cinzel', serif;
+    color: var(--wood-dark);
+    margin: 0;
+    font-size: 1.4rem;
+}
+
+/* Accordion Item Container */
+.anatomy-card {
+    margin-bottom: 15px;
+    border: 1px solid var(--wood-light);
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    overflow: visible;
+    /* Crucial for dropdowns to overflow */
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* The clickable header of the accordion */
+.accordion-btn {
+    width: 100%;
+    background: var(--wood-light);
+    color: var(--parchment);
+    border: none;
+    padding: 12px 15px;
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    font-weight: bold;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+}
+
+.accordion-btn:hover {
+    background: var(--wood-dark);
+    color: var(--gold);
+}
+
+.accordion-btn.active {
+    background: var(--wood-dark);
+    color: var(--gold);
+}
+
+.accordion-btn .arrow {
+    transition: transform 0.3s;
+}
+
+.accordion-btn.active .arrow {
+    transform: rotate(90deg);
+}
+
+/* Badge showing current mode (Hold/Digest) */
+.mode-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--gold);
+    margin-left: auto;
+    margin-right: 10px;
+    text-transform: uppercase;
+}
+
+/* The expandable content area */
+.accordion-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out;
+    background: var(--parchment-light);
+}
+
+/* When open, allow overflow for UI elements */
+.accordion-panel.open {
+    border-top: 2px solid var(--gold);
+    overflow: visible;
+}
+
+.panel-content {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Mode Selector (Three Stamps) */
+.mode-selector {
+    display: flex;
+    gap: 5px;
+    background: rgba(0, 0, 0, 0.1);
+    padding: 5px;
+    border-radius: 4px;
+    justify-content: center;
+}
+
+.mode-label {
+    flex: 1;
+    text-align: center;
+    padding: 5px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    color: var(--text-dark);
+    transition: 0.2s;
+    opacity: 0.7;
+}
+
+.mode-label:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.mode-label.selected {
+    background: var(--wood-dark);
+    color: var(--gold);
+    border-color: var(--gold);
+    opacity: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Contents Roster (List of names) */
+.contents-roster {
+    background-color: var(--parchment-light);
+    border: 1px dashed var(--wood-light);
+    padding: 10px;
+    min-height: 60px;
+    position: relative;
+}
+
+.contents-roster::before {
+    content: 'Occupants:';
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    background: var(--parchment);
+    padding: 0 5px;
+    font-family: 'Lato';
+    font-size: 0.8rem;
+    color: var(--wood-light);
+    font-weight: bold;
+}
+
+.roster-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-family: 'Caveat Brush', cursive;
+    color: var(--wood-dark);
+    font-size: 1.1rem;
+}
+
+.roster-list li {
+    padding: 2px 0;
+    border-bottom: 1px dotted #ccc;
+}
+
+.roster-list li:last-child {
+    border-bottom: none;
+}
+
+/* Action Buttons */
+.edit-btn {
+    width: 100%;
+    padding: 10px;
+    background: transparent;
+    border: 2px solid var(--wood-light);
+    color: var(--wood-dark);
+    font-family: 'Cinzel';
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+    border-radius: 4px;
+}
+
+.edit-btn:hover {
+    background: var(--wood-light);
+    color: var(--parchment);
+}
+
+#addVoreBtn {
+    width: 100%;
+    padding: 15px;
+    background: var(--wood-dark);
+    color: var(--gold);
+    border: 2px dashed var(--gold);
+    font-family: 'Cinzel';
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: 0.2s;
+}
+
+#addVoreBtn:hover {
+    background: var(--wood-accent);
+    transform: scale(1.02);
+}
+
+/* --- SETTINGS MODAL ---
+           The main popup for editing complex data.
+        */
+.settings-modal {
+    display: none;
+    /* JS toggles this */
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(3px);
+    overflow-y: auto;
+}
+
+.modal-content {
+    background-color: var(--parchment);
+    margin: 5% auto;
+    border: 4px solid var(--wood-dark);
+    width: 90%;
+    max-width: 800px;
+    /* max-height: 90vh; Removed */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+    animation: popIn 0.3s;
+}
+
+.modal-header {
+    background: var(--wood-dark);
+    color: var(--gold);
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Cinzel';
+}
+
+.modal-body {
+    padding: 20px;
+    overflow: visible;
+    flex: 1;
+}
+
+/* Modal Internal Tabs */
+.modal-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--wood-light);
+    margin-bottom: 20px;
+}
+
+.modal-tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    font-family: 'Cinzel';
+    color: var(--text-dark);
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid transparent;
+}
+
+.modal-tab.active {
+    background: var(--parchment);
+    border: 2px solid var(--wood-light);
+    border-bottom: 2px solid var(--parchment);
+    font-weight: bold;
+    margin-bottom: -2px;
+}
+
+/* Audio Module Styles */
+.audio-module {
+    background: rgba(62, 39, 35, 0.05);
+    border: 1px solid var(--wood-light);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.audio-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex: 1;
+}
+
+/* Play/Stop Button */
+.audio-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--wood-dark);
+    color: var(--gold);
+    border: 2px solid var(--gold);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.audio-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+}
+
+.audio-btn.playing {
+    background: var(--gold);
+    color: var(--wood-dark);
+    animation: pulse 1s infinite;
+}
+
+/* Form Element Styles */
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--wood-light);
+    border-radius: 4px;
+    font-family: 'Lato';
+}
+
+/* Form Grid layout */
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group.full-width {
+    grid-column: span 2;
+}
+
+.modal-footer {
+    padding: 15px;
+    border-top: 2px solid var(--wood-light);
+    text-align: right;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.save-btn {
+    padding: 10px 30px;
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    font-family: 'Cinzel';
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.save-btn:hover {
+    background: #1a237e;
+}
+
+/* Animations */
+@keyframes popIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+    }
+}
+
+/* === FIXES FOR ACCORDION === */
+.accordion::after {
+    content: none !important;
+}
+
+.accordion .arrow {
+    transition: transform 0.3s;
+    margin-right: 8px;
+}
+
+.accordion.is-open .arrow {
+    transform: rotate(90deg);
+}
+
+.accordion.is-open {
+    background-color: var(--wood-light);
+    color: var(--gold);
+}

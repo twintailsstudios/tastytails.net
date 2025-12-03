@@ -1,0 +1,93 @@
+<div id="chat">
+    <div class="chat-holder">
+        <div id="messages">
+            <div id="chat-loading-spinner"
+                style="display: none; text-align: center; padding: 10px; color: var(--gold);">
+                <i class="fas fa-spinner fa-spin"></i> Loading older messages...
+            </div>
+            <!-- Messages injected via JS -->
+        </div>
+
+        <!-- New Messages Jump Button -->
+        <div id="jump-to-present" class="hidden">
+            <span>New Messages</span> <i class="fas fa-arrow-down"></i>
+        </div>
+
+        <!-- Writing Desk -->
+        <div id="message-box-container">
+            <!-- Editing Indicator -->
+            <div id="editing-indicator" class="hidden">
+                <span><i class="fas fa-pen"></i> Editing Message...</span>
+                <span id="cancel-edit" class="link"
+                    style="cursor: pointer; color: var(--wood-dark); background: var(--parchment); padding: 2px 6px; border-radius: 4px;">Cancel</span>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="control-btn-container">
+                <button id="bold-btn" class="chat-control-btn tool-tip" title="Bold"><i
+                        class="fa-solid fa-bold"></i></button>
+                <button id="italic-btn" class="chat-control-btn tool-tip" title="Italic"><i
+                        class="fa-solid fa-italic"></i></button>
+                <button id="underline-btn" class="chat-control-btn tool-tip" title="Underline"><i
+                        class="fa-solid fa-underline"></i></button>
+                <button id="strikethrough-btn" class="chat-control-btn tool-tip" title="Strike"><i
+                        class="fa-solid fa-strikethrough"></i></button>
+                <button id="subscript-btn" class="chat-control-btn tool-tip" title="Subscript"><i
+                        class="fa-solid fa-subscript"></i></button>
+                <button id="superscript-btn" class="chat-control-btn tool-tip" title="Superscript"><i
+                        class="fa-solid fa-superscript"></i></button>
+
+                <!-- Magical Spoiler Dropdown -->
+                <div style="margin-left: 10px;">
+                    <select id="spoilers" name="spoilers">
+                        <option value="none">No Spoiler</option>
+                        <option value="general">General</option>
+                        <option value="watersports">Watersports</option>
+                        <option value="disposal">Scat/Disposal</option>
+                        <option value="gore">Gore</option>
+                    </select>
+                </div>
+
+                <div class="dropdown" data-dropdown style="margin-left:auto;">
+                    <button class="link chat-control-btn material-icons" data-dropdown-button>settings</button>
+                    <div class="dropdown-menu information-grid">
+                        <div>
+                            <div class="dropdown-heading">
+                                Spoiler Preferences
+                            </div>
+                            <div class="dropdown-links">
+                                <ul>
+                                    <li>
+                                        <input type="checkbox" id="watersportsBox" name="watersportsBox" checked="True">
+                                        <label for="watersportsBox">Hide Watersports by Default</label><br>
+                                    </li>
+                                    <li>
+                                        <input type="checkbox" id="disposalBox" name="disposal" checked="True">
+                                        <label for="disposalBox">Hide Scat/Disposal by Default</label><br>
+                                    </li>
+                                    <li>
+                                        <input type="checkbox" id="goreBox" name="goreBox" checked="True">
+                                        <label for="goreBox">Hide Gore by Default</label><br>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- The Parchment Pad -->
+            <div id="textarea" contenteditable="true" spellcheck="true" placeholder="Write your story..."></div>
+            <div class="charlimit">0/10000</div>
+        </div>
+    </div>
+    <!-- Too Many Characters Modal -->
+    <div id="char-limit-modal" class="dialogue-overlay" style="display: none;">
+        <div class="dialogue-box">
+            <h2><i class="fas fa-exclamation-triangle"></i> The Scroll is Full!</h2>
+            <p>Your message is too long for the magical courier to carry.</p>
+            <p>Please shorten your tale to under 10,000 runes.</p>
+            <button id="close-char-modal">I Understand</button>
+        </div>
+    </div>
+</div>

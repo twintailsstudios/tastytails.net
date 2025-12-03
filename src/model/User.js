@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
-    min:6,
+    min: 6,
     max: 255
   },
   password: {
@@ -170,7 +170,7 @@ const userSchema = new mongoose.Schema({
           type: String
         }
       },
-      genitles:{
+      genitles: {
         sprite: {
           type: String
         },
@@ -184,7 +184,7 @@ const userSchema = new mongoose.Schema({
           type: String
         }
       },
-      beak:{
+      beak: {
         sprite: {
           type: String
         },
@@ -193,63 +193,63 @@ const userSchema = new mongoose.Schema({
         }
       },
       ratings: {
-          ovStar: {
-            type: Number
-          },
-          avStar: {
-            type: Number
-          },
-          cvStar: {
-            type: Number
-          },
-          ubStar: {
-            type: Number
-          },
-          tvStar: {
-            type: Number
-          },
-          absStar: {
-            type: Number
-          },
-          svStar: {
-            type: Number
-          },
-          predStar: {
-            type: Number
-          },
-          preyStar: {
-            type: Number
-          },
-          softStar: {
-            type: Number
-          },
-          hardStar: {
-            type: Number
-          },
-          digestionStar: {
-            type: Number
-          },
-          disposalStar: {
-            type: Number
-          },
-          tfStar: {
-            type: Number
-          },
-          btfStar: {
-            type: Number
-          },
-          bsStar: {
-            type: Number
-          },
-          gStar: {
-            type: Number
-          },
-          sStar: {
-            type: Number
-          },
-          iaoStar: {
-            type: Number
-          }
+        ovStar: {
+          type: Number
+        },
+        avStar: {
+          type: Number
+        },
+        cvStar: {
+          type: Number
+        },
+        ubStar: {
+          type: Number
+        },
+        tvStar: {
+          type: Number
+        },
+        absStar: {
+          type: Number
+        },
+        svStar: {
+          type: Number
+        },
+        predStar: {
+          type: Number
+        },
+        preyStar: {
+          type: Number
+        },
+        softStar: {
+          type: Number
+        },
+        hardStar: {
+          type: Number
+        },
+        digestionStar: {
+          type: Number
+        },
+        disposalStar: {
+          type: Number
+        },
+        tfStar: {
+          type: Number
+        },
+        btfStar: {
+          type: Number
+        },
+        bsStar: {
+          type: Number
+        },
+        gStar: {
+          type: Number
+        },
+        sStar: {
+          type: Number
+        },
+        iaoStar: {
+          type: Number
+        }
       },
 
 
@@ -269,6 +269,9 @@ const userSchema = new mongoose.Schema({
           animation: {
             type: Number
           },
+          mode: {
+            type: String
+          },
           destinationDescrip: {
             type: String
           },
@@ -286,6 +289,22 @@ const userSchema = new mongoose.Schema({
           },
           digestionOutsideMsgDescrip: {
             type: String
+          },
+          audioEntry: {
+            type: String
+          },
+          audioAmbient: {
+            type: String
+          },
+          audioStruggle: {
+            type: String
+          },
+          audioExit: {
+            type: String
+          },
+          contents: {
+            type: [String],
+            default: []
           }
         }]
       },
@@ -322,7 +341,7 @@ const userSchema = new mongoose.Schema({
         type: Boolean
       },
 
-      identifier:{
+      identifier: {
         type: String
       },
 
