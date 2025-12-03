@@ -20,7 +20,7 @@ let mapWidth = 0;
 
 // --- Constants ---
 const TICK_RATE = 30; // 30 updates per second
-const PLAYER_SPEED = 250;
+const PLAYER_SPEED = 200;
 const TILE_SIZE = 32; // The size of your tiles in pixels
 const PLAYER_WIDTH = 60;
 const PLAYER_HEIGHT = 30;
@@ -204,7 +204,7 @@ function checkHillHomeCollision(x, y) {
 // --- MODIFICATION ---
 // This function will now process the stored inputs to move the players.
 function updatePlayers(delta, io) {
-  const speed = 250;
+  const speed = 200;
   Object.keys(players).forEach(id => {
     const player = players[id];
     const input = player.input;
@@ -504,7 +504,8 @@ module.exports.start = (io) => {
       collisionBox: {
         width: PLAYER_WIDTH,
         height: PLAYER_HEIGHT
-      }
+      },
+      lastProcessedInputSequence: 0
     };
 
     // --- Socket Event Handlers for THIS player ---
@@ -548,6 +549,9 @@ module.exports.start = (io) => {
       const player = players[socket.id];
       if (player) {
         player.input = inputData;
+        if (inputData.sequence) {
+          player.lastProcessedInputSequence = inputData.sequence;
+        }
         // log(`Input received from ${socket.id}:`, inputData);
       }
     });

@@ -16,7 +16,7 @@ export function update(time, delta) {
     // Log the position at the VERY START of the update loop.
     // console.log(`[UPDATE START] Pos: (${this.playerContainer.x.toFixed(2)}, ${this.playerContainer.y.toFixed(2)})`);
 
-    const speed = 250;
+    const speed = 200;
 
     // Disable movement if consumed
     let inputPayload = {
@@ -53,6 +53,17 @@ export function update(time, delta) {
     }
 
     this.playerContainer.depth = this.playerContainer.y;
+
+    // Increment sequence number
+    this.playerContainer.inputSequenceNumber++;
+    inputPayload.sequence = this.playerContainer.inputSequenceNumber;
+
+    // Store input for reconciliation
+    this.playerContainer.pendingInputs.push({
+        sequence: inputPayload.sequence,
+        input: inputPayload,
+        delta: delta / 1000 // Convert ms to seconds
+    });
 
     this.socket.emit('playerInput', inputPayload);
 
