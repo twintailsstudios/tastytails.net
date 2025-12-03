@@ -505,7 +505,13 @@ module.exports.start = (io) => {
         width: PLAYER_WIDTH,
         height: PLAYER_HEIGHT
       },
-      lastProcessedInputSequence: 0
+      collisionBox: {
+        width: PLAYER_WIDTH,
+        height: PLAYER_HEIGHT
+      },
+      lastProcessedInputSequence: 0,
+      lastClientTimestamp: 0,
+      lastInputTime: 0
     };
 
     // --- Socket Event Handlers for THIS player ---
@@ -551,6 +557,17 @@ module.exports.start = (io) => {
         player.input = inputData;
         if (inputData.sequence) {
           player.lastProcessedInputSequence = inputData.sequence;
+        }
+        if (inputData.clientTimestamp) {
+          const now = Date.now();
+          if (player.lastInputTime) {
+            const jitter = now - player.lastInputTime;
+            if (jitter > 50) { // Log if > 50ms variance (expected ~33ms)
+              // log(`[Lag Debug] Input Jitter for ${player.Username}: ${jitter}ms`);
+            }
+          }
+          player.lastInputTime = now;
+          player.lastClientTimestamp = inputData.clientTimestamp;
         }
         // log(`Input received from ${socket.id}:`, inputData);
       }

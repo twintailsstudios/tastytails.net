@@ -57,12 +57,14 @@ export function update(time, delta) {
     // Increment sequence number
     this.playerContainer.inputSequenceNumber++;
     inputPayload.sequence = this.playerContainer.inputSequenceNumber;
+    inputPayload.clientTimestamp = Date.now();
 
     // Store input for reconciliation
     this.playerContainer.pendingInputs.push({
         sequence: inputPayload.sequence,
         input: inputPayload,
-        delta: delta / 1000 // Convert ms to seconds
+        delta: delta / 1000, // Convert ms to seconds
+        clientTimestamp: Date.now()
     });
 
     this.socket.emit('playerInput', inputPayload);

@@ -68,6 +68,7 @@ export function create() {
             self.showDebug = event.target.checked;
             if (self.showDebug) {
                 self.socket.emit('requestCollisionData');
+                if (self.netStatsText) self.netStatsText.setVisible(true);
             } else {
                 if (self.debugGraphics) {
                     self.debugGraphics.clear();
@@ -79,9 +80,28 @@ export function create() {
                 if (playerDebugGraphics) {
                     playerDebugGraphics.clear();
                 }
+                if (self.netStatsText) self.netStatsText.setVisible(false);
             }
         });
     }
+
+    // --- NET STATS TEXT ---
+    self.netStatsText = self.add.text(10, 30, 'RTT: - | Dist: -', {
+        font: '16px Arial',
+        fill: '#00ff00',
+        backgroundColor: '#000000'
+    });
+    self.netStatsText.setScrollFactor(0);
+    self.netStatsText.setDepth(1000);
+    self.netStatsText.setVisible(false); // Hidden by default
+
+    window.updateDebugStats = (rtt, dist) => {
+        if (self.netStatsText && self.netStatsText.visible) {
+            self.netStatsText.setText(`RTT: ${rtt}ms | Dist: ${dist.toFixed(2)}px`);
+            if (dist > 10) self.netStatsText.setColor('#ff0000'); // Red if correcting
+            else self.netStatsText.setColor('#00ff00'); // Green if good
+        }
+    };
 
     // Create Map
     createMap(this);

@@ -46,6 +46,15 @@ export function reconcile(serverPlayerState, self) {
     // 3. Compare Predicted vs Current
     const dist = Phaser.Math.Distance.Between(clientPos.x, clientPos.y, predictedX, predictedY);
 
+    // --- DIAGNOSTICS ---
+    if (serverPlayerState.lastClientTimestamp) {
+        const rtt = Date.now() - serverPlayerState.lastClientTimestamp;
+        // console.log(`[NetStats] RTT: ${rtt}ms | Dist: ${dist.toFixed(2)}px`);
+        if (window.updateDebugStats) {
+            window.updateDebugStats(rtt, dist);
+        }
+    }
+
     // Threshold can be small (e.g. 10px) to allow for minor floating point differences
     if (dist > 10.0) {
         // console.log(`[RECONCILE] Divergence detected (${dist.toFixed(2)}px). Snapping to predicted.`);
