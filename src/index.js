@@ -21,6 +21,20 @@ const serverGame = require('./server-loop');
 
 dotenv.config();
 
+// --- DEBUGGING BLOCK ---
+console.log("------------------------------------------------");
+console.log("🔍 DEBUGGING ENVIRONMENT VARIABLES:");
+console.log("1. Current Directory:", __dirname);
+console.log("2. DB_CONNECT is type:", typeof process.env.DB_CONNECT);
+if (process.env.DB_CONNECT) {
+  console.log("3. DB_CONNECT length:", process.env.DB_CONNECT.length);
+  console.log("4. DB_CONNECT starts with:", process.env.DB_CONNECT.substring(0, 15) + "...");
+} else {
+  console.log("3. DB_CONNECT is STRICTLY UNDEFINED");
+}
+console.log("------------------------------------------------");
+// ---------------------------------
+
 // --- Database Connection ---
 mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => log('Successfully connected to MongoDB!'))
