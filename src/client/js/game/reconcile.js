@@ -47,34 +47,45 @@ export function reconcile(serverPlayerState, self) {
     const dist = Phaser.Math.Distance.Between(clientPos.x, clientPos.y, predictedX, predictedY);
 
     // --- DIAGNOSTICS ---
+    // console.log('Reconcile State:', { 
+    //     ts: serverPlayerState.lastClientTimestamp, 
+    //     hasUpdateFunc: !!window.updateDebugStats 
+    // });
+
     if (serverPlayerState.lastClientTimestamp) {
         const rtt = Date.now() - serverPlayerState.lastClientTimestamp;
-        // console.log(`[NetStats] RTT: ${rtt}ms | Dist: ${dist.toFixed(2)}px`);
         if (window.updateDebugStats) {
             window.updateDebugStats(rtt, dist);
         }
     }
 
     // Threshold can be small (e.g. 10px) to allow for minor floating point differences
+    // Threshold can be small (e.g. 10px) to allow for minor floating point differences
     if (dist > 10.0) {
-        // console.log(`[RECONCILE] Divergence detected (${dist.toFixed(2)}px). Snapping to predicted.`);
+        // console.log(`[RECONCILE] Divergence detected (${dist.toFixed(2)}px). Interpolating to predicted.`);
 
-        // Snap to the PREDICTED position, not the server position.
+        // Interpolate to the PREDICTED position
         // This keeps us in the "future" relative to the server, maintaining responsiveness.
-        self.playerContainer.setPosition(predictedX, predictedY);
+        const lerpFactor = 0.1;
+        const newX = self.playerContainer.x + (predictedX - self.playerContainer.x) * lerpFactor;
+        const newY = self.playerContainer.y + (predictedY - self.playerContainer.y) * lerpFactor;
 
-        // Reset physics body to match
+        self.playerContainer.setPosition(newX, newY);
+
+        // Update physics body to match
         const body = self.playerContainer.body;
         body.position.set(
-            predictedX - body.offset.x,
-            predictedY - body.offset.y
+            newX - body.offset.x,
+            newY - body.offset.y
         );
         body.prev.copy(body.position);
-        body.velocity.set(0); // Velocity will be reapplied by next update loop
+
+        // We do NOT reset velocity here, as we want to keep momentum while correcting
+        // body.velocity.set(0); 
 
         if (self.localPlayerState?.position) {
-            self.localPlayerState.position.x = predictedX;
-            self.localPlayerState.position.y = predictedY;
+            self.localPlayerState.position.x = newX;
+            self.localPlayerState.position.y = newY;
         }
     }
 

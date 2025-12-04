@@ -207,48 +207,58 @@ function updatePlayers(delta, io) {
   const speed = 200;
   Object.keys(players).forEach(id => {
     const player = players[id];
-    const input = player.input;
 
-    if (input.left || input.right || input.up || input.down) {
-      // log(`Updating player ${id}. Delta: ${delta}, Pos Before: (${player.position.x}, ${player.position.y})`);
-    }
+    // Process all pending inputs in the queue
+    while (player.inputQueue && player.inputQueue.length > 0) {
+      const input = player.inputQueue.shift();
+      const inputDelta = input.delta || 0.016; // Default to ~60fps if missing
 
-    let newX = player.position.x;
-    let newY = player.position.y;
+      let newX = player.position.x;
+      let newY = player.position.y;
 
-    // Calculate proposed X change
-    let proposedX = newX;
-    if (input.left) {
-      proposedX -= speed * delta;
-    }
-    if (input.right) {
-      proposedX += speed * delta;
-    }
+      // Calculate proposed X change
+      let proposedX = newX;
+      if (input.left) {
+        proposedX -= speed * inputDelta;
+      }
+      if (input.right) {
+        proposedX += speed * inputDelta;
+      }
 
-    // Check X collision
-    if (!checkCollision(proposedX, player.position.y)) {
-      newX = proposedX;
-    }
+      // Check X collision
+      if (!checkCollision(proposedX, player.position.y)) {
+        newX = proposedX;
+      }
 
-    // Calculate proposed Y change
-    let proposedY = newY;
-    if (input.up) {
-      proposedY -= speed * delta;
-    }
-    if (input.down) {
-      proposedY += speed * delta;
-    }
+      // Calculate proposed Y change
+      let proposedY = newY;
+      if (input.up) {
+        proposedY -= speed * inputDelta;
+      }
+      if (input.down) {
+        proposedY += speed * inputDelta;
+      }
 
-    // Check Y collision
-    if (!checkCollision(newX, proposedY)) {
-      newY = proposedY;
-    }
+      // Check Y collision
+      if (!checkCollision(newX, proposedY)) {
+        newY = proposedY;
+      }
 
-    player.position.x = newX;
-    player.position.y = newY;
+      player.position.x = newX;
+      player.position.y = newY;
 
-    if (input.left || input.right || input.up || input.down) {
-      // log(`Pos After: (${player.position.x}, ${player.position.y})`);
+      // Update rotation based on this input step
+      if (input.left) player.rotation = 1;
+      else if (input.right) player.rotation = 2;
+      else if (input.up) player.rotation = 3;
+      else if (input.down) player.rotation = 4;
+
+      player.isMoving = input.left || input.right || input.up || input.down;
+
+      // Keep track of the last processed input for reconciliation
+      if (input.sequence) {
+        player.lastProcessedInputSequence = input.sequence;
+      }
     }
 
     // Check for hillHome collision
@@ -272,13 +282,9 @@ function updatePlayers(delta, io) {
       player.enteredBuilding = false;
     }
 
-    // Update rotation and moving state for animations
-    if (input.left) player.rotation = 1;
-    else if (input.right) player.rotation = 2;
-    else if (input.up) player.rotation = 3;
-    else if (input.down) player.rotation = 4;
-
     // --- BREAK FREE / STRUGGLE LOGIC ---
+    // Use the *latest* input state for actions like struggling
+    const input = player.input || {};
     const isInputting = input.left || input.right || input.up || input.down;
 
     // --- BREAK FREE / STRUGGLE LOGIC ---
@@ -511,7 +517,8 @@ module.exports.start = (io) => {
       },
       lastProcessedInputSequence: 0,
       lastClientTimestamp: 0,
-      lastInputTime: 0
+      lastInputTime: 0,
+      inputQueue: [] // Initialize input queue
     };
 
     // --- Socket Event Handlers for THIS player ---
@@ -554,7 +561,13 @@ module.exports.start = (io) => {
     socket.on('playerInput', (inputData) => {
       const player = players[socket.id];
       if (player) {
+        // Push to queue instead of overwriting
+        if (!player.inputQueue) player.inputQueue = [];
+        player.inputQueue.push(inputData);
+
+        // Update latest input state for other logic (like animations/intent)
         player.input = inputData;
+
         if (inputData.sequence) {
           player.lastProcessedInputSequence = inputData.sequence;
         }

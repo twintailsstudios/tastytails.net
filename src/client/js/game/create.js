@@ -5,6 +5,7 @@ import { reconcile } from './reconcile.js';
 import { createMap } from './map.js';
 import { initializeTabs } from './tabs.js';
 import { createVoreList, createStruggleButton } from './ui.js';
+import { initDebugGraph } from './debugGraph.js';
 
 let debugGraphics;
 let playerDebugGraphics;
@@ -12,6 +13,7 @@ let showDebug = false;
 
 export function create() {
     const self = this;
+    initDebugGraph(); // Initialize HTML debug graph
     const localPlayerInfo = window.localPlayerInfo;
     this.input.topOnly = false;
     self.showDebug = false;
@@ -66,9 +68,11 @@ export function create() {
     if (debugToggle) {
         debugToggle.addEventListener('change', function (event) {
             self.showDebug = event.target.checked;
+            const debugOverlay = document.getElementById('debug-overlay');
+
             if (self.showDebug) {
                 self.socket.emit('requestCollisionData');
-                if (self.netStatsText) self.netStatsText.setVisible(true);
+                if (debugOverlay) debugOverlay.style.display = 'block';
             } else {
                 if (self.debugGraphics) {
                     self.debugGraphics.clear();
@@ -80,28 +84,12 @@ export function create() {
                 if (playerDebugGraphics) {
                     playerDebugGraphics.clear();
                 }
-                if (self.netStatsText) self.netStatsText.setVisible(false);
+                if (debugOverlay) debugOverlay.style.display = 'none';
             }
         });
     }
 
-    // --- NET STATS TEXT ---
-    self.netStatsText = self.add.text(10, 30, 'RTT: - | Dist: -', {
-        font: '16px Arial',
-        fill: '#00ff00',
-        backgroundColor: '#000000'
-    });
-    self.netStatsText.setScrollFactor(0);
-    self.netStatsText.setDepth(1000);
-    self.netStatsText.setVisible(false); // Hidden by default
 
-    window.updateDebugStats = (rtt, dist) => {
-        if (self.netStatsText && self.netStatsText.visible) {
-            self.netStatsText.setText(`RTT: ${rtt}ms | Dist: ${dist.toFixed(2)}px`);
-            if (dist > 10) self.netStatsText.setColor('#ff0000'); // Red if correcting
-            else self.netStatsText.setColor('#00ff00'); // Green if good
-        }
-    };
 
     // Create Map
     createMap(this);
@@ -133,9 +121,11 @@ export function create() {
     });
 
     this.socket.on('playerUpdates', function (players) {
+        // console.log('[Client] Received playerUpdates', Object.keys(players).length);
         Object.keys(players).forEach(function (id) {
             if (players[id].playerId === self.socket.id) {
                 if (self.playerContainer) {
+                    // console.log('[Client] Calling reconcile for local player');
                     reconcile(players[id], self);
 
                     // --- Vore List Update ---

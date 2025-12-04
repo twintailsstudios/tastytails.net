@@ -58,6 +58,7 @@ export function update(time, delta) {
     this.playerContainer.inputSequenceNumber++;
     inputPayload.sequence = this.playerContainer.inputSequenceNumber;
     inputPayload.clientTimestamp = Date.now();
+    inputPayload.delta = delta / 1000; // Send delta in seconds
 
     // Store input for reconciliation
     this.playerContainer.pendingInputs.push({
