@@ -69,8 +69,11 @@ app.use('/play', playRoute);
 
 // --- Game and Socket.io Logic ---
 
+const MessageSystem = require('./classes/MessageSystem');
+const messageSystem = new MessageSystem(io);
+
 // Start the lightweight game loop. It will handle its own game-related socket events.
-serverGame.start(io);
+serverGame.start(io, messageSystem);
 
 // Set up a separate listener for chat-related events.
 io.on('connection', (socket) => {
@@ -78,7 +81,11 @@ io.on('connection', (socket) => {
 
   // Handle chat events
   socket.on('getAllChats', (data) => getAllChats(data, socket));
-  socket.on('input', (data) => addMessage(data, socket));
+
+  // Use MessageSystem to handle all incoming chat messages.
+  // This system classifies messages (e.g., /ooc, /me) and broadcasts them appropriately.
+  socket.on('input', (data) => messageSystem.handleIncomingMessage(socket, data));
+
   socket.on('inputEdit', (data) => editMessage(data, socket));
   socket.on('deleteMessage', (data) => deleteMessage(data, socket));
   socket.on('sendSpoilEdit', (data) => changeSpoilerLabel(data, socket));
@@ -109,7 +116,16 @@ async function getAllChats(data, socket) {
   try {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const chats = await Chats.find({
-      "message.time": { $gte: oneDayAgo }
+      "message.time": { $gte: oneDayAgo },
+      $and: [
+        { excludedPlayers: { $ne: data.charId } },
+        {
+          $or: [
+            { visibleTo: { $size: 0 } }, // Public messages
+            { visibleTo: data.charId }   // Messages visible to this character
+          ]
+        }
+      ]
     })
       .sort({ 'message.time': -1 })
       .limit(50);
@@ -117,10 +133,13 @@ async function getAllChats(data, socket) {
     const allMsgs = chats.map(chat => ({
       _id: chat._id,
       name: chat.name,
+      type: chat.type,
       message: chat.message,
       spoiler: chat.spoiler,
       deleted: chat.deleted,
-      identifier: chat.identifier.character
+      identifier: chat.identifier.character,
+      visibleTo: chat.visibleTo,
+      excludedPlayers: chat.excludedPlayers
     }));
     socket.emit('output', allMsgs.reverse());
   } catch (e) {
@@ -132,7 +151,16 @@ async function getOlderChats(data, socket) {
   try {
     const beforeTime = new Date(data.beforeTime);
     const chats = await Chats.find({
-      "message.time": { $lt: beforeTime }
+      "message.time": { $lt: beforeTime },
+      $and: [
+        { excludedPlayers: { $ne: data.charId } },
+        {
+          $or: [
+            { visibleTo: { $size: 0 } },
+            { visibleTo: data.charId }
+          ]
+        }
+      ]
     })
       .sort({ 'message.time': -1 })
       .limit(50);
@@ -140,49 +168,17 @@ async function getOlderChats(data, socket) {
     const olderMsgs = chats.map(chat => ({
       _id: chat._id,
       name: chat.name,
+      type: chat.type,
       message: chat.message,
       spoiler: chat.spoiler,
       deleted: chat.deleted,
-      identifier: chat.identifier.character
+      identifier: chat.identifier.character,
+      visibleTo: chat.visibleTo,
+      excludedPlayers: chat.excludedPlayers
     }));
     socket.emit('olderChatsOutput', olderMsgs.reverse());
   } catch (e) {
     log('Error fetching older chats:', e);
-  }
-}
-
-async function addMessage(data, socket) {
-  function removeTags(str) {
-    if (!str) return '';
-    return str.toString().replace(/(<([^>]+)>)/ig, '');
-  }
-
-  const charCount = removeTags(data.message).length;
-  if (charCount > 10000) {
-    return socket.emit('tooManyChars', charCount, data.message);
-  }
-
-  try {
-    const verified = jwt.verify(data.token, process.env.TOKEN_SECRET);
-    const result = new Chats({
-      name: data.name,
-      message: [{ content: urlify(data.message), time: new Date().toUTCString() }],
-      spoiler: { status: data.spoiler, votes: { watersports: 0, disposal: 0, gore: 0 } },
-      deleted: { status: false, deletionTime: null },
-      identifier: { account: verified._id, character: data.charId }
-    });
-    await result.save();
-    const clientMsg = {
-      _id: result._id,
-      name: result.name,
-      message: result.message,
-      spoiler: result.spoiler,
-      deleted: result.deleted,
-      identifier: result.identifier.character
-    };
-    io.emit('output', [clientMsg]);
-  } catch (e) {
-    log('Error adding message:', e);
   }
 }
 

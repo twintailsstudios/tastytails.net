@@ -12,24 +12,488 @@
    <property name="Blocked" value=""/>
   </properties>
  </tile>
+ <tile id="20">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="21">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="27">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="28">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="29">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="116">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="117">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="122">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="123">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="124">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="125">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="126">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="201">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="202">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="203">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="211">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="212">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="213">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="214">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="218">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="219">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="220">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="221">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="222">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
  <tile id="297">
   <properties>
    <property name="Blocked" value="True"/>
+   <property name="zOffset" value="True"/>
   </properties>
  </tile>
  <tile id="298">
   <properties>
    <property name="Blocked" value="True"/>
+   <property name="zOffset" value="True"/>
   </properties>
  </tile>
  <tile id="299">
   <properties>
    <property name="Blocked" value="True"/>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="307">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="308">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="309">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="310">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="314">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="315">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="316">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="317">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="318">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="319">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="402">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="403">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="404">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="405">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="406">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="407">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="410">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="411">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="412">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="413">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="414">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="498">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="499">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="500">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="501">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="502">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="503">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="504">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="506">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="507">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="508">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="509">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="510">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="594">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="595">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="596">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="597">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="598">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="599">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="603">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="604">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="605">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="690">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="691">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="692">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="693">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="694">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="695">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="696">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="699">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="700">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="701">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="786">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="787">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="788">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="789">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="790">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="791">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="792">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="795">
+  <properties>
+   <property name="zOffset" value="True"/>
   </properties>
  </tile>
  <tile id="796">
   <properties>
    <property name="Blocked" value="True"/>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="797">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="882">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="883">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="884">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="885">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="886">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="887">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="888">
+  <properties>
+   <property name="zOffset" value="True"/>
   </properties>
  </tile>
  <tile id="968">
@@ -52,9 +516,155 @@
    <property name="Blocked" value="True"/>
   </properties>
  </tile>
+ <tile id="978">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="979">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="980">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="981">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="982">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="983">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="984">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="985">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1074">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1075">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1076">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1077">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1078">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1079">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1080">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1170">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1171">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1172">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1173">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1174">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1176">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1268">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1269">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1270">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1364">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1365">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1366">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1460">
+  <properties>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
  <tile id="1461">
   <properties>
    <property name="Blocked" value="True"/>
+   <property name="zOffset" value="True"/>
+  </properties>
+ </tile>
+ <tile id="1462">
+  <properties>
+   <property name="zOffset" value="True"/>
   </properties>
  </tile>
  <tile id="2798">

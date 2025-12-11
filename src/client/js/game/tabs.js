@@ -1,5 +1,5 @@
 export function initializeTabs() {
-    const tabs = ['look', 'items', 'spells', 'map', 'vore', 'options'];
+    const tabs = ['look', 'apparel', 'spells', 'map', 'vore', 'options'];
 
     tabs.forEach(tab => {
         const btn = document.getElementById(tab + 'Tab');

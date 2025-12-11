@@ -3,26 +3,53 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "Demo_tileset.tsx",
+    "activeFile": "",
     "expandedProjectPaths": [
         "."
     ],
     "fileStates": {
+        "": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "Demo_Items.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
         "Demo_Map.tmx": {
-            "scale": 0.33,
-            "selectedLayer": 3,
+            "scale": 0.75,
+            "selectedLayer": 8,
             "viewCenter": {
-                "x": 1018.1818181818182,
-                "y": 863.6363636363636
+                "x": 436,
+                "y": 565.3333333333333
             }
+        },
+        "Demo_Map.tmx#Demo_Items": {
+            "dynamicWrapping": true,
+            "scaleInDock": 0.25,
+            "scaleInEditor": 1
+        },
+        "Demo_Map.tmx#Demo_Objects": {
+            "dynamicWrapping": true,
+            "scaleInDock": 0.33,
+            "scaleInEditor": 0.125
+        },
+        "Demo_Map.tmx#Demo_tileset": {
+            "dynamicWrapping": false,
+            "scaleInDock": 0.25,
+            "scaleInEditor": 1
+        },
+        "Demo_Map.tmx#pixel_heart": {
+            "dynamicWrapping": false
         },
         "Demo_tileset.json": {
             "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "Demo_tileset.tsx": {
-            "scaleInDock": 1.5,
-            "scaleInEditor": 2
+            "dynamicWrapping": false,
+            "scaleInDock": 0.5,
+            "scaleInEditor": 1
         }
     },
     "last.exportedFilePath": "C:/Users/kkmcl/Documents/GitHub/tastytails.net/Map_Testing",
@@ -33,15 +60,17 @@
     "map.lastUsedFormat": "tmx",
     "map.width": 40,
     "openFiles": [
-        "Demo_tileset.tsx",
-        "Demo_Map.tmx",
-        "Demo_tileset.tsx"
-    ],
-    "project": "Map_Demo.tiled-project",
-    "recentFiles": [
-        "Demo_tileset.json",
-        "Demo_tileset.tsx",
         "Demo_Map.tmx"
     ],
-    "tileset.lastUsedFormat": "tsx"
+    "project": "Map_Demo.tiled-project",
+    "property.type": "string",
+    "recentFiles": [
+        "Demo_Map.tmx",
+        "Demo_tileset.tsx",
+        "Demo_Items.tsx",
+        "Demo_tileset.json"
+    ],
+    "tileset.embedInMap": true,
+    "tileset.lastUsedFormat": "tsx",
+    "tileset.type": 0
 }

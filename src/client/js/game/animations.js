@@ -71,6 +71,24 @@ export function updatePlayerAnimations(playerSprite, playerState) {
         if (get('outerEar')) get('outerEar').play(playerState.ear.outerSprite + animationSuffix, true);
         if (get('innerEar')) get('innerEar').play(playerState.ear.innerSprite + animationSuffix, true);
         if (get('headAccessories')) get('headAccessories').play(playerState.headAccessories.sprite + animationSuffix, true);
+
+        // --- Equipment Animations ---
+        if (playerSprite.list) {
+            playerSprite.list.forEach(child => {
+                // Check if it's an equipment sprite (starts with equip_)
+                if (child.name.startsWith('equip_')) {
+                    // console.log('[Anim] Found equipment sprite:', child.name, child.visualConfig);
+                    if (child.visualConfig) {
+                        const atlasKey = child.visualConfig.atlas;
+                        const animKey = atlasKey + animationSuffix;
+                        // console.log('[Anim] Playing:', animKey);
+                        child.play(animKey, true);
+                    } else {
+                        console.warn('[Anim] Equipment sprite missing visualConfig:', child.name);
+                    }
+                }
+            });
+        }
     }
 }
 

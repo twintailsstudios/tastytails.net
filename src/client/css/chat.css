@@ -644,4 +644,46 @@
 
 .environmental-message .message-content {
     color: var(--wood-accent);
+}/* --- NEW MESSAGE TYPES --- */
+
+/* Say / Roleplay */
+.say-message .message-content {
+    font-style: italic;
+    color: #4e342e;
+}
+
+/* Unique / Whisper */
+.unique-message {
+    background-color: rgba(40, 53, 147, 0.05);
+    /* Light blue tint */
+    border-left: 3px solid var(--accent-blue);
+}
+
+/* Interactional */
+.interactional-message {
+    background-color: rgba(255, 193, 7, 0.1);
+    /* Light gold tint */
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.interactional-message .message-content {
+    font-weight: bold;
+    color: var(--wood-dark);
+}
+
+/* Out of Character (OOC) */
+.ooc-message {
+    opacity: 0.85;
+}
+
+.ooc-message .message-content {
+    font-family: 'Lato', sans-serif;
+    /* Ensure sans-serif for OOC */
+    color: #5d4037;
+}
+
+.ooc-message .msgUsername strong {
+    color: #795548;
+    /* Lighter name for OOC */
+    font-weight: normal;
 }

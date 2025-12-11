@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="40" height="40" tilewidth="32" tileheight="32" infinite="0" nextlayerid="10" nextobjectid="1">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="40" height="40" tilewidth="32" tileheight="32" infinite="0" nextlayerid="12" nextobjectid="15">
  <editorsettings>
   <export target="Demo_Map.json" format="json"/>
  </editorsettings>
@@ -304,6 +304,230 @@
    </properties>
   </tile>
  </tileset>
+ <tileset firstgid="18433" name="Demo_Objects" tilewidth="768" tileheight="511" tilecount="21" columns="0" objectalignment="bottom">
+  <grid orientation="orthogonal" width="1" height="1"/>
+  <tile id="0">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="tree_01"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/tree_01.png" width="230" height="511"/>
+  </tile>
+  <tile id="1">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="tree_02"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/tree_02.png" width="230" height="511"/>
+  </tile>
+  <tile id="2">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="yarn_basket_01"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/yarn_basket_01.png" width="61" height="44"/>
+  </tile>
+  <tile id="3">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="mirror_01"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/mirror_01.png" width="40" height="151"/>
+  </tile>
+  <tile id="4">
+   <image source="../src/client/assets/tilemaps/pub_exit_rug.png" width="72" height="53"/>
+  </tile>
+  <tile id="5">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="pub_stool"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/pub_stool.png" width="35" height="48"/>
+  </tile>
+  <tile id="6">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="pub_stool_tall"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/pub_stool_tall.png" width="35" height="66"/>
+  </tile>
+  <tile id="7">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="100"/>
+    <property name="texture" value="pub_table"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/pub_table.png" width="218" height="101"/>
+  </tile>
+  <tile id="8">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="sewing_machine_01"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/sewing_machine_01.png" width="87" height="137"/>
+  </tile>
+  <tile id="9">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="spa_massage_bed"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/spa_massage_bed.png" width="211" height="101"/>
+  </tile>
+  <tile id="10">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="card_table"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/card_table.png" width="153" height="169"/>
+  </tile>
+  <tile id="11">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="cloth_roll_basket01"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/cloth_roll_basket01.png" width="52" height="174"/>
+  </tile>
+  <tile id="12">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="cloth_shelf_01"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/cloth_shelf_01.png" width="169" height="229"/>
+  </tile>
+  <tile id="13">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="cloth_shelf_02"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/cloth_shelf_02.png" width="169" height="229"/>
+  </tile>
+  <tile id="14">
+   <image source="../src/client/assets/tilemaps/clothing_store_exit_rug.png" width="72" height="53"/>
+  </tile>
+  <tile id="15">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="lamp_01"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/lamp_01.png" width="46" height="317"/>
+  </tile>
+  <tile id="16">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="lamp_02"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/lamp_02.png" width="46" height="317"/>
+  </tile>
+  <tile id="17">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="mannequin_00"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/mannequin_00.png" width="62" height="169"/>
+  </tile>
+  <tile id="18">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="mannequin_01"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/mannequin_01.png" width="62" height="169"/>
+  </tile>
+  <tile id="19">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="mannequin_02"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/mannequin_02.png" width="62" height="169"/>
+  </tile>
+  <tile id="20">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="texture" value="bar_front"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/bar_front.png" width="768" height="128"/>
+  </tile>
+ </tileset>
+ <tileset firstgid="18454" name="Demo_Items" tilewidth="63" tileheight="60" tilecount="3" columns="0" objectalignment="bottom">
+  <grid orientation="orthogonal" width="1" height="1"/>
+  <tile id="0">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="equipSlot" value="torsoOuter"/>
+    <property name="isItem" type="bool" value="true"/>
+    <property name="itemID" value="shirt"/>
+    <property name="itemType" value="clothing"/>
+    <property name="name" value="Pink Shirt"/>
+    <property name="texture" value="shirt"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/shirt.png" width="63" height="58"/>
+  </tile>
+  <tile id="1">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="equipSlot" value="legs"/>
+    <property name="isItem" type="bool" value="true"/>
+    <property name="itemID" value="pants"/>
+    <property name="itemType" value="clothing"/>
+    <property name="name" value="Blue Pants"/>
+    <property name="texture" value="pants"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/pants.png" width="37" height="60"/>
+  </tile>
+  <tile id="2">
+   <properties>
+    <property name="bodyHeight" type="int" value="10"/>
+    <property name="bodyOffsetY" type="int" value="5"/>
+    <property name="bodyWidth" type="int" value="30"/>
+    <property name="isItem" type="bool" value="true"/>
+    <property name="itemID" value="key"/>
+    <property name="itemType" value="object"/>
+    <property name="name" value="Gold Key"/>
+    <property name="texture" value="key"/>
+   </properties>
+   <image source="../src/client/assets/tilemaps/key.png" width="63" height="58"/>
+  </tile>
+ </tileset>
  <layer id="1" name="grass" width="40" height="40">
   <data encoding="csv">
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -402,14 +626,14 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5668,5669,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5764,5765,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,5677,5678,5679,0,5670,5671,0,5860,5861,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,5773,5774,5775,0,5766,5767,5768,5956,5957,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,777,778,779,780,0,0,5869,5870,5871,0,5862,5863,5864,6052,6053,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,873,874,875,876,0,0,5965,5966,5967,0,5958,5959,5960,6148,6149,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,969,970,971,972,0,0,6061,6062,6063,0,6054,6055,6056,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,6157,6158,6159,0,6150,6151,6152,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,777,778,779,780,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,873,874,875,876,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,969,970,971,972,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -436,7 +660,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <layer id="8" name="objects2" width="40" height="40">
+ <layer id="8" name="objects2" width="40" height="40" visible="0">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -449,8 +673,8 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,5953,5954,5955,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,6049,6050,6051,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -480,7 +704,10 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <layer id="2" name="outsideWallLayer" width="40" height="40">
+ <layer id="2" name="outsideWallLayer" width="40" height="40" visible="0">
+  <properties>
+   <property name="hillHome" value="True"/>
+  </properties>
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,3474,3475,3476,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,3568,3569,3570,3475,3572,3573,3574,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -570,48 +797,64 @@
  </layer>
  <layer id="5" name="trees" width="40" height="40">
   <data encoding="csv">
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,27,28,29,30,31,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,123,124,125,126,127,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,219,220,221,222,223,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,315,316,317,318,319,320,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,19,20,21,22,23,24,25,0,0,411,412,413,414,415,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,115,116,117,118,119,120,121,0,0,507,508,509,510,511,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,211,212,213,214,215,216,217,0,0,603,604,605,606,607,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,307,308,309,310,311,312,313,0,0,699,700,701,702,703,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,403,404,405,406,407,408,409,0,0,795,796,797,798,799,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,499,500,501,502,503,504,505,0,0,891,892,893,894,895,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,595,596,597,598,599,600,601,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,691,692,693,694,695,696,697,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,787,788,789,790,791,792,793,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,883,884,885,886,887,888,889,0,0,0,0,0,0,0,0,
-0,27,28,29,30,31,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,979,980,981,982,983,984,985,0,0,0,0,0,0,0,0,
-0,123,124,125,126,127,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1075,1076,1077,1078,1079,1080,1081,0,0,0,0,0,0,0,0,
-0,219,220,221,222,223,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1171,1172,1173,1174,1175,1176,1177,0,0,0,0,0,0,0,0,
-0,315,316,317,318,319,320,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1267,1268,1269,1270,1271,1272,1273,0,0,0,0,0,0,0,0,
-0,411,412,413,414,415,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1363,1364,1365,1366,1367,1368,1369,0,0,0,0,0,0,0,0,
-0,507,508,509,510,511,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1459,1460,1461,1462,1463,1464,1465,0,0,0,0,0,0,0,0,
-0,603,604,605,606,607,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,699,700,701,702,703,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,795,796,797,798,799,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,891,892,893,894,895,0,0,0,0,0,0,0,0,0,19,20,21,22,23,24,25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,115,116,117,118,119,120,121,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,211,212,213,214,215,216,217,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,307,308,309,310,311,312,313,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,403,404,405,406,407,408,409,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,499,500,501,502,503,504,505,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,595,596,597,598,599,600,601,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-27,28,29,30,31,0,0,0,0,0,0,0,0,0,0,691,692,693,694,695,696,697,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-123,124,125,126,127,0,0,0,0,0,0,0,0,0,0,787,788,789,790,791,792,793,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-219,220,221,222,223,0,0,0,0,0,0,0,0,0,0,883,884,885,886,887,888,889,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-315,316,317,318,319,320,0,0,0,0,0,0,0,0,0,979,980,981,982,983,984,985,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-411,412,413,414,415,0,0,0,0,0,0,0,0,0,0,1075,1076,1077,1078,1079,1080,1081,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-507,508,509,510,511,0,0,0,0,0,0,0,0,0,0,1171,1172,1173,1174,1175,1176,1177,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-603,604,605,606,607,0,0,0,0,0,0,0,0,0,0,1267,1268,1269,1270,1271,1272,1273,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-699,700,701,702,703,0,0,0,0,0,0,0,0,0,0,1363,1364,1365,1366,1367,1368,1369,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-795,796,797,798,799,0,0,0,0,0,0,0,0,0,0,1459,1460,1461,1462,1463,1464,1465,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-891,892,893,894,895,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
+ <objectgroup id="10" name="Objects">
+  <object id="1" gid="18433" x="914" y="636" width="230" height="511"/>
+  <object id="2" gid="18433" x="595" y="1247" width="230" height="511"/>
+  <object id="3" gid="18434" x="114.5" y="740.5" width="230" height="511"/>
+  <object id="4" gid="18434" x="82.5" y="1252.5" width="230" height="511"/>
+  <object id="5" gid="18434" x="1170" y="292" width="230" height="511"/>
+  <object id="6" gid="18435" x="237.25" y="410.25" width="61" height="44"/>
+  <object id="7" gid="18452" x="418.333" y="501" width="62" height="169"/>
+  <object id="8" gid="18451" x="563" y="494" width="62" height="169"/>
+  <object id="9" gid="18444" x="646" y="431.875" width="52" height="174"/>
+ </objectgroup>
+ <objectgroup id="11" name="Items">
+  <object id="12" gid="18454" x="235.167" y="1141" width="63" height="58"/>
+  <object id="13" gid="18455" x="333.833" y="1146" width="37" height="60"/>
+  <object id="14" gid="18456" x="448.5" y="1137" width="63" height="58"/>
+ </objectgroup>
  <layer id="6" name="Statue" width="40" height="40">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,

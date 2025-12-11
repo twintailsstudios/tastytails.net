@@ -13,6 +13,23 @@
     --accent-blue: #283593;
     --magic-glow: rgba(255, 193, 7, 0.4);
     --bg-color: #2c241b;
+
+    /* --- COLOR PALETTE: "Royal Fantasy" --- */
+    --doll-bg: #1a1512;
+    /* The "Stage" for the equipment */
+    --doll-glow: radial-gradient(circle at 50% 30%, #2a221d 0%, #1a1512 70%);
+    --slot-bg: #261f1b;
+    /* Leather-like dark brown */
+    --slot-border: #4a3b32;
+    /* Muted bronze border */
+    --slot-hover: #5d4a3f;
+    /* Lighter interaction state */
+    --glow-valid: 0 0 15px rgba(74, 111, 165, 0.6);
+    --border-valid: #4a6fa5;
+    --accent-gold-ui: #c5a059;
+    --accent-gold-bright: #ffd700;
+    --plaque-bg: #0a0807;
+    --plaque-border: #594d42;
 }
 
 @keyframes pulseGold {
@@ -111,11 +128,88 @@ body.play-mode.nav-visible nav .nav-container {
     overflow: hidden;
 }
 
+/* --- RESIZE HANDLER --- */
+.resize-handler {
+    width: 10px;
+    background-color: var(--wood-dark);
+    border-left: 1px solid var(--wood-light);
+    border-right: 1px solid var(--wood-light);
+    cursor: col-resize;
+    z-index: 100;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+    display: flex;
+    /* For potential handle icon centering */
+    align-items: center;
+    justify-content: center;
+}
+
+.resize-handler:hover,
+.resize-handler:active {
+    background-color: var(--wood-accent);
+}
+
+.resize-handler::after {
+    content: "||";
+    color: var(--wood-light);
+    font-size: 10px;
+    letter-spacing: -1px;
+    user-select: none;
+}
+
+/* When resizing is active (class added to body) */
+body.resizing {
+    cursor: col-resize !important;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body.resizing-v {
+    cursor: row-resize !important;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body.resizing iframe,
+body.resizing-v iframe {
+    pointer-events: none;
+    /* Prevent iframes from stealing mouse events */
+}
+
+/* --- VERTICAL RESIZE HANDLER --- */
+.resize-handler-v {
+    height: 10px;
+    background-color: var(--wood-dark);
+    border-top: 1px solid var(--wood-light);
+    border-bottom: 1px solid var(--wood-light);
+    cursor: row-resize;
+    z-index: 100;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.resize-handler-v:hover,
+.resize-handler-v:active {
+    background-color: var(--wood-accent);
+}
+
+.resize-handler-v::after {
+    content: "==";
+    color: var(--wood-light);
+    font-size: 10px;
+    letter-spacing: -1px;
+    user-select: none;
+    transform: rotate(90deg);
+    /* Or just use = */
+}
+
 /* --- LEFT COLUMN: PHASER GAME --- */
 #phaserApp {
     flex: 1;
     background-color: #000;
-    border-right: 8px solid var(--wood-dark);
     position: relative;
     overflow: hidden;
     display: flex;
@@ -252,7 +346,6 @@ body.play-mode.nav-visible nav .nav-container {
     background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
     display: flex;
     flex-direction: column;
-    border-left: 8px solid var(--wood-dark);
     box-shadow: -5px 0 15px rgba(0, 0, 0, 0.5);
     color: var(--text-dark);
     /* flex-shrink: 0; Removed to allow shrinking */
@@ -349,7 +442,7 @@ body.play-mode.nav-visible nav .nav-container {
 #menuDisplay {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    /* padding: 20px; */
     font-family: 'Lato', sans-serif;
     position: relative;
     scrollbar-width: thin;
@@ -362,11 +455,16 @@ body.play-mode.nav-visible nav .nav-container {
     /* Override */
     color: inherit;
     /* Override */
+    display: flex;
+    /* [NEW] Flex container */
+    flex-direction: column;
+    /* [NEW] Vertical stack */
 }
 
 /* Page Slide Animation */
 .tabDisplay {
     display: none;
+    margin: 20px;
     /* JS toggles this */
     /* Smooth slide-up fade */
     animation: fadeInUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -376,10 +474,12 @@ body.play-mode.nav-visible nav .nav-container {
     /* Override */
     box-shadow: none;
     /* Override */
+    /* flex: 1; [OPTIONAL] We need specific ones to grow, not all */
 }
 
 /* "Pinned Note" Style */
 .paper-note {
+    /* ... unchanged ... */
     background-color: var(--parchment-light);
     border: 1px solid #d7c496;
     padding: 15px;
@@ -392,6 +492,9 @@ body.play-mode.nav-visible nav .nav-container {
     transform: rotate(-0.5deg);
     transition: transform 0.3s;
 }
+
+/* ... (skip to apparelDisplay) ... */
+/* I will use a separate replacement for apparelDisplay block since it is far down */
 
 .paper-note:hover {
     transform: rotate(0deg) scale(1.01);
@@ -540,6 +643,14 @@ h3 {
         width: 100%;
         height: 60vh;
         border-left: none;
+    }
+
+    .resize-handler {
+        display: none;
+    }
+
+    .resize-handler-v {
+        display: none;
     }
 }
 
@@ -1010,4 +1121,549 @@ textarea {
 .accordion.is-open {
     background-color: var(--wood-light);
     color: var(--gold);
+}
+
+.audio-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+}
+
+.audio-btn.playing {
+    background: var(--gold);
+    color: var(--wood-dark);
+    animation: pulse 1s infinite;
+}
+
+/* Form Element Styles */
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--wood-light);
+    border-radius: 4px;
+    font-family: 'Lato';
+}
+
+/* Form Grid layout */
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group.full-width {
+    grid-column: span 2;
+}
+
+.modal-footer {
+    padding: 15px;
+    border-top: 2px solid var(--wood-light);
+    text-align: right;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.save-btn {
+    padding: 10px 30px;
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    font-family: 'Cinzel';
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.save-btn:hover {
+    background: #1a237e;
+}
+
+/* Animations */
+@keyframes popIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+    }
+}
+
+/* === FIXES FOR ACCORDION === */
+.accordion::after {
+    content: none !important;
+}
+
+.accordion .arrow {
+    transition: transform 0.3s;
+    margin-right: 8px;
+}
+
+.accordion.is-open .arrow {
+    transform: rotate(90deg);
+}
+
+.accordion.is-open {
+    background-color: var(--wood-light);
+    color: var(--gold);
+}
+
+
+/* Form Grid layout */
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group.full-width {
+    grid-column: span 2;
+}
+
+.modal-footer {
+    padding: 15px;
+    border-top: 2px solid var(--wood-light);
+    text-align: right;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.save-btn {
+    padding: 10px 30px;
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    font-family: 'Cinzel';
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.save-btn:hover {
+    background: #1a237e;
+}
+
+/* Animations */
+@keyframes popIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+    }
+}
+
+/* === FIXES FOR ACCORDION === */
+.accordion::after {
+    content: none !important;
+}
+
+.accordion .arrow {
+    transition: transform 0.3s;
+    margin-right: 8px;
+}
+
+.accordion.is-open .arrow {
+    transform: rotate(90deg);
+}
+
+.accordion.is-open {
+    background-color: var(--wood-light);
+    color: var(--gold);
+}
+
+
+/* Equipment Grid */
+.equipment-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 80px);
+    /* 3 Fixed columns */
+    grid-template-rows: repeat(8, 70px);
+    grid-template-areas:
+        ".        hair      ."
+        "leftEar  head      rightEar"
+        ".        neck      ."
+        "leftWrist torsoOuter rightWrist"
+        "leftHand torsoInner rightHand"
+        "belt     underwear tailBase"
+        ".        legs      tailTip"
+        ".        feet      .";
+    gap: 10px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    justify-content: center;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.equip-slot {
+    width: 60px;
+    height: 60px;
+    border: 2px solid var(--wood-light);
+    border-radius: 8px;
+    background: rgba(44, 36, 27, 0.8);
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s;
+    margin: 0 auto;
+}
+
+.equip-slot:hover {
+    border-color: var(--gold);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.equip-slot.has-item {
+    border-color: var(--wood-accent);
+}
+
+.equip-slot .slot-label {
+    position: absolute;
+    bottom: 2px;
+    width: 100%;
+    text-align: center;
+    font-size: 8px;
+    color: #aaa;
+    pointer-events: none;
+    text-transform: uppercase;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.equip-slot .slot-item-icon {
+    font-size: 24px;
+    color: var(--parchment);
+    pointer-events: none;
+}
+
+.equip-slot .icon-container {
+    pointer-events: none;
+}
+
+.equipment-legend {
+    text-align: center;
+    color: #888;
+    margin-top: 5px;
+    font-style: italic;
+}
+
+/* Grid Area Assignments */
+
+
+/* --- PAPER DOLL & APPAREL STYLES --- */
+
+/* Appare Display Container */
+#apparelDisplay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    /* Grow to fill parent */
+    /* min-height: 100%; Removed, handled by flex */
+    margin: 0;
+
+    /* Moved from .paper-doll-wrapper */
+    background: var(--doll-bg);
+    background-image: var(--doll-glow);
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.9), 0 0 0 1px #332a25;
+}
+
+/* The Paper Doll Wrapper Stage */
+.paper-doll-wrapper {
+    /* Background removed from here */
+    position: relative;
+    flex-shrink: 0;
+    width: 100%;
+    height: auto;
+    /* Allow auto height */
+    flex: 1;
+    /* Grow to fill parent */
+    max-width: none;
+    overflow: visible;
+    /* Center it */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* The Ghost Body Silhouette */
+.paper-doll-bg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 220px;
+    height: 400px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 100px 100px 40px 40px;
+    pointer-events: none;
+    filter: blur(20px);
+    z-index: 0;
+}
+
+/* The Grid Layout System */
+.equipment-grid {
+    display: grid;
+    /* Columns: L-Arm | Torso-L | Torso-R | R-Arm | Back (Far Right) */
+    grid-template-columns: 50px 60px 60px 50px 40px;
+    gap: 10px;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+    overflow: visible;
+    /* Prevent internal scrollbar */
+    height: auto;
+
+
+    /* Visual Map */
+    grid-template-areas:
+        'lear  head  head  rear  .'
+        '.     head  head  .     .'
+        '.     neck  neck  .     back'
+        'lwri  inr   outr  rwri  back'
+        'lhand belt  undr  rhand .'
+        '.     legs  legs  .     .'
+        '.     feet  feet  .     .'
+        '.     tbas  ttip  .     .';
+}
+
+/* Slot Styling */
+.equip-slot {
+    background-color: var(--slot-bg);
+    border: 1px solid var(--slot-border);
+    border-radius: 4px;
+    min-height: 55px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+}
+
+.equip-slot:hover {
+    border-color: #776a5f;
+    background-color: var(--slot-hover);
+    transform: translateY(-1px);
+    z-index: 5;
+}
+
+.equip-slot.has-item {
+    background: radial-gradient(circle at center, #3d322b 0%, #261f1b 100%);
+    border-color: #5e4d40;
+}
+
+/* Shape Overrides & Mappings */
+.equipment-grid>[data-slot='head'] {
+    grid-area: head;
+    border-radius: 40px 40px 15px 15px;
+    height: 90px;
+    z-index: 2;
+}
+
+.equipment-grid>[data-slot='neck'] {
+    grid-area: neck;
+    height: 35px;
+    border-radius: 4px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.equipment-grid>[data-slot='back'] {
+    grid-area: back;
+    border-radius: 8px;
+    background: linear-gradient(to bottom, var(--slot-bg), #1a1512);
+    height: 100%;
+    margin-top: 5px;
+}
+
+.equipment-grid>[data-slot='leftEar'],
+.equipment-grid>[data-slot='rightEar'] {
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    align-self: end;
+    margin-bottom: 20px;
+}
+
+.equipment-grid>[data-slot='torsoInner'] {
+    grid-area: inr;
+    border-radius: 10px 0 0 4px;
+}
+
+.equipment-grid>[data-slot='torsoOuter'] {
+    grid-area: outr;
+    border-radius: 0 10px 4px 0;
+}
+
+.equipment-grid>[data-slot='legs'] {
+    grid-area: legs;
+    height: 80px;
+}
+
+.equipment-grid>[data-slot='feet'] {
+    grid-area: feet;
+}
+
+/* Tail Fusion */
+.equipment-grid>[data-slot='tailBase'] {
+    grid-area: tbas;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    background: linear-gradient(to right, var(--slot-bg), #1f1a16);
+    margin-right: -10px;
+    padding-right: 10px;
+}
+
+.equipment-grid>[data-slot='tailTip'] {
+    grid-area: ttip;
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    background: linear-gradient(to right, #1f1a16, var(--slot-bg));
+    margin-left: 0;
+}
+
+.tail-link-icon {
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #332a25;
+    font-size: 0.7rem;
+    z-index: 10;
+}
+
+.equipment-grid>[data-slot='hair'] {
+    grid-area: 1 / 2 / 2 / 4;
+    height: 30px;
+    margin-top: -10px;
+    border-radius: 20px;
+    z-index: 3;
+}
+
+/* Explicit Grid Areas */
+.equipment-grid>[data-slot='leftEar'] {
+    grid-area: lear;
+}
+
+.equipment-grid>[data-slot='rightEar'] {
+    grid-area: rear;
+}
+
+.equipment-grid>[data-slot='leftWrist'] {
+    grid-area: lwri;
+}
+
+.equipment-grid>[data-slot='rightWrist'] {
+    grid-area: rwri;
+}
+
+.equipment-grid>[data-slot='leftHand'] {
+    grid-area: lhand;
+}
+
+.equipment-grid>[data-slot='rightHand'] {
+    grid-area: rhand;
+}
+
+.equipment-grid>[data-slot='belt'] {
+    grid-area: belt;
+}
+
+.equipment-grid>[data-slot='underwear'] {
+    grid-area: undr;
+}
+
+/* Plaque Labels */
+.slot-label {
+    position: absolute;
+    bottom: -9px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--plaque-bg);
+    border: 1px solid var(--plaque-border);
+    color: #998a7b;
+    font-family: 'Lato', sans-serif;
+    font-weight: 900;
+    font-size: 0.6rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 4;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    transition: color 0.2s;
+}
+
+.equip-slot:hover .slot-label {
+    color: var(--accent-gold-ui);
+    border-color: var(--accent-gold-ui);
+}
+
+.equip-slot.has-item .slot-label {
+    opacity: 0.5;
+}
+
+/* Ghost Icons */
+.ghost-icon {
+    font-size: 1.4rem;
+    color: rgba(255, 255, 255, 0.05);
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.equip-slot.has-item .ghost-icon {
+    opacity: 0;
+}
+
+/* Actual Items */
+.slot-item-icon {
+    font-size: 1.8rem;
+    color: var(--accent-gold-ui);
+    filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.8));
+    z-index: 10;
 }

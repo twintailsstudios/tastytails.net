@@ -91,11 +91,12 @@ function initializeChat(socket) {
         const spoilerStatus = msg.spoiler.status;
         const msgId = msg._id;
         const identifier = msg.identifier; // Character ID
+        const type = msg.type || 'Default'; // Default to 'Default' if undefined
 
         // Environmental Message Check
         // Messages from "Environment" are special system messages (e.g. vore actions, releases).
         // They are styled differently (centered, italic, no username) to distinguish them from player chat.
-        if (username === 'Environment') {
+        if (username === 'Environment' || type === 'Environmental') {
             return `
                 <div id="${msgId}" class="chat-message environmental-message" data-timestamp="${rawTime}">
                     <div class="message-content">
@@ -111,8 +112,15 @@ function initializeChat(socket) {
             contentClasses += ` spoiled-content spoiled-${spoilerStatus}`;
         }
 
+        // Determine message container classes based on type
+        let messageClasses = "chat-message";
+        if (type === 'Say') messageClasses += " say-message";
+        if (type === 'Unique') messageClasses += " unique-message";
+        if (type === 'Interactional') messageClasses += " interactional-message";
+        if (type === 'OOC') messageClasses += " ooc-message";
+
         return `
-            <div id="${msgId}" class="chat-message" data-timestamp="${rawTime}">
+            <div id="${msgId}" class="${messageClasses}" data-timestamp="${rawTime}">
                 <div class="msg-title-bar">
                     <div>
                         <span class="postTime">${time} </span>
@@ -568,6 +576,11 @@ function initializeChat(socket) {
     textarea.addEventListener('keydown', function (event) {
         if (event.which === 13 && !event.shiftKey) {
             event.preventDefault();
+
+            // Prevent blank messages
+            if (!textarea.innerText.trim()) {
+                return;
+            }
 
             // --- EDIT MODE ---
             if (editingMessageId) {

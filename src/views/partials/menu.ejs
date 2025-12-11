@@ -2,7 +2,7 @@
     <div class="navBar">
         <ul>
             <li class="menuTabs button" id="lookTab"><i class="fa-solid fa-eye"></i> Look</li>
-            <li class="menuTabs button" id="itemsTab"><i class="fa-solid fa-sack-dollar"></i> Items</li>
+            <li class="menuTabs button" id="apparelTab"><i class="fa-solid fa-sack-dollar"></i> Apparel</li>
             <li class="menuTabs button" id="spellsTab"><i class="fa-solid fa-scroll"></i> Spells</li>
             <li class="menuTabs button" id="mapTab"><i class="fa-solid fa-map"></i> Map</li>
             <li class="menuTabs button" id="voreTab"><i class="fa-solid fa-utensils"></i> Vore</li>
@@ -20,11 +20,19 @@
             </div>
         </div>
 
-        <div id="itemsDisplay" class="tabDisplay">
-            <div class="paper-note">
-                <h3>Inventory</h3>
-                <p>Your pockets are empty.</p>
+        <div id="apparelDisplay" class="tabDisplay">
+            <!-- PAPER DOLL COMPONENT -->
+            <div class="paper-doll-wrapper">
+                <!-- Silhouette Hint (CSS Only) -->
+                <div class="paper-doll-bg"></div>
+
+                <!-- The Grid Container -->
+                <div id="equipment-grid" class="equipment-grid">
+                    <!-- Slots will be rendered here by JS -->
+                </div>
             </div>
+
+
         </div>
 
         <div id="spellsDisplay" class="tabDisplay">

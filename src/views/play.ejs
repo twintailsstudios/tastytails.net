@@ -6,6 +6,7 @@
 
   <link rel="stylesheet" type="text/css" href="/css/chat.css" />
   <link rel="stylesheet" type="text/css" href="/css/contextMenu.css" />
+  <link rel="stylesheet" type="text/css" href="/css/inventory.css" />
 
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -65,16 +66,130 @@
           </div>
         </div>
       </div>
+      <div id="dashboard-cluster">
+        <!-- Vertical Column: Hands HUD + Inventory Drawer -->
+        <div id="dashboard-main-col">
+
+          <div id="hands-hud" class="hands-hud">
+            <div class="hand-slot left-hand" id="leftHandSlot" onclick="window.actionHands.onSlotClick('left')">
+              <span class="hand-label">LEFT</span>
+            </div>
+            <div class="hand-toggle" id="handToggle" onclick="window.actionHands.toggleActiveHand()">
+              <i class="fa-solid fa-rotate"></i>
+            </div>
+            <div class="hand-slot right-hand" id="rightHandSlot" onclick="window.actionHands.onSlotClick('right')">
+              <span class="hand-label">RIGHT</span>
+            </div>
+            <button id="drop-btn" class="hand-btn" onclick="window.actionHands.dropItem()">Drop</button>
+          </div>
+          <div id="inventory-drawer-slot"></div>
+        </div>
+
+        <!-- Vertical Tabs inject here (Sidecar) -->
+        <div id="inventory-tabs-slot"></div>
+
+        <!-- Toast Notification (Absolute) -->
+        <div id="toast" class="toast"></div>
+      </div>
   </div>
+
+  <!-- Resize Handler -->
+  <div id="resize-handler" class="resize-handler"></div>
 
   <div id="sidePanel">
 
     <%- include('partials/menu') %>
 
+      <!-- Vertical Resize Handler -->
+      <div id="vertical-resize-handler" class="resize-handler-v"></div>
+
       <%- include('partials/chat') %>
 
   </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // --- Phase 1: Horizontal Resizing ---
+    const resizer = document.getElementById('resize-handler');
+    const leftSide = document.getElementById('phaserApp');
+    const rightSide = document.getElementById('sidePanel');
+    const container = document.getElementById('game-wrapper');
+
+    let x = 0;
+    let leftWidth = 0;
+
+    const mouseDownHandler = function (e) {
+      x = e.clientX;
+      leftWidth = leftSide.getBoundingClientRect().width;
+      document.addEventListener('mousemove', mouseMoveHandler);
+      document.addEventListener('mouseup', mouseUpHandler);
+      document.body.classList.add('resizing');
+    };
+
+    const mouseMoveHandler = function (e) {
+      const dx = e.clientX - x;
+      const newLeftWidth = ((leftWidth + dx) * 100) / container.getBoundingClientRect().width;
+      if (newLeftWidth < 20 || newLeftWidth > 80) return;
+      leftSide.style.flex = `0 0 ${newLeftWidth}%`;
+      window.dispatchEvent(new Event('resize'));
+    };
+
+    const mouseUpHandler = function () {
+      document.removeEventListener('mousemove', mouseMoveHandler);
+      document.removeEventListener('mouseup', mouseUpHandler);
+      document.body.classList.remove('resizing');
+      window.dispatchEvent(new Event('resize'));
+    };
+
+    if (resizer) resizer.addEventListener('mousedown', mouseDownHandler);
+
+    // --- Phase 2: Vertical Resizing ---
+    const vResizer = document.getElementById('vertical-resize-handler');
+    const topPanel = document.getElementById('menu');
+    const bottomPanel = document.getElementById('chat');
+    const sidePanel = document.getElementById('sidePanel');
+
+    let y = 0;
+    let topHeight = 0;
+
+    const vMouseDownHandler = function (e) {
+      y = e.clientY;
+      // Use getBoundingClientRect for accuracy
+      topHeight = topPanel.getBoundingClientRect().height;
+
+      document.addEventListener('mousemove', vMouseMoveHandler);
+      document.addEventListener('mouseup', vMouseUpHandler);
+      document.body.classList.add('resizing-v');
+    };
+
+    const vMouseMoveHandler = function (e) {
+      const dy = e.clientY - y;
+      const sidePanelHeight = sidePanel.getBoundingClientRect().height;
+
+      // Calculate new percentage height
+      const newTopHeightPct = ((topHeight + dy) * 100) / sidePanelHeight;
+
+      // Constraints: Keep top between 20% and 80% (approx)
+      if (newTopHeightPct < 10 || newTopHeightPct > 90) return;
+
+      // Apply flex basis to top panel. 
+      // IMPORTANT: Ensure topPanel has flex properties enabled in CSS or set here
+      topPanel.style.flex = `0 0 ${newTopHeightPct}%`;
+      // bottomPanel typically has flex: 1, so it fills the rest
+
+      // No need to dispatch window resize unless components inside look for it
+    };
+
+    const vMouseUpHandler = function () {
+      document.removeEventListener('mousemove', vMouseMoveHandler);
+      document.removeEventListener('mouseup', vMouseUpHandler);
+      document.body.classList.remove('resizing-v');
+    };
+
+    if (vResizer) vResizer.addEventListener('mousedown', vMouseDownHandler);
+  });
+</script>
 
 <!--Right Click Custom Menu (Moved to body to avoid clipping)-->
 <div id="contextMenu" class="context-menu">

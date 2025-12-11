@@ -1,32 +1,38 @@
-<!-- Overlay: Intent (Sigils) -->
-<div id="intentContainer">
-    <input type="radio" name="intent" id="friendly" value="friendly" checked>
-    <label for="friendly" title="Friendly"><i class="fa-regular fa-face-smile"></i></label>
-
-    <input type="radio" name="intent" id="grabbing" value="grabbing">
-    <label for="grabbing" title="Grabbing"><i class="fa-solid fa-hand-fist"></i></label>
-
-    <input type="radio" name="intent" id="hostile" value="hostile">
-    <label for="hostile" title="Hostile"><i class="fa-solid fa-crosshairs"></i></label>
+<!-- Overlay: Intent (Iron Spine Widget) -->
+<div id="intent-hud">
+    <div class="intent-plate">
+        <div class="intent-option active intent-friendly" id="intent-friendly" onclick="setIntent('friendly')"
+            title="Friendly">
+            <i class="fa-regular fa-face-smile"></i>
+        </div>
+        <div class="intent-option intent-grabbing" id="intent-grabbing" onclick="setIntent('grabbing')"
+            title="Grabbing">
+            <i class="fa-solid fa-hand-fist"></i>
+        </div>
+        <div class="intent-option intent-hostile" id="intent-hostile" onclick="setIntent('hostile')" title="Hostile">
+            <i class="fa-solid fa-crosshairs"></i>
+        </div>
+    </div>
+    <!-- Hidden Inputs for logic compatibility if needed, or we just handle state in JS -->
+    <input type="radio" name="intent" id="friendly_radio" value="friendly" style="display:none" checked>
+    <input type="radio" name="intent" id="grabbing_radio" value="grabbing" style="display:none">
+    <input type="radio" name="intent" id="hostile_radio" value="hostile" style="display:none">
 </div>
 
-<!-- Overlay: Items -->
-<div id="itemBar">
-    <ul>
-        <li>
-            <div class="item" id="item1" draggable="true"></div>
-        </li>
-        <li>
-            <div class="item" id="item2" draggable="true"></div>
-        </li>
-        <li>
-            <div class="item" id="item3" draggable="true"></div>
-        </li>
-        <li>
-            <div class="item" id="item4" draggable="true"></div>
-        </li>
-        <li>
-            <div class="item" id="item5" draggable="true"></div>
-        </li>
-    </ul>
-</div>
+<script>
+    // Local script to handle visual toggle immediately
+    // The main game logic in play.ejs or input.js needs to read 'currentIntent'
+    // We can bridge that here.
+    function setIntent(val) {
+        // Visual Update
+        document.querySelectorAll('.intent-option').forEach(el => el.classList.remove('active'));
+        document.getElementById('intent-' + val).classList.add('active');
+
+        // Logic Update (Trigger the hidden radios to fire existing listeners)
+        const radio = document.getElementById(val + '_radio');
+        if (radio) {
+            radio.checked = true;
+            radio.dispatchEvent(new Event('change'));
+        }
+    }
+</script>

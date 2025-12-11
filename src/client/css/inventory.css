@@ -1,0 +1,568 @@
+/* =========================================
+   THEME VARIABLES
+   =========================================
+   Cozy RPG Interface - Final Polish
+*/
+:root {
+    /* Palette */
+    --bg-dark: #1a1512;
+    --wood-dark: #3e2723;
+    --wood-mid: #5d4037;
+    --wood-light: #8d6e63;
+    --parchment: #f3e5ab;
+    --parchment-dim: #e6d5a7;
+    --leather: #4e342e;
+    --leather-light: #5d4037;
+    --leather-accent: #795548;
+    --gold: #ffc107;
+    --iron: #222;
+
+    /* Logic Colors */
+    --gauge-ok: #558b2f;
+    /* Green: plenty of space */
+    --gauge-warn: #fbc02d;
+    /* Yellow: getting full */
+    --gauge-crit: #c62828;
+    /* Red: almost full */
+    --gauge-bg: rgba(0, 0, 0, 0.2);
+
+    /* Interaction States */
+    --drop-zone-border: #ef5350;
+    --border-style: 3px solid var(--wood-light);
+    --shadow-deep: 0 10px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* =========================================
+   DASHBOARD CLUSTER (Hands + Satchel)
+   This creates the unified "Control Panel" in the bottom right
+   =========================================
+*/
+#dashboard-cluster {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    /* Anchored to bottom right */
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 0;
+    z-index: 90;
+    pointer-events: none;
+    /* Let clicks pass through empty areas */
+}
+
+/* Vertical Column: Hands HUD + Inventory Drawer */
+/* #dashboard-main-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+} */
+#dashboard-main-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    /* Or stretch, depending on alignment preference */
+    gap: 0;
+    /* Critical for removing space */
+}
+
+/* 1. HANDS HUD (The Lid) 
+   Sits on top of the drawer.
+*/
+.hands-hud {
+    position: relative;
+    background: var(--wood-mid);
+    padding: 8px 15px;
+    border: var(--border-style);
+    border-bottom: none;
+    /* Merges visually with drawer */
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 101;
+    /* Higher than drawer to cast shadow */
+    /* Tower is now separate column */
+    margin-bottom: 0 !important;
+    /* Pull it down slightly to overlap border */
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.3);
+    pointer-events: auto;
+}
+
+/* 2. DRAWER ASSEMBLY (The Body) */
+.inventory-hud {
+    display: flex;
+    align-items: flex-end;
+    pointer-events: auto;
+}
+
+/* The Sliding Drawer Container */
+#inventory-drawer-slot,
+#inventory-tabs-slot {
+    pointer-events: auto;
+    display: contents;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    /* Ensure no line-height artifacts */
+    line-height: 0;
+}
+
+#satchel-drawer {
+    background: var(--parchment);
+    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    border: var(--border-style);
+    border-top: none;
+    /* Merge with Hands HUD */
+    border-radius: 0 0 0 12px;
+    width: 0;
+    max-width: 0;
+    height: auto;
+    max-height: 220px;
+    opacity: 0;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transform-origin: top center;
+    box-shadow: var(--shadow-deep);
+    display: flex;
+    flex-direction: column;
+    margin-top: 0;
+    pointer-events: auto;
+    /* Restore normal line-height for content */
+    line-height: normal;
+}
+
+#satchel-drawer.open {
+    width: auto;
+    min-width: 200px;
+    /* Ensure it matches hand hud width minimum */
+    max-width: 600px;
+    opacity: 1;
+    padding: 10px;
+}
+
+.drawer-header {
+    font-family: 'Cinzel', serif;
+    color: var(--wood-dark);
+    font-size: 0.9rem;
+    font-weight: 700;
+    border-bottom: 2px solid var(--wood-light);
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Fluid Horizontal Pocket Layout */
+.pocket-list {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    align-items: stretch;
+}
+
+/* Custom Scrollbar for Drawer */
+.pocket-list::-webkit-scrollbar {
+    height: 6px;
+}
+
+.pocket-list::-webkit-scrollbar-thumb {
+    background: var(--wood-light);
+    border-radius: 3px;
+}
+
+/* Individual Pocket Columns */
+.pocket-section {
+    padding: 0 12px;
+    border-right: 1px dashed var(--wood-light);
+    min-width: 140px;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+}
+
+.pocket-section:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.pocket-section:last-child {
+    border-right: none;
+}
+
+.pocket-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--wood-dark);
+    margin-bottom: 4px;
+    font-family: 'Lato', sans-serif;
+}
+
+.pocket-name {
+    font-weight: bold;
+}
+
+/* Item Grid Container */
+.item-grid {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    flex: 1;
+    min-height: 50px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+/*.item-grid:hover { background: rgba(0,0,0,0.03); }*/
+
+/* 3. VERTICAL TABS (The Handle) */
+.clothing-tower {
+    display: flex;
+    flex-direction: column-reverse;
+    /* Bottom up */
+    z-index: 95;
+    background: var(--wood-mid);
+    border: var(--border-style);
+    border-left: none;
+    border-right: none;
+    border-radius: 0 0 0 0;
+    margin-left: -3px;
+    /* Overlap drawer border for seamless look */
+    padding-bottom: 4px;
+}
+
+.tower-tab {
+    width: 54px;
+    height: 50px;
+    background: var(--leather);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    font-size: 1.5rem;
+}
+
+.tower-tab:first-child {
+    border-radius: 0 0 0 0;
+}
+
+.tower-tab:hover {
+    background: var(--leather-accent);
+    color: var(--parchment);
+    width: 58px;
+}
+
+.tower-tab.active {
+    background: var(--parchment);
+
+    color: var(--wood-dark);
+    width: 58px;
+    border-right: 3px solid var(--parchment);
+    /* Blend hack */
+    z-index: 100;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Tooltip Logic */
+.tower-tab::after {
+    content: attr(title);
+    position: absolute;
+    right: 65px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--wood-dark);
+    color: var(--parchment);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    border: 1px solid var(--gold);
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+    font-family: 'Lato', sans-serif;
+    z-index: 1000;
+}
+
+.tower-tab:hover::after {
+    opacity: 1;
+}
+
+/* =========================================
+   STYLE OVERRIDES FOR EXISTING ELEMENTS
+   =========================================
+*/
+
+/* Hand Slots */
+.hand-slot {
+    width: 60px;
+    height: 60px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px inset var(--wood-dark);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.hand-slot.active {
+    /* Matching existing JS class */
+    background: rgba(255, 193, 7, 0.15);
+    border-color: var(--gold);
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
+}
+
+.hand-label {
+    position: absolute;
+    bottom: 2px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.55rem;
+    color: var(--gold);
+    background: rgba(0, 0, 0, 0.8);
+    padding: 1px 5px;
+    border-radius: 3px;
+    pointer-events: none;
+}
+
+.hand-toggle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--leather);
+    color: var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--gold);
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+.hand-toggle:hover {
+    transform: rotate(180deg);
+}
+
+/* Reuse Drop Button */
+.hand-btn {
+    background: var(--leather);
+    color: var(--parchment);
+    border: 1px solid var(--gold);
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    font-size: 0.8rem;
+    padding: 4px 8px;
+}
+
+.hand-btn:hover {
+    background: var(--leather-accent);
+}
+
+/* Items (Unified Style for Hands & Pockets) */
+.item,
+.hud-item {
+    width: 36px;
+    height: 36px;
+    background: var(--parchment-dim);
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: var(--wood-dark);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    cursor: grab;
+    position: relative;
+}
+
+.item:hover,
+.hud-item:hover {
+    border-color: var(--gold);
+    transform: translateY(-1px);
+    background: #fff;
+}
+
+.item-size,
+.size-pip {
+    position: absolute;
+    bottom: 0;
+    right: 2px;
+    font-size: 0.55rem;
+    color: #555;
+    font-weight: bold;
+    font-family: 'Lato', sans-serif;
+}
+
+/* Ghost Slot (Empty Place Holder) */
+.item-ghost {
+    width: 36px;
+    height: 36px;
+    border: 2px dashed rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: rgba(0, 0, 0, 0.2);
+    transition: all 0.2s;
+}
+
+.item-ghost:hover {
+    border-color: var(--gold);
+    background-color: rgba(255, 193, 7, 0.1);
+    color: var(--gold);
+}
+
+/* Capacity Gauge */
+.capacity-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+    margin-bottom: 6px;
+}
+
+.capacity-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--gauge-ok);
+    transition: width 0.3s, background 0.3s;
+}
+
+
+/* =========================================
+   SIDE PANEL / INTENT HUD (Iron Spine)
+   =========================================
+*/
+#intent-hud {
+    position: absolute;
+    top: 50vh;
+    left: 0px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 100;
+    filter: drop-shadow(-5px 0 10px rgba(0, 0, 0, 0.5));
+}
+
+.intent-plate {
+    background: var(--iron);
+    background-image: linear-gradient(to right, #333, #111);
+    padding: 12px 6px;
+    border-radius: 0 8px 8px 0;
+    border: 2px solid #555;
+    border-left: none;
+    /* border-left: 2px solid #777;  */
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    pointer-events: auto;
+}
+
+/* Rivets */
+.intent-plate::before,
+.intent-plate::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    background: #888;
+    border-radius: 50%;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.8) inset;
+}
+
+.intent-plate::before {
+    top: 4px;
+}
+
+.intent-plate::after {
+    bottom: 4px;
+}
+
+/* Runic Buttons */
+.intent-option {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    color: #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.8);
+}
+
+.intent-option:hover {
+    transform: scale(1.1);
+    color: #ddd;
+    border-color: #888;
+}
+
+.intent-option i {
+    pointer-events: none;
+}
+
+/* Glow Effects */
+.intent-option.active.intent-friendly {
+    background: radial-gradient(circle, #4caf50, #1b5e20);
+    color: #fff;
+    border-color: #81c784;
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.6);
+}
+
+.intent-option.active.intent-grabbing {
+    background: radial-gradient(circle, #ffc107, #ff6f00);
+    color: #fff;
+    border-color: #ffe082;
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.6);
+}
+
+.intent-option.active.intent-hostile {
+    background: radial-gradient(circle, #f44336, #b71c1c);
+    color: #fff;
+    border-color: #e57373;
+    box-shadow: 0 0 15px rgba(244, 67, 54, 0.6);
+}
+
+/* Toast Override */
+#toast {
+    position: absolute;
+    bottom: 100%;
+    right: 50%;
+    transform: translateX(50%);
+    font-family: 'Lato', sans-serif;
+    border: 1px solid #ff8a80;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    background: rgba(183, 28, 28, 0.95);
+    padding: 8px 16px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 200;
+}

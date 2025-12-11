@@ -1,5 +1,122 @@
 import { windowSize } from './utils.js';
 import { createVoreList } from './ui.js';
+import { EQUIPMENT_VISUALS } from './equipment.js';
+
+export function updatePlayerEquipmentVisuals(container, equipmentData) {
+    if (!equipmentData) return;
+
+    // Check each defined visual mapping
+    Object.keys(EQUIPMENT_VISUALS).forEach(itemTexture => {
+        const visualConfig = EQUIPMENT_VISUALS[itemTexture];
+        const slotId = visualConfig.slotId;
+        const equippedItem = equipmentData[slotId];
+        const spriteName = `equip_${slotId}`;
+
+        // Check if the player has THIS specific item equipped in the correct slot
+        const shouldShow = equippedItem && equippedItem.texture === itemTexture;
+
+        let sprite = container.getByName(spriteName);
+
+        if (shouldShow) {
+            if (!sprite) {
+                // Create sprite if it doesn't exist
+                // Position 30, -81.5 relative to container (matching other body parts)
+                sprite = container.scene.add.sprite(30, -81.5, visualConfig.atlas).setName(spriteName);
+                container.add(sprite);
+
+                // Set depth/z-index relative to other parts
+                // Note: Exact z-indexing is handled in animations.js often, but initial depth helps
+                // For now, allow animations.js to control sort, or use helper
+            }
+            // Ensure visible (might have been hidden)
+            sprite.setVisible(true);
+            // Store config reference for animation system
+            sprite.visualConfig = visualConfig;
+        } else {
+            // If sprite exists but shouldn't show (item removed or different item), hide or destroy it
+            // If different item is equipped, we might need to destroy this one to make room for new name?
+            // Actually, naming by slotId (`equip_legs`) means we reuse the sprite NAME, 
+            // but if the TEXTURE changes, we need to handle that.
+
+            // Re-eval logic:
+            // If the slot has an item that matches A mapping, we show it. 
+            // If the slot has an item that matches DIFFERENT mapping, we show that one.
+            // Current loop iterates by TEXTURE.
+
+            // Allow this loop to only handle "turning on" or "turning off" specific textures?
+            // Better: Iterate slots or use the spriteName as the key.
+
+            if (sprite && sprite.texture.key !== visualConfig.atlas) {
+                // The sprite exists but has the wrong texture (e.g. upgraded shirt).
+                // In this loop, we are checking `itemTexture`.
+                // If `shouldShow` is false, it means this specific item isn't on.
+                // We shouldn't destroy the sprite immediately because another loop iteration might want it?
+                // No, `spriteName` is unique to ID.
+
+                // If proper item is NOT equipped, we destroy/hide the visual for this slot IF it matches this texture?
+                // Wait, simpler approach:
+                // 1. Iterate all potential sprites/slots.
+                // 2. OR Just iterate `equipmentData`?
+            }
+        }
+    });
+
+    // Better Approach: Iterate the SLOTS defined in visuals to decide what to show
+    // Invert the loop:
+    const activeVisuals = {};
+    Object.keys(EQUIPMENT_VISUALS).forEach(key => {
+        const config = EQUIPMENT_VISUALS[key];
+        // If player has this item equipped
+        if (equipmentData[config.slotId] && equipmentData[config.slotId].texture === key) {
+            activeVisuals[config.slotId] = config;
+        }
+    });
+
+    // Now update container
+    // For each possible slot that HAS a visual mapping available generally...
+    // We only have 2 mappings now.
+
+    // Let's just iterate all children? No, too expensive.
+
+    // Iterate our known possible visual slots (from mappings)
+    const processedSlots = new Set();
+    Object.values(EQUIPMENT_VISUALS).forEach(config => {
+        if (processedSlots.has(config.slotId)) return;
+        processedSlots.add(config.slotId);
+
+        const spriteName = `equip_${config.slotId}`;
+        let sprite = container.getByName(spriteName);
+
+        const equippedItem = equipmentData[config.slotId];
+        // Find if there is a visual config for the CURRENTLY equipped item
+        let activeConfig = null;
+        if (equippedItem) {
+            // Look up if this texture has a config
+            activeConfig = EQUIPMENT_VISUALS[equippedItem.texture];
+        }
+
+        if (activeConfig && activeConfig.slotId === config.slotId) {
+            // We should show something
+            if (!sprite) {
+                sprite = container.scene.add.sprite(30, -81.5, activeConfig.atlas).setName(spriteName);
+                container.add(sprite);
+            } else if (sprite.texture.key !== activeConfig.atlas) {
+                // Update texture if changed
+                sprite.setTexture(activeConfig.atlas);
+            }
+            sprite.setVisible(true);
+            sprite.visualConfig = activeConfig;
+        } else {
+            // Nothing equipped, or equipped item has no visual
+            if (sprite) {
+                sprite.setVisible(false);
+                // Optionally destroy to save memory if needed, but hiding is faster for toggle
+                // sprite.destroy(); 
+            }
+        }
+    });
+}
+
 
 export function getPlayerSprite(playerId, group) {
     return group.getChildren().find(child => child.playerId === playerId);
@@ -106,6 +223,9 @@ export function displayPlayers(self, playerInfo) {
     playerContainer.pendingInputs = [];
     playerContainer.inputSequenceNumber = 0;
     window.avatarSelected = true;
+
+    // Initialize Equipment Visuals
+    updatePlayerEquipmentVisuals(playerContainer, playerInfo.equipment);
 }
 
 export function displayOtherPlayers(self, playerInfo) {
@@ -194,6 +314,9 @@ export function displayOtherPlayers(self, playerInfo) {
 
     // Initial struggle bar render
     updateStruggleBar(otherPlayerContainer, playerInfo, self);
+
+    // Initialize Equipment Visuals
+    updatePlayerEquipmentVisuals(otherPlayerContainer, playerInfo.equipment);
 }
 
 export function updateStruggleBar(playerContainer, playerInfo, scene) {

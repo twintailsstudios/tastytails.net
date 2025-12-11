@@ -309,6 +309,10 @@ const userSchema = new mongoose.Schema({
         }]
       },
 
+      equipment: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+      },
 
 
       spellList: {

@@ -10,13 +10,18 @@ const path = require('path');
 const log = require('./logger');
 const User = require('./model/User');
 const Chats = require('./model/Chat');
+const clothingData = require('./data/clothingData');
+const itemData = require('./data/itemData');
 
 // --- Game State Variables ---
 const players = {};
 const spells = [];
 let collisionMap = [];
 let hillHomeMap = [];
+let staticObjects = []; // New: Store static objects for collision
+let worldItems = [];    // New: Store interactive items
 let mapWidth = 0;
+let messageSystem = null;
 
 // --- Constants ---
 const TICK_RATE = 30; // 30 updates per second
@@ -31,38 +36,40 @@ function initializeGame() {
   log('Initializing game state...');
   initializeSpells();
   initializeMap();
-
 }
 
 /**
  * Loads the Tiled map data and creates a simplified 2D array for collision detection.
  * Now checks for "Blocked" property on tiles instead of a specific layer.
+ * ALSO loads static objects from the "Objects" layer for collision using "World Builder" logic.
  */
 function initializeMap() {
   try {
     const mapPath = path.join(__dirname, 'client/assets/tilemaps/Demo_Map.json');
-    const tilesetPath = path.join(__dirname, 'client/assets/tilemaps/Demo_tileset.json');
-
     const tilemapData = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
-    const tilesetData = JSON.parse(fs.readFileSync(tilesetPath, 'utf8'));
 
     mapWidth = tilemapData.width;
     const mapHeight = tilemapData.height;
 
-    // 1. Identify Blocked and HillHome Tile IDs from the tileset
+    // --- 1. Tile-based Collision (Blocked & HillHome) ---
     const blockedTileIds = new Set();
     const hillHomeTileIds = new Set();
-    if (tilesetData.tiles) {
-      tilesetData.tiles.forEach(tile => {
-        if (tile.properties) {
-          const blockedProp = tile.properties.find(p => p.name === 'Blocked');
-          if (blockedProp && blockedProp.value === 'True') {
-            blockedTileIds.add(tile.id);
-          }
-          const hillHomeProp = tile.properties.find(p => p.name === 'hillHome');
-          if (hillHomeProp && hillHomeProp.value === 'True') {
-            hillHomeTileIds.add(tile.id);
-          }
+
+    if (tilemapData.tilesets) {
+      tilemapData.tilesets.forEach(tileset => {
+        if (tileset.tiles) {
+          tileset.tiles.forEach(tile => {
+            if (tile.properties) {
+              const blockedProp = tile.properties.find(p => p.name === 'Blocked');
+              if (blockedProp && blockedProp.value === 'True') {
+                blockedTileIds.add(tile.id);
+              }
+              const hillHomeProp = tile.properties.find(p => p.name === 'hillHome');
+              if (hillHomeProp && hillHomeProp.value === 'True') {
+                hillHomeTileIds.add(tile.id);
+              }
+            }
+          });
         }
       });
     }
@@ -72,16 +79,22 @@ function initializeMap() {
     hillHomeMap = Array(mapHeight).fill(null).map(() => Array(mapWidth).fill(0));
 
     // 3. Iterate Layers and Populate Collision Map
-    // Assuming the first tileset in the map corresponds to our loaded tileset.
-    const tilesetInfo = tilemapData.tilesets[0];
-    const firstGid = tilesetInfo ? tilesetInfo.firstgid : 1;
+    const mainTileset = tilemapData.tilesets[0];
+    const firstGid = mainTileset ? mainTileset.firstgid : 1;
 
     tilemapData.layers.forEach(layer => {
       if (layer.type === 'tilelayer' && layer.data) {
+        let layerIsHillHome = false;
+        if (layer.properties) {
+          const prop = layer.properties.find(p => p.name === 'hillHome');
+          if (prop && prop.value === 'True') {
+            layerIsHillHome = true;
+          }
+        }
+
         layer.data.forEach((gid, index) => {
           if (gid === 0) return; // Empty tile
 
-          // Calculate local ID
           const localId = gid - firstGid;
 
           if (blockedTileIds.has(localId)) {
@@ -91,7 +104,8 @@ function initializeMap() {
               collisionMap[y][x] = 1;
             }
           }
-          if (hillHomeTileIds.has(localId)) {
+
+          if (hillHomeTileIds.has(localId) || layerIsHillHome) {
             const x = index % mapWidth;
             const y = Math.floor(index / mapWidth);
             if (y < mapHeight && x < mapWidth) {
@@ -102,15 +116,141 @@ function initializeMap() {
       }
     });
 
-    log('Collision map processed successfully based on "Blocked" tile property.');
+    // --- 4. Object Layer Collision (Updated: World Builder Logic and Item System) ---
+    // This uses Raw GID Lookup to find properties correctly, matching client logic.
+    staticObjects = [];
+    worldItems = [];
+
+    // Index all Raw Tilesets by GID Range
+    const rawTilesets = [];
+    if (tilemapData.tilesets) {
+      tilemapData.tilesets.forEach(rawTs => {
+        const tsData = {
+          firstgid: rawTs.firstgid,
+          tilecount: rawTs.tilecount || 0,
+          tiles: {}
+        };
+        if (rawTs.tiles) {
+          rawTs.tiles.forEach(tile => {
+            const props = {};
+            if (tile.properties) {
+              tile.properties.forEach(p => {
+                if (p.type === 'int' || p.type === 'float' || !isNaN(p.value)) {
+                  props[p.name] = Number(p.value);
+                } else {
+                  props[p.name] = p.value;
+                }
+              });
+            }
+            tsData.tiles[tile.id] = { properties: props };
+          });
+        }
+        rawTilesets.push(tsData);
+      });
+    }
+
+    // Process ALL Object Layers
+    // We filter for any layer of type 'objectgroup' and process its objects.
+    const objectLayers = tilemapData.layers.filter(l => l.type === 'objectgroup');
+
+    objectLayers.forEach(objectLayer => {
+      if (objectLayer.objects) {
+        objectLayer.objects.forEach(obj => {
+          // 1. Find Raw Tileset
+          const rawTs = rawTilesets.find(ts => obj.gid >= ts.firstgid && obj.gid < (ts.firstgid + ts.tilecount));
+
+          if (rawTs) {
+            const trueLocalID = obj.gid - rawTs.firstgid;
+            const tileData = rawTs.tiles[trueLocalID];
+            const props = tileData ? tileData.properties : {};
+
+            // --- Item System Check ---
+            if (props.isItem) {
+              // It's an Item! Add to worldItems and Skip collision (unless isSolid)
+              worldItems.push({
+                uid: `item_${obj.id}`, // Unique ID from Tiled
+                x: obj.x,
+                y: obj.y,
+                name: props.name || obj.name || 'Unknown Item',
+                itemId: props.itemId || 'unknown_item',
+                itemType: props.itemType || 'misc',
+                texture: props.texture || 'default_item',
+                properties: props // Store all props just in case
+              });
+
+              if (!props.isSolid) {
+                return; // Skip adding to staticObjects
+              }
+            }
+
+            // --- Collision Box Dimensions ---
+            // Prioritize custom properties (bodyWidth, bodyHeight, bodyOffsetY)
+            let width = props.bodyWidth;
+            let height = props.bodyHeight;
+            let offsetY = props.bodyOffsetY; // Can be undefined
+
+            // Fallback sizing
+            if (!width || !height) {
+              width = obj.width;
+              height = obj.height * 0.2; // Default to bottom 20%
+              offsetY = 0; // Default to 0 offset from bottom
+            } else {
+              if (offsetY === undefined) offsetY = 0;
+            }
+
+            // --- Coordinate Calculation (Client Parity) ---
+            // Client uses sprite.setOrigin(0.5, 1) -> Bottom Center
+
+            const spriteWidth = obj.width;
+            const bodyWidth = width;
+            const bodyHeight = height;
+
+            // Center the collision box horizontally within the sprite
+            const bodyOffsetX = (spriteWidth - bodyWidth) / 2;
+
+            // --- Vertical Offset Logic ---
+            // Formula: BodyY = SpriteBottomY - BodyHeight - BodyOffsetY
+
+            const spriteTopLeftX = obj.x - (spriteWidth / 2); // Convert Center-X to Left-X
+
+            const bodyX = spriteTopLeftX + bodyOffsetX;
+            const bodyY = obj.y - bodyHeight - offsetY;
+
+            staticObjects.push({
+              minX: bodyX,
+              maxX: bodyX + bodyWidth,
+              minY: bodyY,
+              maxY: bodyY + bodyHeight,
+              type: width === props.bodyWidth ? 'Custom' : 'Fallback',
+              name: obj.name || 'Unknown',
+              layer: objectLayer.name,
+              grid: `[${Math.floor(obj.x / 32)},${Math.floor(obj.y / 32)}]`
+            });
+          }
+        });
+      }
+    });
+
+    // --- TEST ITEM FOR VERIFICATION ---
+    worldItems.push({
+      uid: 'test_scroll_unique',
+      x: 3350, // Near player start
+      y: 4300,
+      name: 'Test Scroll',
+      itemId: 'scroll_01',
+      itemType: 'clothing', // Changed for test
+      texture: 'scroll2',
+      equipSlot: 'head', // Add equip slot for testing
+      properties: { isItem: true, equipSlot: 'head' }
+    });
+
+    log(`Loaded ${staticObjects.length} static objects and ${worldItems.length} world items from ${objectLayers.length} layers.`);
+
   } catch (e) {
     log.error('Failed to load or parse tilemap data:', e);
   }
 }
 
-/**
- * Creates and places the initial set of spells in the world.
- */
 function initializeSpells() {
   // In a real game, you might load spawn points from the map data
   const spawnLocations = [
@@ -133,39 +273,68 @@ function handlePlayerInput(playerId, inputData) {
 
 
 /**
- * Checks if a player at position (x, y) collides with any blocked tiles.
+ * Checks if a player at position (x, y) collides with any blocked tiles OR static objects.
  * Uses a bounding box of size TILE_SIZE x TILE_SIZE centered at (x, y).
  */
 function checkCollision(x, y) {
-  if (!collisionMap || collisionMap.length === 0) return false;
+  // 1. Check Tile Collision
+  if (collisionMap && collisionMap.length > 0) {
+    // Define player bounding box (assuming player is roughly tile-sized)
+    // Adjust these values if the collision box needs to be smaller/larger
+    const width = PLAYER_WIDTH;
+    const height = PLAYER_HEIGHT;
 
-  // Define player bounding box (assuming player is roughly tile-sized)
-  // Adjust these values if the collision box needs to be smaller/larger
-  const width = PLAYER_WIDTH;
-  const height = PLAYER_HEIGHT;
+    const left = x + 30 - width / 2;
+    const right = x + 30 + width / 2;
+    const top = y - height / 2;
+    const bottom = y + height / 2;
 
-  const left = x + 30 - width / 2;
-  const right = x + 30 + width / 2;
-  const top = y - height / 2;
-  const bottom = y + height / 2;
+    // Convert to tile coordinates
+    const minTileX = Math.floor(left / TILE_SIZE);
+    const maxTileX = Math.floor((right) / TILE_SIZE);
+    const minTileY = Math.floor(top / TILE_SIZE);
+    const maxTileY = Math.floor((bottom) / TILE_SIZE);
 
-  // Convert to tile coordinates
-  const minTileX = Math.floor(left / TILE_SIZE);
-  const maxTileX = Math.floor((right) / TILE_SIZE);
-  const minTileY = Math.floor(top / TILE_SIZE);
-  const maxTileY = Math.floor((bottom) / TILE_SIZE);
-
-  // Check all overlapped tiles
-  for (let ty = minTileY; ty <= maxTileY; ty++) {
-    for (let tx = minTileX; tx <= maxTileX; tx++) {
-      // Check bounds
-      if (ty >= 0 && ty < collisionMap.length && tx >= 0 && tx < collisionMap[0].length) {
-        if (collisionMap[ty][tx] === 1) {
-          return true;
+    // Check all overlapped tiles
+    for (let ty = minTileY; ty <= maxTileY; ty++) {
+      for (let tx = minTileX; tx <= maxTileX; tx++) {
+        // Check bounds
+        if (ty >= 0 && ty < collisionMap.length && tx >= 0 && tx < collisionMap[0].length) {
+          if (collisionMap[ty][tx] === 1) {
+            return true;
+          }
         }
       }
     }
   }
+
+  // 2. Check Static Object Collision
+  // Iterates through the pre-calculated staticObjects list.
+  // Performs a simple Axis-Aligned Bounding Box (AABB) overlap check.
+  if (staticObjects && staticObjects.length > 0) {
+    const pWidth = PLAYER_WIDTH;
+    const pHeight = PLAYER_HEIGHT;
+
+    // Player bounds calculation
+    // Note: 'x' and 'y' passed here are the player's position.
+    // We assume 'x' is the horizontal center and 'y' is the vertical center of the player's collider.
+    const pLeft = x + 30 - pWidth / 2;
+    const pRight = x + 30 + pWidth / 2;
+    const pTop = y - pHeight / 2;
+    const pBottom = y + pHeight / 2;
+
+    for (const obj of staticObjects) {
+      // AABB Collision Check
+      // Returns true if the player's box overlaps with the object's box
+      if (pLeft < obj.maxX &&
+        pRight > obj.minX &&
+        pTop < obj.maxY &&
+        pBottom > obj.minY) {
+        return true;
+      }
+    }
+  }
+
   return false;
 }
 
@@ -303,6 +472,9 @@ function updatePlayers(delta, io) {
         if (pressedKey) {
           player.struggleCount = (player.struggleCount || 0) + 1;
           if (player.struggleCount >= 3) {
+            const holderId = player.heldBySocketId;
+            const holderName = (holderId && players[holderId]) ? (players[holderId].firstName || 'Unknown') : 'Unknown';
+
             player.isHeld = false;
             player.grippedFirmly = false;
             player.heldBy = null;
@@ -310,6 +482,11 @@ function updatePlayers(delta, io) {
             player.grippedBy = null;
             player.struggleCount = 0;
             log(`Player ${player.Username || player.playerId} struggled free!`);
+
+            // Broadcast Interactional Message
+            if (messageSystem) {
+              messageSystem.sendSystemMessage('Interactional', `${player.firstName} pulls away from ${holderName}.`);
+            }
           }
         }
       } else {
@@ -386,7 +563,8 @@ function gameLoop(io) {
 
 // --- Main Exported Start Function ---
 
-module.exports.start = (io) => {
+module.exports.start = (io, _messageSystem) => {
+  messageSystem = _messageSystem;
   initializeGame();
 
   io.on('connection', async (socket) => {
@@ -394,6 +572,7 @@ module.exports.start = (io) => {
 
     const charId = socket.handshake.query.charId;
     let characterData = null;
+    let loadedEquipment = null;
 
     if (charId) {
       try {
@@ -401,7 +580,11 @@ module.exports.start = (io) => {
         if (user) {
           const character = user.characters.id(charId);
           if (character) {
-            characterData = character;
+            characterData = character.toObject();
+            if (character.equipment) {
+              loadedEquipment = JSON.parse(JSON.stringify(character.equipment));
+              log(`[PersistenceDebug] Loaded Equipment into Variable: ${JSON.stringify(loadedEquipment)}`);
+            }
             log(`Loaded character ${character.firstName} ${character.lastName} for socket ${socket.id}`);
           }
         }
@@ -410,11 +593,10 @@ module.exports.start = (io) => {
       }
     }
 
-    // --- Create New Player ---
     players[socket.id] = {
       Identifier: "player",
       playerId: socket.id,
-      _id: characterData ? characterData._id : null, // Store MongoDB ID
+      _id: characterData ? characterData._id : null,
       Username: characterData ? (characterData.firstName + ' ' + characterData.lastName) : "Guest",
       firstName: characterData ? characterData.firstName : "Guest",
       lastName: characterData ? characterData.lastName : "",
@@ -423,6 +605,26 @@ module.exports.start = (io) => {
       icDescrip: characterData ? characterData.icDescrip : "",
       voreTypes: characterData ? characterData.voreTypes : [],
 
+      equipment: loadedEquipment ? loadedEquipment : {
+        hair: null,
+        leftEar: null,
+        rightEar: null,
+        head: null,
+        neck: null,
+        back: null,
+        torsoOuter: null,
+        torsoInner: null,
+        leftWrist: null,
+        rightWrist: null,
+        leftHand: null,
+        rightHand: null,
+        belt: null,
+        legs: null,
+        underwear: null,
+        feet: null,
+        tailBase: null,
+        tailTip: null
+      },
       head: characterData ? characterData.head : {
         sprite: 'head_01',
         color: '0xe0e0e0',
@@ -484,7 +686,13 @@ module.exports.start = (io) => {
       },
 
       voreTypes: characterData ? characterData.voreTypes : [],
-      spellList: [],
+
+      actionHands: {
+        leftNode: null,
+        rightNode: null,
+        activeHand: 'right'
+      },
+
       consumedBy: null,
       position: characterData && characterData.position ? characterData.position : {
         x: 3291,
@@ -521,38 +729,56 @@ module.exports.start = (io) => {
       inputQueue: [] // Initialize input queue
     };
 
+    if (players[socket.id].equipment) {
+      log(`[PersistenceDebug] Initialized player.equipment: ${JSON.stringify(players[socket.id].equipment)}`);
+    } else {
+      log(`[PersistenceDebug] Initialized player.equipment is MISSING/NULL`);
+    }
+
     // --- Socket Event Handlers for THIS player ---
 
     // Send initial state to the new player
+    // Send initial state to the new player
     socket.emit('currentPlayers', players, spells);
+    socket.emit('currentItems', worldItems); // Send World Items
     // Inform other players of the new player
     socket.broadcast.emit('newPlayer', players[socket.id]);
 
-    socket.on('disconnect', async () => {
-      log(`Player disconnected: ${socket.id}`);
-      const player = players[socket.id];
 
-      // --- Save player's position if they have an ID ---
-      if (player && player._id) {
+    // --- Helper to Save Character Data ---
+    const saveCharacter = async (socketId) => {
+      const p = players[socketId];
+      if (p && p._id) {
         try {
-          const user = await User.findOne({ 'characters._id': player._id });
+          const user = await User.findOne({ 'characters._id': p._id });
           if (user) {
-            const character = user.characters.id(player._id);
+            const character = user.characters.id(p._id);
             if (character) {
+              // Save Position
               character.position = {
-                x: player.position.x,
-                y: player.position.y,
+                x: p.position.x,
+                y: p.position.y,
                 time: new Date()
               };
+              // Save Equipment
+              if (p.equipment) {
+                character.equipment = p.equipment;
+              }
+
+              user.markModified('characters'); // Explicitly mark array/subdocs modified
               await user.save();
-              log(`Saved position for character ${character.firstName} at ${player.position.x}, ${player.position.y}`);
+              log(`Saved data (pos/equip) for character ${character.firstName}`);
             }
           }
         } catch (err) {
-          log.error(`Error saving position for player ${player.Username}:`, err);
+          log.error(`Error saving character data for ${p.Username}:`, err);
         }
       }
+    };
 
+    socket.on('disconnect', async () => {
+      log(`Player disconnected: ${socket.id}`);
+      await saveCharacter(socket.id);
       delete players[socket.id];
       io.emit('removePlayer', socket.id);
     });
@@ -599,20 +825,251 @@ module.exports.start = (io) => {
 
     // --- Re-implementing other game actions ---
 
-    socket.on('examineClicked', (clicked) => {
-      // Logic for examining players or spells
-      if (clicked.Identifier === 'player' && players[clicked.playerId]) {
-        const examinedPlayer = players[clicked.playerId];
 
-        // Use in-memory data
-        const info = {
-          Identifier: 'player',
-          firstName: examinedPlayer.firstName || 'Unknown',
-          lastName: examinedPlayer.lastName || '',
-          icDescrip: examinedPlayer.icDescrip || examinedPlayer.Description || 'No description available.',
-        };
 
-        socket.emit('examinedInfo', info);
+    // --- Action Hands Handlers ---
+
+    socket.on('toggleActiveHand', () => {
+      const player = players[socket.id];
+      if (!player) return;
+      log(`[Server] Toggling hands for ${player.Username}. Current: ${player.actionHands.activeHand}`);
+      player.actionHands.activeHand = player.actionHands.activeHand === 'left' ? 'right' : 'left';
+      log(`[Server] New active hand: ${player.actionHands.activeHand}`);
+    });
+
+    socket.on('swapHandItems', () => {
+      const player = players[socket.id];
+      if (!player) return;
+      const temp = player.actionHands.leftNode;
+      player.actionHands.leftNode = player.actionHands.rightNode;
+      player.actionHands.rightNode = temp;
+    });
+
+    socket.on('equipItemClicked', (slotId) => {
+      log(`[EquipDebug] Received 'equipItemClicked' for socket ${socket.id} with slot ${slotId}`);
+      const player = players[socket.id];
+      if (!player) {
+        log(`[EquipDebug] Player not found for socket ${socket.id}`);
+        return;
+      }
+      if (!player.equipment) {
+        log(`[EquipDebug] Player ${player.Username} has no equipment object`);
+        return;
+      }
+
+      const activeHand = player.actionHands.activeHand;
+      // Get item in active hand
+      const handItem = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+      const slotItem = player.equipment[slotId];
+
+      log(`[EquipDebug] Slot: ${slotId}, Hand: ${activeHand}, HandItem: ${handItem ? 'YES' : 'NO'}, SlotItem: ${slotItem ? 'YES' : 'NO'}`);
+
+      // Logic:
+      // 1. If hand has item: Try to Equip
+      // 2. If hand is empty: Unequip from slot to hand
+
+      if (handItem) {
+        log(`[EquipDebug] Hand not empty (${handItem.name}). Attempting to EQIUP/SWAP to ${slotId}.`);
+        // --- EQUIP ATTEMPT ---
+        // Validate if item can go in this slot (if it has equipSlot property)
+        // If undefined, maybe allow for testing? Or restrict? 
+        // For now, let's assume if it has `equipSlot` it must match.
+        // If it doesn't have `equipSlot`, maybe generic items can't be equipped? or fallback?
+        // Let's enforce: MUST have equipSlot property matching slotId (or special logic)
+
+        let canEquip = false;
+        if (handItem.properties && handItem.properties.equipSlot === slotId) {
+          canEquip = true;
+        } else if (handItem.equipSlot === slotId) { // Direct property support
+          canEquip = true;
+        }
+
+        // Special handling for legacy/test items?
+        // For Verification, we modified the Test Scroll to have isItem: true.
+        // We should add `equipSlot` to it if we want to test equipping.
+
+        // Debug Bypass: Allow ANY item with `equipSlot` to be equipped anywhere for now? NO.
+        // Strict check.
+
+        if (canEquip) {
+          // Swap logic
+          // Move Hand -> Slot
+          // Move Slot -> Hand (if exists) target
+
+          player.equipment[slotId] = handItem;
+
+          if (activeHand === 'left') player.actionHands.leftNode = slotItem;
+          else player.actionHands.rightNode = slotItem;
+
+          log(`Player ${player.Username} equipped ${handItem.name} to ${slotId}`);
+        } else {
+          // Maybe notify user? "Cannot equip this here"
+          log(`Player ${player.Username} failed to equip ${handItem.name} to ${slotId} (Wrong Slot)`);
+        }
+
+      } else {
+        log(`[EquipDebug] Hand empty. Attempting to UNEQUIP from ${slotId}.`);
+        // --- UNEQUIP ATTEMPT (Hand Empty) ---
+        if (slotItem) {
+          // Move Slot -> Hand
+          if (activeHand === 'left') player.actionHands.leftNode = slotItem;
+          else player.actionHands.rightNode = slotItem;
+
+          player.equipment[slotId] = null;
+          log(`Player ${player.Username} unequipped ${slotItem.name} from ${slotId}`);
+        }
+      }
+
+      // Force immediate update to all clients
+      io.emit('playerUpdates', { [socket.id]: player });
+
+      // Save changes to DB immediately
+      saveCharacter(socket.id);
+    });
+
+    // --- Dynamic Storage Logic ---
+
+    // Move item from Hand -> Pocket
+    socket.on('stashItemClicked', (data) => {
+      const { targetSlot, targetPocket } = data;
+      const player = players[socket.id];
+      if (!player) return;
+
+      const activeHand = player.actionHands.activeHand;
+      const handItem = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+      const clothingItem = player.equipment[targetSlot];
+
+      if (!handItem) {
+        log(`[StorageDebug] Hand empty, cannot stash. ActiveHand: ${activeHand}`);
+        return;
+      }
+      if (!clothingItem) {
+        log(`[StorageDebug] No clothing in slot ${targetSlot}`);
+        return;
+      }
+
+      // Get clothing definition
+      // We need to look up by texture (e.g. 'pants_01')
+      const textureKey = clothingItem.texture;
+      const clothingDef = clothingData[textureKey];
+
+      if (!clothingDef) {
+        log(`[StorageDebug] No clothing definition found for ${textureKey} in slot ${targetSlot}`);
+        return;
+      }
+
+      const pocketDef = clothingDef.pockets.find(p => p.id === targetPocket);
+      if (!pocketDef) {
+        log(`[StorageDebug] No pocket ${targetPocket} found in ${textureKey}`);
+        return;
+      }
+
+      // Initialize contents if null
+      if (!clothingItem.contents) clothingItem.contents = {};
+      if (!clothingItem.contents[targetPocket]) clothingItem.contents[targetPocket] = [];
+
+      // Validate Size & Capacity
+      let currentLoad = 0;
+      clothingItem.contents[targetPocket].forEach(item => {
+        // lookup size
+        const iDef = itemData[item.itemId] || { size: 1 };
+        currentLoad += (iDef.size || 1);
+      });
+
+      // Determine item size
+      // If the item in hand has a specific property, use it, else lookup
+      const handItemDef = itemData[handItem.itemId] || itemData.default;
+      const itemSize = handItem.size || handItemDef.size || 1;
+
+      if (currentLoad + itemSize > pocketDef.capacity) {
+        log(`[StorageDebug] Capacity Exceeded! Current: ${currentLoad}, Item: ${itemSize}, Max: ${pocketDef.capacity}`);
+        // Provide feedback?
+        return;
+      }
+
+      // --- SUCCESS: Move Item ---
+
+      // Add to pocket
+      clothingItem.contents[targetPocket].push(handItem);
+
+      // Remove from Hand
+      if (activeHand === 'left') player.actionHands.leftNode = null;
+      else player.actionHands.rightNode = null;
+
+      log(`[Storage] Stashed ${handItem.name} into ${clothingDef.name}'s ${pocketDef.name}.`);
+
+      // Emit updates
+      io.emit('playerUpdates', { [socket.id]: player });
+      saveCharacter(socket.id);
+    });
+
+    // Move item from Pocket -> Hand
+    socket.on('retrieveItemClicked', (data) => {
+      const { sourceSlot, sourcePocket, itemUid } = data;
+      const player = players[socket.id];
+      if (!player) return;
+
+      const activeHand = player.actionHands.activeHand;
+      const clothingItem = player.equipment[sourceSlot];
+
+      // Check if hand is empty
+      if (activeHand === 'left' && player.actionHands.leftNode) return; // Hand full
+      if (activeHand === 'right' && player.actionHands.rightNode) return; // Hand full
+
+      if (!clothingItem || !clothingItem.contents || !clothingItem.contents[sourcePocket]) return;
+
+      // Find item
+      const itemIndex = clothingItem.contents[sourcePocket].findIndex(i => i.uid === itemUid);
+      if (itemIndex === -1) return;
+
+      const item = clothingItem.contents[sourcePocket][itemIndex];
+
+      // Move to Hand
+      if (activeHand === 'left') player.actionHands.leftNode = item;
+      else player.actionHands.rightNode = item;
+
+      // Remove from Pocket
+      clothingItem.contents[sourcePocket].splice(itemIndex, 1);
+
+      log(`[Storage] Retrieved ${item.name} from ${sourcePocket}.`);
+
+      io.emit('playerUpdates', { [socket.id]: player });
+      saveCharacter(socket.id);
+    });
+
+
+    socket.on('dropItemClicked', () => {
+      const player = players[socket.id];
+      if (!player) return;
+
+      const activeHand = player.actionHands.activeHand;
+      let droppedItem = null;
+
+      if (activeHand === 'left' && player.actionHands.leftNode) {
+        droppedItem = player.actionHands.leftNode;
+        player.actionHands.leftNode = null;
+      } else if (activeHand === 'right' && player.actionHands.rightNode) {
+        droppedItem = player.actionHands.rightNode;
+        player.actionHands.rightNode = null;
+      }
+
+      if (droppedItem) {
+        // Position at feet
+        droppedItem.x = player.position.x;
+        droppedItem.y = player.position.y + 20;
+
+        // Ensure UID
+        if (!droppedItem.uid) droppedItem.uid = 'item_' + Date.now() + Math.random().toString(36).substr(2, 5);
+
+        // Add to World Items
+        worldItems.push(droppedItem);
+
+        // Notify Clients
+        io.emit('itemSpawned', droppedItem);
+
+        log(`[DropDebug] Dropped Item: ${JSON.stringify(droppedItem, null, 2)}`); // VERBOSE LOGGING
+
+        log(`Player ${player.Username} dropped item: ${droppedItem.name || droppedItem.uid}`);
       }
     });
 
@@ -620,17 +1077,85 @@ module.exports.start = (io) => {
       const player = players[socket.id];
       if (!player) return;
 
+      let handled = false;
+
+      // 1. Check Legacy Spells (Priority)
       if (clicked.Identifier === 'spell') {
         const spellIndex = spells.findIndex(spell => spell.Name === clicked.Name);
         if (spellIndex > -1) {
           const spell = spells[spellIndex];
-          // Check distance
           const distance = Math.sqrt(Math.pow(player.position.x - spell.x, 2) + Math.pow(player.position.y - spell.y, 2));
           if (distance < 100) {
-            player.spellList.push(spell);
-            spells.splice(spellIndex, 1); // Remove from world
-            socket.emit('pickedUpItem', player.spellList);
-            io.emit('spellRemoved', spell.Name); // Tell everyone to remove the spell
+            const activeHand = player.actionHands.activeHand;
+            const activeNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+
+            if (!activeNode) {
+              // Pickup
+              if (activeHand === 'left') player.actionHands.leftNode = spell;
+              else player.actionHands.rightNode = spell;
+
+              spells.splice(spellIndex, 1);
+              io.emit('spellRemoved', spell.Name);
+            } else {
+              // Swap
+              const oldItem = activeNode;
+              oldItem.x = player.position.x;
+              oldItem.y = player.position.y + 20;
+              spells.push(oldItem);
+
+              if (activeHand === 'left') player.actionHands.leftNode = spell;
+              else player.actionHands.rightNode = spell;
+
+              spells.splice(spellIndex, 1);
+              io.emit('spellRemoved', spell.Name);
+              io.emit('spellSpawned', oldItem);
+            }
+            handled = true;
+          }
+        }
+      }
+
+      // 2. Check World Items (New System)
+      if (!handled && clicked.Identifier === 'item') {
+        // Note: Client should send the item's UID as 'Name' or we find by UID
+        const itemIndex = worldItems.findIndex(item => item.uid === clicked.Name);
+        if (itemIndex > -1) {
+          const item = worldItems[itemIndex];
+          // Check distance
+          const distance = Math.sqrt(Math.pow(player.position.x - item.x, 2) + Math.pow(player.position.y - item.y, 2));
+
+          if (distance < 100) {
+            const activeHand = player.actionHands.activeHand;
+            const activeNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+
+            if (!activeNode) {
+              // Pickup
+              if (activeHand === 'left') player.actionHands.leftNode = item;
+              else player.actionHands.rightNode = item;
+
+              worldItems.splice(itemIndex, 1);
+              io.emit('itemRemoved', item.uid);
+            } else {
+              // Swap
+              const oldItem = activeNode;
+              // Determine drop position (player pos + jitter or offset)
+              oldItem.x = player.position.x;
+              oldItem.y = player.position.y + 20;
+
+              // Ensure it has a UID if it was a legacy spell promoted to item
+              if (!oldItem.uid) oldItem.uid = 'item_' + Date.now() + Math.floor(Math.random() * 1000);
+
+              worldItems.push(oldItem);
+
+              // Pickup new
+              if (activeHand === 'left') player.actionHands.leftNode = item;
+              else player.actionHands.rightNode = item;
+
+              worldItems.splice(itemIndex, 1);
+
+              io.emit('itemRemoved', item.uid);
+              io.emit('itemSpawned', oldItem);
+            }
           }
         }
       }
@@ -682,6 +1207,17 @@ module.exports.start = (io) => {
           responseInfo.push({
             ...playerDetails,
             availableActions
+          });
+        }
+
+        // --- Check if the clicked item is a map object ---
+        else if (clickedItem.Identifier === 'mapObject') {
+          responseInfo.push({
+            name: clickedItem.name,
+            Identifier: 'mapObject',
+            uniqueId: clickedItem.uniqueId,
+            description: clickedItem.description, // Pass through description
+            availableActions: ['Examine']
           });
         }
       }
@@ -767,6 +1303,11 @@ module.exports.start = (io) => {
             targetPlayer.grippedFirmly = true;
             targetPlayer.struggleCount = 0;
             log(`Player ${players[socket.id].firstName} has GRIPPED FIRMLY ${targetName}.`);
+
+            // Broadcast Interactional Message
+            if (messageSystem) {
+              messageSystem.sendSystemMessage('Interactional', `${players[socket.id].firstName} is gripping ${targetName} tightly.`);
+            }
           } else {
             // Normal grab
             log(`Player ${players[socket.id].firstName} has grabbed ${targetName} with ${playerIntent} intent.`);
@@ -775,6 +1316,11 @@ module.exports.start = (io) => {
             targetPlayer.heldBySocketId = socket.id;
             targetPlayer.grippedFirmly = false;
             targetPlayer.struggleCount = 0;
+
+            // Broadcast Interactional Message
+            if (messageSystem) {
+              messageSystem.sendSystemMessage('Interactional', `${players[socket.id].firstName} has taken hold of ${targetName}.`);
+            }
           }
         }
         if (playerIntent == 'hostile') {
@@ -829,33 +1375,86 @@ module.exports.start = (io) => {
         targetPlayer.grippedBy = socket.id;
         targetPlayer.struggleCount = 0;
         log(`Player ${player.firstName} GRIPPED FIRMLY ${targetPlayer.firstName || 'Unknown Player'}.`);
+
+        // Broadcast Interactional Message
+        if (messageSystem) {
+          messageSystem.sendSystemMessage('Interactional', `${player.firstName} is gripping ${targetPlayer.firstName || 'Unknown Player'} tightly.`);
+        }
       }
     });
 
 
     // --- Player has examined another player ---
+    // --- Player has examined another player or object ---
     socket.on('examineClicked', (data) => {
-      const { playerId } = data;
-      const player = players[socket.id];
-      const targetPlayer = players[playerId];
+      // Data: { Identifier, playerId, name, description, ... }
 
-      if (!player || !targetPlayer) return;
+      const requestingPlayer = players[socket.id];
+      if (!requestingPlayer) return;
 
-      log(`Player ${player.firstName} EXAMINED ${targetPlayer.firstName || 'Unknown Player'}.`);
+      if (data.Identifier === 'player') {
+        const targetPlayer = players[data.playerId];
+        if (!targetPlayer) return;
 
-      // Check if target has consumed anyone
-      // If the target has consumed someone, we want to provide a hint to the examiner.
-      if (targetPlayer.voreTypes && targetPlayer.voreTypes.length > 0) {
-        // Find the first voreType with contents
-        // In the future, we might want to check specific body parts or show all
-        const activeVoreType = targetPlayer.voreTypes.find(vt => vt.contents && vt.contents.length > 0);
+        log(`Player ${requestingPlayer.firstName} EXAMINED ${targetPlayer.firstName || 'Unknown Player'}.`);
 
-        if (activeVoreType && activeVoreType.examineMsgDescrip) {
-          // Send the description to the examiner
-          socket.emit('voreLog', activeVoreType.examineMsgDescrip);
+        let message = `You examined ${targetPlayer.firstName || 'Unknown Player'}.`;
+
+        // Check if target has consumed anyone
+        // If the target has consumed someone, we want to provide a hint to the examiner.
+        if (targetPlayer.voreTypes && targetPlayer.voreTypes.length > 0) {
+          // Find the first voreType with contents
+          const activeVoreType = targetPlayer.voreTypes.find(vt => vt.contents && vt.contents.length > 0);
+
+          if (activeVoreType && activeVoreType.examineMsgDescrip) {
+            // Append the description to the message
+            message += ` ${activeVoreType.examineMsgDescrip}`;
+          }
+        }
+
+        // Send private interactional message to the examiner
+        if (messageSystem) {
+          messageSystem.sendSystemMessage('Interactional', message, socket);
+        }
+
+        // Restore UI Update for Players
+        const info = {
+          Identifier: 'player',
+          firstName: targetPlayer.firstName || 'Unknown',
+          lastName: targetPlayer.lastName || '',
+          icDescrip: targetPlayer.icDescrip || targetPlayer.Description || 'No description available.',
+        };
+        socket.emit('examinedInfo', info);
+      }
+
+      else if (data.Identifier === 'mapObject') {
+        // Logic for Map Objects (Signs, Furniture, etc)
+        log(`Player ${requestingPlayer.firstName} EXAMINED object ${data.name}.`);
+
+        const message = `You examined ${data.name}. ${data.description || ''}`;
+
+        if (messageSystem) {
+          messageSystem.sendSystemMessage('Interactional', message, socket);
+        }
+
+        // Send UI Update for Map Objects
+        socket.emit('examinedInfo', {
+          Identifier: 'mapObject',
+          name: data.name,
+          description: data.description || ''
+        });
+      }
+
+      else if (data.Identifier === 'spell') {
+        // Logic for legacy spells (if still needed)
+        log(`Player ${requestingPlayer.firstName} EXAMINED spell ${data.Name}.`);
+        // Assuming 'spell' items are handled similarly or just logged for now
+        if (messageSystem) {
+          messageSystem.sendSystemMessage('Interactional', `You examined a ${data.Name}.`, socket);
         }
       }
     });
+
 
     // --- Debug: Send collision map data ---
     socket.on('requestCollisionData', () => {
@@ -897,30 +1496,17 @@ module.exports.start = (io) => {
         }
 
         if (activeVoreType) {
-          // 1. Console log for struggler (inside description)
-          if (activeVoreType.struggleInsideMsgDescrip) {
-            socket.emit('voreLog', activeVoreType.struggleInsideMsgDescrip);
+          // 1. Private message for struggler (inside description)
+          if (activeVoreType.struggleInsideMsgDescrip && messageSystem) {
+            // Send ONLY to the struggler
+            messageSystem.sendSystemMessage('Interactional', activeVoreType.struggleInsideMsgDescrip, socket);
           }
 
-          // 2. Chat message for everyone (outside description)
-          if (activeVoreType.struggleOutsideMsgDescrip) {
-            const Chat = require('./model/Chat');
-            const chatMsg = new Chat({
-              name: 'Environment',
-              message: [{
-                content: activeVoreType.struggleOutsideMsgDescrip,
-                style: 'italic'
-              }],
-              deleted: { status: false },
-              spoiler: { status: 'none', votes: {} }
-            });
-
-            try {
-              await chatMsg.save();
-              io.emit('output', [chatMsg]);
-            } catch (err) {
-              console.error("Error saving struggle chat message:", err);
-            }
+          // 2. Public message for everyone (outside description)
+          if (activeVoreType.struggleOutsideMsgDescrip && messageSystem) {
+            // Broadcast to everyone EXCEPT the struggler
+            // We pass the struggler's Character ID in the excludedPlayers array
+            messageSystem.sendSystemMessage('Interactional', activeVoreType.struggleOutsideMsgDescrip, null, [player._id.toString()]);
           }
         } else {
           // Fallback if no vore type found
@@ -998,27 +1584,10 @@ module.exports.start = (io) => {
           // The Chat schema requires 'name' and 'message'.
 
           if (accountId) {
-            const User = require('./model/User');
-            // We can try to find the user by character ID if needed, but for now let's just use the character ID 
-            // or skip the DB save if it's too complex to wire up here without the request object.
-            // Actually, we can just use the Chat model directly.
-
-            const Chat = require('./model/Chat');
-
-            const chatMsg = new Chat({
-              name: 'Environment', // Use special name for styling
-              message: [{
-                content: messageContent,
-                style: 'italic' // Optional, client handles styling via class
-              }],
-              deleted: { status: false },
-              spoiler: { status: 'none', votes: {} }
-            });
-
-            await chatMsg.save();
-
-            // Emit to all clients
-            io.emit('output', [chatMsg]);
+            // Broadcast Interactional Message
+            if (messageSystem) {
+              messageSystem.sendSystemMessage('Interactional', messageContent);
+            }
           }
 
         } catch (err) {
@@ -1216,4 +1785,26 @@ module.exports.start = (io) => {
   }, 1000 / TICK_RATE);
 
   log('Server game loop started.');
+};
+
+module.exports.findPlayerByName = (name) => {
+  // Case-insensitive search for online players
+  const player = Object.values(players).find(p => {
+    const pName = p.Username || (p.firstName + ' ' + p.lastName);
+    return pName.toLowerCase() === name.toLowerCase();
+  });
+  return player;
+};
+
+module.exports.getSocketIdByCharId = (charId) => {
+  // Search for player where _id matches the provided charId
+  const player = Object.values(players).find(p => p._id && p._id.toString() === charId.toString());
+  // Return playerId which holds the socket ID
+  return player ? player.playerId : null;
+};
+
+module.exports.getCharIdBySocketId = (socketId) => {
+  const player = players[socketId];
+  // Return _id which holds the Character ID
+  return player ? player._id : null;
 };

@@ -6,8 +6,21 @@ const chatSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    min:1,
+    min: 1,
     max: 255
+  },
+  type: {
+    type: String,
+    enum: ['Default', 'Say', 'Unique', 'Environmental', 'Interactional', 'OOC'],
+    default: 'Default'
+  },
+  visibleTo: {
+    type: [String], // Array of Character IDs. If empty, visible to all.
+    default: []
+  },
+  excludedPlayers: {
+    type: [String], // Array of Character IDs to exclude.
+    default: []
   },
   message: {
     type: [{

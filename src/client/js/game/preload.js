@@ -486,6 +486,12 @@ export function preload() {
     this.load.spritesheet('hair-front_03', './../assets/spritesheets/hair-front_03.png', { frameWidth: 215, frameHeight: 198 });
     this.spritesToAnimate.push('hair-front_03');
 
+    // Clothing Sprites
+    this.load.spritesheet('shirt_01', './../assets/spritesheets/shirt_01.png', { frameWidth: 215, frameHeight: 198 });
+    this.spritesToAnimate.push('shirt_01');
+    this.load.spritesheet('pants_01', './../assets/spritesheets/pants_01.png', { frameWidth: 215, frameHeight: 198 });
+    this.spritesToAnimate.push('pants_01');
+
 
     //This loads the map json file that says what coordinates have what pictures
     // this.load.tilemapTiledJSON('level_2', './../assets/tilemaps/level2.json');
@@ -514,6 +520,11 @@ export function preload() {
     this.load.image('pub_stool_tall', './../assets/tilemaps/pub_stool_tall.png');
 
     this.load.image('spa_massage_bed', './../assets/tilemaps/spa_massage_bed.png');
+
+    this.load.image('pants', './../assets/tilemaps/pants.png');
+    this.load.image('shirt', './../assets/tilemaps/shirt.png');
+    this.load.image('key', './../assets/tilemaps/key.png');
+
 
 
     //----- Doors -----//

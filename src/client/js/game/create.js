@@ -1,11 +1,16 @@
 import { windowSize, drawDebug } from './utils.js';
 import { createAnimations, updatePlayerAnimations } from './animations.js';
-import { displayPlayers, displayOtherPlayers, getPlayerSprite, updateStruggleBar } from './player.js';
+import { displayPlayers, displayOtherPlayers, getPlayerSprite, updateStruggleBar, updatePlayerEquipmentVisuals } from './player.js';
 import { reconcile } from './reconcile.js';
 import { createMap } from './map.js';
 import { initializeTabs } from './tabs.js';
 import { createVoreList, createStruggleButton } from './ui.js';
 import { initDebugGraph } from './debugGraph.js';
+import { actionHands } from './hands.js';
+
+import { itemManager } from './items.js';
+import { equipmentManager } from './equipment.js';
+import { inventoryUI } from './inventory.js';
 
 let debugGraphics;
 let playerDebugGraphics;
@@ -14,6 +19,8 @@ let showDebug = false;
 export function create() {
     const self = this;
     initDebugGraph(); // Initialize HTML debug graph
+
+
     const localPlayerInfo = window.localPlayerInfo;
     this.input.topOnly = false;
     self.showDebug = false;
@@ -50,6 +57,26 @@ export function create() {
         token: document.cookie.replace('TastyTails=', ''),
         charId: document.location.href.split('play/')[1]
     });
+
+    // Initialize Action Hands
+    if (actionHands) {
+        actionHands.init(this.socket);
+    }
+
+    // Initialize Item Manager
+    if (itemManager) {
+        itemManager.init(this, this.socket);
+    }
+
+    // Initialize Equipment Manager
+    if (equipmentManager) {
+        equipmentManager.init(this.socket);
+    }
+
+    // Initialize Inventory UI
+    if (inventoryUI) {
+        inventoryUI.init(this.socket);
+    }
 
     // These are assumed to be global functions defined in play.ejs or other included scripts
     if (typeof initializeChat === 'function') initializeChat(this.socket);
@@ -94,12 +121,24 @@ export function create() {
     // Create Map
     createMap(this);
 
+    // Add collision with map objects
+    if (this.objectGroup) {
+        this.physics.add.collider(this.players, this.objectGroup);
+    } else {
+        console.warn('objectGroup not created in createMap');
+    }
+
     // Socket Listeners
     this.socket.on('currentPlayers', function (players) {
         console.log('players = ', players);
         Object.keys(players).forEach(function (id) {
             if (players[id].playerId === self.socket.id) {
                 displayPlayers(self, players[id]);
+                // Sync Equipment on Load
+                if (equipmentManager) {
+                    console.log('[Client] Syncing initial equipment:', players[id].equipment);
+                    equipmentManager.update(players[id]);
+                }
             } else {
                 displayOtherPlayers(self, players[id]);
             }
@@ -127,6 +166,11 @@ export function create() {
                 if (self.playerContainer) {
                     // console.log('[Client] Calling reconcile for local player');
                     reconcile(players[id], self);
+                    if (actionHands) actionHands.update(players[id]);
+                    if (equipmentManager) equipmentManager.update(players[id]);
+                    if (inventoryUI) inventoryUI.update(players[id]);
+                    updatePlayerEquipmentVisuals(self.playerContainer, players[id].equipment);
+
 
                     // --- Vore List Update ---
                     // Check if voreTypes have changed (e.g. contents added)
@@ -183,6 +227,7 @@ export function create() {
                         otherPlayer.setPosition(players[id].position.x, players[id].position.y);
                         updatePlayerAnimations(otherPlayer, players[id]);
                         updateStruggleBar(otherPlayer, players[id], self);
+                        updatePlayerEquipmentVisuals(otherPlayer, players[id].equipment);
                         otherPlayer.depth = otherPlayer.y;
 
                         // Hide other players if they are consumed
@@ -260,9 +305,12 @@ export function create() {
         if (lookDisplay) {
             const note = lookDisplay.querySelector('.paper-note');
             if (note) {
+                const displayName = info.name || (info.firstName ? `${info.firstName} ${info.lastName}` : 'Unknown');
+                const displayDesc = info.description || info.icDescrip || 'No description available.';
+
                 note.innerHTML = `
-                    <h3>Inspection: ${info.firstName} ${info.lastName}</h3>
-                    <p>${info.icDescrip}</p>
+                    <h3>Inspection: ${displayName}</h3>
+                    <p>${displayDesc}</p>
                 `;
             }
             // Switch to Look tab
@@ -332,4 +380,9 @@ export function create() {
         // Fallback or log
         console.warn('spritesToAnimate not found on scene');
     }
+
+    // Force initial resize to fit container
+    setTimeout(() => {
+        windowResize();
+    }, 100);
 }

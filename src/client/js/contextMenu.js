@@ -76,11 +76,11 @@ function initializeContextMenu(scene, socket) {
 
     function clickHandler(pointer, currentlyOver) {
         var clickedList = [];
-        console.log('clickHandler called');
-        // console.log('currentlyOver: ', currentlyOver);
+        console.log('clickHandler called. currentlyOver length:', currentlyOver.length);
 
-        // --- Loop through the currentlyOver array and check if the clicked object is a player ---
+        // --- Loop through the currentlyOver array and check if the clicked object is a player or map object ---
         currentlyOver.forEach(function (gameObject) {
+            console.log('Checking object:', gameObject.name, gameObject.type);
             if (gameObject.playerInfo) {
                 var playerClicked = {
                     Identifier: gameObject.playerInfo.Identifier,
@@ -88,6 +88,16 @@ function initializeContextMenu(scene, socket) {
                     name: gameObject.playerInfo.Username || (gameObject.playerInfo.firstName + ' ' + gameObject.playerInfo.lastName) || 'Unknown'
                 }
                 clickedList.push(playerClicked);
+            } else if (gameObject.objectInfo) {
+                console.log('Found Map Object:', gameObject.objectInfo);
+                // Handle Map Objects (Signs, Furniture, etc.)
+                var objectClicked = {
+                    Identifier: gameObject.objectInfo.Identifier, // 'mapObject'
+                    uniqueId: gameObject.objectInfo.uniqueId,
+                    name: gameObject.objectInfo.name,
+                    description: gameObject.objectInfo.description
+                }
+                clickedList.push(objectClicked);
             }
         });
 
@@ -114,6 +124,7 @@ function initializeContextMenu(scene, socket) {
                 });
             }
         } else {
+            console.log('No targets clicked (list empty).');
             // No targets clicked, hide context menu if it's open
             hideContextMenu();
         }
@@ -283,7 +294,10 @@ function initializeContextMenu(scene, socket) {
             responseInfo.forEach((playerInfo, index) => {
                 const currentItem = {
                     Identifier: playerInfo.Identifier,
-                    playerId: playerInfo.playerId
+                    playerId: playerInfo.playerId,
+                    uniqueId: playerInfo.uniqueId,
+                    name: playerInfo.name,
+                    description: playerInfo.description
                 };
 
                 // 1. Create Action List for this target
