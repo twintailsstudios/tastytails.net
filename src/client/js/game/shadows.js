@@ -66,16 +66,35 @@ export class ShadowSystem {
         const targetX = player.x;
         const targetY = player.y;
 
-        // --- SMOOTHING ---
-        // Lerp the shadow source position to prevent jitter
+        // Initialize if missing
         if (!this.lastShadowPos) {
             this.lastShadowPos = { x: targetX, y: targetY };
         }
 
-        // Lerp factor: 0.5 = fast smoothing, 0.1 = very smooth/laggy
-        const lerp = 0.5;
-        this.lastShadowPos.x += (targetX - this.lastShadowPos.x) * lerp;
-        this.lastShadowPos.y += (targetY - this.lastShadowPos.y) * lerp;
+        // Calculate distance to target
+        const dist = Phaser.Math.Distance.Between(this.lastShadowPos.x, this.lastShadowPos.y, targetX, targetY);
+
+        // --- ENHANCED SMOOTHING ---
+
+        // 1. Teleport Snap (Large jumps)
+        if (dist > 100) {
+            this.lastShadowPos.x = targetX;
+            this.lastShadowPos.y = targetY;
+        }
+        // 2. Resting Deadzone (Player stopped)
+        // Check body speed to see if we are effectively standing still.
+        // This prevents the shadow from "shimmering" due to sub-pixel body adjustments.
+        else if (player.body && player.body.speed < 5) {
+            this.lastShadowPos.x = targetX;
+            this.lastShadowPos.y = targetY;
+        }
+        // 3. Normal Movement (Lerp)
+        else {
+            // Lerp factor: 0.3 (User Preference)
+            const lerp = 0.3;
+            this.lastShadowPos.x += (targetX - this.lastShadowPos.x) * lerp;
+            this.lastShadowPos.y += (targetY - this.lastShadowPos.y) * lerp;
+        }
 
         const pos = [this.lastShadowPos.x, this.lastShadowPos.y];
 

@@ -120,7 +120,7 @@ export function create() {
     }
 
     // Create Map
-    createMap(this);
+    this.map = createMap(this);
 
     // --- Initialize Shadow System ---
     this.shadowSystem = new ShadowSystem(this);

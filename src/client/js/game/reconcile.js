@@ -13,6 +13,8 @@ export function reconcile(serverPlayerState, self) {
     const clientPos = { x: self.playerContainer.x, y: self.playerContainer.y };
     const distance = Phaser.Math.Distance.Between(clientPos.x, clientPos.y, serverPos.x, serverPos.y);
 
+
+
     // --- DIAGNOSTIC LOGGING ---
     // We'll log the positions from both the server and the client to compare them.
     // console.log(`[RECONCILE] Server wants us at: (${serverPos.x.toFixed(2)}, ${serverPos.y.toFixed(2)})`);
@@ -35,12 +37,27 @@ export function reconcile(serverPlayerState, self) {
     const speed = 100; // Must match server speed
 
     // Re-apply all pending (unacknowledged) inputs
+    // Re-apply all pending (unacknowledged) inputs
     localPlayer.pendingInputs.forEach(inputData => {
         const { input, delta } = inputData;
-        if (input.left) predictedX -= speed * delta;
-        if (input.right) predictedX += speed * delta;
-        if (input.up) predictedY -= speed * delta;
-        if (input.down) predictedY += speed * delta;
+
+        let proposedX = predictedX;
+        if (input.left) proposedX -= speed * delta;
+        if (input.right) proposedX += speed * delta;
+
+        // Check X Collision
+        if (!checkPredictionCollision(self, proposedX, predictedY)) {
+            predictedX = proposedX;
+        }
+
+        let proposedY = predictedY;
+        if (input.up) proposedY -= speed * delta;
+        if (input.down) proposedY += speed * delta;
+
+        // Check Y Collision
+        if (!checkPredictionCollision(self, predictedX, proposedY)) {
+            predictedY = proposedY;
+        }
     });
 
     // 3. Compare Predicted vs Current
@@ -60,12 +77,12 @@ export function reconcile(serverPlayerState, self) {
     }
 
     // Threshold can be small (e.g. 2px) to allow for minor floating point differences
-    if (dist > 2.0) {
+    if (dist > 5.0) {
         // console.log(`[RECONCILE] Divergence detected (${dist.toFixed(2)}px). Interpolating to predicted.`);
 
         // Interpolate to the PREDICTED position
         // Increased lerpFactor from 0.1 to 0.5 for snappier response (less sliding/acceleration feel)
-        const lerpFactor = 0.5;
+        const lerpFactor = 0.3;
         const newX = self.playerContainer.x + (predictedX - self.playerContainer.x) * lerpFactor;
         const newY = self.playerContainer.y + (predictedY - self.playerContainer.y) * lerpFactor;
 
@@ -128,4 +145,81 @@ export function reconcile(serverPlayerState, self) {
 
     updatePlayerAnimations(localPlayer, localAnimState);
     updateStruggleBar(localPlayer, serverPlayerState, self);
+}
+
+/**
+ * Checks for collisions at a predicted position (x, y).
+ * Mirrors server-side logic from server-loop.js checkCollision().
+ */
+function checkPredictionCollision(scene, x, y) {
+    // Player Dimensions (Hardcoded to match server/player.js)
+    const width = 60;
+    const height = 30;
+
+    // --- COORDINATE ALIGNMENT ---
+    // Server logic (server-loop.js:438): left = x + 30 - width/2
+    // The server offsets the collision box by +30px relative to the player's center 'x'.
+    const serverOffsetX = 30;
+
+    // --- SAFETY MARGIN ("Fat Prediction") ---
+    // Expand the collision box by 2px to ensure we stop before the server does.
+    const margin = 2;
+
+    // Calculate Proposed Bounding Box
+    const left = (x + serverOffsetX) - (width / 2) - margin;
+    const right = (x + serverOffsetX) + (width / 2) + margin;
+    const top = y - (height / 2) - margin;
+    const bottom = y + (height / 2) + margin;
+
+    // 1. Check Tile Collision
+    if (scene.mapLayers) {
+        // Optimization: Unroll checks to avoid array allocation
+        const tileXStart = scene.map.worldToTileX(left);
+        const tileXEnd = scene.map.worldToTileX(right);
+        const tileYStart = scene.map.worldToTileY(top);
+        const tileYEnd = scene.map.worldToTileY(bottom);
+
+        for (const layer of scene.mapLayers) {
+            if (!layer) continue;
+
+            for (let ty = tileYStart; ty <= tileYEnd; ty++) {
+                for (let tx = tileXStart; tx <= tileXEnd; tx++) {
+                    const tile = layer.getTileAt(tx, ty);
+                    if (tile && tile.properties && tile.properties.Blocked === 'True') {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Check Object Collision
+    if (scene.objectGroup) {
+        const objects = scene.objectGroup.getChildren();
+
+        // Optimize: Use Spatial Hash if available, or simple AABB scan for now (client object count is usually low < 100 visible)
+        // For accurate parity, we check basic AABB.
+
+        for (const obj of objects) {
+            // Check if object is active and static (has body)
+            if (!obj.active || !obj.body) continue;
+
+            const objBody = obj.body;
+
+            // Interaction Check (Items): 
+            // In server-loop, items are skipped unless 'isSolid'. 
+            // In map.js, items might not have bodies or set to sensor?
+            // Assuming objectGroup contains solid obstacles.
+
+            // AABB Overlap
+            if (left < objBody.right &&
+                right > objBody.x &&
+                top < objBody.bottom &&
+                bottom > objBody.y) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
