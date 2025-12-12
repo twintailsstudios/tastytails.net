@@ -63,9 +63,21 @@ export class ShadowSystem {
         }
 
         // Use local player position for instant, predicted shadows
-        const playerX = player.x;
-        const playerY = player.y;
-        const pos = [playerX, playerY];
+        const targetX = player.x;
+        const targetY = player.y;
+
+        // --- SMOOTHING ---
+        // Lerp the shadow source position to prevent jitter
+        if (!this.lastShadowPos) {
+            this.lastShadowPos = { x: targetX, y: targetY };
+        }
+
+        // Lerp factor: 0.5 = fast smoothing, 0.1 = very smooth/laggy
+        const lerp = 0.5;
+        this.lastShadowPos.x += (targetX - this.lastShadowPos.x) * lerp;
+        this.lastShadowPos.y += (targetY - this.lastShadowPos.y) * lerp;
+
+        const pos = [this.lastShadowPos.x, this.lastShadowPos.y];
 
         // Compute visibility locally
         const points = compute(pos, this.segments);
