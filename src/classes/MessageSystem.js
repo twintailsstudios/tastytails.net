@@ -16,7 +16,7 @@ class MessageSystem {
             // 1. Validate Token
             const verified = jwt.verify(data.token, process.env.TOKEN_SECRET);
             if (!verified) {
-                log('Invalid token in handleIncomingMessage');
+                log.warn('Invalid token in handleIncomingMessage');
                 return;
             }
 
@@ -67,7 +67,7 @@ class MessageSystem {
             this.broadcastMessage(chatMessage, visibleTo);
 
         } catch (e) {
-            log('Error in handleIncomingMessage:', e);
+            log.error('Error in handleIncomingMessage:', e);
         }
     }
 
@@ -107,61 +107,65 @@ class MessageSystem {
      * @param {Array} excludedPlayers - Array of Character IDs to exclude.
      */
     broadcastMessage(messageObject, visibleTo = [], excludedPlayers = []) {
-        // Ensure excludedPlayers are strings for comparison
-        excludedPlayers = excludedPlayers.map(id => id.toString());
+        try {
+            // Ensure excludedPlayers are strings for comparison
+            excludedPlayers = excludedPlayers.map(id => id.toString());
 
-        // log(`Broadcasting message: ${messageObject._id} Type: ${messageObject.type} VisibleTo: ${JSON.stringify(visibleTo)} Excluded: ${JSON.stringify(excludedPlayers)}`);
+            // log.debug(`Broadcasting message: ${messageObject._id} Type: ${messageObject.type} VisibleTo: ${JSON.stringify(visibleTo)} Excluded: ${JSON.stringify(excludedPlayers)}`);
 
-        const clientMsg = {
-            _id: messageObject._id,
-            name: messageObject.name,
-            type: messageObject.type,
-            message: messageObject.message,
-            spoiler: messageObject.spoiler,
-            deleted: messageObject.deleted,
-            identifier: messageObject.identifier.character,
-            visibleTo: messageObject.visibleTo,
-            excludedPlayers: messageObject.excludedPlayers
-        };
+            const clientMsg = {
+                _id: messageObject._id,
+                name: messageObject.name,
+                type: messageObject.type,
+                message: messageObject.message,
+                spoiler: messageObject.spoiler,
+                deleted: messageObject.deleted,
+                identifier: messageObject.identifier.character,
+                visibleTo: messageObject.visibleTo,
+                excludedPlayers: messageObject.excludedPlayers
+            };
 
-        const connectedSockets = this.io.sockets.sockets;
+            const connectedSockets = this.io.sockets.sockets;
 
-        // If visibleTo is set, we only send to those (minus excluded)
-        if (visibleTo && visibleTo.length > 0) {
-            visibleTo.forEach(charId => {
-                if (excludedPlayers && excludedPlayers.includes(charId)) return; // Skip excluded
+            // If visibleTo is set, we only send to those (minus excluded)
+            if (visibleTo && visibleTo.length > 0) {
+                visibleTo.forEach(charId => {
+                    if (excludedPlayers && excludedPlayers.includes(charId)) return; // Skip excluded
 
-                const sId = serverGame.getSocketIdByCharId(charId);
-                // log(`Checking charId: ${charId} -> SocketId: ${sId}`);
+                    const sId = serverGame.getSocketIdByCharId(charId);
+                    // log.debug(`Checking charId: ${charId} -> SocketId: ${sId}`);
 
-                if (sId) {
-                    // Check if socket is actually connected in io
-                    const socket = connectedSockets.get(sId);
-                    if (socket) {
-                        socket.emit('output', [clientMsg]);
-                        // log(`Sent to socket: ${sId}`);
+                    if (sId) {
+                        // Check if socket is actually connected in io
+                        const socket = connectedSockets.get(sId);
+                        if (socket) {
+                            socket.emit('output', [clientMsg]);
+                            // log.debug(`Sent to socket: ${sId}`);
+                        } else {
+                            log.warn(`Socket ${sId} found in game state but not in io.sockets`);
+                        }
                     } else {
-                        log(`Socket ${sId} found in game state but not in io.sockets`);
+                        log.warn(`No socket found for charId: ${charId}`);
+                    }
+                });
+            } else {
+                // Public message, but might have exclusions
+                if (excludedPlayers && excludedPlayers.length > 0) {
+                    // We must iterate all sockets to check if they are excluded
+                    for (const [socketId, socket] of connectedSockets) {
+                        const charId = serverGame.getCharIdBySocketId(socketId);
+                        if (charId && excludedPlayers.includes(charId.toString())) {
+                            continue; // Skip excluded
+                        }
+                        socket.emit('output', [clientMsg]);
                     }
                 } else {
-                    log(`No socket found for charId: ${charId}`);
+                    // Truly public, no exclusions
+                    this.io.emit('output', [clientMsg]);
                 }
-            });
-        } else {
-            // Public message, but might have exclusions
-            if (excludedPlayers && excludedPlayers.length > 0) {
-                // We must iterate all sockets to check if they are excluded
-                for (const [socketId, socket] of connectedSockets) {
-                    const charId = serverGame.getCharIdBySocketId(socketId);
-                    if (charId && excludedPlayers.includes(charId.toString())) {
-                        continue; // Skip excluded
-                    }
-                    socket.emit('output', [clientMsg]);
-                }
-            } else {
-                // Truly public, no exclusions
-                this.io.emit('output', [clientMsg]);
             }
+        } catch (e) {
+            log.error('Error in broadcastMessage:', e);
         }
     }
 
@@ -180,7 +184,7 @@ class MessageSystem {
                 if (charId) {
                     visibleTo.push(charId.toString());
                 } else {
-                    log(`sendSystemMessage: Could not find charId for socket ${targetSocket.id}`);
+                    log.warn(`sendSystemMessage: Could not find charId for socket ${targetSocket.id}`);
                 }
             }
 
@@ -201,7 +205,7 @@ class MessageSystem {
             this.broadcastMessage(chatMessage, visibleTo, excludedPlayers);
 
         } catch (e) {
-            log('Error in sendSystemMessage:', e);
+            log.error('Error in sendSystemMessage:', e);
         }
     }
 

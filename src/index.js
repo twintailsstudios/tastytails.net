@@ -21,24 +21,65 @@ const serverGame = require('./server-loop');
 
 dotenv.config();
 
+// --- Graceful Shutdown Logic ---
+const gracefulShutdown = (reason, err) => {
+  log.error(`CRITICAL ERROR (${reason}): Initiating graceful shutdown...`, err);
+
+  // Notify connected clients (if possible)
+  if (io) {
+    log.important('Notifying players of critical server error...');
+    io.emit('serverCriticalError', {
+      message: 'The server has encountered a critical error and is restarting. Please reconnect in a moment.',
+      reason: reason
+    });
+  }
+
+  // Give the server a moment to send the email/logs/socket-events before dying
+  setTimeout(() => {
+    log.important('Exiting process now.');
+    process.exit(1);
+  }, 1000);
+};
+
+// --- Global Error Handlers ---
+process.on('uncaughtException', (err) => {
+  gracefulShutdown('Uncaught Exception', err);
+});
+
+process.on('unhandledRejection', (err) => {
+  gracefulShutdown('Unhandled Rejection', err);
+});
+
 // --- DEBUGGING BLOCK ---
-console.log("------------------------------------------------");
-console.log("🔍 DEBUGGING ENVIRONMENT VARIABLES:");
-console.log("1. Current Directory:", __dirname);
-console.log("2. DB_CONNECT is type:", typeof process.env.DB_CONNECT);
-if (process.env.DB_CONNECT) {
-  console.log("3. DB_CONNECT length:", process.env.DB_CONNECT.length);
-  console.log("4. DB_CONNECT starts with:", process.env.DB_CONNECT.substring(0, 15) + "...");
-} else {
-  console.log("3. DB_CONNECT is STRICTLY UNDEFINED");
-}
-console.log("------------------------------------------------");
+// console.log("------------------------------------------------");
+// console.log("🔍 DEBUGGING ENVIRONMENT VARIABLES:");
+// console.log("1. Current Directory:", __dirname);
+// console.log("2. DB_CONNECT is type:", typeof process.env.DB_CONNECT);
+// if (process.env.DB_CONNECT) {
+//   console.log("3. DB_CONNECT length:", process.env.DB_CONNECT.length);
+//   console.log("4. DB_CONNECT starts with:", process.env.DB_CONNECT.substring(0, 15) + "...");
+// } else {
+//   console.log("3. DB_CONNECT is STRICTLY UNDEFINED");
+// }
+// console.log("------------------------------------------------");
 // ---------------------------------
 
 // --- Database Connection ---
-mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => log('Successfully connected to MongoDB!'))
-  .catch(err => console.error('Database connection error:', err));
+mongoose.connect(process.env.DB_CONNECT)
+  .then(() => log.success('Successfully connected to MongoDB!'))
+  .catch(err => gracefulShutdown('Database Connection Failed', err));
+
+mongoose.connection.on('error', (err) => {
+  log.error('Runtime MongoDB Error:', err);
+  // Optional: Decide if every db error is fatal. For now, we assume yes if it's a connection error.
+  // gracefulShutdown('Database Error', err); 
+});
+
+mongoose.connection.on('disconnected', () => {
+  log.warn('MongoDB Disconnected!');
+  // If we lose DB, the game state is likely invalid. Restarting is safer.
+  gracefulShutdown('Database Disconnected', new Error('Connection to MongoDB lost'));
+});
 
 // --- View Engine Setup ---
 app.set('view engine', 'ejs');
@@ -46,6 +87,15 @@ app.set('views', __dirname + '/views');
 app.set('layout', 'layouts/layout');
 
 // --- Middleware ---
+// Security Middleware
+const helmet = require('helmet');
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled for now to prevent breaking inline scripts/assets
+}));
+// Compression Middleware
+const compression = require('compression');
+app.use(compression());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -60,11 +110,23 @@ const indexRoute = require('./routes/index');
 const editRoute = require('./routes/edit');
 const playRoute = require('./routes/play');
 
+// --- Global Middleware Error Handler ---
+app.use((err, req, res, next) => {
+  log.error(`Unhandled Express Error on path: ${req.path}`, err);
+  res.status(500).send('Something broke!');
+});
+
 app.use('/api/user', authRoute);
 app.use('/api/dbInterface', dbInterfaceRoute);
 app.use('/', indexRoute);
 app.use('/edit', editRoute);
 app.use('/play', playRoute);
+
+// --- Global Middleware Error Handler ---
+app.use((err, req, res, next) => {
+  log.error(`Unhandled Express Error on path: ${req.path}`, err);
+  res.status(500).send('Something broke!');
+});
 
 
 // --- Game and Socket.io Logic ---
@@ -77,7 +139,7 @@ serverGame.start(io, messageSystem);
 
 // Set up a separate listener for chat-related events.
 io.on('connection', (socket) => {
-  log(`A user connected for chat: ${socket.id}`);
+  log.info(`A user connected for chat: ${socket.id}`);
 
   // Handle chat events
   socket.on('getAllChats', (data) => getAllChats(data, socket));
@@ -97,7 +159,7 @@ io.on('connection', (socket) => {
   // The 'disconnect' event is handled by the server-loop for players,
   // but a generic log here is fine too.
   socket.on('disconnect', () => {
-    log(`Socket ${socket.id} disconnected.`);
+    log.info(`Socket ${socket.id} disconnected.`);
   });
 });
 
@@ -105,7 +167,8 @@ io.on('connection', (socket) => {
 // --- Server Startup ---
 const port = process.env.PORT || 3000;
 http.listen(port, () => {
-  log(`Server is live and listening on port ${port}!`);
+  log.highlight('SERVER PORT', port);
+  log.success(`Server is live and listening on port ${port}!`);
 });
 
 
@@ -143,7 +206,7 @@ async function getAllChats(data, socket) {
     }));
     socket.emit('output', allMsgs.reverse());
   } catch (e) {
-    log('Error fetching all chats:', e);
+    log.error('Error fetching all chats:', e);
   }
 }
 
@@ -178,7 +241,7 @@ async function getOlderChats(data, socket) {
     }));
     socket.emit('olderChatsOutput', olderMsgs.reverse());
   } catch (e) {
-    log('Error fetching older chats:', e);
+    log.error('Error fetching older chats:', e);
   }
 }
 
@@ -195,10 +258,10 @@ async function editMessage(data, socket) {
       await result.save();
       io.emit('editOutput', result);
     } else {
-      log('Attempt to edit unauthorized message denied.');
+      log.warn('Attempt to edit unauthorized message denied.');
     }
   } catch (e) {
-    log('Error editing message:', e);
+    log.error('Error editing message:', e);
   }
 }
 
@@ -215,10 +278,10 @@ async function deleteMessage(data, socket) {
       await result.save();
       io.emit('editOutput', result);
     } else {
-      log('Attempt to delete unauthorized message denied.');
+      log.warn('Attempt to delete unauthorized message denied.');
     }
   } catch (e) {
-    log('Error deleting message:', e);
+    log.error('Error deleting message:', e);
   }
 }
 
@@ -232,10 +295,10 @@ async function changeSpoilerLabel(data, socket) {
       await result.save();
       io.emit('editSpoilerOutput', result);
     } else {
-      log('Spoiler vote/change from unauthorized user.');
+      log.warn('Spoiler vote/change from unauthorized user.');
     }
   } catch (e) {
-    log('Error changing spoiler label:', e);
+    log.error('Error changing spoiler label:', e);
   }
 }
 

@@ -2,11 +2,11 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const log = require('../logger');
 
-module.exports = function(req, res, next) {
-  log('running verifyToken');
+module.exports = function (req, res, next) {
+  log.debug('running verifyToken');
   const token = req.cookies.TastyTails;
   //log(token);
-  if(!token) return res.status(401).render('error', {
+  if (!token) return res.status(401).render('error', {
     token: null,
     loginForm: 0,
     error: 'Access Denied',
@@ -17,7 +17,7 @@ module.exports = function(req, res, next) {
   try {
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
     req.user = verified;
-    log('user Verified');
+    log.debug('user Verified');
     next();
   } catch (err) {
     res.status(400).render('error', {

@@ -32,7 +32,7 @@ export function reconcile(serverPlayerState, self) {
     // Start with the authoritative position from the server
     let predictedX = serverPos.x;
     let predictedY = serverPos.y;
-    const speed = 200; // Must match server speed
+    const speed = 100; // Must match server speed
 
     // Re-apply all pending (unacknowledged) inputs
     localPlayer.pendingInputs.forEach(inputData => {
@@ -59,14 +59,13 @@ export function reconcile(serverPlayerState, self) {
         }
     }
 
-    // Threshold can be small (e.g. 10px) to allow for minor floating point differences
-    // Threshold can be small (e.g. 10px) to allow for minor floating point differences
-    if (dist > 10.0) {
+    // Threshold can be small (e.g. 2px) to allow for minor floating point differences
+    if (dist > 2.0) {
         // console.log(`[RECONCILE] Divergence detected (${dist.toFixed(2)}px). Interpolating to predicted.`);
 
         // Interpolate to the PREDICTED position
-        // This keeps us in the "future" relative to the server, maintaining responsiveness.
-        const lerpFactor = 0.1;
+        // Increased lerpFactor from 0.1 to 0.5 for snappier response (less sliding/acceleration feel)
+        const lerpFactor = 0.5;
         const newX = self.playerContainer.x + (predictedX - self.playerContainer.x) * lerpFactor;
         const newY = self.playerContainer.y + (predictedY - self.playerContainer.y) * lerpFactor;
 
@@ -112,6 +111,13 @@ export function reconcile(serverPlayerState, self) {
         else if (right) rotation = 2;
         else if (up) rotation = 3;
         else if (down) rotation = 4;
+    }
+
+    // If held, we MUST use the server's state for animation (walking behind holder)
+    // because local input is likely zero or irrelevant.
+    if (serverPlayerState.isHeld) {
+        isMoving = serverPlayerState.isMoving;
+        rotation = serverPlayerState.rotation;
     }
 
     const localAnimState = {

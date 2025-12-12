@@ -9,16 +9,16 @@ const log = require('../logger');
 router.get('/:charId', async (req, res) => {
   const token = req.cookies.TastyTails;
   // console.log('req = ', req.params);
-  if(!token) return res.render('create', {
-      token: null,
-      loginForm: 0
-    });
-    // res.send('this is the edit page');
+  if (!token) return res.render('create', {
+    token: null,
+    loginForm: 0
+  });
+  // res.send('this is the edit page');
   try {
-    console.log('charid (from client) = ', req.params.charId);
+    log.debug('charid (from client) = ', req.params.charId);
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
     const characters = await dbInterface.charSelect(token, req.params.charId);
-    // console.log('characters in the index.js = ', characters);
+    // log.debug('characters in the index.js = ', characters);
     req.user = verified;
     res.render('create', {
       token: token,
@@ -28,6 +28,7 @@ router.get('/:charId', async (req, res) => {
     });
 
   } catch (err) {
+    log.error('Error in edit.js route:', err);
     res.status(400).render('error', {
       token: null,
       loginForm: 0,

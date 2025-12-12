@@ -371,6 +371,9 @@ const userSchema = new mongoose.Schema({
   }
 });
 
+// Create an index on the characters._id field for faster lookups
+userSchema.index({ 'characters._id': 1 });
+
 
 
 

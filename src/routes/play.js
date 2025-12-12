@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const verify = require('./verifyToken');
 const dbInterface = require('./dbInterface');
+const log = require('../logger');
 
 router.get('/:charId', async (req, res) => {
   const token = req.cookies.TastyTails;
@@ -13,10 +14,10 @@ router.get('/:charId', async (req, res) => {
   });
   //res.send('this is the edit page');
   try {
-    console.log('getting the play.js function.');
-    console.log('charid (from client) = ', req.params.charId);
+    log.debug('getting the play.js function.');
+    log.debug('charid (from client) = ', req.params.charId);
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-    console.log('verified successfully.');
+    log.debug('verified successfully.');
     const characters = await dbInterface.charSelect(token, req.params.charId);
     // console.log('characters in the index.js = ', characters);
     req.user = verified;
@@ -29,7 +30,7 @@ router.get('/:charId', async (req, res) => {
     });
 
   } catch (err) {
-    console.log(err);
+    log.error('Error in play.js route:', err);
     res.status(400).render('error', {
       token: null,
       loginForm: 0,

@@ -13,19 +13,28 @@ const Chats = require('./model/Chat');
 const clothingData = require('./data/clothingData');
 const itemData = require('./data/itemData');
 
+const VisibilityPolygon = require('visibility-polygon'); // New: For shadowcasting
+
 // --- Game State Variables ---
 const players = {};
 const spells = [];
 let collisionMap = [];
 let hillHomeMap = [];
+let lightMap = []; // New: Map for shadowcasting (lightBlock property)
+let staticSegments = []; // New: Store map wall segments for raycasting
 let staticObjects = []; // New: Store static objects for collision
 let worldItems = [];    // New: Store interactive items
-let mapWidth = 0;
-let messageSystem = null;
+// --- Spatial Partitioning (Collision Optimization) ---
+// To avoid O(N) collision checks against every static object in the world,
+// we divide the map into large grid cells (buckets).
+// Objects are "hashed" into these cells at startup.
+// Collision checks only need to query the specific cells a player is standing in.
+const GRID_CELL_SIZE = 128; // Size of each grid cell (4 x 32px tiles)
+let objectGrid = {};        // Hash Map: "x,y" -> [Array of objects]
 
 // --- Constants ---
 const TICK_RATE = 30; // 30 updates per second
-const PLAYER_SPEED = 200;
+const PLAYER_SPEED = 100;
 const TILE_SIZE = 32; // The size of your tiles in pixels
 const PLAYER_WIDTH = 60;
 const PLAYER_HEIGHT = 30;
@@ -33,14 +42,14 @@ const PLAYER_HEIGHT = 30;
 // --- Initial Setup ---
 
 function initializeGame() {
-  log('Initializing game state...');
+  log.info('Initializing game state...');
   initializeSpells();
   initializeMap();
 }
 
 /**
  * Loads the Tiled map data and creates a simplified 2D array for collision detection.
- * Now checks for "Blocked" property on tiles instead of a specific layer.
+ * Now checks for "Blocked" property for collision, and "lightBlock" for shadows.
  * ALSO loads static objects from the "Objects" layer for collision using "World Builder" logic.
  */
 function initializeMap() {
@@ -51,9 +60,10 @@ function initializeMap() {
     mapWidth = tilemapData.width;
     const mapHeight = tilemapData.height;
 
-    // --- 1. Tile-based Collision (Blocked & HillHome) ---
+    // --- 1. Tile-based Collision & Shadows ---
     const blockedTileIds = new Set();
     const hillHomeTileIds = new Set();
+    const lightBlockTileIds = new Set(); // New: Set for light blocking tiles
 
     if (tilemapData.tilesets) {
       tilemapData.tilesets.forEach(tileset => {
@@ -68,17 +78,25 @@ function initializeMap() {
               if (hillHomeProp && hillHomeProp.value === 'True') {
                 hillHomeTileIds.add(tile.id);
               }
+              // Check for lightBlock
+              const lightBlockProp = tile.properties.find(p => p.name === 'lightBlock');
+              // Accept boolean true or string "True"
+              if (lightBlockProp && (lightBlockProp.value === true || lightBlockProp.value === 'True')) {
+                lightBlockTileIds.add(tile.id);
+              }
             }
           });
+          log.info(`Found ${lightBlockTileIds.size} tiles with lightBlock property.`);
         }
       });
     }
 
-    // 2. Initialize Collision Map and HillHome Map with 0s
+    // 2. Initialize Maps with 0s
     collisionMap = Array(mapHeight).fill(null).map(() => Array(mapWidth).fill(0));
     hillHomeMap = Array(mapHeight).fill(null).map(() => Array(mapWidth).fill(0));
+    lightMap = Array(mapHeight).fill(null).map(() => Array(mapWidth).fill(0)); // New: Initialize lightMap
 
-    // 3. Iterate Layers and Populate Collision Map
+    // 3. Iterate Layers and Populate Maps
     const mainTileset = tilemapData.tilesets[0];
     const firstGid = mainTileset ? mainTileset.firstgid : 1;
 
@@ -97,6 +115,7 @@ function initializeMap() {
 
           const localId = gid - firstGid;
 
+          // Collision Map
           if (blockedTileIds.has(localId)) {
             const x = index % mapWidth;
             const y = Math.floor(index / mapWidth);
@@ -105,11 +124,24 @@ function initializeMap() {
             }
           }
 
+          // HillHome Map
           if (hillHomeTileIds.has(localId) || layerIsHillHome) {
             const x = index % mapWidth;
             const y = Math.floor(index / mapWidth);
             if (y < mapHeight && x < mapWidth) {
               hillHomeMap[y][x] = 1;
+            }
+          }
+
+          // Light Map (Shadows)
+          // If explicit lightBlock is set, use it.
+          // Fallback: If no lightBlock tiles found at all, maybe default to blocked? 
+          // For now, strict: only use if in lightBlockTileIds
+          if (lightBlockTileIds.has(localId)) {
+            const x = index % mapWidth;
+            const y = Math.floor(index / mapWidth);
+            if (y < mapHeight && x < mapWidth) {
+              lightMap[y][x] = 1;
             }
           }
         });
@@ -243,12 +275,134 @@ function initializeMap() {
       equipSlot: 'head', // Add equip slot for testing
       properties: { isItem: true, equipSlot: 'head' }
     });
+    log.success(`Loaded ${staticObjects.length} static objects and ${worldItems.length} world items from ${objectLayers.length} layers.`);
 
-    log(`Loaded ${staticObjects.length} static objects and ${worldItems.length} world items from ${objectLayers.length} layers.`);
+    // --- Spatial Partitioning: Populate Grid ---
+    // We iterate through every static object and place it into the grid bucket(s) it occupies.
+    // An object can span multiple buckets if it is large or on a boundary.
+    objectGrid = {}; // Reset grid
+    staticObjects.forEach(obj => {
+      // Calculate the range of cells this object overlaps
+      const startX = Math.floor(obj.minX / GRID_CELL_SIZE);
+      const endX = Math.floor(obj.maxX / GRID_CELL_SIZE);
+      const startY = Math.floor(obj.minY / GRID_CELL_SIZE);
+      const endY = Math.floor(obj.maxY / GRID_CELL_SIZE);
+
+      for (let y = startY; y <= endY; y++) {
+        for (let x = startX; x <= endX; x++) {
+          const key = `${x},${y}`;
+          if (!objectGrid[key]) objectGrid[key] = [];
+          objectGrid[key].push(obj);
+        }
+      }
+    });
+    log.success('Spatial Hash Grid populated for static objects.');
+
+    // --- 5. Generate Raycasting Segments ---
+    // Perform this ONCE at startup to prepare for shadowcasting
+    convertMapToSegments();
 
   } catch (e) {
     log.error('Failed to load or parse tilemap data:', e);
   }
+}
+
+/**
+ * Converts the Grid-based Light Map into a set of optimized Line Segments.
+ * This reduces the raycasting complexity from O(Tiles) to O(Edges).
+ */
+function convertMapToSegments() {
+  log.info('Converting Light Map to Segments...');
+  const segments = [];
+
+  const height = lightMap.length;
+  if (height === 0) return;
+  const width = lightMap[0].length;
+
+  // Helper to check if a tile is blocked (casting shadow)
+  const isBlocked = (x, y) => {
+    if (x < 0 || x >= width || y < 0 || y >= height) return false;
+    return lightMap[y][x] === 1;
+  };
+
+  // Pass 1: Horizontal Edges
+  for (let y = 0; y < height; y++) {
+    let topStart = null;
+    let bottomStart = null;
+
+    for (let x = 0; x < width; x++) {
+      const tileBlocked = isBlocked(x, y);
+      const topBlocked = isBlocked(x, y - 1);
+      const bottomBlocked = isBlocked(x, y + 1);
+
+      // Top Edge: Current is blocked, Top is empty
+      if (tileBlocked && !topBlocked) {
+        if (topStart === null) topStart = x;
+      } else {
+        if (topStart !== null) {
+          segments.push([[topStart * TILE_SIZE, y * TILE_SIZE], [x * TILE_SIZE, y * TILE_SIZE]]);
+          topStart = null;
+        }
+      }
+
+      // Bottom Edge: Current is blocked, Bottom is empty
+      if (tileBlocked && !bottomBlocked) {
+        if (bottomStart === null) bottomStart = x;
+      } else {
+        if (bottomStart !== null) {
+          segments.push([[bottomStart * TILE_SIZE, (y + 1) * TILE_SIZE], [x * TILE_SIZE, (y + 1) * TILE_SIZE]]);
+          bottomStart = null;
+        }
+      }
+    }
+    // End of Row cleanup
+    if (topStart !== null) segments.push([[topStart * TILE_SIZE, y * TILE_SIZE], [width * TILE_SIZE, y * TILE_SIZE]]);
+    if (bottomStart !== null) segments.push([[bottomStart * TILE_SIZE, (y + 1) * TILE_SIZE], [width * TILE_SIZE, (y + 1) * TILE_SIZE]]);
+  }
+
+  // Pass 2: Vertical Edges
+  for (let x = 0; x < width; x++) {
+    let leftStart = null;
+    let rightStart = null;
+
+    for (let y = 0; y < height; y++) {
+      const tileBlocked = isBlocked(x, y);
+      const leftBlocked = isBlocked(x - 1, y);
+      const rightBlocked = isBlocked(x + 1, y);
+
+      // Left Edge: Current is blocked, Left is empty
+      if (tileBlocked && !leftBlocked) {
+        if (leftStart === null) leftStart = y;
+      } else {
+        if (leftStart !== null) {
+          segments.push([[x * TILE_SIZE, leftStart * TILE_SIZE], [x * TILE_SIZE, y * TILE_SIZE]]);
+          leftStart = null;
+        }
+      }
+
+      // Right Edge: Current is blocked, Right is empty
+      if (tileBlocked && !rightBlocked) {
+        if (rightStart === null) rightStart = y;
+      } else {
+        if (rightStart !== null) {
+          segments.push([[(x + 1) * TILE_SIZE, rightStart * TILE_SIZE], [(x + 1) * TILE_SIZE, y * TILE_SIZE]]);
+          rightStart = null;
+        }
+      }
+    }
+    // End of Column cleanup
+    if (leftStart !== null) segments.push([[x * TILE_SIZE, leftStart * TILE_SIZE], [x * TILE_SIZE, height * TILE_SIZE]]);
+    if (rightStart !== null) segments.push([[(x + 1) * TILE_SIZE, rightStart * TILE_SIZE], [(x + 1) * TILE_SIZE, height * TILE_SIZE]]);
+  }
+
+  // Add World Bounds
+  segments.push([[0, 0], [width * TILE_SIZE, 0]]);
+  segments.push([[width * TILE_SIZE, 0], [width * TILE_SIZE, height * TILE_SIZE]]);
+  segments.push([[width * TILE_SIZE, height * TILE_SIZE], [0, height * TILE_SIZE]]);
+  segments.push([[0, height * TILE_SIZE], [0, 0]]);
+
+  staticSegments = segments;
+  log.success(`Generated ${segments.length} wall segments for raycasting.`);
 }
 
 function initializeSpells() {
@@ -262,7 +416,7 @@ function initializeSpells() {
   spells.push({ Identifier: "spell", Name: "Spell #1", Description: "This is the first spell", Icon: "scroll2", ...spawnLocations[1] });
   spells.push({ Identifier: "spell", Name: "Spell #2", Description: "This is the second spell", Icon: "scroll2", ...spawnLocations[2] });
 
-  log('Spells initialized.');
+  log.success('Spells initialized.');
 }
 
 function handlePlayerInput(playerId, inputData) {
@@ -308,29 +462,42 @@ function checkCollision(x, y) {
     }
   }
 
-  // 2. Check Static Object Collision
-  // Iterates through the pre-calculated staticObjects list.
-  // Performs a simple Axis-Aligned Bounding Box (AABB) overlap check.
-  if (staticObjects && staticObjects.length > 0) {
+  // 2. Check Static Object Collision (OPTIMIZED: Spatial Hash)
+  // Instead of iterating ALL objects (O(N)), we only check the ones in the local grid cells.
+  // This reduces collision detection to effectively O(1) or O(K) where K is local object count.
+  if (objectGrid) {
     const pWidth = PLAYER_WIDTH;
     const pHeight = PLAYER_HEIGHT;
 
-    // Player bounds calculation
-    // Note: 'x' and 'y' passed here are the player's position.
-    // We assume 'x' is the horizontal center and 'y' is the vertical center of the player's collider.
+    // Player bounding box
     const pLeft = x + 30 - pWidth / 2;
     const pRight = x + 30 + pWidth / 2;
     const pTop = y - pHeight / 2;
     const pBottom = y + pHeight / 2;
 
-    for (const obj of staticObjects) {
-      // AABB Collision Check
-      // Returns true if the player's box overlaps with the object's box
-      if (pLeft < obj.maxX &&
-        pRight > obj.minX &&
-        pTop < obj.maxY &&
-        pBottom > obj.minY) {
-        return true;
+    // Determine which grid cells the player overlaps
+    const startX = Math.floor(pLeft / GRID_CELL_SIZE);
+    const endX = Math.floor(pRight / GRID_CELL_SIZE);
+    const startY = Math.floor(pTop / GRID_CELL_SIZE);
+    const endY = Math.floor(pBottom / GRID_CELL_SIZE);
+
+    // Iterate only relevant cells
+    for (let gy = startY; gy <= endY; gy++) {
+      for (let gx = startX; gx <= endX; gx++) {
+        const key = `${gx},${gy}`;
+        const cellObjects = objectGrid[key];
+
+        if (cellObjects) {
+          for (const obj of cellObjects) {
+            // Standard AABB Overlap Check
+            if (pLeft < obj.maxX &&
+              pRight > obj.minX &&
+              pTop < obj.maxY &&
+              pBottom > obj.minY) {
+              return true;
+            }
+          }
+        }
       }
     }
   }
@@ -373,7 +540,7 @@ function checkHillHomeCollision(x, y) {
 // --- MODIFICATION ---
 // This function will now process the stored inputs to move the players.
 function updatePlayers(delta, io) {
-  const speed = 200;
+  const speed = 100;
   Object.keys(players).forEach(id => {
     const player = players[id];
 
@@ -434,7 +601,7 @@ function updatePlayers(delta, io) {
     if (checkHillHomeCollision(player.position.x, player.position.y)) {
       if (!player.enteredBuilding) {
         player.enteredBuilding = true;
-        log(`Player ${player.Username || player.playerId} entered hillHome!`);
+        log.info(`Player ${player.Username || player.playerId} entered hillHome!`);
         // Emit event to the specific client
         if (io.sockets.sockets.get(id)) {
           io.sockets.sockets.get(id).emit('enterHillHome');
@@ -442,7 +609,7 @@ function updatePlayers(delta, io) {
       }
     } else {
       if (player.enteredBuilding) {
-        log(`Player ${player.Username || player.playerId} exited hillHome!`);
+        log.info(`Player ${player.Username || player.playerId} exited hillHome!`);
         // Emit event to the specific client
         if (io.sockets.sockets.get(id)) {
           io.sockets.sockets.get(id).emit('exitHillHome');
@@ -481,7 +648,8 @@ function updatePlayers(delta, io) {
             player.heldBySocketId = null;
             player.grippedBy = null;
             player.struggleCount = 0;
-            log(`Player ${player.Username || player.playerId} struggled free!`);
+            log.info(`Player ${player.Username || player.playerId} struggled free!`);
+
 
             // Broadcast Interactional Message
             if (messageSystem) {
@@ -495,7 +663,7 @@ function updatePlayers(delta, io) {
           player.isHeld = false;
           player.heldBy = null;
           player.heldBySocketId = null;
-          log(`Player ${player.Username || player.playerId} broken free from hold.`);
+          log.info(`Player ${player.Username || player.playerId} broken free from hold. Input was:`, input);
         }
       }
     }
@@ -541,25 +709,257 @@ function updatePlayers(delta, io) {
       player.position.y = predator.position.y;
       player.isMoving = predator.isMoving;
     }
+
+    // --- VISIBILITY CALCULATION ---
+    // Compute the visibility polygon for this player.
+    // Optimization: Only update if moved significantly (> 1px).
+    if (staticSegments.length > 0) {
+      const lastPos = player.lastShadowCalcPosition || { x: -9999, y: -9999 };
+      // Simple Manhattan distance check is sufficient and faster
+      const dist = Math.abs(player.position.x - lastPos.x) + Math.abs(player.position.y - lastPos.y);
+
+      if (dist > 1.0) {
+        const pos = [player.position.x, player.position.y];
+
+        // Compute visibility
+        // VisibilityPolygon.compute(position, segments)
+        // segments: array of [[x1,y1],[x2,y2]]
+        // Returns: [[x1,y1], [x2,y2], ...]
+        const polygon = VisibilityPolygon.compute(pos, staticSegments);
+        player.visibilityPolygon = polygon;
+        player.lastShadowCalcPosition = { x: player.position.x, y: player.position.y };
+      }
+    }
   });
 }
 
 //  * The main game loop, running at a fixed tick rate.
 //  * @param { SocketIO.Server } io - The main socket.io instance.
 //  */
+/**
+ * Checks if a point (x, y) is inside a polygon (array of [x, y]).
+ * Ray-casting algorithm.
+ * OPTIMIZED: Takes x, y arguments instead of point array to unnecessary avoid allocation.
+ */
+function isPointInPolygon(x, y, vs) {
+  // ray-casting algorithm based on
+  // https://github.com/substack/point-in-polygon
+  // vs = [[x1, y1], [x2, y2], ...]
+  // x, y = coordinates
+
+  if (!vs || vs.length === 0) return false;
+
+  let inside = false;
+  for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+    const xi = vs[i][0], yi = vs[i][1];
+    const xj = vs[j][0], yj = vs[j][1];
+
+    const intersect = ((yi > y) !== (yj > y))
+      && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+
+  return inside;
+}
+
+//  * The main game loop, running at a fixed tick rate.
+//  * @param { SocketIO.Server } io - The main socket.io instance.
+//  */
 let lastUpdateTime = Date.now();
+const VIEW_DISTANCE = 950; // Increased to 950 per user request
+const VISIBILITY_BUFFER = 30; // Reduced to 30 to prevent early pop-in from shadows
+
 function gameLoop(io) {
   const now = Date.now();
   const delta = (now - lastUpdateTime) / 1000; // Delta in seconds
   lastUpdateTime = now;
 
   updatePlayers(delta, io);
-  // Broadcast the entire game state to all clients
-  io.emit('playerUpdates', players);
-  // Note: You might want separate updates for spells if they don't change often
+
+  // --- AREA OF INTEREST (AOI) SYSTEM ---
+  // The AOI system is a network optimization technique.
+  // Instead of broadcasting every player's position to every other player (O(N^2)),
+  // we filter updates so clients only receive data about players they can actually see.
+  // This significantly reduces bandwidth usage and prevents clients from "knowing" about
+  // hidden players (anti-cheat).
+
+  const connectedSocketIds = Object.keys(players);
+
+  // Iterate over each connected player ("Observer") to determine what they should see.
+  connectedSocketIds.forEach(observerId => {
+    const observer = players[observerId];
+    if (!observer) return;
+
+    // Filter players for this observer
+    const visiblePlayers = {};
+
+    // Always include self so the client can reconcile its own prediction with authoritative server state.
+    // OPTIMIZATION: Send full data (including polygon) ONLY for self.
+    visiblePlayers[observerId] = getUpdatePacketForSelf(observer);
+
+    // Check every other player ("Target") against this Observer
+    connectedSocketIds.forEach(targetId => {
+      if (observerId === targetId) return; // Already added self
+
+      const target = players[targetId];
+      if (!target) return;
+
+      // 1. Distance Check (Euclidean Distance Squared)
+      // A simple radius check. If target is too far, don't bother checking shadows.
+      // distSq is faster than Math.sqrt().
+      const dx = observer.position.x - target.position.x;
+      const dy = observer.position.y - target.position.y;
+      const distSq = dx * dx + dy * dy;
+
+      if (distSq < VIEW_DISTANCE * VIEW_DISTANCE) {
+        // 2. Shadow/Visibility Check
+        // If the observer has a computed visibility polygon (from the recursive shadowcasting),
+        // we essentially check "Is the target inside the lighted area?".
+        if (observer.visibilityPolygon && observer.visibilityPolygon.length > 0) {
+          const tx = target.position.x;
+          const ty = target.position.y;
+
+          // Multi-Point "Fuzzy" Check
+          // Instead of checking just the center point of the target, we check a "Buffer Zone".
+          // This includes the Center, Top, Bottom, Left, and Right points offset by VISIBILITY_BUFFER.
+          // If ANY of these points are in the light, the player is considered visible.
+          // This prevents "pop-in" where a player suddenly appears only after fully stepping out of a shadow.
+          // OPTIMIZATION: Unrolled loop to avoid array allocations (e.g. [[x,y], ...])
+
+          const isVisible =
+            isPointInPolygon(tx, ty, observer.visibilityPolygon) ||
+            isPointInPolygon(tx + VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
+            isPointInPolygon(tx - VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
+            isPointInPolygon(tx, ty + VISIBILITY_BUFFER, observer.visibilityPolygon) ||
+            isPointInPolygon(tx, ty - VISIBILITY_BUFFER, observer.visibilityPolygon);
+
+          if (isVisible) {
+            // OPTIMIZATION: Send stripped-down packet for others (No polygon, no internal flags)
+            visiblePlayers[targetId] = getUpdatePacketForOther(target);
+          }
+        } else {
+          // Fallback: If no polygon is computed (e.g. infinite visibility or error),
+          // rely solely on the Distance Check.
+          visiblePlayers[targetId] = getUpdatePacketForOther(target);
+        }
+      }
+    });
+
+    // Send the customized, filtered list of players to this specific client.
+    // The client will use this list to Create, Update, or Destroy (Reconcile) player sprites.
+    if (io.sockets.sockets.get(observerId)) {
+      io.sockets.sockets.get(observerId).emit('playerUpdates', visiblePlayers);
+    }
+  });
   // io.emit('spellUpdates', spells);
 }
 
+
+// --- Network Packet Helpers ---
+
+/**
+ * Creates a filtered player object for the player themselves.
+ * Includes 'visibilityPolygon' (for client-side shadow rendering).
+ * Excludes server-only flags like 'inputQueue'.
+ */
+function getUpdatePacketForSelf(player) {
+  return {
+    Identifier: player.Identifier,
+    playerId: player.playerId,
+    socketId: player.socketId,
+    position: player.position,
+    rotation: player.rotation,
+    isMoving: player.isMoving,
+    visibilityPolygon: player.visibilityPolygon, // REQUIRED for self
+
+    // Identity & Visuals
+    Username: player.Username,
+    firstName: player.firstName,
+    lastName: player.lastName,
+    skin: player.skin,
+    hair: player.hair,
+    face: player.face,
+    clothing: player.clothing,
+    equipment: player.equipment,
+
+    // Detailed Visuals (Required for Animations)
+    head: player.head,
+    body: player.body,
+    hands: player.hands,
+    feet: player.feet,
+    tail: player.tail,
+    eyes: player.eyes,
+    ear: player.ear,
+    genitles: player.genitles,
+    beak: player.beak,
+    headAccessories: player.headAccessories,
+
+    // States
+    isHeld: player.isHeld,
+    heldBySocketId: player.heldBySocketId,
+    consumedBy: player.consumedBy,
+    action: player.action,
+
+    // Struggle / Vore States
+    grippedFirmly: player.grippedFirmly,
+    struggleCount: player.struggleCount,
+    grippedBy: player.grippedBy,
+    voreTypes: player.voreTypes,
+
+    // Interactive State
+    actionHands: player.actionHands,
+
+    // Reconciliation & Debugging (REQUIRED for client prediction)
+    lastProcessedInputSequence: player.lastProcessedInputSequence,
+    lastClientTimestamp: player.lastClientTimestamp
+  };
+}
+
+/**
+ * Creates a highly optimized player object for OTHER players.
+ * STRICTLY EXCLUDES 'visibilityPolygon' to save massive bandwidth.
+ */
+function getUpdatePacketForOther(player) {
+  return {
+    Identifier: player.Identifier,
+    playerId: player.playerId,
+    socketId: player.socketId,
+    position: player.position,
+    rotation: player.rotation,
+    isMoving: player.isMoving,
+    // NO visibilityPolygon
+
+    // Identity & Visuals
+    Username: player.Username,
+    firstName: player.firstName,
+    lastName: player.lastName,
+    skin: player.skin,
+    hair: player.hair,
+    face: player.face,
+
+    // Visual Gear
+    clothing: player.clothing,
+    equipment: player.equipment,
+
+    // Detailed Visuals (Required for Animations)
+    head: player.head,
+    body: player.body,
+    hands: player.hands,
+    feet: player.feet,
+    tail: player.tail,
+    eyes: player.eyes,
+    ear: player.ear,
+    genitles: player.genitles,
+    beak: player.beak,
+    headAccessories: player.headAccessories,
+
+    // Visible States
+    isHeld: player.isHeld,
+    heldBySocketId: player.heldBySocketId, // Needed to sync position if held
+    consumedBy: player.consumedBy,       // Needed to hide if consumed
+    action: player.action
+  };
+}
 
 // --- Main Exported Start Function ---
 
@@ -568,7 +968,12 @@ module.exports.start = (io, _messageSystem) => {
   initializeGame();
 
   io.on('connection', async (socket) => {
-    log(`Player connected with socket ID: ${socket.id}`);
+    log.info(`Player connected with socket ID: ${socket.id}`);
+
+    // Send map segments to client for local shadow prediction
+    if (staticSegments.length > 0) {
+      socket.emit('mapSegments', staticSegments);
+    }
 
     const charId = socket.handshake.query.charId;
     let characterData = null;
@@ -583,9 +988,9 @@ module.exports.start = (io, _messageSystem) => {
             characterData = character.toObject();
             if (character.equipment) {
               loadedEquipment = JSON.parse(JSON.stringify(character.equipment));
-              log(`[PersistenceDebug] Loaded Equipment into Variable: ${JSON.stringify(loadedEquipment)}`);
+              // log.debug(`[PersistenceDebug] Loaded Equipment into Variable:`, loadedEquipment);
             }
-            log(`Loaded character ${character.firstName} ${character.lastName} for socket ${socket.id}`);
+            log.success(`Loaded character ${character.firstName} ${character.lastName} for socket ${socket.id}`);
           }
         }
       } catch (err) {
@@ -730,9 +1135,9 @@ module.exports.start = (io, _messageSystem) => {
     };
 
     if (players[socket.id].equipment) {
-      log(`[PersistenceDebug] Initialized player.equipment: ${JSON.stringify(players[socket.id].equipment)}`);
+      // log.debug(`[PersistenceDebug] Initialized player.equipment:`, players[socket.id].equipment);
     } else {
-      log(`[PersistenceDebug] Initialized player.equipment is MISSING/NULL`);
+      // log.warn(`[PersistenceDebug] Initialized player.equipment is MISSING/NULL`);
     }
 
     // --- Socket Event Handlers for THIS player ---
@@ -767,7 +1172,7 @@ module.exports.start = (io, _messageSystem) => {
 
               user.markModified('characters'); // Explicitly mark array/subdocs modified
               await user.save();
-              log(`Saved data (pos/equip) for character ${character.firstName}`);
+              log.success(`Saved data (pos/equip) for character ${character.firstName}`);
             }
           }
         } catch (err) {
@@ -777,7 +1182,7 @@ module.exports.start = (io, _messageSystem) => {
     };
 
     socket.on('disconnect', async () => {
-      log(`Player disconnected: ${socket.id}`);
+      log.info(`Player disconnected: ${socket.id}`);
       await saveCharacter(socket.id);
       delete players[socket.id];
       io.emit('removePlayer', socket.id);
@@ -785,41 +1190,48 @@ module.exports.start = (io, _messageSystem) => {
 
     // Handle movement input
     socket.on('playerInput', (inputData) => {
-      const player = players[socket.id];
-      if (player) {
-        // Push to queue instead of overwriting
-        if (!player.inputQueue) player.inputQueue = [];
-        player.inputQueue.push(inputData);
+      try {
+        const player = players[socket.id];
+        if (player) {
+          // Push to queue instead of overwriting
+          if (!player.inputQueue) player.inputQueue = [];
+          player.inputQueue.push(inputData);
 
-        // Update latest input state for other logic (like animations/intent)
-        player.input = inputData;
+          // Update latest input state for other logic (like animations/intent)
+          player.input = inputData;
 
-        if (inputData.sequence) {
-          player.lastProcessedInputSequence = inputData.sequence;
-        }
-        if (inputData.clientTimestamp) {
-          const now = Date.now();
-          if (player.lastInputTime) {
-            const jitter = now - player.lastInputTime;
-            if (jitter > 50) { // Log if > 50ms variance (expected ~33ms)
-              // log(`[Lag Debug] Input Jitter for ${player.Username}: ${jitter}ms`);
-            }
+          if (inputData.sequence) {
+            player.lastProcessedInputSequence = inputData.sequence;
           }
-          player.lastInputTime = now;
-          player.lastClientTimestamp = inputData.clientTimestamp;
+          if (inputData.clientTimestamp) {
+            const now = Date.now();
+            if (player.lastInputTime) {
+              const jitter = now - player.lastInputTime;
+              if (jitter > 50) { // Log if > 50ms variance (expected ~33ms)
+                // log(`[Lag Debug] Input Jitter for ${player.Username}: ${jitter}ms`);
+              }
+            }
+            player.lastInputTime = now;
+            player.lastClientTimestamp = inputData.clientTimestamp;
+          }
         }
-        // log(`Input received from ${socket.id}:`, inputData);
+      } catch (e) {
+        log.error(`Error handling playerInput for ${socket.id}:`, e);
       }
     });
 
     // Handle character updates from creation screen
     socket.on('characterUpdate', (pushedInfo) => {
-      if (players[socket.id]) {
-        // Merge new character data with existing player object
-        players[socket.id] = { ...players[socket.id], ...pushedInfo };
-        log(`Character updated for ${socket.id}`);
-        // Inform other players about the visual update
-        socket.broadcast.emit('avatarSelection', players[socket.id]);
+      try {
+        if (players[socket.id]) {
+          // Merge new character data with existing player object
+          players[socket.id] = { ...players[socket.id], ...pushedInfo };
+          log.info(`Character updated for ${socket.id}`);
+          // Inform other players about the visual update
+          socket.broadcast.emit('avatarSelection', players[socket.id]);
+        }
+      } catch (e) {
+        log.error(`Error handling characterUpdate for ${socket.id}:`, e);
       }
     });
 
@@ -830,961 +1242,260 @@ module.exports.start = (io, _messageSystem) => {
     // --- Action Hands Handlers ---
 
     socket.on('toggleActiveHand', () => {
-      const player = players[socket.id];
-      if (!player) return;
-      log(`[Server] Toggling hands for ${player.Username}. Current: ${player.actionHands.activeHand}`);
-      player.actionHands.activeHand = player.actionHands.activeHand === 'left' ? 'right' : 'left';
-      log(`[Server] New active hand: ${player.actionHands.activeHand}`);
+      try {
+        const player = players[socket.id];
+        if (!player) return;
+        log.debug(`[Server] Toggling hands for ${player.Username}. Current: ${player.actionHands.activeHand}`);
+        player.actionHands.activeHand = player.actionHands.activeHand === 'left' ? 'right' : 'left';
+        log.debug(`[Server] New active hand: ${player.actionHands.activeHand}`);
+      } catch (e) {
+        log.error(`Error toggling hands for ${socket.id}:`, e);
+      }
     });
 
     socket.on('swapHandItems', () => {
-      const player = players[socket.id];
-      if (!player) return;
-      const temp = player.actionHands.leftNode;
-      player.actionHands.leftNode = player.actionHands.rightNode;
-      player.actionHands.rightNode = temp;
-    });
-
-    socket.on('equipItemClicked', (slotId) => {
-      log(`[EquipDebug] Received 'equipItemClicked' for socket ${socket.id} with slot ${slotId}`);
-      const player = players[socket.id];
-      if (!player) {
-        log(`[EquipDebug] Player not found for socket ${socket.id}`);
-        return;
-      }
-      if (!player.equipment) {
-        log(`[EquipDebug] Player ${player.Username} has no equipment object`);
-        return;
-      }
-
-      const activeHand = player.actionHands.activeHand;
-      // Get item in active hand
-      const handItem = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
-      const slotItem = player.equipment[slotId];
-
-      log(`[EquipDebug] Slot: ${slotId}, Hand: ${activeHand}, HandItem: ${handItem ? 'YES' : 'NO'}, SlotItem: ${slotItem ? 'YES' : 'NO'}`);
-
-      // Logic:
-      // 1. If hand has item: Try to Equip
-      // 2. If hand is empty: Unequip from slot to hand
-
-      if (handItem) {
-        log(`[EquipDebug] Hand not empty (${handItem.name}). Attempting to EQIUP/SWAP to ${slotId}.`);
-        // --- EQUIP ATTEMPT ---
-        // Validate if item can go in this slot (if it has equipSlot property)
-        // If undefined, maybe allow for testing? Or restrict? 
-        // For now, let's assume if it has `equipSlot` it must match.
-        // If it doesn't have `equipSlot`, maybe generic items can't be equipped? or fallback?
-        // Let's enforce: MUST have equipSlot property matching slotId (or special logic)
-
-        let canEquip = false;
-        if (handItem.properties && handItem.properties.equipSlot === slotId) {
-          canEquip = true;
-        } else if (handItem.equipSlot === slotId) { // Direct property support
-          canEquip = true;
-        }
-
-        // Special handling for legacy/test items?
-        // For Verification, we modified the Test Scroll to have isItem: true.
-        // We should add `equipSlot` to it if we want to test equipping.
-
-        // Debug Bypass: Allow ANY item with `equipSlot` to be equipped anywhere for now? NO.
-        // Strict check.
-
-        if (canEquip) {
-          // Swap logic
-          // Move Hand -> Slot
-          // Move Slot -> Hand (if exists) target
-
-          player.equipment[slotId] = handItem;
-
-          if (activeHand === 'left') player.actionHands.leftNode = slotItem;
-          else player.actionHands.rightNode = slotItem;
-
-          log(`Player ${player.Username} equipped ${handItem.name} to ${slotId}`);
-        } else {
-          // Maybe notify user? "Cannot equip this here"
-          log(`Player ${player.Username} failed to equip ${handItem.name} to ${slotId} (Wrong Slot)`);
-        }
-
-      } else {
-        log(`[EquipDebug] Hand empty. Attempting to UNEQUIP from ${slotId}.`);
-        // --- UNEQUIP ATTEMPT (Hand Empty) ---
-        if (slotItem) {
-          // Move Slot -> Hand
-          if (activeHand === 'left') player.actionHands.leftNode = slotItem;
-          else player.actionHands.rightNode = slotItem;
-
-          player.equipment[slotId] = null;
-          log(`Player ${player.Username} unequipped ${slotItem.name} from ${slotId}`);
-        }
-      }
-
-      // Force immediate update to all clients
-      io.emit('playerUpdates', { [socket.id]: player });
-
-      // Save changes to DB immediately
-      saveCharacter(socket.id);
-    });
-
-    // --- Dynamic Storage Logic ---
-
-    // Move item from Hand -> Pocket
-    socket.on('stashItemClicked', (data) => {
-      const { targetSlot, targetPocket } = data;
-      const player = players[socket.id];
-      if (!player) return;
-
-      const activeHand = player.actionHands.activeHand;
-      const handItem = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
-      const clothingItem = player.equipment[targetSlot];
-
-      if (!handItem) {
-        log(`[StorageDebug] Hand empty, cannot stash. ActiveHand: ${activeHand}`);
-        return;
-      }
-      if (!clothingItem) {
-        log(`[StorageDebug] No clothing in slot ${targetSlot}`);
-        return;
-      }
-
-      // Get clothing definition
-      // We need to look up by texture (e.g. 'pants_01')
-      const textureKey = clothingItem.texture;
-      const clothingDef = clothingData[textureKey];
-
-      if (!clothingDef) {
-        log(`[StorageDebug] No clothing definition found for ${textureKey} in slot ${targetSlot}`);
-        return;
-      }
-
-      const pocketDef = clothingDef.pockets.find(p => p.id === targetPocket);
-      if (!pocketDef) {
-        log(`[StorageDebug] No pocket ${targetPocket} found in ${textureKey}`);
-        return;
-      }
-
-      // Initialize contents if null
-      if (!clothingItem.contents) clothingItem.contents = {};
-      if (!clothingItem.contents[targetPocket]) clothingItem.contents[targetPocket] = [];
-
-      // Validate Size & Capacity
-      let currentLoad = 0;
-      clothingItem.contents[targetPocket].forEach(item => {
-        // lookup size
-        const iDef = itemData[item.itemId] || { size: 1 };
-        currentLoad += (iDef.size || 1);
-      });
-
-      // Determine item size
-      // If the item in hand has a specific property, use it, else lookup
-      const handItemDef = itemData[handItem.itemId] || itemData.default;
-      const itemSize = handItem.size || handItemDef.size || 1;
-
-      if (currentLoad + itemSize > pocketDef.capacity) {
-        log(`[StorageDebug] Capacity Exceeded! Current: ${currentLoad}, Item: ${itemSize}, Max: ${pocketDef.capacity}`);
-        // Provide feedback?
-        return;
-      }
-
-      // --- SUCCESS: Move Item ---
-
-      // Add to pocket
-      clothingItem.contents[targetPocket].push(handItem);
-
-      // Remove from Hand
-      if (activeHand === 'left') player.actionHands.leftNode = null;
-      else player.actionHands.rightNode = null;
-
-      log(`[Storage] Stashed ${handItem.name} into ${clothingDef.name}'s ${pocketDef.name}.`);
-
-      // Emit updates
-      io.emit('playerUpdates', { [socket.id]: player });
-      saveCharacter(socket.id);
-    });
-
-    // Move item from Pocket -> Hand
-    socket.on('retrieveItemClicked', (data) => {
-      const { sourceSlot, sourcePocket, itemUid } = data;
-      const player = players[socket.id];
-      if (!player) return;
-
-      const activeHand = player.actionHands.activeHand;
-      const clothingItem = player.equipment[sourceSlot];
-
-      // Check if hand is empty
-      if (activeHand === 'left' && player.actionHands.leftNode) return; // Hand full
-      if (activeHand === 'right' && player.actionHands.rightNode) return; // Hand full
-
-      if (!clothingItem || !clothingItem.contents || !clothingItem.contents[sourcePocket]) return;
-
-      // Find item
-      const itemIndex = clothingItem.contents[sourcePocket].findIndex(i => i.uid === itemUid);
-      if (itemIndex === -1) return;
-
-      const item = clothingItem.contents[sourcePocket][itemIndex];
-
-      // Move to Hand
-      if (activeHand === 'left') player.actionHands.leftNode = item;
-      else player.actionHands.rightNode = item;
-
-      // Remove from Pocket
-      clothingItem.contents[sourcePocket].splice(itemIndex, 1);
-
-      log(`[Storage] Retrieved ${item.name} from ${sourcePocket}.`);
-
-      io.emit('playerUpdates', { [socket.id]: player });
-      saveCharacter(socket.id);
-    });
-
-
-    socket.on('dropItemClicked', () => {
-      const player = players[socket.id];
-      if (!player) return;
-
-      const activeHand = player.actionHands.activeHand;
-      let droppedItem = null;
-
-      if (activeHand === 'left' && player.actionHands.leftNode) {
-        droppedItem = player.actionHands.leftNode;
-        player.actionHands.leftNode = null;
-      } else if (activeHand === 'right' && player.actionHands.rightNode) {
-        droppedItem = player.actionHands.rightNode;
-        player.actionHands.rightNode = null;
-      }
-
-      if (droppedItem) {
-        // Position at feet
-        droppedItem.x = player.position.x;
-        droppedItem.y = player.position.y + 20;
-
-        // Ensure UID
-        if (!droppedItem.uid) droppedItem.uid = 'item_' + Date.now() + Math.random().toString(36).substr(2, 5);
-
-        // Add to World Items
-        worldItems.push(droppedItem);
-
-        // Notify Clients
-        io.emit('itemSpawned', droppedItem);
-
-        log(`[DropDebug] Dropped Item: ${JSON.stringify(droppedItem, null, 2)}`); // VERBOSE LOGGING
-
-        log(`Player ${player.Username} dropped item: ${droppedItem.name || droppedItem.uid}`);
+      try {
+        const player = players[socket.id];
+        if (!player) return;
+        const temp = player.actionHands.leftNode;
+        player.actionHands.leftNode = player.actionHands.rightNode;
+        player.actionHands.rightNode = temp;
+      } catch (e) {
+        log.error(`Error swapping hands for ${socket.id}:`, e);
       }
     });
+
+    // --- INTERACTION & MOVEMENT HANDLERS ---
+    // Extracted to src/sockets/interactionHandlers.js
+    const initInteractionHandlers = require('./sockets/interactionHandlers');
+    // Note: We pass TILE_SIZE (32)
+    initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32);
+
+    // --- ITEM & INVENTORY HANDLERS ---
+    // Extracted to src/sockets/inventoryHandlers.js
+    const initInventoryHandlers = require('./sockets/inventoryHandlers');
+    initInventoryHandlers(io, socket, players, worldItems, saveCharacter, clothingData, itemData);
 
     socket.on('pickUpClicked', (clicked) => {
-      const player = players[socket.id];
-      if (!player) return;
+      try {
+        const player = players[socket.id];
+        if (!player) return;
 
-      let handled = false;
+        let handled = false;
 
-      // 1. Check Legacy Spells (Priority)
-      if (clicked.Identifier === 'spell') {
-        const spellIndex = spells.findIndex(spell => spell.Name === clicked.Name);
-        if (spellIndex > -1) {
-          const spell = spells[spellIndex];
-          const distance = Math.sqrt(Math.pow(player.position.x - spell.x, 2) + Math.pow(player.position.y - spell.y, 2));
-          if (distance < 100) {
-            const activeHand = player.actionHands.activeHand;
-            const activeNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+        // 1. Check Legacy Spells (Priority)
+        if (clicked.Identifier === 'spell') {
+          const spellIndex = spells.findIndex(spell => spell.Name === clicked.Name);
+          if (spellIndex > -1) {
+            const spell = spells[spellIndex];
+            const distance = Math.sqrt(Math.pow(player.position.x - spell.x, 2) + Math.pow(player.position.y - spell.y, 2));
+            if (distance < 100) {
+              const activeHand = player.actionHands.activeHand;
+              const activeNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
 
-            if (!activeNode) {
-              // Pickup
-              if (activeHand === 'left') player.actionHands.leftNode = spell;
-              else player.actionHands.rightNode = spell;
+              if (!activeNode) {
+                // Pickup
+                if (activeHand === 'left') player.actionHands.leftNode = spell;
+                else player.actionHands.rightNode = spell;
 
-              spells.splice(spellIndex, 1);
-              io.emit('spellRemoved', spell.Name);
-            } else {
-              // Swap
-              const oldItem = activeNode;
-              oldItem.x = player.position.x;
-              oldItem.y = player.position.y + 20;
-              spells.push(oldItem);
+                spells.splice(spellIndex, 1);
+                io.emit('spellRemoved', spell.Name);
+              } else {
+                // Swap
+                const oldItem = activeNode;
+                oldItem.x = player.position.x;
+                oldItem.y = player.position.y + 20;
+                spells.push(oldItem);
 
-              if (activeHand === 'left') player.actionHands.leftNode = spell;
-              else player.actionHands.rightNode = spell;
+                if (activeHand === 'left') player.actionHands.leftNode = spell;
+                else player.actionHands.rightNode = spell;
 
-              spells.splice(spellIndex, 1);
-              io.emit('spellRemoved', spell.Name);
-              io.emit('spellSpawned', oldItem);
-            }
-            handled = true;
-          }
-        }
-      }
-
-      // 2. Check World Items (New System)
-      if (!handled && clicked.Identifier === 'item') {
-        // Note: Client should send the item's UID as 'Name' or we find by UID
-        const itemIndex = worldItems.findIndex(item => item.uid === clicked.Name);
-        if (itemIndex > -1) {
-          const item = worldItems[itemIndex];
-          // Check distance
-          const distance = Math.sqrt(Math.pow(player.position.x - item.x, 2) + Math.pow(player.position.y - item.y, 2));
-
-          if (distance < 100) {
-            const activeHand = player.actionHands.activeHand;
-            const activeNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
-
-            if (!activeNode) {
-              // Pickup
-              if (activeHand === 'left') player.actionHands.leftNode = item;
-              else player.actionHands.rightNode = item;
-
-              worldItems.splice(itemIndex, 1);
-              io.emit('itemRemoved', item.uid);
-            } else {
-              // Swap
-              const oldItem = activeNode;
-              // Determine drop position (player pos + jitter or offset)
-              oldItem.x = player.position.x;
-              oldItem.y = player.position.y + 20;
-
-              // Ensure it has a UID if it was a legacy spell promoted to item
-              if (!oldItem.uid) oldItem.uid = 'item_' + Date.now() + Math.floor(Math.random() * 1000);
-
-              worldItems.push(oldItem);
-
-              // Pickup new
-              if (activeHand === 'left') player.actionHands.leftNode = item;
-              else player.actionHands.rightNode = item;
-
-              worldItems.splice(itemIndex, 1);
-
-              io.emit('itemRemoved', item.uid);
-              io.emit('itemSpawned', oldItem);
+                spells.splice(spellIndex, 1);
+                io.emit('spellRemoved', spell.Name);
+                io.emit('spellSpawned', oldItem);
+              }
+              handled = true;
             }
           }
         }
+
+        // 2. Check World Items (New System)
+        if (!handled && clicked.Identifier === 'item') {
+          // Note: Client should send the item's UID as 'Name' or we find by UID
+          const itemIndex = worldItems.findIndex(item => item.uid === clicked.Name);
+          if (itemIndex > -1) {
+            const item = worldItems[itemIndex];
+            // Check distance
+            const distance = Math.sqrt(Math.pow(player.position.x - item.x, 2) + Math.pow(player.position.y - item.y, 2));
+
+            if (distance < 100) {
+              const activeHand = player.actionHands.activeHand;
+              const activeNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+
+              if (!activeNode) {
+                // Pickup
+                if (activeHand === 'left') player.actionHands.leftNode = item;
+                else player.actionHands.rightNode = item;
+
+                worldItems.splice(itemIndex, 1);
+                io.emit('itemRemoved', item.uid);
+              } else {
+                // Swap
+                const oldItem = activeNode;
+                // Determine drop position (player pos + jitter or offset)
+                oldItem.x = player.position.x;
+                oldItem.y = player.position.y + 20;
+
+                // Ensure it has a UID if it was a legacy spell promoted to item
+                if (!oldItem.uid) oldItem.uid = 'item_' + Date.now() + Math.floor(Math.random() * 1000);
+
+                worldItems.push(oldItem);
+
+                // Pickup new
+                if (activeHand === 'left') player.actionHands.leftNode = item;
+                else player.actionHands.rightNode = item;
+
+                worldItems.splice(itemIndex, 1);
+
+                io.emit('itemRemoved', item.uid);
+                io.emit('itemSpawned', oldItem);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        log.error(`Error handling pickUpClicked for ${socket.id}:`, e);
       }
     });
 
     // --- On Right Click get list of all targets clicked and player intent ---
     socket.on('playerRightClicked', (data) => {
-      const { rightClickedList, playerIntent, pointerX, pointerY } = data;
-      const responseInfo = [];
-      const requestingPlayer = players[socket.id];
-      if (!requestingPlayer) return;
+      try {
+        const { rightClickedList, playerIntent, pointerX, pointerY } = data;
+        const responseInfo = [];
+        const requestingPlayer = players[socket.id];
+        if (!requestingPlayer) return;
 
-      // --- Process each clicked item ---
-      for (const clickedItem of rightClickedList) {
-        // --- Check if the clicked item is a player ---
-        if (clickedItem.Identifier === 'player' && players[clickedItem.playerId]) {
-          const targetPlayer = players[clickedItem.playerId];
+        // --- Process each clicked item ---
+        for (const clickedItem of rightClickedList) {
+          // --- Check if the clicked item is a player ---
+          if (clickedItem.Identifier === 'player' && players[clickedItem.playerId]) {
+            const targetPlayer = players[clickedItem.playerId];
 
-          // Use in-memory data which is already populated on connection/update
-          // This avoids a DB call for every click
-          let playerDetails = {
-            name: targetPlayer.Username || (targetPlayer.firstName + ' ' + targetPlayer.lastName) || 'Unknown Player',
-            heldBy: targetPlayer.heldBy,
-            grippedBy: targetPlayer.grippedBy,
-            description: targetPlayer.icDescrip || targetPlayer.Description || '',
-            playerId: targetPlayer.playerId,
-            Identifier: targetPlayer.Identifier
-          };
+            // Use in-memory data which is already populated on connection/update
+            // This avoids a DB call for every click
+            let playerDetails = {
+              name: targetPlayer.Username || (targetPlayer.firstName + ' ' + targetPlayer.lastName) || 'Unknown Player',
+              heldBy: targetPlayer.heldBy,
+              grippedBy: targetPlayer.grippedBy,
+              description: targetPlayer.icDescrip || targetPlayer.Description || '',
+              playerId: targetPlayer.playerId,
+              Identifier: targetPlayer.Identifier
+            };
 
-          // Calculate distance between player and the clicked target
-          const distance = Math.sqrt(Math.pow(requestingPlayer.position.x - targetPlayer.position.x, 2) + Math.pow(requestingPlayer.position.y - targetPlayer.position.y, 2));
+            // Calculate distance between player and the clicked target
+            const distance = Math.sqrt(Math.pow(requestingPlayer.position.x - targetPlayer.position.x, 2) + Math.pow(requestingPlayer.position.y - targetPlayer.position.y, 2));
 
-          // --- Determine available actions based on distance and held status ---
-          const availableActions = ['Examine'];
+            // --- Determine available actions based on distance and held status ---
+            const availableActions = ['Examine'];
 
-          if (targetPlayer !== players[socket.id]) {
-            if (targetPlayer.grippedBy === socket.id) {
-              availableActions.push('Release');
-              availableActions.push('Vore');
-            } else if (targetPlayer.heldBySocketId === socket.id) {
-              availableActions.push('Release');
-              availableActions.push('Grip Firmly');
-            } else if (distance <= 100) {
-              availableActions.push('Hold');
+            if (targetPlayer !== players[socket.id]) {
+              if (targetPlayer.grippedBy === socket.id) {
+                availableActions.push('Release');
+                availableActions.push('Vore');
+              } else if (targetPlayer.heldBySocketId === socket.id) {
+                availableActions.push('Release');
+                availableActions.push('Grip Firmly');
+              } else if (distance <= 100) {
+                availableActions.push('Hold');
+              }
             }
+
+            // --- Add player details to response ---
+            responseInfo.push({
+              ...playerDetails,
+              availableActions
+            });
           }
 
-          // --- Add player details to response ---
-          responseInfo.push({
-            ...playerDetails,
-            availableActions
-          });
+          // --- Check if the clicked item is a map object ---
+          else if (clickedItem.Identifier === 'mapObject') {
+            responseInfo.push({
+              name: clickedItem.name,
+              Identifier: 'mapObject',
+              uniqueId: clickedItem.uniqueId,
+              description: clickedItem.description, // Pass through description
+              availableActions: ['Examine']
+            });
+          }
         }
 
-        // --- Check if the clicked item is a map object ---
-        else if (clickedItem.Identifier === 'mapObject') {
-          responseInfo.push({
-            name: clickedItem.name,
-            Identifier: 'mapObject',
-            uniqueId: clickedItem.uniqueId,
-            description: clickedItem.description, // Pass through description
-            availableActions: ['Examine']
-          });
-        }
+        // --- Send response to player to be picked up in play.ejs ---
+        const predatorInfo = {
+          name: requestingPlayer.Username || (requestingPlayer.firstName + ' ' + requestingPlayer.lastName) || 'Unknown Predator',
+          voreTypes: requestingPlayer.voreTypes || []
+        };
+        socket.emit('playerRightClickedResponse', { responseInfo, predatorInfo, pointerX, pointerY });
+      } catch (e) {
+        log.error(`Error handling playerRightClicked for ${socket.id}:`, e);
       }
-
-      // --- Send response to player to be picked up in play.ejs ---
-      const predatorInfo = {
-        name: requestingPlayer.Username || (requestingPlayer.firstName + ' ' + requestingPlayer.lastName) || 'Unknown Predator',
-        voreTypes: requestingPlayer.voreTypes || []
-      };
-      socket.emit('playerRightClickedResponse', { responseInfo, predatorInfo, pointerX, pointerY });
     });
 
     // --- On Left Click get list of all targets clicked and player intent ---
     socket.on('playerLeftClicked', (data) => {
-      const { clickedList, playerIntent, pointerX, pointerY } = data;
-      const player = players[socket.id];
-      if (!player) return;
+      try {
+        const { clickedList, playerIntent, pointerX, pointerY } = data;
+        const player = players[socket.id];
+        if (!player) return;
 
-      const responseInfo = [];
+        const responseInfo = [];
 
-      // --- Process each clicked item ---
-      for (const clickedItem of clickedList) {
-        // --- Check if the clicked item is a player ---
-        if (clickedItem.Identifier === 'player' && players[clickedItem.playerId]) {
-          const targetPlayer = players[clickedItem.playerId];
-          // Use in-memory data
-          const targetName = targetPlayer.Username || (targetPlayer.firstName + ' ' + targetPlayer.lastName) || 'Unknown Player';
+        // --- Process each clicked item ---
+        for (const clickedItem of clickedList) {
+          // --- Check if the clicked item is a player ---
+          if (clickedItem.Identifier === 'player' && players[clickedItem.playerId]) {
+            const targetPlayer = players[clickedItem.playerId];
+            // Use in-memory data
+            const targetName = targetPlayer.Username || (targetPlayer.firstName + ' ' + targetPlayer.lastName) || 'Unknown Player';
 
-          // Add enriched data to response
-          responseInfo.push({
-            ...clickedItem,
-            name: targetName
-          });
+            // Add enriched data to response
+            responseInfo.push({
+              ...clickedItem,
+              name: targetName
+            });
+          }
         }
-      }
 
-      socket.emit('playerLeftClickedResponse', { responseInfo, playerIntent, pointerX, pointerY });
+        socket.emit('playerLeftClickedResponse', { responseInfo, playerIntent, pointerX, pointerY });
+      } catch (e) {
+        log.error(`Error handling playerLeftClicked for ${socket.id}:`, e);
+      }
     });
 
     // --- Player has selected an action from the right click context menu ---
-    socket.on('playerPerformAction', async (data) => {
-      const { targetPlayerId, playerIntent } = data;
-      const player = players[socket.id];
-      if (!player || !players[targetPlayerId]) return;
-
-      const targetPlayer = players[targetPlayerId];
-      let targetName = targetPlayer.Username || 'Unknown Player';
-
-      // --- If the player has a MongoDB _id, fetch full details ---
-      if (targetPlayer._id) {
-        try {
-          const user = await User.findOne({ 'characters._id': targetPlayer._id });
-          if (user) {
-            const character = user.characters.id(targetPlayer._id);
-            if (character) {
-              targetName = character.firstName + ' ' + character.lastName;
-            }
-          }
-        } catch (err) {
-          log.error(`Error fetching character details for ${targetPlayer._id}:`, err);
-        }
-      }
-
-      // Calculate distance between player and target player
-      const distance = Math.sqrt(Math.pow(player.position.x - targetPlayer.position.x, 2) + Math.pow(player.position.y - targetPlayer.position.y, 2));
-      log(`Distance to ${targetName} (ID: ${targetPlayer.playerId}): ${distance.toFixed(2)}`);
-
-      // Prevent self-holding
-      if (socket.id === targetPlayerId && playerIntent === 'grabbing') {
-        log(`Player ${player.firstName} tried to grab themselves. Ignoring.`);
-        return;
-      }
-
-      // --- Check if the player is close enough to perform the action ---
-      if (distance < 100) {
-        // --- Check if the player is friendly or grabbing ---
-        if (playerIntent == 'friendly') {
-          log(`Player ${players[socket.id].firstName} has hugged ${targetName} with ${playerIntent} intent.`);
-        }
-        if (playerIntent == 'grabbing') {
-          if (targetPlayer.isHeld && targetPlayer.heldBySocketId === socket.id) {
-            // Upgrade to gripped firmly
-            targetPlayer.grippedFirmly = true;
-            targetPlayer.struggleCount = 0;
-            log(`Player ${players[socket.id].firstName} has GRIPPED FIRMLY ${targetName}.`);
-
-            // Broadcast Interactional Message
-            if (messageSystem) {
-              messageSystem.sendSystemMessage('Interactional', `${players[socket.id].firstName} is gripping ${targetName} tightly.`);
-            }
-          } else {
-            // Normal grab
-            log(`Player ${players[socket.id].firstName} has grabbed ${targetName} with ${playerIntent} intent.`);
-            targetPlayer.isHeld = true;
-            targetPlayer.heldBy = players[socket.id]._id;
-            targetPlayer.heldBySocketId = socket.id;
-            targetPlayer.grippedFirmly = false;
-            targetPlayer.struggleCount = 0;
-
-            // Broadcast Interactional Message
-            if (messageSystem) {
-              messageSystem.sendSystemMessage('Interactional', `${players[socket.id].firstName} has taken hold of ${targetName}.`);
-            }
-          }
-        }
-        if (playerIntent == 'hostile') {
-          log(`Player ${players[socket.id].firstName} has punched ${targetName} with ${playerIntent} intent.`);
-        }
-      } else {
-        // --- Player is too far away so action outcomes are different ---
-        if (playerIntent == 'friendly') {
-          log(`Player ${players[socket.id].firstName} has waved to ${targetName} with ${playerIntent} intent.`)
-        }
-        if (playerIntent == 'grabbing') {
-          log(`Player ${players[socket.id].firstName} is too far away to grab ${targetName} with ${playerIntent} intent.`)
-        }
-        if (playerIntent == 'hostile') {
-          log(`Player ${players[socket.id].firstName} has gestured rudely to ${targetName} with ${playerIntent} intent.`)
-        }
-      }
-
-      log(`Player ${players[socket.id].Username} performed action on ${targetName} with intent ${playerIntent}`);
-    });
-
-    // --- Player has released a held player ---
-    socket.on('releaseClicked', (data) => {
-      const { playerId } = data;
-      const player = players[socket.id];
-      if (!player || !players[playerId]) return;
-
-      const targetPlayer = players[playerId];
-
-      if (targetPlayer.heldBySocketId === socket.id) {
-        targetPlayer.isHeld = false;
-        targetPlayer.heldBy = null;
-        targetPlayer.heldBySocketId = null;
-        targetPlayer.grippedFirmly = false;
-        targetPlayer.grippedBy = null;
-        targetPlayer.struggleCount = 0;
-        log(`Player ${player.firstName} RELEASED ${targetPlayer.firstName || 'Unknown Player'}.`);
-      }
-    });
-
-    // --- Player has gripped firmly ---
-    socket.on('gripFirmly', (data) => {
-      const { playerId } = data;
-      const player = players[socket.id];
-      if (!player || !players[playerId]) return;
-
-      const targetPlayer = players[playerId];
 
 
-      if (targetPlayer.heldBySocketId === socket.id) {
-        targetPlayer.grippedFirmly = true;
-        targetPlayer.grippedBy = socket.id;
-        targetPlayer.struggleCount = 0;
-        log(`Player ${player.firstName} GRIPPED FIRMLY ${targetPlayer.firstName || 'Unknown Player'}.`);
-
-        // Broadcast Interactional Message
-        if (messageSystem) {
-          messageSystem.sendSystemMessage('Interactional', `${player.firstName} is gripping ${targetPlayer.firstName || 'Unknown Player'} tightly.`);
-        }
-      }
-    });
-
-
-    // --- Player has examined another player ---
-    // --- Player has examined another player or object ---
-    socket.on('examineClicked', (data) => {
-      // Data: { Identifier, playerId, name, description, ... }
-
-      const requestingPlayer = players[socket.id];
-      if (!requestingPlayer) return;
-
-      if (data.Identifier === 'player') {
-        const targetPlayer = players[data.playerId];
-        if (!targetPlayer) return;
-
-        log(`Player ${requestingPlayer.firstName} EXAMINED ${targetPlayer.firstName || 'Unknown Player'}.`);
-
-        let message = `You examined ${targetPlayer.firstName || 'Unknown Player'}.`;
-
-        // Check if target has consumed anyone
-        // If the target has consumed someone, we want to provide a hint to the examiner.
-        if (targetPlayer.voreTypes && targetPlayer.voreTypes.length > 0) {
-          // Find the first voreType with contents
-          const activeVoreType = targetPlayer.voreTypes.find(vt => vt.contents && vt.contents.length > 0);
-
-          if (activeVoreType && activeVoreType.examineMsgDescrip) {
-            // Append the description to the message
-            message += ` ${activeVoreType.examineMsgDescrip}`;
-          }
-        }
-
-        // Send private interactional message to the examiner
-        if (messageSystem) {
-          messageSystem.sendSystemMessage('Interactional', message, socket);
-        }
-
-        // Restore UI Update for Players
-        const info = {
-          Identifier: 'player',
-          firstName: targetPlayer.firstName || 'Unknown',
-          lastName: targetPlayer.lastName || '',
-          icDescrip: targetPlayer.icDescrip || targetPlayer.Description || 'No description available.',
-        };
-        socket.emit('examinedInfo', info);
-      }
-
-      else if (data.Identifier === 'mapObject') {
-        // Logic for Map Objects (Signs, Furniture, etc)
-        log(`Player ${requestingPlayer.firstName} EXAMINED object ${data.name}.`);
-
-        const message = `You examined ${data.name}. ${data.description || ''}`;
-
-        if (messageSystem) {
-          messageSystem.sendSystemMessage('Interactional', message, socket);
-        }
-
-        // Send UI Update for Map Objects
-        socket.emit('examinedInfo', {
-          Identifier: 'mapObject',
-          name: data.name,
-          description: data.description || ''
-        });
-      }
-
-      else if (data.Identifier === 'spell') {
-        // Logic for legacy spells (if still needed)
-        log(`Player ${requestingPlayer.firstName} EXAMINED spell ${data.Name}.`);
-        // Assuming 'spell' items are handled similarly or just logged for now
-        if (messageSystem) {
-          messageSystem.sendSystemMessage('Interactional', `You examined a ${data.Name}.`, socket);
-        }
-      }
-    });
-
-
-    // --- Debug: Send collision map data ---
-    socket.on('requestCollisionData', () => {
-      const blockedTiles = [];
-      if (collisionMap && collisionMap.length > 0) {
-        for (let y = 0; y < collisionMap.length; y++) {
-          for (let x = 0; x < collisionMap[y].length; x++) {
-            if (collisionMap[y][x] === 1) {
-              blockedTiles.push({ x: x * TILE_SIZE, y: y * TILE_SIZE });
-            }
-          }
-        }
-      }
-      socket.emit('collisionDataSent', blockedTiles);
-    });
-
-    // --- Struggle Inside Listener ---
-    // This event is triggered when a consumed player clicks the "Struggle" button in the UI.
-    // It provides specific feedback based on the predator's vore settings.
-    socket.on('struggleInside', async () => {
-      const player = players[socket.id];
-      if (!player || !player.consumedBy) return;
-
-      const predator = Object.values(players).find(p => p.playerId === player.consumedBy);
-      if (predator) {
-        const playerName = player.Username || (player.firstName + ' ' + player.lastName) || 'Unknown Player';
-        const predatorName = predator.Username || (predator.firstName + ' ' + predator.lastName) || 'Unknown Predator';
-
-        // Find the vore type containing the player
-        let activeVoreType = null;
-        if (predator.voreTypes) {
-          // Try to find specific vore type by name in contents
-          activeVoreType = predator.voreTypes.find(vt => vt.contents && vt.contents.includes(playerName));
-
-          // Fallback to first vore type if not found (or if contents empty but consumedBy set)
-          if (!activeVoreType && predator.voreTypes.length > 0) {
-            activeVoreType = predator.voreTypes[0];
-          }
-        }
-
-        if (activeVoreType) {
-          // 1. Private message for struggler (inside description)
-          if (activeVoreType.struggleInsideMsgDescrip && messageSystem) {
-            // Send ONLY to the struggler
-            messageSystem.sendSystemMessage('Interactional', activeVoreType.struggleInsideMsgDescrip, socket);
-          }
-
-          // 2. Public message for everyone (outside description)
-          if (activeVoreType.struggleOutsideMsgDescrip && messageSystem) {
-            // Broadcast to everyone EXCEPT the struggler
-            // We pass the struggler's Character ID in the excludedPlayers array
-            messageSystem.sendSystemMessage('Interactional', activeVoreType.struggleOutsideMsgDescrip, null, [player._id.toString()]);
-          }
-        } else {
-          // Fallback if no vore type found
-          const msg = `${playerName} struggles inside ${predatorName}!`;
-          log(msg);
-          io.emit('voreLog', msg);
-        }
-      }
-    });
-
-    // --- Vore Action Listener ---
-    // This handles the actual act of consuming a player.
-    // It updates state, syncs positions, manages the roster, and broadcasts messages.
-    socket.on('voreAction', async function (data) {
-      const { voreType, targetId } = data;
-      const player = players[socket.id];
-      const targetPlayer = players[targetId];
-
-      if (targetPlayer && player) {
-        const targetName = targetPlayer.Username || (targetPlayer.firstName + ' ' + targetPlayer.lastName) || 'Unknown Target';
-        const predatorName = player.Username || (player.firstName + ' ' + player.lastName) || 'Unknown Predator';
-
-        const messageContent = `${predatorName} ${voreType.verb} ${targetName} into their ${voreType.destination}.`;
-
-        log(messageContent);
-
-        // Update target player state
-        targetPlayer.consumedBy = player.playerId;
-        targetPlayer.position.x = player.position.x;
-        targetPlayer.position.y = player.position.y;
-
-        // Clear held status so struggle bar disappears
-        // The struggle bar is only for "held" players. Consumed players have a different UI.
-        // Clearing these flags ensures the client knows to hide the struggle bar.
-        targetPlayer.isHeld = false;
-        targetPlayer.heldBy = null;
-        targetPlayer.heldBySocketId = null;
-        targetPlayer.grippedFirmly = false;
-        targetPlayer.grippedBy = null;
-        targetPlayer.struggleCount = 0;
-
-        // Update predator's voreTypes contents
-        if (player.voreTypes) {
-          const voreTypeEntry = player.voreTypes.find(v => v.destination === voreType.destination);
-          if (voreTypeEntry) {
-            if (!voreTypeEntry.contents) {
-              voreTypeEntry.contents = [];
-            }
-            voreTypeEntry.contents.push(targetName);
-            console.log(`[VoreAction] Updated contents for ${player.Username}:`, voreTypeEntry.contents);
-          } else {
-            console.log(`[VoreAction] Could not find voreType entry for ${voreType.destination}`);
-          }
-        } else {
-          console.log(`[VoreAction] Player has no voreTypes defined.`);
-        }
-
-        // --- 1. Emit to Console Log (Client Side) ---
-        io.emit('voreLog', messageContent);
-
-        // --- 2. Add to Chat ---
-        try {
-          // We need a valid user ID for the chat message. 
-          // If the player is a guest, this might fail if the schema requires an ObjectId.
-          // However, based on the player object, we might have _id.
-          // If not, we might need a fallback or skip saving to DB (just emit).
-
-          // Let's assume for now we want to save it if possible, or just emit a "system" style message.
-          // But the requirement says "emit a socket event back to all players... include a message added to the chat".
-          // The best way is to mimic 'addMessage' from index.js but from the server side.
-
-          let accountId = player._id;
-          // Note: player._id in server-loop seems to be the CHARACTER ID, not the USER/ACCOUNT ID.
-          // We need to find the User document to get the account ID if needed, OR just use a placeholder.
-          // The Chat schema requires 'name' and 'message'.
-
-          if (accountId) {
-            // Broadcast Interactional Message
-            if (messageSystem) {
-              messageSystem.sendSystemMessage('Interactional', messageContent);
-            }
-          }
-
-        } catch (err) {
-          console.error("Error saving vore chat message:", err);
-        }
-      }
-    });
-
-
-    // --- Release Vore Target Listener ---
-    // This handles releasing a player from a specific vore destination.
-    // It removes them from the roster, resets their state, and notifies everyone.
-    socket.on('releaseVoreTarget', async function (data) {
-      const { voreTypeId, targetName } = data;
-      const player = players[socket.id];
-
-      if (!player || !player.voreTypes) return;
-
-      // 1. Find the vore type and remove target from contents
-      const voreTypeEntry = player.voreTypes.find(v => v._id.toString() === voreTypeId || v._id === voreTypeId);
-      if (voreTypeEntry && voreTypeEntry.contents) {
-        const index = voreTypeEntry.contents.indexOf(targetName);
-        if (index > -1) {
-          voreTypeEntry.contents.splice(index, 1);
-          console.log(`[Release] Removed ${targetName} from ${player.Username}'s ${voreTypeEntry.destination}`);
-        }
-      }
-
-      // 2. Find the target player by name (inefficient but works for now)
-      let targetPlayer = null;
-      let targetSocketId = null;
-      for (const [sid, p] of Object.entries(players)) {
-        const pName = p.Username || (p.firstName + ' ' + p.lastName);
-        if (pName === targetName) {
-          targetPlayer = p;
-          targetSocketId = sid;
-          break;
-        }
-      }
-
-      if (targetPlayer) {
-        // 3. Reset target state
-        targetPlayer.consumedBy = null;
-        targetPlayer.isHeld = false;
-        targetPlayer.heldBy = null;
-        targetPlayer.struggleCount = 0;
-
-        // Reset predator state related to holding this target
-        if (player.holding === targetSocketId) {
-          player.holding = null;
-        }
-
-        // 4. Emit Updates
-        const messageContent = `${player.Username || 'Predator'} released ${targetName} from their ${voreTypeEntry ? voreTypeEntry.destination : 'body'}.`;
-        log(messageContent);
-        io.emit('voreLog', messageContent);
-
-        // Broadcast chat message
-        try {
-          const Chat = require('./model/Chat');
-          const chatMsg = new Chat({
-            name: 'Environment',
-            message: [{ content: messageContent }],
-            deleted: { status: false },
-            spoiler: { status: 'none', votes: {} }
-          });
-          await chatMsg.save();
-          io.emit('output', [chatMsg]);
-        } catch (err) {
-          console.error("Error saving release chat message:", err);
-        }
-      } else {
-        console.log(`[Release] Target player ${targetName} not found online.`);
-      }
-    });
 
 
 
     // --- Settings Update Listener ---
-    socket.on('updateVoreType', async function (data) {
-      const player = players[socket.id];
-      if (player && player._id) {
-        const playerName = player.Username || (player.firstName + ' ' + player.lastName) || 'Unknown Player';
-        log(`${playerName} edited the settings for ${data.destination}.`);
-
-        // Update in-memory
-        const voreIndex = player.voreTypes.findIndex(v => v._id.toString() === data.id);
-        if (voreIndex > -1) {
-          // Merge updates
-          player.voreTypes[voreIndex] = { ...player.voreTypes[voreIndex], ...data };
-          // Ensure _id is preserved and not overwritten by data.id string if it was an object
-          // actually data.id is passed from client, likely string.
-        }
-
-        // Update Database
-        try {
-          const user = await User.findOne({ 'characters._id': player._id });
-          if (user) {
-            const character = user.characters.id(player._id);
-            if (character) {
-              const voreType = character.voreTypes.id(data.id);
-              if (voreType) {
-                voreType.destination = data.destination;
-                voreType.verb = data.verb;
-                voreType.digestionTimer = data.digestionTimer;
-                voreType.animation = data.animation;
-                voreType.mode = data.mode;
-                voreType.destinationDescrip = data.destinationDescrip;
-                voreType.examineMsgDescrip = data.examineMsgDescrip;
-                voreType.struggleInsideMsgDescrip = data.struggleInsideMsgDescrip;
-                voreType.struggleOutsideMsgDescrip = data.struggleOutsideMsgDescrip;
-                voreType.digestionInsideMsgDescrip = data.digestionInsideMsgDescrip;
-                voreType.digestionOutsideMsgDescrip = data.digestionOutsideMsgDescrip;
-                voreType.audioEntry = data.audioEntry;
-                voreType.audioAmbient = data.audioAmbient;
-                voreType.audioStruggle = data.audioStruggle;
-                voreType.audioExit = data.audioExit;
-
-                await user.save();
-                log(`Saved updated vore settings for ${playerName} to DB.`);
-
-                // Broadcast update to all clients
-                io.emit('voreSettingsUpdated', {
-                  playerId: player.playerId,
-                  voreTypes: player.voreTypes
-                });
-              }
-            }
-          }
-        } catch (err) {
-          log.error(`Error saving vore settings for ${playerName}:`, err);
-        }
-      }
-    });
-
-    // --- Add New Vore Type Listener ---
-    socket.on('addVoreType', async function (data) {
-      const player = players[socket.id];
-      if (player && player._id) {
-        const playerName = player.Username || (player.firstName + ' ' + player.lastName) || 'Unknown Player';
-        log(`${playerName} added a new vore destination: ${data.destination}.`);
-
-        try {
-          const user = await User.findOne({ 'characters._id': player._id });
-          if (user) {
-            const character = user.characters.id(player._id);
-            if (character) {
-              // Create new vore object
-              const newVore = {
-                destination: data.destination,
-                verb: data.verb,
-                digestionTimer: data.digestionTimer,
-                animation: data.animation,
-                mode: data.mode,
-                destinationDescrip: data.destinationDescrip,
-                examineMsgDescrip: data.examineMsgDescrip,
-                struggleInsideMsgDescrip: data.struggleInsideMsgDescrip,
-                struggleOutsideMsgDescrip: data.struggleOutsideMsgDescrip,
-                digestionInsideMsgDescrip: data.digestionInsideMsgDescrip,
-                digestionOutsideMsgDescrip: data.digestionOutsideMsgDescrip,
-                audioEntry: data.audioEntry,
-                audioAmbient: data.audioAmbient,
-                audioStruggle: data.audioStruggle,
-                audioExit: data.audioExit
-              };
-
-              character.voreTypes.push(newVore);
-              await user.save();
-
-              // Get the newly created item with _id
-              const savedVore = character.voreTypes[character.voreTypes.length - 1];
-
-              // Update in-memory
-              player.voreTypes.push(savedVore);
-
-              log(`Saved new vore destination for ${playerName} to DB.`);
-
-              // Optional: Emit back to client to update UI immediately with real ID?
-              // The client might need a full refresh or we can send a specific event.
-              // For now, the playerUpdates loop will eventually sync it, but might miss the ID if not handled carefully.
-              // But since we pushed to player.voreTypes, the next tick will send it.
-            }
-          }
-        } catch (err) {
-          log.error(`Error adding vore settings for ${playerName}:`, err);
-        }
-      }
-    });
+    // --- VORE SETTINGS HANDLERS ---
+    // Extracted to src/sockets/voreHandlers.js
+    const initVoreHandlers = require('./sockets/voreHandlers');
+    initVoreHandlers(io, socket, players, User, saveCharacter);
 
   });
 
   // --- Start the Loop ---
   setInterval(() => {
-    gameLoop(io);
+    try {
+      gameLoop(io);
+    } catch (e) {
+      log.error('CRITICAL ERROR in Game Loop Tick:', e);
+    }
   }, 1000 / TICK_RATE);
 
-  log('Server game loop started.');
+  log.success('Server game loop started.');
 };
 
 module.exports.findPlayerByName = (name) => {

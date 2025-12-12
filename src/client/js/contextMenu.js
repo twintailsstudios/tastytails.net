@@ -186,8 +186,8 @@ function initializeContextMenu(scene, socket) {
                 btn.onclick = function () {
                     console.log('Selected target:', target);
                     socket.emit('playerPerformAction', {
-                        targetPlayerId: target.playerId,
-                        playerIntent: playerIntent
+                        targetId: target.playerId,
+                        intent: playerIntent
                     });
                     selectionMenu.style.display = 'none';
                 };
@@ -210,8 +210,8 @@ function initializeContextMenu(scene, socket) {
             // Single target or not grabbing, perform action on the first/only target
             const target = responseInfo[0];
             socket.emit('playerPerformAction', {
-                targetPlayerId: target.playerId,
-                playerIntent: playerIntent
+                targetId: target.playerId,
+                intent: playerIntent
             });
         }
     });
@@ -308,7 +308,7 @@ function initializeContextMenu(scene, socket) {
                         if (action === 'Examine') {
                             actionsUl.appendChild(createMenuItem('Examine', 'fa-solid fa-eye', () => socket.emit('examineClicked', currentItem)));
                         } else if (action === 'Hold') {
-                            actionsUl.appendChild(createMenuItem('Hold', 'fa-solid fa-hand-back-fist', () => socket.emit('playerPerformAction', { targetPlayerId: currentItem.playerId, playerIntent: 'grabbing' })));
+                            actionsUl.appendChild(createMenuItem('Hold', 'fa-solid fa-hand-back-fist', () => socket.emit('playerPerformAction', { targetId: currentItem.playerId, intent: 'grabbing' })));
                         } else if (action === 'Release') {
                             actionsUl.appendChild(createMenuItem('Release', 'fa-solid fa-hand-sparkles', () => socket.emit('releaseClicked', currentItem)));
                         } else if (action === 'Grip Firmly') {

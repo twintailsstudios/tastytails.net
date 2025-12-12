@@ -8,6 +8,8 @@ import { createVoreList, createStruggleButton } from './ui.js';
 import { initDebugGraph } from './debugGraph.js';
 import { actionHands } from './hands.js';
 
+import { ShadowSystem } from './shadows.js';  // New Import
+
 import { itemManager } from './items.js';
 import { equipmentManager } from './equipment.js';
 import { inventoryUI } from './inventory.js';
@@ -15,6 +17,7 @@ import { inventoryUI } from './inventory.js';
 let debugGraphics;
 let playerDebugGraphics;
 let showDebug = false;
+let shadowSystem = null; // New Variable
 
 export function create() {
     const self = this;
@@ -116,10 +119,18 @@ export function create() {
         });
     }
 
-
-
     // Create Map
     createMap(this);
+
+    // --- Initialize Shadow System ---
+    this.shadowSystem = new ShadowSystem(this);
+
+    // Listen for Map Segments (for client-side prediction)
+    this.socket.on('mapSegments', (segments) => {
+        if (self.shadowSystem) {
+            self.shadowSystem.setSegments(segments);
+        }
+    });
 
     // Add collision with map objects
     if (this.objectGroup) {
@@ -138,6 +149,10 @@ export function create() {
                 if (equipmentManager) {
                     console.log('[Client] Syncing initial equipment:', players[id].equipment);
                     equipmentManager.update(players[id]);
+                }
+                // Initial Shadow Update
+                if (shadowSystem) {
+                    shadowSystem.update(players[id]);
                 }
             } else {
                 displayOtherPlayers(self, players[id]);
@@ -161,7 +176,10 @@ export function create() {
 
     this.socket.on('playerUpdates', function (players) {
         // console.log('[Client] Received playerUpdates', Object.keys(players).length);
-        Object.keys(players).forEach(function (id) {
+        const receivedPlayerIds = Object.keys(players);
+
+        // 1. Update received players
+        receivedPlayerIds.forEach(function (id) {
             if (players[id].playerId === self.socket.id) {
                 if (self.playerContainer) {
                     // console.log('[Client] Calling reconcile for local player');
@@ -170,6 +188,11 @@ export function create() {
                     if (equipmentManager) equipmentManager.update(players[id]);
                     if (inventoryUI) inventoryUI.update(players[id]);
                     updatePlayerEquipmentVisuals(self.playerContainer, players[id].equipment);
+
+                    // Update Shadows
+                    if (shadowSystem) {
+                        shadowSystem.update(players[id]);
+                    }
 
 
                     // --- Vore List Update ---
@@ -222,22 +245,41 @@ export function create() {
                     }
                 }
             } else {
-                self.otherPlayersGroup.getChildren().forEach(function (otherPlayer) {
-                    if (players[id].playerId === otherPlayer.playerId) {
-                        otherPlayer.setPosition(players[id].position.x, players[id].position.y);
-                        updatePlayerAnimations(otherPlayer, players[id]);
-                        updateStruggleBar(otherPlayer, players[id], self);
-                        updatePlayerEquipmentVisuals(otherPlayer, players[id].equipment);
-                        otherPlayer.depth = otherPlayer.y;
+                // OTHER PLAYERS
+                let otherPlayer = getPlayerSprite(players[id].playerId, self.otherPlayersGroup);
+                if (!otherPlayer) {
+                    // New player entered AOI or connected
+                    displayOtherPlayers(self, players[id]);
+                    otherPlayer = getPlayerSprite(players[id].playerId, self.otherPlayersGroup);
+                }
 
-                        // Hide other players if they are consumed
-                        if (players[id].consumedBy) {
-                            otherPlayer.setVisible(false);
-                        } else {
-                            otherPlayer.setVisible(true);
-                        }
+                if (otherPlayer) {
+                    // Update position and state
+                    otherPlayer.setPosition(players[id].position.x, players[id].position.y);
+                    updatePlayerAnimations(otherPlayer, players[id]);
+                    updateStruggleBar(otherPlayer, players[id], self);
+                    updatePlayerEquipmentVisuals(otherPlayer, players[id].equipment);
+                    otherPlayer.depth = otherPlayer.y;
+
+                    // Hide other players if they are consumed
+                    if (players[id].consumedBy) {
+                        otherPlayer.setVisible(false);
+                    } else {
+                        otherPlayer.setVisible(true);
                     }
-                });
+                }
+            }
+        });
+
+        // 2. Reconciliation: Remove players NOT in the received list (AOI Culling)
+        self.otherPlayersGroup.getChildren().forEach(function (otherPlayer) {
+            // Check if this player is in the received list
+            // Note: otherPlayer.playerId matches the key in 'players' (socket ID) usually, check logic.
+            // players object keys are socket IDs. otherPlayer.playerId is socket ID.
+            if (!players[otherPlayer.playerId]) {
+                // Player is no longer in our update list (out of range/view or disconnected)
+                console.log(`[AOI] Removing player ${otherPlayer.playerId} (out of view/range)`);
+                otherPlayer.destroy();
             }
         });
     });

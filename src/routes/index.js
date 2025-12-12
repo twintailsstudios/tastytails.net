@@ -8,10 +8,10 @@ const log = require('../logger');
 
 router.get('/', (req, res) => {
   const token = req.cookies.TastyTails;
-  if(!token) return res.render('index', {
-      token: null,
-      loginForm: 0
-    });
+  if (!token) return res.render('index', {
+    token: null,
+    loginForm: 0
+  });
 
   try {
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
@@ -33,7 +33,7 @@ router.get('/', (req, res) => {
 
 router.get('/create', verify, (req, res) => {
   const token = req.cookies.TastyTails;
-  if(!token) {
+  if (!token) {
     res.render('create', {
       token: null,
       loginForm: 0
@@ -50,7 +50,7 @@ router.get('/create', verify, (req, res) => {
 
 router.get('/error', (req, res) => {
   const token = req.cookies.TastyTails;
-  if(!token) {
+  if (!token) {
     res.render('error', {
       token: null,
       loginForm: 0,
@@ -70,10 +70,10 @@ router.get('/error', (req, res) => {
 
 router.get('/loginForm', (req, res) => {
   const token = req.cookies.TastyTails;
-  if(!token) return res.render('index', {
-      token: null,
-      loginForm: 1
-    });
+  if (!token) return res.render('index', {
+    token: null,
+    loginForm: 1
+  });
 
   try {
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
@@ -95,10 +95,10 @@ router.get('/loginForm', (req, res) => {
 
 router.get('/registered', (req, res) => {
   const token = req.cookies.TastyTails;
-  if(!token) return res.render('registered', {
-      token: null,
-      loginForm: 0
-    });
+  if (!token) return res.render('registered', {
+    token: null,
+    loginForm: 0
+  });
 
   try {
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
@@ -118,23 +118,23 @@ router.get('/registered', (req, res) => {
 })
 
 router.get('/character-bank', verify, async (req, res) => {
-  log('ran /character-bank');
+  log.debug('ran /character-bank');
   const token = req.cookies.TastyTails;
-  log('req.cookies.TastyTails = ' , req.cookies.TastyTails);
-  // log('req = ', req);
-  if(!token) return res.render('character-bank', {
-      token: null,
-      loginForm: 0
-    });
+  log.debug('req.cookies.TastyTails = ', req.cookies.TastyTails);
+  // log.debug('req = ', req);
+  if (!token) return res.render('character-bank', {
+    token: null,
+    loginForm: 0
+  });
 
   try {
-    log('trying');
+    log.debug('trying');
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-    log('process.env.TOKEN_SECRET')
-    log('verified = ', verified);
+    log.debug('process.env.TOKEN_SECRET')
+    log.info('verified = ', verified);
     let characters = await dbInterface.charList(token);
-    // log('characters in the index.js = ', characters);
-    log('successfully called dbInterface.charList() function.');
+    // log.debug('characters in the index.js = ', characters);
+    log.debug('successfully called dbInterface.charList() function.');
 
     // characters = characters.map(character => {
     //   return {
@@ -151,7 +151,7 @@ router.get('/character-bank', verify, async (req, res) => {
       charList: characters
     });
   } catch (err) {
-    log('err = ', err)
+    log.error('err = ', err)
     res.status(400).render('error', {
       token: null,
       loginForm: 0,

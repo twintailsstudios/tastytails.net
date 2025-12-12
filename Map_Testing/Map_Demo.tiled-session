@@ -3,7 +3,7 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "",
+    "activeFile": "Demo_Map.tmx",
     "expandedProjectPaths": [
         "."
     ],
@@ -20,13 +20,13 @@
             "scale": 0.75,
             "selectedLayer": 8,
             "viewCenter": {
-                "x": 436,
-                "y": 565.3333333333333
+                "x": 649.3333333333333,
+                "y": 930.6666666666665
             }
         },
         "Demo_Map.tmx#Demo_Items": {
             "dynamicWrapping": true,
-            "scaleInDock": 0.25,
+            "scaleInDock": 3,
             "scaleInEditor": 1
         },
         "Demo_Map.tmx#Demo_Objects": {
@@ -63,7 +63,7 @@
         "Demo_Map.tmx"
     ],
     "project": "Map_Demo.tiled-project",
-    "property.type": "string",
+    "property.type": "bool",
     "recentFiles": [
         "Demo_Map.tmx",
         "Demo_tileset.tsx",

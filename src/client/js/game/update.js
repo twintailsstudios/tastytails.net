@@ -16,7 +16,7 @@ export function update(time, delta) {
     // Log the position at the VERY START of the update loop.
     // console.log(`[UPDATE START] Pos: (${this.playerContainer.x.toFixed(2)}, ${this.playerContainer.y.toFixed(2)})`);
 
-    const speed = 200;
+    const speed = 100;
 
     // Disable movement if consumed
     let inputPayload = {
@@ -176,5 +176,10 @@ export function update(time, delta) {
         if (this.debugCoordsText) {
             this.debugCoordsText.setVisible(false);
         }
+    }
+
+    // --- Shadow System Update (Client Prediction) ---
+    if (this.shadowSystem) {
+        this.shadowSystem.update();
     }
 }
