@@ -1,6 +1,6 @@
 import { windowSize, drawDebug } from './utils.js';
-import { createAnimations, updatePlayerAnimations } from './animations.js';
-import { displayPlayers, displayOtherPlayers, getPlayerSprite, updateStruggleBar, updatePlayerEquipmentVisuals } from './player.js';
+import { createAnimations, updatePlayerAnimations, createEmoteAnimations } from './animations.js';
+import { displayPlayers, displayOtherPlayers, getPlayerSprite, updateStruggleBar, updatePlayerEquipmentVisuals, updateTypingIndicator } from './player.js';
 import { reconcile } from './reconcile.js';
 import { createMap } from './map.js';
 import { initializeTabs } from './tabs.js';
@@ -361,6 +361,24 @@ export function create() {
         }
     });
 
+    this.socket.on('typing', (data) => {
+        // console.log('[Client] Received typing event:', data);
+        let targetContainer = null;
+        if (self.playerContainer && self.playerContainer.playerInfo && self.playerContainer.playerInfo._id.toString() === data.charId) {
+            targetContainer = self.playerContainer;
+            // console.log('[Client] Typing target is SELF');
+        } else {
+            const others = self.otherPlayersGroup.getChildren();
+            targetContainer = others.find(p => p.playerInfo && p.playerInfo._id.toString() === data.charId);
+        }
+
+        if (targetContainer) {
+            updateTypingIndicator(targetContainer, data.isTyping);
+        } else {
+            // console.warn('[Client] Typing target not found:', data.charId);
+        }
+    });
+
     // --- HillHome Transparency ---
     this.socket.on('enterHillHome', () => {
         console.log('Entering HillHome - Transparency ON');
@@ -421,6 +439,10 @@ export function create() {
     } else {
         // Fallback or log
         console.warn('spritesToAnimate not found on scene');
+    }
+
+    if (self.emoteKeys) {
+        createEmoteAnimations(self, self.emoteKeys);
     }
 
     // Force initial resize to fit container

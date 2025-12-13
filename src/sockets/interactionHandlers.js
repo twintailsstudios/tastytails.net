@@ -90,7 +90,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                         log.info(`Player ${players[socket.id].firstName} has GRIPPED FIRMLY ${targetName}.`);
 
                         if (messageSystem) {
-                            messageSystem.sendSystemMessage('Interactional', `${players[socket.id].firstName} is gripping ${targetName} tightly.`);
+                            messageSystem.sendSystemMessage('Interactional', `${players[socket.id].firstName} is gripping ${targetName} tightly.`, null, [], 'local', socket);
                         }
                     } else {
                         // Normal grab
@@ -102,7 +102,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                         targetPlayer.struggleCount = 0;
 
                         if (messageSystem) {
-                            messageSystem.sendSystemMessage('Interactional', `${players[socket.id].firstName} has taken hold of ${targetName}.`);
+                            messageSystem.sendSystemMessage('Interactional', `${players[socket.id].firstName} has taken hold of ${targetName}.`, null, [], 'local', socket);
                         }
                     }
                 }
@@ -157,7 +157,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 log.info(`Player ${player.firstName} GRIPPED FIRMLY ${targetPlayer.firstName || 'Unknown Player'}.`);
 
                 if (messageSystem) {
-                    messageSystem.sendSystemMessage('Interactional', `${player.firstName} is gripping ${targetPlayer.firstName || 'Unknown Player'} tightly.`);
+                    messageSystem.sendSystemMessage('Interactional', `${player.firstName} is gripping ${targetPlayer.firstName || 'Unknown Player'} tightly.`, null, [], 'local', socket);
                 }
             }
         } catch (e) {
@@ -186,7 +186,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 }
 
                 if (messageSystem) {
-                    messageSystem.sendSystemMessage('Interactional', message, socket);
+                    messageSystem.sendSystemMessage('Interactional', message, socket, [], 'local');
                 }
 
                 const info = {
@@ -204,7 +204,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 const message = `You examined ${data.name}. ${data.description || ''}`;
 
                 if (messageSystem) {
-                    messageSystem.sendSystemMessage('Interactional', message, socket);
+                    messageSystem.sendSystemMessage('Interactional', message, socket, [], 'local');
                 }
 
                 socket.emit('examinedInfo', {
@@ -259,11 +259,11 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
                 if (activeVoreType) {
                     if (activeVoreType.struggleInsideMsgDescrip && messageSystem) {
-                        messageSystem.sendSystemMessage('Interactional', activeVoreType.struggleInsideMsgDescrip, socket);
+                        messageSystem.sendSystemMessage('Interactional', activeVoreType.struggleInsideMsgDescrip, socket, [], 'local');
                     }
 
                     if (activeVoreType.struggleOutsideMsgDescrip && messageSystem) {
-                        messageSystem.sendSystemMessage('Interactional', activeVoreType.struggleOutsideMsgDescrip, null, [player._id ? player._id.toString() : '']);
+                        messageSystem.sendSystemMessage('Interactional', activeVoreType.struggleOutsideMsgDescrip, null, [player._id ? player._id.toString() : ''], 'local', socket);
                     }
                 } else {
                     const msg = `${playerName} struggles inside ${predatorName}!`;
@@ -312,7 +312,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 io.emit('voreLog', messageContent);
 
                 if (messageSystem) {
-                    messageSystem.sendSystemMessage('Interactional', messageContent);
+                    messageSystem.sendSystemMessage('Interactional', messageContent, null, [], 'local', socket);
                 }
             }
         } catch (e) {
@@ -361,7 +361,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 io.emit('voreLog', messageContent);
 
                 if (messageSystem) {
-                    messageSystem.sendSystemMessage('Interactional', messageContent);
+                    messageSystem.sendSystemMessage('Interactional', messageContent, null, [], 'local', socket);
                 }
             }
         } catch (e) {

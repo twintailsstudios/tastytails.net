@@ -154,3 +154,16 @@ export function createAnimations(scene, spriteKeys) {
         });
     });
 }
+
+export function createEmoteAnimations(scene, emoteKeys) {
+    if (!emoteKeys) return;
+
+    emoteKeys.forEach(key => {
+        scene.anims.create({
+            key: key,
+            frames: scene.anims.generateFrameNumbers(key, { start: 0, end: 2 }), // 3 frames: 0, 1, 2
+            frameRate: 8,
+            repeat: -1
+        });
+    });
+}

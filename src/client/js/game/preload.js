@@ -535,4 +535,16 @@ export function preload() {
     this.load.image('pub_exit_rug', './../assets/tilemaps/pub_exit_rug.png');
 
     this.load.spritesheet('door_spa', './../assets/spritesheets/door_spa.png', { frameWidth: 197, frameHeight: 255 });
+
+
+    // ----- Emotes -----//
+    this.emoteKeys = [];
+    const emotes = ['typing']; // Add new emote filenames here (without extension)
+
+    emotes.forEach(emote => {
+        this.load.spritesheet(emote, `./../assets/emotes/${emote}.png`, { frameWidth: 39, frameHeight: 43 });
+        this.emoteKeys.push(emote);
+    });
+
+
 }

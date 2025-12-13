@@ -356,3 +356,29 @@ export function updateStruggleBar(playerContainer, playerInfo, scene) {
         bar.setVisible(false);
     }
 }
+
+export function updateTypingIndicator(container, isTyping) {
+    if (!container || !container.active) return;
+
+    let indicator = container.getByName('typingIndicator');
+
+    if (isTyping) {
+        if (!indicator) {
+            // Position above head. Standard sprites are at 30, -81.5. Container is 163 high.
+            // Struggle bar is at -180. Let's put typing bubble around -150?
+            indicator = container.scene.add.sprite(30, -150, 'typing');
+            indicator.setName('typingIndicator');
+            container.add(indicator);
+        }
+        indicator.setVisible(true);
+        // Play animation if not already playing
+        if (!indicator.anims.isPlaying || indicator.anims.currentAnim.key !== 'typing') {
+            indicator.play('typing');
+        }
+    } else {
+        if (indicator) {
+            indicator.setVisible(false);
+            indicator.stop(); // Stop animation
+        }
+    }
+}

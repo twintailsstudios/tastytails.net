@@ -3,7 +3,7 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "Demo_Map.tmx",
+    "activeFile": "",
     "expandedProjectPaths": [
         "."
     ],
@@ -18,10 +18,10 @@
         },
         "Demo_Map.tmx": {
             "scale": 0.75,
-            "selectedLayer": 8,
+            "selectedLayer": 1,
             "viewCenter": {
                 "x": 649.3333333333333,
-                "y": 930.6666666666665
+                "y": 434.6666666666667
             }
         },
         "Demo_Map.tmx#Demo_Items": {
@@ -32,11 +32,11 @@
         "Demo_Map.tmx#Demo_Objects": {
             "dynamicWrapping": true,
             "scaleInDock": 0.33,
-            "scaleInEditor": 0.125
+            "scaleInEditor": 1
         },
         "Demo_Map.tmx#Demo_tileset": {
             "dynamicWrapping": false,
-            "scaleInDock": 0.25,
+            "scaleInDock": 1.5,
             "scaleInEditor": 1
         },
         "Demo_Map.tmx#pixel_heart": {

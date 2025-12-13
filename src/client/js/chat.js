@@ -3,12 +3,41 @@ function initializeChat(socket) {
     const messages = element('messages');
     const textarea = element('textarea');
     const spoilerLabel = element('spoiler-label');
+    const jumpToPresentBtn = element('jump-to-present');
+    let newMessagesCount = 0;
     let editingMessageId = null; // Track which message is being edited
     let originalDraft = ''; // Store draft when switching to edit mode
     let isLoadingOlder = false; // Track if we are currently fetching older messages
 
     //----- Chat box -----//
     rememberText();
+
+    // --- Typing Indicator Logic ---
+    let typingTimeout = null;
+    let isTyping = false;
+    const TYPING_TIMER_LENGTH = 2000; // 2 seconds
+
+    textarea.addEventListener('input', () => {
+        localStorage.setItem("textarea", textarea.innerHTML);
+        charCounter();
+
+        if (!isTyping) {
+            isTyping = true;
+            socket.emit('typing', {
+                charId: document.location.href.split('play/')[1],
+                isTyping: true
+            });
+        }
+
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            isTyping = false;
+            socket.emit('typing', {
+                charId: document.location.href.split('play/')[1],
+                isTyping: false
+            });
+        }, TYPING_TIMER_LENGTH);
+    });
 
     // --- Custom Select Logic ---
     function initCustomSelects() {
@@ -77,6 +106,132 @@ function initializeChat(socket) {
 
     initCustomSelects();
 
+    // --- Scope / Tabs Logic ---
+    let currentScope = 'global';
+    const tabGlobal = element('tab-global');
+    const tabLocal = element('tab-local');
+    const tabStates = {
+        global: { anchorId: null, offset: 0 },
+        local: { anchorId: null, offset: 0 }
+    };
+
+    function saveTabState(scope) {
+        const visibleBottom = messages.scrollTop + messages.clientHeight;
+        const children = Array.from(messages.querySelectorAll('.chat-message'));
+        let anchor = null;
+
+        // Iterate backwards / find bottom-most visible message for this scope
+        for (let i = children.length - 1; i >= 0; i--) {
+            const el = children[i];
+            // Check if matches scope and is roughly visible (top is above bottom of viewport)
+            if (el.dataset.scope === scope && el.getBoundingClientRect().height > 0) {
+                // Note: 'display:none' elements have 0 height/dimensions usually, 
+                // but checking dataset directly is safer as we are ABOUT to change views.
+                // Actually, saveTabState is called BEFORE view change, so CSS check works.
+                if (el.offsetTop < visibleBottom) {
+                    anchor = el;
+                    break;
+                }
+            }
+        }
+
+        if (anchor) {
+            tabStates[scope] = {
+                anchorId: anchor.id,
+                offset: visibleBottom - (anchor.offsetTop + anchor.offsetHeight)
+            };
+        } else {
+            // If no messages or scrolled to top etc.
+            tabStates[scope] = { anchorId: null, offset: 0 };
+        }
+    }
+
+    function restoreTabState(scope) {
+        const state = tabStates[scope];
+        let restored = false;
+
+        if (state && state.anchorId) {
+            const anchor = document.getElementById(state.anchorId);
+            if (anchor) {
+                const targetBottom = anchor.offsetTop + anchor.offsetHeight + state.offset;
+                messages.scrollTop = targetBottom - messages.clientHeight;
+                restored = true;
+
+                // Calculate New Messages (Unread)
+                let unreadCount = 0;
+                let sibling = anchor.nextElementSibling;
+                while (sibling) {
+                    if (sibling.classList.contains('chat-message') && sibling.dataset.scope === scope) {
+                        unreadCount++;
+                    }
+                    sibling = sibling.nextElementSibling;
+                }
+
+                if (unreadCount > 0) {
+                    // Insert Divider if missing
+                    let nextEl = anchor.nextElementSibling;
+                    if (!nextEl || !nextEl.classList.contains('new-messages-divider')) {
+                        const marker = document.createElement('div');
+                        marker.className = 'new-messages-divider';
+                        marker.dataset.scope = scope;
+                        marker.innerHTML = 'New Messages';
+                        anchor.insertAdjacentElement('afterend', marker);
+                    }
+
+                    if (jumpToPresentBtn) {
+                        jumpToPresentBtn.classList.remove('hidden');
+                        jumpToPresentBtn.innerHTML = `<span>${unreadCount} New Messages</span> <i class="fas fa-arrow-down"></i>`;
+                        newMessagesCount = unreadCount; // Sync global counter
+                    }
+                } else if (jumpToPresentBtn) {
+                    jumpToPresentBtn.classList.add('hidden');
+                    newMessagesCount = 0;
+                    // Do NOT remove divider here. It persists until reply.
+                }
+            }
+        }
+
+        if (!restored) {
+            messages.scrollTop = messages.scrollHeight;
+            if (jumpToPresentBtn) {
+                jumpToPresentBtn.classList.add('hidden');
+                newMessagesCount = 0;
+            }
+        }
+    }
+
+    function setScope(scope) {
+        // 1. Save state of OLD scope
+        saveTabState(currentScope);
+
+        currentScope = scope;
+        messages.setAttribute('data-view', scope);
+
+        // Update Tabs
+        if (scope === 'global') {
+            tabGlobal.classList.add('active');
+            tabLocal.classList.remove('active');
+        } else {
+            tabGlobal.classList.remove('active');
+            tabLocal.classList.add('active');
+        }
+
+        // 2. Restore state of NEW scope
+        // Need brief timeout for layout update? Usually sync DOM update handles it before paint, 
+        // but scrollTop needs layout. 
+        // Force layout by reading scrollHeight?
+        const _ = messages.scrollHeight;
+        restoreTabState(scope);
+    }
+
+    if (tabGlobal && tabLocal) {
+        tabGlobal.addEventListener('click', () => setScope('global'));
+        tabLocal.addEventListener('click', () => setScope('local'));
+    }
+
+    // Set initial
+    setScope('global');
+
     // --- Helper Functions ---
 
     function formatTime(dateString) {
@@ -91,7 +246,9 @@ function initializeChat(socket) {
         const spoilerStatus = msg.spoiler.status;
         const msgId = msg._id;
         const identifier = msg.identifier; // Character ID
+
         const type = msg.type || 'Default'; // Default to 'Default' if undefined
+        const scope = msg.scope || 'global';
 
         // Environmental Message Check
         // Messages from "Environment" are special system messages (e.g. vore actions, releases).
@@ -120,7 +277,7 @@ function initializeChat(socket) {
         if (type === 'OOC') messageClasses += " ooc-message";
 
         return `
-            <div id="${msgId}" class="${messageClasses}" data-timestamp="${rawTime}">
+            <div id="${msgId}" class="${messageClasses}" data-timestamp="${rawTime}" data-scope="${scope}">
                 <div class="msg-title-bar">
                     <div>
                         <span class="postTime">${time} </span>
@@ -131,30 +288,34 @@ function initializeChat(socket) {
                 <div class="${contentClasses}" data-spoiler-type="${spoilerStatus}">
                     ${content}
                 </div>
-            </div>
-        `;
+            </div >
+            `;
     }
-
-    const jumpToPresentBtn = element('jump-to-present');
-    let newMessagesCount = 0;
 
     // --- Jump to Present Logic ---
     if (jumpToPresentBtn) {
         jumpToPresentBtn.addEventListener('click', () => {
-            messages.scrollTop = messages.scrollHeight;
+            const divider = messages.querySelector(`.new-messages-divider[data-scope="${currentScope}"]`);
+            if (divider) {
+                // Scroll to the divider (with a little padding)
+                messages.scrollTop = divider.offsetTop - 50;
+            } else {
+                // Fallback to bottom if no divider
+                messages.scrollTop = messages.scrollHeight;
+            }
+
             jumpToPresentBtn.classList.add('hidden');
             newMessagesCount = 0;
-            const existingMarker = messages.querySelector('.new-messages-divider');
-            if (existingMarker) existingMarker.remove();
+            // Note: We do NOT remove the divider here. It serves as a visual marker.
+            // The scroll listener will remove it when the user reaches the bottom.
         });
     }
 
     messages.addEventListener('scroll', () => {
         if (scrollChecker()) {
-            jumpToPresentBtn.classList.add('hidden');
+            if (jumpToPresentBtn) jumpToPresentBtn.classList.add('hidden');
             newMessagesCount = 0;
-            const existingMarker = messages.querySelector('.new-messages-divider');
-            if (existingMarker) existingMarker.remove();
+            // Do NOT remove divider on scroll.
         }
     });
 
@@ -167,41 +328,72 @@ function initializeChat(socket) {
             if (data.length) {
                 const isScrolledToBottom = scrollChecker();
                 let html = '';
+                const hasVisible = data.some(m => (m.scope || 'global') === currentScope);
 
                 // Process messages
+                let currentBatchHTML = '';
+
                 for (let i = 0; i < data.length; i++) {
                     if (data[i].deleted.status == 'false') {
-                        html += renderMessageHTML(data[i]);
+                        const msgHtml = renderMessageHTML(data[i]);
+                        let processed = false;
+
+                        // Check for ghost replacement
+                        if (data[i].clientMsgId) {
+                            const ghost = document.getElementById('temp-' + data[i].clientMsgId);
+                            if (ghost) {
+                                // Flush any pending batch before replacing
+                                if (currentBatchHTML) {
+                                    messages.insertAdjacentHTML('beforeend', currentBatchHTML);
+                                    currentBatchHTML = '';
+                                }
+                                ghost.outerHTML = msgHtml;
+                                processed = true;
+                            }
+                        }
+
+                        if (!processed) {
+                            currentBatchHTML += msgHtml;
+                        }
                     }
                 }
 
-                // Insert into DOM
+                // Insert remaining DOM
                 if (!isScrolledToBottom) {
-                    // If user is scrolled up, add marker if not present
-                    if (!messages.querySelector('.new-messages-divider')) {
+                    // If user is scrolled up, add marker if not present AND we have visible messages
+                    if (hasVisible && !messages.querySelector(`.new-messages-divider[data-scope="${currentScope}"]`)) {
                         const marker = document.createElement('div');
                         marker.className = 'new-messages-divider';
+                        marker.dataset.scope = currentScope;
                         marker.innerHTML = 'New Messages';
                         messages.appendChild(marker);
                     }
 
-                    messages.insertAdjacentHTML('beforeend', html);
+                    if (currentBatchHTML) {
+                        messages.insertAdjacentHTML('beforeend', currentBatchHTML);
+                    }
 
-                    newMessagesCount += data.length;
-                    if (jumpToPresentBtn) {
-                        jumpToPresentBtn.classList.remove('hidden');
-                        jumpToPresentBtn.innerHTML = `<span>${newMessagesCount} New Messages</span> <i class="fas fa-arrow-down"></i>`;
+                    if (hasVisible) {
+                        newMessagesCount += data.filter(m => (m.scope || 'global') === currentScope).length;
+                        if (newMessagesCount > 0 && jumpToPresentBtn) {
+                            jumpToPresentBtn.classList.remove('hidden');
+                            jumpToPresentBtn.innerHTML = `<span>${newMessagesCount} New Messages</span> <i class="fas fa-arrow-down"></i>`;
+                        }
                     }
                 } else {
                     // User is at bottom, just append and scroll
-                    messages.insertAdjacentHTML('beforeend', html);
+                    if (currentBatchHTML) {
+                        messages.insertAdjacentHTML('beforeend', currentBatchHTML);
+                    }
+
+                    // Only auto-scroll if content is visible?
+                    // display: none takes no space. So scrollTop remains at bottom.
                     messages.scrollTop = messages.scrollHeight - messages.clientHeight;
 
-                    // Clear any existing state
+                    // clear button
                     newMessagesCount = 0;
                     if (jumpToPresentBtn) jumpToPresentBtn.classList.add('hidden');
-                    const existingMarker = messages.querySelector('.new-messages-divider');
-                    if (existingMarker) existingMarker.remove();
+                    // Do NOT remove divider here.
                 }
 
                 // Apply filters immediately after rendering
@@ -598,12 +790,53 @@ function initializeChat(socket) {
             const charCount = charCounter();
             console.log("Attempting to send. Char count:", charCount);
             if (charCount <= 10000) {
+                // Remove divider if we are at the bottom (replying = read)
+                if (scrollChecker()) {
+                    const existingMarker = messages.querySelector(`.new-messages-divider[data-scope="${currentScope}"]`);
+                    if (existingMarker) existingMarker.remove();
+                }
+
+                // Generate Temp ID
+                const tempId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+
+                // Simple helper to guess type for optimistic render
+                let optimisticType = 'Default';
+                const cleanTxt = textarea.innerHTML.replace(/<[^>]*>/g, '').trim();
+                if (cleanTxt.startsWith('/me ')) optimisticType = 'Say';
+                if (cleanTxt.startsWith('/ooc ')) optimisticType = 'OOC';
+
+                // Create Ghost Object
+                const ghostMsg = {
+                    _id: 'temp-' + tempId,
+                    name: localPlayerInfo.firstName + ' ' + localPlayerInfo.lastName,
+                    type: optimisticType,
+                    scope: currentScope,
+                    message: [{ content: textarea.innerHTML, time: new Date().toUTCString() }],
+                    spoiler: { status: document.getElementById('spoilers').value, votes: { watersports: 0, disposal: 0, gore: 0 } },
+                    identifier: document.location.href.split('play/')[1],
+                    deleted: { status: 'false' },
+                    local: true // Flag to say this is local/ghost if needed, but class handling is manual below
+                };
+
+                // Render and Append Ghost
+                const ghostContainer = document.createElement('div');
+                ghostContainer.innerHTML = renderMessageHTML(ghostMsg);
+                const ghostEl = ghostContainer.firstElementChild;
+                if (ghostEl) {
+                    ghostEl.classList.add('ghost-message');
+                    // Ensure it is visible in current view (it matches scope)
+                    messages.appendChild(ghostEl);
+                    messages.scrollTop = messages.scrollHeight;
+                }
+
                 socket.emit('input', {
                     name: localPlayerInfo.firstName + ' ' + localPlayerInfo.lastName,
                     message: textarea.innerHTML,
+                    scope: currentScope,
                     spoiler: document.getElementById('spoilers').value,
                     token: getToken(),
-                    charId: document.location.href.split('play/')[1]
+                    charId: document.location.href.split('play/')[1],
+                    clientMsgId: tempId
                 });
                 localStorage.setItem('previousMessage', textarea.innerHTML);
                 textarea.innerHTML = '';
@@ -635,24 +868,7 @@ function initializeChat(socket) {
         }
     });
 
-    let typingTimeout = null;
-    const TYPING_TIMER_LENGTH = 400; // ms
 
-    textarea.addEventListener('input', () => {
-        localStorage.setItem("textarea", textarea.innerHTML);
-        charCounter();
-
-        if (!typingTimeout) {
-            socket.emit('typing', { name: localPlayerInfo.firstName + ' ' + localPlayerInfo.lastName });
-        } else {
-            clearTimeout(typingTimeout);
-        }
-
-        typingTimeout = setTimeout(() => {
-            typingTimeout = null;
-            // socket.emit('stop typing'); 
-        }, TYPING_TIMER_LENGTH);
-    });
 
     function charCounter() {
         const count = textarea.innerText.length;

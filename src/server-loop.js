@@ -1519,3 +1519,72 @@ module.exports.getCharIdBySocketId = (socketId) => {
   // Return _id which holds the Character ID
   return player ? player._id : null;
 };
+
+/**
+ * Checks if a target player is visible to an observer player.
+ * Uses the same logic as the AOI system (Distance + Shadowcasting).
+ * @param {string} observerSocketId - The socket ID of the player "looking".
+ * @param {string} targetSocketId - The socket ID of the player being looked at.
+ * @returns {boolean} True if visible, false otherwise.
+ */
+module.exports.checkVisibility = (observerSocketId, targetSocketId) => {
+  const observer = players[observerSocketId];
+  const target = players[targetSocketId];
+
+  if (!observer || !target) return false;
+  if (observerSocketId === targetSocketId) return true; // Always see self
+
+  // 1. Distance Check
+  const dx = observer.position.x - target.position.x;
+  const dy = observer.position.y - target.position.y;
+  const distSq = dx * dx + dy * dy;
+
+  if (distSq < VIEW_DISTANCE * VIEW_DISTANCE) {
+    // 2. Shadow/Visibility Check
+    if (observer.visibilityPolygon && observer.visibilityPolygon.length > 0) {
+      const tx = target.position.x;
+      const ty = target.position.y;
+
+      // Multi-Point "Fuzzy" Check (Center, Top, Bottom, Left, Right)
+      const isVisible =
+        isPointInPolygon(tx, ty, observer.visibilityPolygon) ||
+        isPointInPolygon(tx + VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
+        isPointInPolygon(tx - VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
+        isPointInPolygon(tx, ty + VISIBILITY_BUFFER, observer.visibilityPolygon) ||
+        isPointInPolygon(tx, ty - VISIBILITY_BUFFER, observer.visibilityPolygon);
+
+      return isVisible;
+    } else {
+      // Fallback: If no polygon, rely on distance
+      return true;
+    }
+  }
+
+  return false;
+};
+
+/**
+ * Broadcasts an event to all players who can see the source player.
+ * @param {object} io - The Socket.io instance (or we can use global if available/passed).
+ * @param {string} sourceSocketId - The socket ID of the source player.
+ * @param {string} eventName - The event to emit.
+ * @param {any} data - The data to send.
+ */
+module.exports.broadcastToVisible = (io, sourceSocketId, eventName, data) => {
+  const sourcePlayer = players[sourceSocketId];
+  if (!sourcePlayer) return;
+
+  Object.keys(players).forEach(targetSocketId => {
+
+    // if (targetSocketId === sourceSocketId) return; // Allow echo for typing indicator
+
+    if (module.exports.checkVisibility(targetSocketId, sourceSocketId)) {
+      // target sees source
+      // We need the actual socket object to emit? 
+      // Or io.to(targetSocketId).emit(...)
+      if (io && io.to) {
+        io.to(targetSocketId).emit(eventName, data);
+      }
+    }
+  });
+};

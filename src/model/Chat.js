@@ -14,6 +14,11 @@ const chatSchema = new mongoose.Schema({
     enum: ['Default', 'Say', 'Unique', 'Environmental', 'Interactional', 'OOC'],
     default: 'Default'
   },
+  scope: {
+    type: String,
+    enum: ['global', 'local'],
+    default: 'global'
+  },
   visibleTo: {
     type: [String], // Array of Character IDs. If empty, visible to all.
     default: []
@@ -68,5 +73,10 @@ const chatSchema = new mongoose.Schema({
 
 
 
+
+// Compound index for optimizing filtering by visibility and sorting by time
+chatSchema.index({ visibleTo: 1, 'message.time': -1 });
+// Fallback index for time-only queries or public chats if optimizer prefers
+chatSchema.index({ 'message.time': -1 });
 
 module.exports = mongoose.model('Chats', chatSchema);
