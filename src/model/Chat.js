@@ -37,6 +37,22 @@ const chatSchema = new mongoose.Schema({
       }
     }]
   },
+  gameState: {
+    speaker_context: { type: Object, default: {} },
+    intendedListener_context: { type: Object, default: {} },
+    location_context: {
+      title: { type: String, default: 'Unknown' },
+      surrounding_tiles: { type: Array, default: [] }, // Or Object/Mixed if complex
+      nearby_objects: { type: Array, default: [] }
+    }
+  },
+  reactions: {
+    heart: { type: [String], default: [] },
+    blush: { type: [String], default: [] },
+    laugh: { type: [String], default: [] },
+    thumbsup: { type: [String], default: [] },
+    thumbsdown: { type: [String], default: [] }
+  },
   spoiler: {
     status: {
       type: String
@@ -68,15 +84,16 @@ const chatSchema = new mongoose.Schema({
     character: {
       type: String
     }
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
   }
 });
 
-
-
-
 // Compound index for optimizing filtering by visibility and sorting by time
-chatSchema.index({ visibleTo: 1, 'message.time': -1 });
+chatSchema.index({ visibleTo: 1, createdAt: -1 });
 // Fallback index for time-only queries or public chats if optimizer prefers
-chatSchema.index({ 'message.time': -1 });
+chatSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Chats', chatSchema);

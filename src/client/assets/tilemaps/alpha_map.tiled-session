@@ -1,0 +1,131 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "",
+    "automapping.whileDrawing": false,
+    "expandedProjectPaths": [
+    ],
+    "exportAsImage.drawTileGrid": true,
+    "exportAsImage.useCurrentScale": true,
+    "fileStates": {
+        "": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        ":/automap-tiles.tsx": {
+            "dynamicWrapping": false
+        },
+        "C:/Users/kkmcl/Documents/GitHub/tastytails.net/Map_Testing/Demo_Map.tmx": {
+            "expandedObjectLayers": [
+                10
+            ],
+            "scale": 0.48390625,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 729.4801420729739,
+                "y": 640.619954794963
+            }
+        },
+        "C:/Users/kkmcl/Documents/GitHub/tastytails.net/Map_Testing/Demo_Map.tmx#Demo_Items": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1
+        },
+        "C:/Users/kkmcl/Documents/GitHub/tastytails.net/Map_Testing/Demo_Map.tmx#Demo_Objects": {
+            "scaleInDock": 1
+        },
+        "C:/Users/kkmcl/Documents/GitHub/tastytails.net/Map_Testing/Demo_Map.tmx#Demo_tileset": {
+            "scaleInDock": 1
+        },
+        "alpha_buildings.tsx": {
+            "dynamicWrapping": true
+        },
+        "alpha_ground_set.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "alpha_items.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "alpha_map.tmx": {
+            "expandedObjectLayers": [
+                3,
+                6,
+                5
+            ],
+            "scale": 0.75,
+            "selectedLayer": 6,
+            "viewCenter": {
+                "x": 1977.3333333333333,
+                "y": 1108
+            }
+        },
+        "alpha_map.tmx#alpha_ground_set": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1
+        },
+        "alpha_map.tmx#alpha_items": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1
+        },
+        "alpha_map.tmx#alpha_objects": {
+            "dynamicWrapping": true,
+            "scaleInDock": 0.0625
+        },
+        "alpha_map.tmx#alpha_tileset": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1
+        },
+        "alpha_objects.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 0.0625
+        },
+        "alpha_tileset..tsx": {
+            "dynamicWrapping": false
+        },
+        "alpha_tileset.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "alpha_zones.tsx": {
+            "dynamicWrapping": false
+        },
+        "auto_tile_rules.tmx": {
+            "scale": 0.75,
+            "selectedLayer": 2,
+            "viewCenter": {
+                "x": 461.3333333333333,
+                "y": 306.6666666666667
+            }
+        }
+    },
+    "last.exportedFilePath": "C:/Users/kkmcl/Documents/GitHub/tastytails.net/src/client/assets/tilemaps",
+    "last.externalTilesetPath": "C:/Users/kkmcl/Documents/GitHub/tastytails.net/src/client/assets/tilemaps",
+    "last.imagePath": "C:/Users/kkmcl/Documents/GitHub/tastytails.net/src/client/assets/tilemaps",
+    "lastUsedTilesetExportFilter": "All Files (*)",
+    "map.height": 240,
+    "map.lastUsedExportFilter": "All Files (*)",
+    "map.lastUsedFormat": "tmx",
+    "map.width": 240,
+    "openFiles": [
+    ],
+    "project": "alpha_map.tiled-project",
+    "property.type": "string",
+    "recentFiles": [
+        "auto_tile_rules.tmx",
+        "alpha_objects.tsx",
+        "alpha_items.tsx",
+        "alpha_ground_set.tsx",
+        "alpha_tileset.tsx",
+        "C:/Users/kkmcl/Documents/GitHub/tastytails.net/Map_Testing/Demo_Map.tmx"
+    ],
+    "tileset.lastUsedFilter": "Tiled tileset files (*.tsx *.xml)",
+    "tileset.lastUsedFormat": "tsx",
+    "tileset.type": 0
+}

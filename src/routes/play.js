@@ -5,6 +5,8 @@ const verify = require('./verifyToken');
 const dbInterface = require('./dbInterface');
 const log = require('../logger');
 
+const mapConfig = require('../server/mapConfig');
+
 router.get('/:charId', async (req, res) => {
   const token = req.cookies.TastyTails;
   //console.log('req = ', req.params);
@@ -24,6 +26,7 @@ router.get('/:charId', async (req, res) => {
     res.render('play', {
       token: token,
       loginForm: 0,
+      mapFilename: mapConfig.mapFilename, // Pass map filename to client
       // charList: JSON.stringify(characters)
       charList: characters
 

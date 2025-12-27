@@ -47,30 +47,64 @@ export function updatePlayerAnimations(playerSprite, playerState) {
     }
 
     if (playerSprite && playerSprite.list) {
-        // Play animations using named sprites
-        if (get('tail')) get('tail').play(playerState.tail.sprite + animationSuffix, true);
-        if (get('secondaryTail')) get('secondaryTail').play(playerState.tail.secondarySprite + animationSuffix, true);
-        if (get('accentTail')) get('accentTail').play(playerState.tail.accentSprite + animationSuffix, true);
+        // Safe play helper
+        const safePlay = (spriteName, keyFunc) => {
+            const sprite = get(spriteName);
+            const keyBase = keyFunc();
+            if (sprite && keyBase && keyBase !== 'undefined' && keyBase !== 'null' && keyBase !== 'empty') {
+                const animKey = keyBase + animationSuffix;
+                // Check if animation exists to avoid console warnings
+                if (playerSprite.scene.anims.exists(animKey)) {
+                    sprite.play(animKey, true);
+                    sprite.setVisible(true);
+                } else {
+                    // console.warn(`Animation missing: ${animKey}`);
+                }
+            } else if (sprite) {
+                // If key is invalid (empty/null), make sure we don't play anything or hide it?
+                // Usually 'empty' sprites shouldn't be played.
+                // sprite.stop(); // Optional
+                if (keyBase === 'empty') {
+                    // Keep visible but maybe static? Or hide? 
+                    // Usually 'empty' is a valid sprite sheet but maybe no animation needed?
+                    // The 'empty' sheet has frames, so we CAN play 'emptyDown'.
+                    // But if keyBase is undefined/null, we must skip.
+                }
 
-        if (get('body')) get('body').play(playerState.body.sprite + animationSuffix, true);
-        if (get('secondaryBody')) get('secondaryBody').play(playerState.body.secondarySprite + animationSuffix, true);
-        if (get('accentBody')) get('accentBody').play(playerState.body.accentSprite + animationSuffix, true);
+                // If it IS 'empty', we might want to play 'emptyDown' if it exists.
+                if (keyBase === 'empty') {
+                    const animKey = 'empty' + animationSuffix;
+                    if (playerSprite.scene.anims.exists(animKey)) {
+                        sprite.play(animKey, true);
+                    }
+                }
+            }
+        };
 
-        if (get('genitles')) get('genitles').play(playerState.genitles.sprite + animationSuffix, true);
-        if (get('hands')) get('hands').play(playerState.hands.sprite + animationSuffix, true);
-        if (get('feet')) get('feet').play(playerState.feet.sprite + animationSuffix, true);
+        // Play animations using named sprites with safety checks
+        safePlay('tail', () => playerState.tail?.sprite);
+        safePlay('secondaryTail', () => playerState.tail?.secondarySprite);
+        safePlay('accentTail', () => playerState.tail?.accentSprite);
 
-        if (get('head')) get('head').play(playerState.head.sprite + animationSuffix, true);
-        if (get('secondaryHead')) get('secondaryHead').play(playerState.head.secondarySprite + animationSuffix, true);
-        if (get('accentHead')) get('accentHead').play(playerState.head.accentSprite + animationSuffix, true);
+        safePlay('body', () => playerState.body?.sprite);
+        safePlay('secondaryBody', () => playerState.body?.secondarySprite);
+        safePlay('accentBody', () => playerState.body?.accentSprite);
 
-        if (get('beak')) get('beak').play(playerState.beak.sprite + animationSuffix, true);
-        if (get('eyes')) get('eyes').play(playerState.eyes.outer + animationSuffix, true);
-        if (get('iris')) get('iris').play(playerState.eyes.iris + animationSuffix, true);
-        if (get('hair')) get('hair').play(playerState.hair.sprite + animationSuffix, true);
-        if (get('outerEar')) get('outerEar').play(playerState.ear.outerSprite + animationSuffix, true);
-        if (get('innerEar')) get('innerEar').play(playerState.ear.innerSprite + animationSuffix, true);
-        if (get('headAccessories')) get('headAccessories').play(playerState.headAccessories.sprite + animationSuffix, true);
+        safePlay('genitles', () => playerState.genitles?.sprite);
+        safePlay('hands', () => playerState.hands?.sprite);
+        safePlay('feet', () => playerState.feet?.sprite);
+
+        safePlay('head', () => playerState.head?.sprite);
+        safePlay('secondaryHead', () => playerState.head?.secondarySprite);
+        safePlay('accentHead', () => playerState.head?.accentSprite);
+
+        safePlay('beak', () => playerState.beak?.sprite);
+        safePlay('eyes', () => playerState.eyes?.outer);
+        safePlay('iris', () => playerState.eyes?.iris);
+        safePlay('hair', () => playerState.hair?.sprite);
+        safePlay('outerEar', () => playerState.ear?.outerSprite);
+        safePlay('innerEar', () => playerState.ear?.innerSprite);
+        safePlay('headAccessories', () => playerState.headAccessories?.sprite);
 
         // --- Equipment Animations ---
         if (playerSprite.list) {

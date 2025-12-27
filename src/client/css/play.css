@@ -356,8 +356,8 @@ body.resizing-v iframe {
     position: relative;
     float: none;
     /* Override float */
-    height: auto;
-    /* Override fixed height */
+    height: 100%;
+    /* [FIX] force 100% height for scrolling childs */
     padding: 0;
     margin: 0;
     z-index: 0;
@@ -441,43 +441,43 @@ body.resizing-v iframe {
 /* Content Display Area */
 #menuDisplay {
     flex: 1;
-    overflow-y: auto;
+    overflow: hidden;
+    /* Changed from overflow-y: auto to prevent global scrolling */
     /* padding: 20px; */
     font-family: 'Lato', sans-serif;
     position: relative;
-    scrollbar-width: thin;
-    scrollbar-color: var(--wood-light) var(--parchment);
     background-color: transparent;
-    /* Override */
     border-bottom: none;
-    /* Override */
-    height: auto;
-    /* Override */
+    height: 100%;
+    /* Force height to match parent flex height */
     color: inherit;
-    /* Override */
     display: flex;
-    /* [NEW] Flex container */
     flex-direction: column;
-    /* [NEW] Vertical stack */
 }
 
 /* Page Slide Animation */
 .tabDisplay {
     display: none;
-    margin: 20px;
-    /* JS toggles this */
-    /* Smooth slide-up fade */
+    margin: 0;
+    /* Remove margin to rely on padding */
+    padding: 20px;
+    /* Internal padding */
     animation: fadeInUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     background-color: transparent;
-    /* Override */
-    height: auto;
-    /* Override */
+    height: 100%;
+    /* Fill the container */
+    overflow-y: auto;
+    /* Enable per-tab scrolling */
+    scrollbar-width: thin;
+    scrollbar-color: var(--wood-light) var(--parchment);
     box-shadow: none;
-    /* Override */
-    /* flex: 1; [OPTIONAL] We need specific ones to grow, not all */
+    box-sizing: border-box;
+    /* Ensure padding doesn't break 100% height */
 }
 
-/* "Pinned Note" Style */
+/* ... (skip to apparelDisplay) ... */
+/* I will use a separate replacement for apparelDisplay block since it is far down */
+
 .paper-note {
     /* ... unchanged ... */
     background-color: var(--parchment-light);
@@ -654,6 +654,28 @@ h3 {
     }
 }
 
+
+
+#voreDisplay {
+    flex: 1;
+    /* display: flex; REMOVED to prevent flash on load */
+    /* Flex is applied via attribute selector below when JS sets display: block */
+    height: 100%;
+    overflow: hidden;
+    /* Only delegate scrolling to list container */
+    margin: 0;
+    padding: 10px;
+    box-sizing: border-box;
+    /* IMPORTANT */
+}
+
+/* [FIX] Force flex layout when tabs.js sets display: block */
+#voreDisplay[style*="display: block"],
+#voreDisplay[style*="display:block"] {
+    display: flex !important;
+    flex-direction: column;
+}
+
 /* === EXTRACTED INLINE STYLES === */
 .menu-container {
     flex: 2;
@@ -699,6 +721,16 @@ h3 {
 /* --- VORE TAB SPECIFIC STYLES ---
            Styles for the Accordion List logic.
         */
+.vore-list-container {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--wood-light) var(--parchment);
+    padding-right: 5px;
+    /* Spacing for scrollbar */
+}
+
 .vore-header {
     display: flex;
     justify-content: space-between;

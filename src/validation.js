@@ -4,7 +4,7 @@ const Joi = require('@hapi/joi');
 //Register Validation
 const registerValidation = (data) => {
   const date = new Date();
-  const validDate = ((date.getMonth() + 1) + '-' + date.getDate() + '-' +  (date.getFullYear() - 18));
+  const validDate = ((date.getMonth() + 1) + '-' + date.getDate() + '-' + (date.getFullYear() - 18));
 
   const schema = Joi.object({
     email: Joi.string().min(6).required().email(),
@@ -63,10 +63,9 @@ const charCreateValidation = (data) => {
     struggleInsideMsgDescrip: Joi.array(),
     struggleOutsideMsgDescrip: Joi.array(),
     digestionInsideMsgDescrip: Joi.array(),
-    digestionOutsideMsgDescrip: Joi.array()
-
-
-  })
+    digestionOutsideMsgDescrip: Joi.array(),
+    anatomyData: Joi.string().allow('').optional()
+  }).unknown(true);
   return schema.validate(data);
 };
 

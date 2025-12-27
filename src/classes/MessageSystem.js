@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken');
 const log = require('../logger');
 const serverGame = require('../server-loop'); // Import to access player lookup
 const { marked } = require('marked');
+const SemanticMapper = require('../server/SemanticMapper');
+const DatabaseResilience = require('./DatabaseResilience');
 
 const sanitizeHtml = require('sanitize-html');
 
@@ -29,6 +31,8 @@ class MessageSystem {
         socket.on('deleteMessage', (data) => this.deleteMessage(data, socket));
         socket.on('sendSpoilEdit', (data) => this.changeSpoilerLabel(data, socket));
         socket.on('getOlderChats', (data) => this.getOlderChats(data, socket));
+        socket.on('toggleReaction', (data) => this.toggleReaction(data, socket));
+
 
         // Typing is a bit special as it broadcasts but doesn't persist.
         // We can leave it here or move logic. For now, let's keep the listener attachment here.
@@ -43,7 +47,7 @@ class MessageSystem {
         try {
             const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
             const chats = await Chats.find({
-                "message.time": { $gte: oneDayAgo },
+                createdAt: { $gte: oneDayAgo },
                 $and: [
                     { excludedPlayers: { $ne: data.charId } },
                     {
@@ -54,7 +58,7 @@ class MessageSystem {
                     }
                 ]
             })
-                .sort({ 'message.time': -1 })
+                .sort({ createdAt: -1 })
                 .limit(50);
 
             const allMsgs = chats.map(chat => ({
@@ -67,7 +71,8 @@ class MessageSystem {
                 deleted: chat.deleted,
                 identifier: chat.identifier.character,
                 visibleTo: chat.visibleTo,
-                excludedPlayers: chat.excludedPlayers
+                excludedPlayers: chat.excludedPlayers,
+                reactions: chat.reactions
             }));
             socket.emit('output', allMsgs.reverse());
         } catch (e) {
@@ -80,7 +85,7 @@ class MessageSystem {
             const beforeTime = new Date(data.beforeTime);
             // Optimization: Match the limit and structure of getAllChats
             const chats = await Chats.find({
-                "message.time": { $lt: beforeTime },
+                createdAt: { $lt: beforeTime },
                 $and: [
                     { excludedPlayers: { $ne: data.charId } },
                     {
@@ -91,7 +96,7 @@ class MessageSystem {
                     }
                 ]
             })
-                .sort({ 'message.time': -1 })
+                .sort({ createdAt: -1 })
                 .limit(50);
 
             const olderMsgs = chats.map(chat => ({
@@ -104,7 +109,8 @@ class MessageSystem {
                 deleted: chat.deleted,
                 identifier: chat.identifier.character,
                 visibleTo: chat.visibleTo,
-                excludedPlayers: chat.excludedPlayers
+                excludedPlayers: chat.excludedPlayers,
+                reactions: chat.reactions
             }));
             socket.emit('olderChatsOutput', olderMsgs.reverse());
         } catch (e) {
@@ -122,7 +128,7 @@ class MessageSystem {
                     content: this.parseAndSanitize(data.message),
                     time: new Date().toUTCString()
                 });
-                await result.save();
+                await DatabaseResilience.save(result);
                 this.io.emit('editOutput', result);
             } else {
                 log.warn('Attempt to edit unauthorized message denied.');
@@ -142,7 +148,7 @@ class MessageSystem {
                     status: true,
                     deletionTime: new Date().toUTCString()
                 };
-                await result.save();
+                await DatabaseResilience.save(result);
                 this.io.emit('editOutput', result);
             } else {
                 log.warn('Attempt to delete unauthorized message denied.');
@@ -159,7 +165,7 @@ class MessageSystem {
 
             if (result && result.identifier.account == verified._id && result.identifier.character == data.charId) {
                 result.spoiler.status = data.spoiler;
-                await result.save();
+                await DatabaseResilience.save(result);
                 this.io.emit('editSpoilerOutput', result);
             } else {
                 log.warn('Spoiler vote/change from unauthorized user.');
@@ -168,6 +174,97 @@ class MessageSystem {
             log.error('Error changing spoiler label:', e);
         }
     }
+
+    async toggleReaction(data, socket) {
+        try {
+            // data: { _id, reaction: 'heart'|'blush'|... , token, charId }
+            const verified = jwt.verify(data.token, process.env.TOKEN_SECRET);
+            if (!verified) return;
+
+            const message = await Chats.findById(data._id);
+            if (!message) return;
+
+            // Visibility Check
+            // User must be able to see the message to react to it
+            // 1. If visibleTo is empty, it's public (or global)
+            // 2. If visibleTo has entries, user must be in it
+            const isVisible = (message.visibleTo.length === 0) || (message.visibleTo.includes(data.charId));
+
+            // Also need to check if user is excluded
+            const isExcluded = message.excludedPlayers.includes(data.charId);
+
+            if (!isVisible || isExcluded) {
+                log.warn(`User ${data.charId} attempted to react to invisible message ${data._id}`);
+                return;
+            }
+
+            // Initialization safety
+            if (!message.reactions) {
+                message.reactions = { heart: [], blush: [], laugh: [], thumbsup: [], thumbsdown: [] };
+            }
+
+            const validReactions = ['heart', 'blush', 'laugh', 'thumbsup', 'thumbsdown'];
+            if (!validReactions.includes(data.reaction)) return;
+
+            // Toggle Logic
+            const reactorId = data.charId;
+            const currentReactorList = message.reactions[data.reaction];
+
+            if (currentReactorList.includes(reactorId)) {
+                // Remove
+                message.reactions[data.reaction] = currentReactorList.filter(id => id !== reactorId);
+            } else {
+                // Add
+                message.reactions[data.reaction].push(reactorId);
+            }
+
+            // Mongoose might not detect deep change in Mixed type if schema wasn't explicit enough, 
+            // but we defined it explicitly in Chat.js so 'markModified' shouldn't be strictly necessary 
+            // if we assign the array back.
+            // message.markModified('reactions'); // Safety net if needed
+
+            await DatabaseResilience.save(message);
+
+            // Broadcast Update
+            this.broadcastReactionUpdate(message);
+
+        } catch (e) {
+            log.error('Error toggling reaction:', e);
+        }
+    }
+
+    broadcastReactionUpdate(message) {
+        try {
+            const payload = {
+                _id: message._id,
+                reactions: message.reactions
+            };
+
+            const connectedSockets = this.io.sockets.sockets;
+            const visibleTo = message.visibleTo || [];
+            const excludedPlayers = message.excludedPlayers || [];
+
+            if (visibleTo.length > 0) {
+                // Private/Scoped Message
+                visibleTo.forEach(charId => {
+                    if (excludedPlayers.includes(charId)) return;
+                    const sId = serverGame.getSocketIdByCharId(charId);
+                    if (sId) {
+                        const socket = connectedSockets.get(sId);
+                        if (socket) socket.emit('messageReactionUpdate', payload);
+                    }
+                });
+            } else {
+                // Public Message
+                this.io.emit('messageReactionUpdate', payload);
+            }
+
+        } catch (e) {
+            log.error('Error broadcasting reaction update:', e);
+        }
+    }
+
+
 
     async handleIncomingMessage(socket, data) {
         try {
@@ -199,6 +296,40 @@ class MessageSystem {
 
             if (cleanMessage.length > 10000) {
                 return socket.emit('tooManyChars', cleanMessage.length, data.message);
+            }
+
+            // 2.5 Tagging Command (State-Augmented Dataset)
+            if (cleanMessage.startsWith('/tag ')) {
+                const tagContent = cleanMessage.substring(5).trim();
+                if (tagContent.length > 0) {
+                    const state = this.captureGameState(socket);
+                    if (state) {
+                        state.tags.push(tagContent);
+
+                        const chatMessage = new Chats({
+                            name: 'System (Tag)',
+                            type: 'Environmental',
+                            scope: 'local',
+                            message: [{ content: `[Data Tagged: ${tagContent}]`, time: new Date().toUTCString() }],
+                            spoiler: { status: 'none', votes: { watersports: 0, disposal: 0, gore: 0 } },
+                            deleted: { status: false, deletionTime: null },
+                            identifier: { account: verified._id, character: data.charId },
+                            visibleTo: [data.charId],
+                            gameState: state
+                        });
+
+                        await DatabaseResilience.save(chatMessage);
+
+                        // Acknowledge to user
+                        socket.emit('output', [{
+                            name: 'System',
+                            type: 'Environmental',
+                            message: [{ content: `Data tag recorded: "${tagContent}"`, time: new Date().toUTCString() }],
+                            identifier: { account: 'SYSTEM', character: 'SYSTEM' }
+                        }]);
+                    }
+                }
+                return; // Stop processing normal message
             }
 
             // 3. Classify Message (using the CLEAN parsed version for safety in logs, but maybe raw for command checks?)
@@ -295,10 +426,17 @@ class MessageSystem {
                 spoiler: { status: data.spoiler || 'none', votes: { watersports: 0, disposal: 0, gore: 0 } },
                 deleted: { status: false, deletionTime: null },
                 identifier: { account: verified._id, character: data.charId },
-                visibleTo: visibleTo
+                visibleTo: visibleTo,
+                gameState: this.captureGameState(socket, 'talk', (type === 'Unique' && targetName) ?
+                    (serverGame.findPlayerByName(targetName) ? serverGame.findPlayerByName(targetName).playerId : null)
+                    : null)
             });
 
-            await chatMessage.save();
+            await DatabaseResilience.save(chatMessage);
+
+            // Debug Log for State-Augmented Dataset Verification
+            log.info(`[GameState] Captured Snapshot for message ${chatMessage._id}`);
+            // log.debug(JSON.stringify(chatMessage.gameState, null, 2)); // Uncomment for full dump
 
             // 6. Broadcast Message
             // Pass clientMsgId (if any) to broadcast so client can reconcile ghost message
@@ -362,6 +500,7 @@ class MessageSystem {
                 identifier: messageObject.identifier.character,
                 visibleTo: messageObject.visibleTo,
                 excludedPlayers: messageObject.excludedPlayers,
+                reactions: messageObject.reactions, // Include reactions in initial load/broadcast
                 clientMsgId: clientMsgId // Return transient ID for optimistic UI
             };
 
@@ -457,13 +596,93 @@ class MessageSystem {
                 excludedPlayers: excludedPlayers
             });
 
-            await chatMessage.save();
+            await DatabaseResilience.save(chatMessage);
 
             // Delegate to broadcastMessage for consistent logic
             this.broadcastMessage(chatMessage, visibleTo, excludedPlayers);
 
         } catch (e) {
             log.error('Error in sendSystemMessage:', e);
+        }
+    }
+
+    captureGameState(socket, intent = 'talk', targetSocketId = null) {
+        try {
+            const senderId = socket.id;
+            const players = serverGame.getAllPlayers();
+            const senderPlayer = players[senderId];
+
+            if (!senderPlayer) return null;
+
+            // 1. Snapshot Speaker Context (Full Object)
+            // We should strip sensitive data maybe? But user asked for "entire character schema".
+            // Let's safe copy to avoid circular refs if any (usually player obj is mostly data)
+            const speakerContext = JSON.parse(JSON.stringify(senderPlayer));
+
+            // Enrich with visual tags we already built? Or is "schema" just the raw data?
+            // "insert entire character schema" implies raw data, but our previous value prop was tags.
+            // Let's Attach the visual context to the object so it's not lost.
+            speakerContext.visual_tags = SemanticMapper.getVisualContext(senderPlayer);
+
+
+            // 2. Snapshot Listener Context
+            let listenerContext = {};
+            if (targetSocketId) {
+                const targetPlayer = players[targetSocketId];
+                if (targetPlayer) {
+                    listenerContext = JSON.parse(JSON.stringify(targetPlayer));
+                    listenerContext.visual_tags = SemanticMapper.getVisualContext(targetPlayer);
+                }
+            }
+
+            // 3. Snapshot Location Context
+            const locationContext = {
+                title: 'Demo Map', // TODO: Dynamic map name from serverGame or player.map
+                surrounding_tiles: [],
+                nearby_objects: []
+            };
+
+            // Capture Surrounding Tiles (e.g. 5x5 grid)
+            const pX = senderPlayer.position.x;
+            const pY = senderPlayer.position.y;
+            const TILE_SIZE = 32;
+            const range = 2; // +/- 2 tiles = 5x5
+
+            for (let yOffset = -range; yOffset <= range; yOffset++) {
+                for (let xOffset = -range; xOffset <= range; xOffset++) {
+                    const checkX = pX + (xOffset * TILE_SIZE);
+                    const checkY = pY + (yOffset * TILE_SIZE);
+                    const tileData = serverGame.getMapDataAt(checkX, checkY);
+                    locationContext.surrounding_tiles.push({
+                        rel_x: xOffset,
+                        rel_y: yOffset,
+                        ...tileData // zoneType, etc
+                    });
+                }
+            }
+
+            // Capture Nearby Objects
+            const items = serverGame.getWorldItems();
+            const visibleItems = items.filter(item => {
+                const dx = item.x - pX;
+                const dy = item.y - pY;
+                return (dx * dx + dy * dy) < (500 * 500); // Vision range
+            });
+            // We can store raw item data + tags
+            locationContext.nearby_objects = visibleItems.map(item => ({
+                ...item,
+                semantic_tags: SemanticMapper.getNearbyObjectTags([item])[0]
+            }));
+
+            return {
+                speaker_context: speakerContext,
+                intendedListener_context: listenerContext,
+                location_context: locationContext
+            };
+
+        } catch (e) {
+            log.error('Error in captureGameState:', e);
+            return null;
         }
     }
 

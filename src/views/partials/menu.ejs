@@ -62,14 +62,26 @@
 
         <!-- Vore Tab -->
         <div id="voreDisplay" class="tabDisplay">
-            <div class="vore-header">
-                <h2>Anatomy Journal</h2>
+            <!-- VORE DASHBOARD (Restored) -->
+            <div class="vore-dashboard-header"
+                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding: 0 10px;">
+                <h3 style="margin:0; border:none;">Gestalt Status</h3>
+                <button id="openAnatomyForgeBtn" class="action-btn"
+                    onclick="setTimeout(() => { if(window.AnatomyForge) window.AnatomyForge.refreshLayout() }, 100)"
+                    style="background:var(--wood-light); color:var(--parchment); border:1px solid var(--wood-accent); padding:5px 10px; cursor:pointer;">
+                    <i class="fa-solid fa-network-wired"></i> Open Forge
+                </button>
             </div>
 
-            <!-- This container is populated by the renderVoreList() JS function -->
-            <div id="voreListContainer"></div>
+            <div id="voreListContainer" class="vore-list-container">
+                <!-- Configured Destinations will appear here -->
+            </div>
 
-            <button id="addVoreBtn"><i class="fa-solid fa-plus-circle"></i> Add New Entry</button>
+
+
+            <!-- Utilities needed by UI.js -->
+            <div id="af-toast-container"></div>
+            <input type="hidden" id="anatomyData_inGame">
         </div>
 
         <div id="optionsDisplay" class="tabDisplay">
@@ -84,179 +96,25 @@
     </div>
 </div>
 
-<!-- SETTINGS MODAL (Hidden) -->
-<div id="settingsModal" class="settings-modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="modalTitle">Edit Destination</h2>
-            <span class="close" style="cursor:pointer; font-size:2rem; line-height:0.5;">&times;</span>
+<!-- SETTINGS MODAL (Re-purposed for Anatomy Forge) -->
+<div id="settingsModal" class="settings-modal"
+    style="display:none; position:fixed; z-index:9000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.8);">
+    <div class="modal-content"
+        style="width: 95vw; height: 90vh; margin: 5vh auto; background: var(--wood-dark); display: flex; flex-direction: column; overflow: hidden; border: 2px solid var(--wood-light); box-shadow: 0 0 20px black; border-radius: 8px;">
+
+        <div class="modal-header"
+            style="background: var(--wood-dark); color: var(--gold); border-bottom: 2px solid var(--wood-light); padding: 10px 20px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;">
+            <h2 id="modalTitle" style="margin:0; font-family:'Cinzel'; font-size: 1.5rem;">Anatomy Forge</h2>
+            <span class="close"
+                style="cursor:pointer; font-size:2rem; line-height:1; color: var(--wood-light);">&times;</span>
         </div>
 
-        <!-- Modal Navigation -->
-        <div class="modal-tabs">
-            <div class="modal-tab active" data-target="general"><i class="fa-solid fa-sliders"></i>
-                General</div>
-            <div class="modal-tab" data-target="descriptions"><i class="fa-solid fa-file-pen"></i>
-                Descriptions</div>
-            <div class="modal-tab" data-target="messages"><i class="fa-solid fa-comments"></i> Messages
+        <div class="modal-body" style="flex: 1; padding: 0; overflow: hidden; position: relative;">
+            <!-- ANATOMY FORGE CONTAINER -->
+            <div class="af-wrapper" id="anatomy-forge-container">
+                <%- include('./anatomy_forge', { mode: 'play' }) %>
             </div>
-            <div class="modal-tab" data-target="audio"><i class="fa-solid fa-volume-high"></i> Audio
-            </div>
-        </div>
 
-        <div class="modal-body">
-            <form id="settingsForm">
-                <input type="hidden" id="editId">
-
-                <!-- TAB 1: GENERAL SETTINGS -->
-                <div id="tab-general" class="tab-content">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Destination Name</label>
-                            <input type="text" id="editName" placeholder="e.g. Stomach">
-                        </div>
-                        <div class="form-group">
-                            <label>Verb (e.g. swallows)</label>
-                            <input type="text" id="editVerb" placeholder="e.g. swallows">
-                        </div>
-                        <div class="form-group">
-                            <label>Digestion Timer (sec)</label>
-                            <input type="number" id="editTimer" placeholder="120">
-                        </div>
-                        <div class="form-group">
-                            <label>Animation Type</label>
-                            <select id="editAnimation">
-                                <option value="1">Oral Vore</option>
-                                <option value="2">Anal Vore</option>
-                                <option value="3">Cock Vore</option>
-                                <option value="4">Unbirth</option>
-                                <option value="5">Tail Vore</option>
-                                <option value="6">Absorbtion</option>
-                            </select>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>Default Action Mode</label>
-                            <select id="editMode">
-                                <option value="Hold">Hold (Keep Prey Safe)</option>
-                                <option value="Digest">Digest (Convert to XP)</option>
-                                <option value="Absorb">Absorb (Transform)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- TAB 2: DESCRIPTIONS -->
-                <div id="tab-descriptions" class="tab-content" style="display:none;">
-                    <div class="form-group">
-                        <label>Internal Description</label>
-                        <textarea id="editDesc" placeholder="It is dark, warm, and wet..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Examine Description</label>
-                        <textarea id="editExamine" placeholder="The belly bulges slightly..."></textarea>
-                    </div>
-                </div>
-
-                <!-- TAB 3: MESSAGES -->
-                <div id="tab-messages" class="tab-content" style="display:none;">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Struggle (Internal)</label>
-                            <textarea id="editStruggleIn"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Struggle (External)</label>
-                            <textarea id="editStruggleOut"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Digestion (Internal)</label>
-                            <textarea id="editDigestIn"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Digestion (External)</label>
-                            <textarea id="editDigestOut"></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- TAB 4: AUDIO (New Feature) -->
-                <div id="tab-audio" class="tab-content" style="display:none;">
-
-                    <div class="audio-module">
-                        <div style="flex:1">
-                            <label>Entry Sound</label>
-                            <div class="audio-controls">
-                                <select id="editEntrySound">
-                                    <option value="none">None</option>
-                                    <option value="gulp">Gulp</option>
-                                    <option value="squish">Squish</option>
-                                    <option value="slide">Wet Slide</option>
-                                </select>
-                                <button type="button" class="audio-btn" onclick="toggleAudioPreview(this, 'entry')">
-                                    <i class="fa-solid fa-play"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="audio-module">
-                        <div style="flex:1">
-                            <label>Ambient Sound (Loop)</label>
-                            <div class="audio-controls">
-                                <select id="editAmbientSound">
-                                    <option value="none">None</option>
-                                    <option value="heartbeat">Heartbeat</option>
-                                    <option value="gurgle">Gurgling</option>
-                                    <option value="purr">Deep Purr</option>
-                                </select>
-                                <button type="button" class="audio-btn" onclick="toggleAudioPreview(this, 'ambient')">
-                                    <i class="fa-solid fa-play"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="audio-module">
-                        <div style="flex:1">
-                            <label>Struggle Sound</label>
-                            <div class="audio-controls">
-                                <select id="editStruggleSound">
-                                    <option value="none">None</option>
-                                    <option value="muffle">Muffled Shout</option>
-                                    <option value="splash">Splash</option>
-                                    <option value="groan">Predator Groan</option>
-                                </select>
-                                <button type="button" class="audio-btn" onclick="toggleAudioPreview(this, 'struggle')">
-                                    <i class="fa-solid fa-play"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="audio-module">
-                        <div style="flex:1">
-                            <label>Exit Sound</label>
-                            <div class="audio-controls">
-                                <select id="editExitSound">
-                                    <option value="none">None</option>
-                                    <option value="pop">Pop</option>
-                                    <option value="burp">Burp</option>
-                                    <option value="belch">Loud Belch</option>
-                                </select>
-                                <button type="button" class="audio-btn" onclick="toggleAudioPreview(this, 'exit')">
-                                    <i class="fa-solid fa-play"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button class="save-btn" id="saveSettingsBtn"><i class="fa-solid fa-check"></i> Save
-                Changes</button>
         </div>
     </div>
 </div>

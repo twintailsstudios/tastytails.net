@@ -1,6 +1,83 @@
-﻿<!-- Typography -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
+﻿<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="/css/create.css">
+<link rel="stylesheet" href="/css/anatomy_forge.css">
+<script src="/js/anatomy_forge.js"></script>
+
+<style>
+  /* Loading Overlay Styles */
+  #loadingOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #1a1a1a;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.5s ease-out;
+  }
+
+  #loadingOverlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .loading-logo {
+    max-width: 300px;
+    margin-bottom: 2rem;
+    animation: pulse 2s infinite ease-in-out;
+  }
+
+  .loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #ffd700;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  .loading-text {
+    margin-top: 1rem;
+    color: #ffd700;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 1.2rem;
+    letter-spacing: 1px;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
+
+    50% {
+      transform: scale(1.05);
+      opacity: 1;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
+  }
+</style>
+
+<div id="loadingOverlay">
+  <img src="/assets/tilemaps/tastytails_v01.png" alt="Tasty Tails" class="loading-logo"
+    onerror="this.style.display='none'">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading Character Creator...</div>
+</div>
 
 <section id="characterCreator">
   <div class="creator-grid">
@@ -15,7 +92,9 @@
                 About </span></button></li>
           <li><button type="button" id="kinks" class="button main"><span><i class="fa-solid fa-heart"></i> Kinks
               </span></button></li>
-          <li><button type="button" id="vore" class="button main"><span><i class="fa-solid fa-utensils"></i> Vore
+          <li><button type="button" id="vore" class="button main"
+              onclick="if(window.AnatomyForge) window.AnatomyForge.refreshLayout()"><span><i
+                  class="fa-solid fa-utensils"></i> Vore
               </span></button></li>
         </ul>
       </div>
@@ -25,699 +104,722 @@
         <form action="/api/user/createcharacter" method="POST">
           <% } else {%>
             <form action="/api/user/editcharacter" method="POST">
-              <%}%>
+              <% if (charList && charList._id) { %>
+                <input type="hidden" name="charId" value="<%= charList._id %>">
+                <% } %>
+                  <%}%>
 
-                <div id="genderPullout" class="pullout">
-                  <!-- Body Shape -->
-                  <button type="button" class="collapsible"><span><i class="fa-solid fa-venus-mars"></i> Base
-                      Shape</span> <i class="fa-solid fa-chevron-down"></i></button>
-                  <div class="style-grid active">
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Shape:</label>
-                        <select name="bodyShape" id="bodyShape">
-                          <option value="F-">Feminine</option>
-                          <option value="M-">Masculine (unavailable)</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Anatomy:</label>
-                        <select name="genitles" id="genitles">
-                          <option value="empty">Vagina (unavailable)</option>
-                          <option value="empty">Penis (unavailable)</option>
-                          <option value="empty">Both (unavailable)</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-
-
-                  <!-- Head Section -->
-                  <button type="button" class="collapsible"><span><i class="fa-solid fa-face-smile"></i> Head</span> <i
-                      class="fa-solid fa-chevron-down"></i></button>
-                  <div class="style-grid">
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Type:</label>
-                        <select name="head" id="head">
-                          <option value="head_01">Vulpine</option>
-                          <option value="head_02">Canine</option>
-                          <option value="head_03">Feline</option>
-                          <option value="head_04">Bunny</option>
-                          <option value="head_05">Avian</option>
-                          <option value="head_06">Reptile</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="headColorBtn" class="pcr-button"></button></div>
-                        <!-- <input id="primaryHeadHex" name="primaryHeadColor" type="hidden" value="#8b0000"> -->
-                      </div>
-                    </div>
-
-                    <!-- Dynamic Beak -->
-                    <div class="selectionContainer" id="sneakyBeak" style="display:none;">
-                      <div class="input-group">
-                        <label>Beak Color:</label>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="beakColorBtn" class="pcr-button"></button></div>
-                        <!-- <input id="beakHex" name="beakHex" type="hidden" value="#e75480"> -->
-                      </div>
-                      <input id="beakSprite" name="beakSprite" type="hidden">
-                    </div>
-
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Secondary Fur:</label>
-                        <select name="headSecondaryFur" id="headSecondaryFur">
-                          <option value="empty">None</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="secondaryHeadColorBtn" class="pcr-button"></button>
+                    <div id="genderPullout" class="pullout">
+                      <!-- Body Shape -->
+                      <button type="button" class="collapsible"><span><i class="fa-solid fa-venus-mars"></i> Base
+                          Shape</span> <i class="fa-solid fa-chevron-down"></i></button>
+                      <div class="style-grid active">
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Shape:</label>
+                            <select name="bodyShape" id="bodyShape">
+                              <option value="F-">Feminine</option>
+                              <option value="M-">Masculine (unavailable)</option>
+                            </select>
+                          </div>
                         </div>
-                        <!-- <input id="secondaryHeadHex" name="secondaryHeadColor" type="hidden" value="#ffb6c1"> -->
-                      </div>
-                    </div>
-
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Accent Fur:</label>
-                        <select name="headAccentFur" id="headAccentFur">
-                          <option value="empty">None</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="accentHeadColorBtn" class="pcr-button"></button>
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Anatomy:</label>
+                            <select name="genitles" id="genitles">
+                              <option value="empty">Vagina (unavailable)</option>
+                              <option value="empty">Penis (unavailable)</option>
+                              <option value="empty">Both (unavailable)</option>
+                            </select>
+                          </div>
                         </div>
-                        <!-- <input id="accentHeadHex" name="accentHeadColor" type="hidden" value="#e75480"> -->
                       </div>
-                    </div>
 
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Hair:</label>
-                        <select name="hair" id="hair">
-                          <option value="empty">None</option>
-                          <option value="hair-front_01">Short Bob</option>
-                          <option value="hair-front_02">Pony Tail</option>
-                          <option value="hair-front_03">Covers Eye</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="hairColorBtn" class="pcr-button"></button></div>
-                        <!-- <input id="hairHex" name="hairColor" type="hidden" value="#5c4033"> -->
-                      </div>
-                    </div>
 
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Ears:</label>
-                        <select name="outerEar" id="outerEar">
-                          <option value="empty">None</option>
-                          <option value="ears_01-outer">Perky and Pointy</option>
-                          <option value="ears_02-outer">Floppy</option>
-                          <option value="ears_03-outer">Smol and Pointy</option>
-                          <option value="ears_04-outer">Long and Loppy</option>
-                          <option value="ears_05-outer">Long and Tall</option>
-                          <option value="ears_06-outer">Split Tip</option>
-                          <option value="ears_07-outer">From Sides</option>
-                          <option value="ears_08-outer">Deer/Cow</option>
-                          <option value="ears_09-outer">Mouse/Rat</option>
-                          <option value="ears_10-outer">Squirrel</option>
-                          <option value="ears_11-outer">Lynx</option>
-                        </select>
-                        <input id="innerEar" name="innerEar" type="hidden">
-                      </div>
-                      <div style="display:flex; gap:5px;">
-                        <div class="pickr"><button type="button" id="outerEarColorBtn" class="pcr-button"
-                            title="Outer Ear Color"></button></div>
-                        <!-- <input id="outerEarHex" name="outerEarColor" type="hidden" value="#8b0000"> -->
 
-                        <div class="pickr"><button type="button" id="innerEarColorBtn" class="pcr-button"
-                            title="Inner Ear Color"></button></div>
-                        <!-- <input id="innerEarHex" name="innerEarColor" type="hidden" value="#ffb6c1"> -->
-                      </div>
-                    </div>
-
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Eye Color:</label>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="eyeColorBtn" class="pcr-button"></button></div>
-                        <!-- <input id="eyesHex" name="eyesColor" type="hidden" value="#ffbf00"> -->
-                        <input id="eyesIris" name="eyesIris" type="hidden">
-                        <input id="eyesOuter" name="eyesOuter" type="hidden">
-                      </div>
-                    </div>
-
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Accessories:</label>
-                        <select name="headAccessories" id="headAccessories">
-                          <option value="empty">None</option>
-                          <option value="headAccessories_01">Nubby horns</option>
-                          <option value="headAccessories_02">Antlers</option>
-                          <option value="headAccessories_03">Dragon Horns</option>
-                          <option value="headAccessories_04">Antenna</option>
-                          <option value="headAccessories_05">Unicorn Horn</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="headAccessoriesColorBtn"
-                            class="pcr-button"></button>
+                      <!-- Head Section -->
+                      <button type="button" class="collapsible"><span><i class="fa-solid fa-face-smile"></i> Head</span>
+                        <i class="fa-solid fa-chevron-down"></i></button>
+                      <div class="style-grid">
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Type:</label>
+                            <select name="head" id="head">
+                              <option value="head_01">Vulpine</option>
+                              <option value="head_02">Canine</option>
+                              <option value="head_03">Feline</option>
+                              <option value="head_04">Bunny</option>
+                              <option value="head_05">Avian</option>
+                              <option value="head_06">Reptile</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="headColorBtn" class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="primaryHeadHex" name="primaryHeadColor" type="hidden" value="#8b0000"> -->
+                          </div>
                         </div>
-                        <!-- <input id="headAccessoriesHex" name="headAccessoriesColor" type="hidden" value="#e75480"> -->
-                      </div>
-                    </div>
-                  </div>
 
-
-                  <!-- Body Section -->
-                  <button type="button" class="collapsible"><span><i class="fa-solid fa-child"></i> Body</span> <i
-                      class="fa-solid fa-chevron-down"></i></button>
-                  <div class="style-grid">
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Body Type:</label>
-                        <select name="mainBodyType" id="mainBodyType">
-                          <option value="body_01">Anthropomorphic</option>
-                          <option value="body_02">Taur</option>
-                          <option value="body_03">Naga</option>
-                          <option value="body_04">Drider</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="bodyColorBtn" class="pcr-button"></button></div>
-                        <!-- <input id="bodyHex" name="bodyColor" type="hidden" value="#8b0000"> -->
-                      </div>
-                    </div>
-
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Secondary Fur:</label>
-                        <select name="bodySecondaryFur" id="bodySecondaryFur">
-                          <option value="body_01-empty">None</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="secondaryBodyColorBtn" class="pcr-button"></button>
+                        <!-- Dynamic Beak -->
+                        <div class="selectionContainer" id="sneakyBeak" style="display:none;">
+                          <div class="input-group">
+                            <label>Beak Color:</label>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="beakColorBtn" class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="beakHex" name="beakHex" type="hidden" value="#e75480"> -->
+                          </div>
+                          <input id="beakSprite" name="beakSprite" type="hidden">
                         </div>
-                        <!-- <input id="secondaryBodyHex" name="secondaryBodyColor" type="hidden" value="#ffb6c1"> -->
-                      </div>
-                    </div>
 
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Accent Fur:</label>
-                        <select name="bodyAccentFur" id="bodyAccentFur">
-                          <option value="body_01-empty">None</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="accentBodyColorBtn" class="pcr-button"></button>
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Secondary Fur:</label>
+                            <select name="headSecondaryFur" id="headSecondaryFur">
+                              <option value="empty">None</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="secondaryHeadColorBtn"
+                                class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="secondaryHeadHex" name="secondaryHeadColor" type="hidden" value="#ffb6c1"> -->
+                          </div>
                         </div>
-                        <!-- <input id="accentBodyHex" name="accentBodyColor" type="hidden" value="#e75480"> -->
-                      </div>
-                    </div>
 
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Hands:</label>
-                        <select name="handsFur" id="handsFur">
-                          <option value="body_01-empty">None</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="handsColorBtn" class="pcr-button"></button></div>
-                        <!-- <input id="handsHex" name="handsColor" type="hidden" value="0xffb6c1"> -->
-                      </div>
-                    </div>
-
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Feet:</label>
-                        <select name="feetFur" id="feetFur">
-                          <option value="body_01-empty">None</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="feetColorBtn" class="pcr-button"></button></div>
-                        <!-- <input id="feetHex" name="feetColor" type="hidden" value="0xffb6c1"> -->
-                      </div>
-                    </div>
-                  </div>
-
-
-                  <!-- Tail Section -->
-                  <button type="button" class="collapsible"><span><i class="fa-solid fa-feather"></i> Tail</span> <i
-                      class="fa-solid fa-chevron-down"></i></button>
-                  <div class="style-grid">
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Tail Type:</label>
-                        <select name="tail" id="tail">
-                          <option value="tail_01">Vulpine</option>
-                          <option value="tail_02">Canine</option>
-                          <option value="tail_03">Feline</option>
-                          <option value="tail_04">Rabbit</option>
-                          <option value="tail_05">Avian</option>
-                          <option value="tail_06">Reptile</option>
-                          <option value="tail_07">Equine</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="tailColorBtn" class="pcr-button"></button></div>
-                        <!-- <input id="tailHex" name="tailColor" type="hidden" value="#8b0000"> -->
-                      </div>
-                    </div>
-
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Secondary Fur:</label>
-                        <select name="tailSecondaryFur" id="tailSecondaryFur">
-                          <option value="empty">None</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="secondaryTailColorBtn" class="pcr-button"></button>
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Accent Fur:</label>
+                            <select name="headAccentFur" id="headAccentFur">
+                              <option value="empty">None</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="accentHeadColorBtn"
+                                class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="accentHeadHex" name="accentHeadColor" type="hidden" value="#e75480"> -->
+                          </div>
                         </div>
-                        <!-- <input id="secondaryTailHex" name="secondaryTailColor" type="hidden" value="#ffb6c1"> -->
-                      </div>
-                    </div>
 
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Accent Fur:</label>
-                        <select name="tailAccentFur" id="tailAccentFur">
-                          <option value="empty">None</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div class="pickr"><button type="button" id="accentTailColorBtn" class="pcr-button"></button>
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Hair:</label>
+                            <select name="hair" id="hair">
+                              <option value="empty">None</option>
+                              <option value="hair-front_01">Short Bob</option>
+                              <option value="hair-front_02">Pony Tail</option>
+                              <option value="hair-front_03">Covers Eye</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="hairColorBtn" class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="hairHex" name="hairColor" type="hidden" value="#5c4033"> -->
+                          </div>
                         </div>
-                        <!-- <input id="accentTailHex" name="accentTailColor" type="hidden" value="#e75480"> -->
+
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Ears:</label>
+                            <select name="outerEar" id="outerEar">
+                              <option value="empty">None</option>
+                              <option value="ears_01-outer">Perky and Pointy</option>
+                              <option value="ears_02-outer">Floppy</option>
+                              <option value="ears_03-outer">Smol and Pointy</option>
+                              <option value="ears_04-outer">Long and Loppy</option>
+                              <option value="ears_05-outer">Long and Tall</option>
+                              <option value="ears_06-outer">Split Tip</option>
+                              <option value="ears_07-outer">From Sides</option>
+                              <option value="ears_08-outer">Deer/Cow</option>
+                              <option value="ears_09-outer">Mouse/Rat</option>
+                              <option value="ears_10-outer">Squirrel</option>
+                              <option value="ears_11-outer">Lynx</option>
+                            </select>
+                            <input id="innerEar" name="innerEar" type="hidden">
+                          </div>
+                          <div style="display:flex; gap:5px;">
+                            <div class="pickr"><button type="button" id="outerEarColorBtn" class="pcr-button"
+                                title="Outer Ear Color"></button></div>
+                            <!-- <input id="outerEarHex" name="outerEarColor" type="hidden" value="#8b0000"> -->
+
+                            <div class="pickr"><button type="button" id="innerEarColorBtn" class="pcr-button"
+                                title="Inner Ear Color"></button></div>
+                            <!-- <input id="innerEarHex" name="innerEarColor" type="hidden" value="#ffb6c1"> -->
+                          </div>
+                        </div>
+
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Eye Color:</label>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="eyeColorBtn" class="pcr-button"></button></div>
+                            <!-- <input id="eyesHex" name="eyesColor" type="hidden" value="#ffbf00"> -->
+                            <input id="eyesIris" name="eyesIris" type="hidden">
+                            <input id="eyesOuter" name="eyesOuter" type="hidden">
+                          </div>
+                        </div>
+
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Accessories:</label>
+                            <select name="headAccessories" id="headAccessories">
+                              <option value="empty">None</option>
+                              <option value="headAccessories_01">Nubby horns</option>
+                              <option value="headAccessories_02">Antlers</option>
+                              <option value="headAccessories_03">Dragon Horns</option>
+                              <option value="headAccessories_04">Antenna</option>
+                              <option value="headAccessories_05">Unicorn Horn</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="headAccessoriesColorBtn"
+                                class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="headAccessoriesHex" name="headAccessoriesColor" type="hidden" value="#e75480"> -->
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+
+
+                      <!-- Body Section -->
+                      <button type="button" class="collapsible"><span><i class="fa-solid fa-child"></i> Body</span> <i
+                          class="fa-solid fa-chevron-down"></i></button>
+                      <div class="style-grid">
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Body Type:</label>
+                            <select name="mainBodyType" id="mainBodyType">
+                              <option value="body_01">Anthropomorphic</option>
+                              <option value="body_02">Taur</option>
+                              <option value="body_03">Naga</option>
+                              <option value="body_04">Drider</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="bodyColorBtn" class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="bodyHex" name="bodyColor" type="hidden" value="#8b0000"> -->
+                          </div>
+                        </div>
+
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Secondary Fur:</label>
+                            <select name="bodySecondaryFur" id="bodySecondaryFur">
+                              <option value="body_01-empty">None</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="secondaryBodyColorBtn"
+                                class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="secondaryBodyHex" name="secondaryBodyColor" type="hidden" value="#ffb6c1"> -->
+                          </div>
+                        </div>
+
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Accent Fur:</label>
+                            <select name="bodyAccentFur" id="bodyAccentFur">
+                              <option value="body_01-empty">None</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="accentBodyColorBtn"
+                                class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="accentBodyHex" name="accentBodyColor" type="hidden" value="#e75480"> -->
+                          </div>
+                        </div>
+
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Hands:</label>
+                            <select name="handsFur" id="handsFur">
+                              <option value="body_01-empty">None</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="handsColorBtn" class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="handsHex" name="handsColor" type="hidden" value="0xffb6c1"> -->
+                          </div>
+                        </div>
+
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Feet:</label>
+                            <select name="feetFur" id="feetFur">
+                              <option value="body_01-empty">None</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="feetColorBtn" class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="feetHex" name="feetColor" type="hidden" value="0xffb6c1"> -->
+                          </div>
+                        </div>
+                      </div>
+
+
+                      <!-- Tail Section -->
+                      <button type="button" class="collapsible"><span><i class="fa-solid fa-feather"></i> Tail</span> <i
+                          class="fa-solid fa-chevron-down"></i></button>
+                      <div class="style-grid">
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Tail Type:</label>
+                            <select name="tail" id="tail">
+                              <option value="tail_01">Vulpine</option>
+                              <option value="tail_02">Canine</option>
+                              <option value="tail_03">Feline</option>
+                              <option value="tail_04">Rabbit</option>
+                              <option value="tail_05">Avian</option>
+                              <option value="tail_06">Reptile</option>
+                              <option value="tail_07">Equine</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="tailColorBtn" class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="tailHex" name="tailColor" type="hidden" value="#8b0000"> -->
+                          </div>
+                        </div>
+
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Secondary Fur:</label>
+                            <select name="tailSecondaryFur" id="tailSecondaryFur">
+                              <option value="empty">None</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="secondaryTailColorBtn"
+                                class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="secondaryTailHex" name="secondaryTailColor" type="hidden" value="#ffb6c1"> -->
+                          </div>
+                        </div>
+
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Accent Fur:</label>
+                            <select name="tailAccentFur" id="tailAccentFur">
+                              <option value="empty">None</option>
+                            </select>
+                          </div>
+                          <div>
+                            <div class="pickr"><button type="button" id="accentTailColorBtn"
+                                class="pcr-button"></button>
+                            </div>
+                            <!-- <input id="accentTailHex" name="accentTailColor" type="hidden" value="#e75480"> -->
+                          </div>
+                        </div>
+                      </div>
 
 
 
-                  <div class="colorContainer">
-                    <!-- <canvas id="color-picker"></canvas>
+                      <div class="colorContainer">
+                        <!-- <canvas id="color-picker"></canvas>
                   <br>-->
-                    <div class="hexContainer">
-                      <div class="colorQuickSelect">
-                        <!-- Color Hex Value: <br> -->
-                        <input id="primaryHeadHex" name="primaryHeadColor" type="hidden" autocomplete="off"
-                          class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
-                      </div>
-                      <div class="colorQuickSelect">
-                        <!-- Color Hex Value: <br> -->
-                        <input id="beakHex" name="beakHex" type="hidden" autocomplete="off" class="hexReadOut"
-                          placeholder="Hex Value" aria-label="Hex Value"></input>
-                      </div>
-                      <div class="colorQuickSelect">
-                        <div class="hexDivide">
-                          <!-- Color Hex Value: <br> -->
-                          <input id="secondaryHeadHex" name="secondaryHeadColor" type="hidden" autocomplete="off"
-                            class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
-                        </div>
-                        <!-- <div class="copyDivide">
+                        <div class="hexContainer">
+                          <div class="colorQuickSelect">
+                            <!-- Color Hex Value: <br> -->
+                            <input id="primaryHeadHex" name="primaryHeadColor" type="hidden" autocomplete="off"
+                              class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
+                          </div>
+                          <div class="colorQuickSelect">
+                            <!-- Color Hex Value: <br> -->
+                            <input id="beakHex" name="beakHex" type="hidden" autocomplete="off" class="hexReadOut"
+                              placeholder="Hex Value" aria-label="Hex Value"></input>
+                          </div>
+                          <div class="colorQuickSelect">
+                            <div class="hexDivide">
+                              <!-- Color Hex Value: <br> -->
+                              <input id="secondaryHeadHex" name="secondaryHeadColor" type="hidden" autocomplete="off"
+                                class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
+                            </div>
+                            <!-- <div class="copyDivide">
             Copy Your Head's Primary Color? <br>
             <button type="button" class="button colorQuickSelectBtn" style="vertical-align:middle"><span></span></button>
           </div> -->
-                      </div>
-                      <div class="colorQuickSelect">
-                        <div class="hexDivide">
-                          <!-- Color Hex Value: <br> -->
-                          <input id="accentHeadHex" name="accentHeadColor" type="hidden" autocomplete="off"
-                            class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
-                        </div>
-                        <!-- <div class="copyDivide">
+                          </div>
+                          <div class="colorQuickSelect">
+                            <div class="hexDivide">
+                              <!-- Color Hex Value: <br> -->
+                              <input id="accentHeadHex" name="accentHeadColor" type="hidden" autocomplete="off"
+                                class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
+                            </div>
+                            <!-- <div class="copyDivide">
             Copy Your Head's Secondary Color? <br>
             <button type="button" class="button colorQuickSelectBtn" style="vertical-align:middle"><span></span></button>
           </div> -->
-                      </div>
-                      <div class="colorQuickSelect">
-                        <!-- Color Hex Value: <br> -->
-                        <input id="hairHex" name="hairColor" type="hidden" autocomplete="off" class="hexReadOut"
-                          placeholder="Hex Value" aria-label="Hex Value"></input>
-                      </div>
-                      <div class="colorQuickSelect">
-                        <div class="hexDivide">
-                          <!-- Color Hex Value: <br> -->
-                          <input id="outerEarHex" name="outerEarColor" type="hidden" autocomplete="off"
-                            class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
-                        </div>
-                      </div>
-                      <div class="colorQuickSelect">
-                        <div class="hexDivide">
-                          <!-- Color Hex Value: <br> -->
-                          <input id="innerEarHex" name="innerEarColor" type="hidden" autocomplete="off"
-                            class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
-                        </div>
-                      </div>
-                      <div class="colorQuickSelect">
-                        <!-- Color Hex Value: <br> -->
-                        <input id="eyesHex" name="eyesColor" type="hidden" autocomplete="off" class="hexReadOut"
-                          placeholder="Hex Value" aria-label="Hex Value"></input>
-                      </div>
-                      <div class="colorQuickSelect">
-                        <!-- Color Hex Value: <br> -->
-                        <input id="headAccessoriesHex" name="headAccessoriesColor" type="hidden" autocomplete="off"
-                          class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
-                      </div>
-                      <div class="colorQuickSelect">
-                        <div class="hexDivide">
-                          <!-- Color Hex Value: <br> -->
-                          <input id="bodyHex" name="bodyColor" type="hidden" autocomplete="off" class="hexReadOut"
-                            placeholder="Hex Value" aria-label="Hex Value"></input>
-                        </div>
-                        <!-- <div class="copyDivide">
+                          </div>
+                          <div class="colorQuickSelect">
+                            <!-- Color Hex Value: <br> -->
+                            <input id="hairHex" name="hairColor" type="hidden" autocomplete="off" class="hexReadOut"
+                              placeholder="Hex Value" aria-label="Hex Value"></input>
+                          </div>
+                          <div class="colorQuickSelect">
+                            <div class="hexDivide">
+                              <!-- Color Hex Value: <br> -->
+                              <input id="outerEarHex" name="outerEarColor" type="hidden" autocomplete="off"
+                                class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
+                            </div>
+                          </div>
+                          <div class="colorQuickSelect">
+                            <div class="hexDivide">
+                              <!-- Color Hex Value: <br> -->
+                              <input id="innerEarHex" name="innerEarColor" type="hidden" autocomplete="off"
+                                class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
+                            </div>
+                          </div>
+                          <div class="colorQuickSelect">
+                            <!-- Color Hex Value: <br> -->
+                            <input id="eyesHex" name="eyesColor" type="hidden" autocomplete="off" class="hexReadOut"
+                              placeholder="Hex Value" aria-label="Hex Value"></input>
+                          </div>
+                          <div class="colorQuickSelect">
+                            <!-- Color Hex Value: <br> -->
+                            <input id="headAccessoriesHex" name="headAccessoriesColor" type="hidden" autocomplete="off"
+                              class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
+                          </div>
+                          <div class="colorQuickSelect">
+                            <div class="hexDivide">
+                              <!-- Color Hex Value: <br> -->
+                              <input id="bodyHex" name="bodyColor" type="hidden" autocomplete="off" class="hexReadOut"
+                                placeholder="Hex Value" aria-label="Hex Value"></input>
+                            </div>
+                            <!-- <div class="copyDivide">
             Copy Your Head's Primary Color? <br>
             <button type="button" class="button colorQuickSelectBtn" style="vertical-align:middle"><span></span></button>
           </div> -->
-                      </div>
-                      <div class="colorQuickSelect">
-                        <div class="hexDivide">
-                          <!-- Color Hex Value: <br> -->
-                          <input id="secondaryBodyHex" name="secondaryBodyColor" type="hidden" autocomplete="off"
-                            class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
-                        </div>
-                        <!-- <div class="copyDivide">
+                          </div>
+                          <div class="colorQuickSelect">
+                            <div class="hexDivide">
+                              <!-- Color Hex Value: <br> -->
+                              <input id="secondaryBodyHex" name="secondaryBodyColor" type="hidden" autocomplete="off"
+                                class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
+                            </div>
+                            <!-- <div class="copyDivide">
             Copy Your Head's Secondary Color? <br>
             <button type="button" class="button colorQuickSelectBtn" style="vertical-align:middle"><span></span></button>
           </div> -->
-                      </div>
-                      <div class="colorQuickSelect">
-                        <div class="hexDivide">
-                          <!-- Color Hex Value: <br> -->
-                          <input id="accentBodyHex" name="accentBodyColor" type="hidden" autocomplete="off"
-                            class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
-                        </div>
-                        <!-- <div class="copyDivide">
+                          </div>
+                          <div class="colorQuickSelect">
+                            <div class="hexDivide">
+                              <!-- Color Hex Value: <br> -->
+                              <input id="accentBodyHex" name="accentBodyColor" type="hidden" autocomplete="off"
+                                class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
+                            </div>
+                            <!-- <div class="copyDivide">
             Copy Your Head's Accent Color? <br>
             <button type="button" class="button colorQuickSelectBtn" style="vertical-align:middle"><span></span></button>
           </div> -->
-                      </div>
-                      <div class="colorQuickSelect">
-                        <div class="hexDivide">
-                          <!-- Color Hex Value: <br> -->
-                          <input id="handsHex" name="handsColor" type="hidden" autocomplete="off" class="hexReadOut"
-                            placeholder="Hex Value" aria-label="Hex Value"></input>
-                        </div>
-                        <!-- <div class="copyDivide">
+                          </div>
+                          <div class="colorQuickSelect">
+                            <div class="hexDivide">
+                              <!-- Color Hex Value: <br> -->
+                              <input id="handsHex" name="handsColor" type="hidden" autocomplete="off" class="hexReadOut"
+                                placeholder="Hex Value" aria-label="Hex Value"></input>
+                            </div>
+                            <!-- <div class="copyDivide">
             Copy Your Head's Secondary Color? <br>
             <button type="button" class="button colorQuickSelectBtn" style="vertical-align:middle"><span></span></button>
           </div> -->
-                      </div>
-                      <div class="colorQuickSelect">
-                        <div class="hexDivide">
-                          <!-- Color Hex Value: <br> -->
-                          <input id="feetHex" name="feetColor" type="hidden" autocomplete="off" class="hexReadOut"
-                            placeholder="Hex Value" aria-label="Hex Value"></input>
-                        </div>
-                        <!-- <div class="copyDivide">
+                          </div>
+                          <div class="colorQuickSelect">
+                            <div class="hexDivide">
+                              <!-- Color Hex Value: <br> -->
+                              <input id="feetHex" name="feetColor" type="hidden" autocomplete="off" class="hexReadOut"
+                                placeholder="Hex Value" aria-label="Hex Value"></input>
+                            </div>
+                            <!-- <div class="copyDivide">
             Copy Your Head's Secondary Color? <br>
             <button type="button" class="button colorQuickSelectBtn" style="vertical-align:middle"><span></span></button>
           </div> -->
-                      </div>
-                      <div class="colorQuickSelect">
-                        <div class="hexDivide">
-                          <!-- Color Hex Value: <br> -->
-                          <input id="tailHex" name="tailColor" type="hidden" autocomplete="off" class="hexReadOut"
-                            placeholder="Hex Value" aria-label="Hex Value"></input>
-                        </div>
-                        <!-- <div class="copyDivide">
+                          </div>
+                          <div class="colorQuickSelect">
+                            <div class="hexDivide">
+                              <!-- Color Hex Value: <br> -->
+                              <input id="tailHex" name="tailColor" type="hidden" autocomplete="off" class="hexReadOut"
+                                placeholder="Hex Value" aria-label="Hex Value"></input>
+                            </div>
+                            <!-- <div class="copyDivide">
             Copy Your Body's Primary Color? <br>
             <button type="button" class="button colorQuickSelectBtn" style="vertical-align:middle"><span></span></button>
           </div> -->
-                      </div>
-                      <div class="colorQuickSelect">
-                        <div class="hexDivide">
-                          <!-- Color Hex Value: <br> -->
-                          <input id="secondaryTailHex" name="secondaryTailColor" type="hidden" autocomplete="off"
-                            class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
-                        </div>
-                        <!-- <div class="copyDivide">
+                          </div>
+                          <div class="colorQuickSelect">
+                            <div class="hexDivide">
+                              <!-- Color Hex Value: <br> -->
+                              <input id="secondaryTailHex" name="secondaryTailColor" type="hidden" autocomplete="off"
+                                class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
+                            </div>
+                            <!-- <div class="copyDivide">
             Copy Your Body's Secondary Color? <br>
             <button type="button" class="button colorQuickSelectBtn" style="vertical-align:middle"><span></span></button>
           </div> -->
-                      </div>
-                      <div class="colorQuickSelect">
-                        <div class="hexDivide">
-                          <!-- Color Hex Value: <br> -->
-                          <input id="accentTailHex" name="accentTailColor" type="hidden" autocomplete="off"
-                            class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
-                        </div>
-                        <!-- <div class="copyDivide">
+                          </div>
+                          <div class="colorQuickSelect">
+                            <div class="hexDivide">
+                              <!-- Color Hex Value: <br> -->
+                              <input id="accentTailHex" name="accentTailColor" type="hidden" autocomplete="off"
+                                class="hexReadOut" placeholder="Hex Value" aria-label="Hex Value"></input>
+                            </div>
+                            <!-- <div class="copyDivide">
             Copy Your Body's Accent Color? <br>
             <button type="button" class="button colorQuickSelectBtn" style="vertical-align:middle"><span></span></button>
           </div> -->
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 2. ABOUT TAB -->
-                <div id="aboutPullout" class="pullout">
-                  <h2
-                    style="font-family:'Cinzel', serif; border-bottom: 2px dashed var(--wood-dark); margin-bottom:20px;">
-                    Personal
-                    Details</h2>
-
-                  <div class="style-grid active">
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label for="firstName">First Name:</label>
-                        <input id="firstName" name="firstName" type="text" placeholder="First Name" autocomplete="off">
-                      </div>
-                    </div>
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label for="lastName">Last Name:</label>
-                        <input id="lastName" name="lastName" type="text" placeholder="Last Name" autocomplete="off">
-                      </div>
-                    </div>
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label for="nickName">Nick Name:</label>
-                        <input id="nickName" name="nickName" type="text" placeholder="Nick Name" autocomplete="off">
-                      </div>
-                    </div>
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label for="speciesName">Species:</label>
-                        <input id="speciesName" name="speciesName" type="text" placeholder="e.g. Fox"
-                          autocomplete="off">
-                      </div>
-                    </div>
-                    <div class="selectionContainer">
-                      <div class="input-group">
-                        <label>Pronouns:</label>
-                        <div style="display:flex; gap:15px;">
-                          <label style="color:var(--text-dark); font-family:'Lato';"><input type="radio" name="pronouns"
-                              value="1" id="she/her"> She/Her</label>
-                          <label style="color:var(--text-dark); font-family:'Lato';"><input type="radio" name="pronouns"
-                              value="2" id="he/his"> He/Him</label>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <button type="button" class="collapsible active"><span>In Character Description</span> <i
-                      class="fa-solid fa-chevron-down"></i></button>
-                  <div class="content active" style="display:block; padding:15px;">
-                    <textarea id="icDescrip" name="icDescrip"
-                      placeholder="Describe your character's appearance and personality..."></textarea>
-                  </div>
+                    <!-- 2. ABOUT TAB -->
+                    <div id="aboutPullout" class="pullout">
+                      <h2
+                        style="font-family:'Cinzel', serif; border-bottom: 2px dashed var(--wood-dark); margin-bottom:20px;">
+                        Personal
+                        Details</h2>
 
-                  <button type="button" class="collapsible"><span>Out of Character Notes</span> <i
-                      class="fa-solid fa-chevron-down"></i></button>
-                  <div class="content" style="padding:15px;">
-                    <textarea id="oocDescrip" name="oocDescrip" placeholder="Notes for other players..."></textarea>
-                  </div>
-                </div>
-
-
-
-                <!-- 3. KINKS TAB (FULLY RESTORED) -->
-                <div id="kinksPullout" class="pullout">
-                  <h2 style="font-family:'Cinzel', serif; margin-bottom:20px;">Preferences</h2>
-                  <p style="font-style:italic; margin-bottom:20px;">Rate your interest from 1 to 5 stars.</p>
-
-                  <div id="kinksInput">
-                    <ul>
-                      <li>Oral Vore <div class="rating"><input type="radio" name="ovStar" id="ovStar5" value="5"><label
-                            for="ovStar5"></label><input type="radio" name="ovStar" id="ovStar4" value="4"><label
-                            for="ovStar4"></label><input type="radio" name="ovStar" id="ovStar3" value="3"><label
-                            for="ovStar3"></label><input type="radio" name="ovStar" id="ovStar2" value="2"><label
-                            for="ovStar2"></label><input type="radio" name="ovStar" id="ovStar1" value="1"><label
-                            for="ovStar1"></label></div>
-                      </li>
-                      <li>Anal Vore <div class="rating"><input type="radio" name="avStar" id="avStar5" value="5"><label
-                            for="avStar5"></label><input type="radio" name="avStar" id="avStar4" value="4"><label
-                            for="avStar4"></label><input type="radio" name="avStar" id="avStar3" value="3"><label
-                            for="avStar3"></label><input type="radio" name="avStar" id="avStar2" value="2"><label
-                            for="avStar2"></label><input type="radio" name="avStar" id="avStar1" value="1"><label
-                            for="avStar1"></label></div>
-                      </li>
-                      <li>Cock Vore <div class="rating"><input type="radio" name="cvStar" id="cvStar5" value="5"><label
-                            for="cvStar5"></label><input type="radio" name="cvStar" id="cvStar4" value="4"><label
-                            for="cvStar4"></label><input type="radio" name="cvStar" id="cvStar3" value="3"><label
-                            for="cvStar3"></label><input type="radio" name="cvStar" id="cvStar2" value="2"><label
-                            for="cvStar2"></label><input type="radio" name="cvStar" id="cvStar1" value="1"><label
-                            for="cvStar1"></label></div>
-                      </li>
-                      <li>Unbirth <div class="rating"><input type="radio" name="ubStar" id="ubStar5" value="5"><label
-                            for="ubStar5"></label><input type="radio" name="ubStar" id="ubStar4" value="4"><label
-                            for="ubStar4"></label><input type="radio" name="ubStar" id="ubStar3" value="3"><label
-                            for="ubStar3"></label><input type="radio" name="ubStar" id="ubStar2" value="2"><label
-                            for="ubStar2"></label><input type="radio" name="ubStar" id="ubStar1" value="1"><label
-                            for="ubStar1"></label></div>
-                      </li>
-                      <li>Tail Vore <div class="rating"><input type="radio" name="tvStar" id="tvStar5" value="5"><label
-                            for="tvStar5"></label><input type="radio" name="tvStar" id="tvStar4" value="4"><label
-                            for="tvStar4"></label><input type="radio" name="tvStar" id="tvStar3" value="3"><label
-                            for="tvStar3"></label><input type="radio" name="tvStar" id="tvStar2" value="2"><label
-                            for="tvStar2"></label><input type="radio" name="tvStar" id="tvStar1" value="1"><label
-                            for="tvStar1"></label></div>
-                      </li>
-                      <li>Absorption <div class="rating"><input type="radio" name="absStar" id="absStar5"
-                            value="5"><label for="absStar5"></label><input type="radio" name="absStar" id="absStar4"
-                            value="4"><label for="absStar4"></label><input type="radio" name="absStar" id="absStar3"
-                            value="3"><label for="absStar3"></label><input type="radio" name="absStar" id="absStar2"
-                            value="2"><label for="absStar2"></label><input type="radio" name="absStar" id="absStar1"
-                            value="1"><label for="absStar1"></label></div>
-                      </li>
-                      <li>Soul Vore <div class="rating"><input type="radio" name="svStar" id="svStar5" value="5"><label
-                            for="svStar5"></label><input type="radio" name="svStar" id="svStar4" value="4"><label
-                            for="svStar4"></label><input type="radio" name="svStar" id="svStar3" value="3"><label
-                            for="svStar3"></label><input type="radio" name="svStar" id="svStar2" value="2"><label
-                            for="svStar2"></label><input type="radio" name="svStar" id="svStar1" value="1"><label
-                            for="svStar1"></label></div>
-                      </li>
-                      <li>Being Pred <div class="rating"><input type="radio" name="predStar" id="predStar5"
-                            value="5"><label for="predStar5"></label><input type="radio" name="predStar" id="predStar4"
-                            value="4"><label for="predStar4"></label><input type="radio" name="predStar" id="predStar3"
-                            value="3"><label for="predStar3"></label><input type="radio" name="predStar" id="predStar2"
-                            value="2"><label for="predStar2"></label><input type="radio" name="predStar" id="predStar1"
-                            value="1"><label for="predStar1"></label></div>
-                      </li>
-                      <li>Being Prey <div class="rating"><input type="radio" name="preyStar" id="preyStar5"
-                            value="5"><label for="preyStar5"></label><input type="radio" name="preyStar" id="preyStar4"
-                            value="4"><label for="preyStar4"></label><input type="radio" name="preyStar" id="preyStar3"
-                            value="3"><label for="preyStar3"></label><input type="radio" name="preyStar" id="preyStar2"
-                            value="2"><label for="preyStar2"></label><input type="radio" name="preyStar" id="preyStar1"
-                            value="1"><label for="preyStar1"></label></div>
-                      </li>
-                      <li>Soft Vore <div class="rating"><input type="radio" name="softStar" id="softStar5"
-                            value="5"><label for="softStar5"></label><input type="radio" name="softStar" id="softStar4"
-                            value="4"><label for="softStar4"></label><input type="radio" name="softStar" id="softStar3"
-                            value="3"><label for="softStar3"></label><input type="radio" name="softStar" id="softStar2"
-                            value="2"><label for="softStar2"></label><input type="radio" name="softStar" id="softStar1"
-                            value="1"><label for="softStar1"></label></div>
-                      </li>
-                      <li>Hard Vore <div class="rating"><input type="radio" name="hardStar" id="hardStar5"
-                            value="5"><label for="hardStar5"></label><input type="radio" name="hardStar" id="hardStar4"
-                            value="4"><label for="hardStar4"></label><input type="radio" name="hardStar" id="hardStar3"
-                            value="3"><label for="hardStar3"></label><input type="radio" name="hardStar" id="hardStar2"
-                            value="2"><label for="hardStar2"></label><input type="radio" name="hardStar" id="hardStar1"
-                            value="1"><label for="hardStar1"></label></div>
-                      </li>
-                      <li>Digestion <div class="rating"><input type="radio" name="digestionStar" id="digestionStar5"
-                            value="5"><label for="digestionStar5"></label><input type="radio" name="digestionStar"
-                            id="digestionStar4" value="4"><label for="digestionStar4"></label><input type="radio"
-                            name="digestionStar" id="digestionStar3" value="3"><label
-                            for="digestionStar3"></label><input type="radio" name="digestionStar" id="digestionStar2"
-                            value="2"><label for="digestionStar2"></label><input type="radio" name="digestionStar"
-                            id="digestionStar1" value="1"><label for="digestionStar1"></label></div>
-                      </li>
-                      <li>Disposal <div class="rating"><input type="radio" name="disposalStar" id="disposalStar5"
-                            value="5"><label for="disposalStar5"></label><input type="radio" name="disposalStar"
-                            id="disposalStar4" value="4"><label for="disposalStar4"></label><input type="radio"
-                            name="disposalStar" id="disposalStar3" value="3"><label for="disposalStar3"></label><input
-                            type="radio" name="disposalStar" id="disposalStar2" value="2"><label
-                            for="disposalStar2"></label><input type="radio" name="disposalStar" id="disposalStar1"
-                            value="1"><label for="disposalStar1"></label></div>
-                      </li>
-                      <li>Transformation <div class="rating"><input type="radio" name="tfStar" id="tfStar5"
-                            value="5"><label for="tfStar5"></label><input type="radio" name="tfStar" id="tfStar4"
-                            value="4"><label for="tfStar4"></label><input type="radio" name="tfStar" id="tfStar3"
-                            value="3"><label for="tfStar3"></label><input type="radio" name="tfStar" id="tfStar2"
-                            value="2"><label for="tfStar2"></label><input type="radio" name="tfStar" id="tfStar1"
-                            value="1"><label for="tfStar1"></label></div>
-                      </li>
-                      <li>Body Part Trans <div class="rating"><input type="radio" name="btfStar" id="btfStar5"
-                            value="5"><label for="btfStar5"></label><input type="radio" name="btfStar" id="btfStar4"
-                            value="4"><label for="btfStar4"></label><input type="radio" name="btfStar" id="btfStar3"
-                            value="3"><label for="btfStar3"></label><input type="radio" name="btfStar" id="btfStar2"
-                            value="2"><label for="btfStar2"></label><input type="radio" name="btfStar" id="btfStar1"
-                            value="1"><label for="btfStar1"></label></div>
-                      </li>
-                      <li>Body Swap <div class="rating"><input type="radio" name="bsStar" id="bsStar5" value="5"><label
-                            for="bsStar5"></label><input type="radio" name="bsStar" id="bsStar4" value="4"><label
-                            for="bsStar4"></label><input type="radio" name="bsStar" id="bsStar3" value="3"><label
-                            for="bsStar3"></label><input type="radio" name="bsStar" id="bsStar2" value="2"><label
-                            for="bsStar2"></label><input type="radio" name="bsStar" id="bsStar1" value="1"><label
-                            for="bsStar1"></label></div>
-                      </li>
-                      <li>Gender Trans <div class="rating"><input type="radio" name="gStar" id="gStar5" value="5"><label
-                            for="gStar5"></label><input type="radio" name="gStar" id="gStar4" value="4"><label
-                            for="gStar4"></label><input type="radio" name="gStar" id="gStar3" value="3"><label
-                            for="gStar3"></label><input type="radio" name="gStar" id="gStar2" value="2"><label
-                            for="gStar2"></label><input type="radio" name="gStar" id="gStar1" value="1"><label
-                            for="gStar1"></label>
+                      <div class="style-grid active">
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label for="firstName">First Name:</label>
+                            <input id="firstName" name="firstName" type="text" placeholder="First Name"
+                              autocomplete="off">
+                          </div>
                         </div>
-                      </li>
-                      <li>Species Trans <div class="rating"><input type="radio" name="sStar" id="sStar5"
-                            value="5"><label for="sStar5"></label><input type="radio" name="sStar" id="sStar4"
-                            value="4"><label for="sStar4"></label><input type="radio" name="sStar" id="sStar3"
-                            value="3"><label for="sStar3"></label><input type="radio" name="sStar" id="sStar2"
-                            value="2"><label for="sStar2"></label><input type="radio" name="sStar" id="sStar1"
-                            value="1"><label for="sStar1"></label>
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label for="lastName">Last Name:</label>
+                            <input id="lastName" name="lastName" type="text" placeholder="Last Name" autocomplete="off">
+                          </div>
                         </div>
-                      </li>
-                      <li>Inanimate Object <div class="rating"><input type="radio" name="iaoStar" id="iaoStar5"
-                            value="5"><label for="iaoStar5"></label><input type="radio" name="iaoStar" id="iaoStar4"
-                            value="4"><label for="iaoStar4"></label><input type="radio" name="iaoStar" id="iaoStar3"
-                            value="3"><label for="iaoStar3"></label><input type="radio" name="iaoStar" id="iaoStar2"
-                            value="2"><label for="iaoStar2"></label><input type="radio" name="iaoStar" id="iaoStar1"
-                            value="1"><label for="iaoStar1"></label></div>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label for="nickName">Nick Name:</label>
+                            <input id="nickName" name="nickName" type="text" placeholder="Nick Name" autocomplete="off">
+                          </div>
+                        </div>
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label for="speciesName">Species:</label>
+                            <input id="speciesName" name="speciesName" type="text" placeholder="e.g. Fox"
+                              autocomplete="off">
+                          </div>
+                        </div>
+                        <div class="selectionContainer">
+                          <div class="input-group">
+                            <label>Pronouns:</label>
+                            <div style="display:flex; gap:15px;">
+                              <label style="color:var(--text-dark); font-family:'Lato';"><input type="radio"
+                                  name="pronouns" value="1" id="she/her"> She/Her</label>
+                              <label style="color:var(--text-dark); font-family:'Lato';"><input type="radio"
+                                  name="pronouns" value="2" id="he/his"> He/Him</label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
 
-                <!-- 4. VORE TAB -->
-                <div id="vorePullout" class="pullout">
-                  <h2 style="font-family:'Cinzel', serif;">Custom Mechanics</h2>
-                  <div id="voreTypes">
-                    <ul id="voreList" style="list-style:none;">
-                      <!-- Content generated by JS -->
-                    </ul>
-                    <button type="button" id="addVore" class="button main" style="margin-top:20px;"><span><i
-                          class="fa-solid fa-plus"></i> Add New Type</span></button>
-                  </div>
-                </div>
+                      <button type="button" class="collapsible active"><span>In Character Description</span> <i
+                          class="fa-solid fa-chevron-down"></i></button>
+                      <div class="content active" style="display:block; padding:15px;">
+                        <textarea id="icDescrip" name="icDescrip"
+                          placeholder="Describe your character's appearance and personality..."></textarea>
+                      </div>
 
-                <!-- NAVIGATION BUTTONS -->
-                <div id="buttonHolder">
-                  <button type="button" id="next" class="button main" style="width:auto;"><span>Next <i
-                        class="fa-solid fa-arrow-right"></i></span></button>
-                  <button type="button" id="next2" class="button main" style="width:auto; display:none;"><span>Next <i
-                        class="fa-solid fa-arrow-right"></i></span></button>
-                  <button type="button" id="next3" class="button main" style="width:auto; display:none;"><span>Next <i
-                        class="fa-solid fa-arrow-right"></i></span></button>
-                  <button type="submit" id="finish" class="button main"
-                    style="width:auto; display:none; background: var(--accent-blue); color: white;"><span>Finish <i
-                        class="fa-solid fa-check"></i></span></button>
-                </div>
+                      <button type="button" class="collapsible"><span>Out of Character Notes</span> <i
+                          class="fa-solid fa-chevron-down"></i></button>
+                      <div class="content" style="padding:15px;">
+                        <textarea id="oocDescrip" name="oocDescrip" placeholder="Notes for other players..."></textarea>
+                      </div>
+                    </div>
+
+
+
+                    <!-- 3. KINKS TAB (FULLY RESTORED) -->
+                    <div id="kinksPullout" class="pullout">
+                      <h2 style="font-family:'Cinzel', serif; margin-bottom:20px;">Preferences</h2>
+                      <p style="font-style:italic; margin-bottom:20px;">Rate your interest from 1 to 5 stars.</p>
+
+                      <div id="kinksInput">
+                        <ul>
+                          <li>Oral Vore <div class="rating"><input type="radio" name="ovStar" id="ovStar5"
+                                value="5"><label for="ovStar5"></label><input type="radio" name="ovStar" id="ovStar4"
+                                value="4"><label for="ovStar4"></label><input type="radio" name="ovStar" id="ovStar3"
+                                value="3"><label for="ovStar3"></label><input type="radio" name="ovStar" id="ovStar2"
+                                value="2"><label for="ovStar2"></label><input type="radio" name="ovStar" id="ovStar1"
+                                value="1"><label for="ovStar1"></label></div>
+                          </li>
+                          <li>Anal Vore <div class="rating"><input type="radio" name="avStar" id="avStar5"
+                                value="5"><label for="avStar5"></label><input type="radio" name="avStar" id="avStar4"
+                                value="4"><label for="avStar4"></label><input type="radio" name="avStar" id="avStar3"
+                                value="3"><label for="avStar3"></label><input type="radio" name="avStar" id="avStar2"
+                                value="2"><label for="avStar2"></label><input type="radio" name="avStar" id="avStar1"
+                                value="1"><label for="avStar1"></label></div>
+                          </li>
+                          <li>Cock Vore <div class="rating"><input type="radio" name="cvStar" id="cvStar5"
+                                value="5"><label for="cvStar5"></label><input type="radio" name="cvStar" id="cvStar4"
+                                value="4"><label for="cvStar4"></label><input type="radio" name="cvStar" id="cvStar3"
+                                value="3"><label for="cvStar3"></label><input type="radio" name="cvStar" id="cvStar2"
+                                value="2"><label for="cvStar2"></label><input type="radio" name="cvStar" id="cvStar1"
+                                value="1"><label for="cvStar1"></label></div>
+                          </li>
+                          <li>Unbirth <div class="rating"><input type="radio" name="ubStar" id="ubStar5"
+                                value="5"><label for="ubStar5"></label><input type="radio" name="ubStar" id="ubStar4"
+                                value="4"><label for="ubStar4"></label><input type="radio" name="ubStar" id="ubStar3"
+                                value="3"><label for="ubStar3"></label><input type="radio" name="ubStar" id="ubStar2"
+                                value="2"><label for="ubStar2"></label><input type="radio" name="ubStar" id="ubStar1"
+                                value="1"><label for="ubStar1"></label></div>
+                          </li>
+                          <li>Tail Vore <div class="rating"><input type="radio" name="tvStar" id="tvStar5"
+                                value="5"><label for="tvStar5"></label><input type="radio" name="tvStar" id="tvStar4"
+                                value="4"><label for="tvStar4"></label><input type="radio" name="tvStar" id="tvStar3"
+                                value="3"><label for="tvStar3"></label><input type="radio" name="tvStar" id="tvStar2"
+                                value="2"><label for="tvStar2"></label><input type="radio" name="tvStar" id="tvStar1"
+                                value="1"><label for="tvStar1"></label></div>
+                          </li>
+                          <li>Absorption <div class="rating"><input type="radio" name="absStar" id="absStar5"
+                                value="5"><label for="absStar5"></label><input type="radio" name="absStar" id="absStar4"
+                                value="4"><label for="absStar4"></label><input type="radio" name="absStar" id="absStar3"
+                                value="3"><label for="absStar3"></label><input type="radio" name="absStar" id="absStar2"
+                                value="2"><label for="absStar2"></label><input type="radio" name="absStar" id="absStar1"
+                                value="1"><label for="absStar1"></label></div>
+                          </li>
+                          <li>Soul Vore <div class="rating"><input type="radio" name="svStar" id="svStar5"
+                                value="5"><label for="svStar5"></label><input type="radio" name="svStar" id="svStar4"
+                                value="4"><label for="svStar4"></label><input type="radio" name="svStar" id="svStar3"
+                                value="3"><label for="svStar3"></label><input type="radio" name="svStar" id="svStar2"
+                                value="2"><label for="svStar2"></label><input type="radio" name="svStar" id="svStar1"
+                                value="1"><label for="svStar1"></label></div>
+                          </li>
+                          <li>Being Pred <div class="rating"><input type="radio" name="predStar" id="predStar5"
+                                value="5"><label for="predStar5"></label><input type="radio" name="predStar"
+                                id="predStar4" value="4"><label for="predStar4"></label><input type="radio"
+                                name="predStar" id="predStar3" value="3"><label for="predStar3"></label><input
+                                type="radio" name="predStar" id="predStar2" value="2"><label
+                                for="predStar2"></label><input type="radio" name="predStar" id="predStar1"
+                                value="1"><label for="predStar1"></label></div>
+                          </li>
+                          <li>Being Prey <div class="rating"><input type="radio" name="preyStar" id="preyStar5"
+                                value="5"><label for="preyStar5"></label><input type="radio" name="preyStar"
+                                id="preyStar4" value="4"><label for="preyStar4"></label><input type="radio"
+                                name="preyStar" id="preyStar3" value="3"><label for="preyStar3"></label><input
+                                type="radio" name="preyStar" id="preyStar2" value="2"><label
+                                for="preyStar2"></label><input type="radio" name="preyStar" id="preyStar1"
+                                value="1"><label for="preyStar1"></label></div>
+                          </li>
+                          <li>Soft Vore <div class="rating"><input type="radio" name="softStar" id="softStar5"
+                                value="5"><label for="softStar5"></label><input type="radio" name="softStar"
+                                id="softStar4" value="4"><label for="softStar4"></label><input type="radio"
+                                name="softStar" id="softStar3" value="3"><label for="softStar3"></label><input
+                                type="radio" name="softStar" id="softStar2" value="2"><label
+                                for="softStar2"></label><input type="radio" name="softStar" id="softStar1"
+                                value="1"><label for="softStar1"></label></div>
+                          </li>
+                          <li>Hard Vore <div class="rating"><input type="radio" name="hardStar" id="hardStar5"
+                                value="5"><label for="hardStar5"></label><input type="radio" name="hardStar"
+                                id="hardStar4" value="4"><label for="hardStar4"></label><input type="radio"
+                                name="hardStar" id="hardStar3" value="3"><label for="hardStar3"></label><input
+                                type="radio" name="hardStar" id="hardStar2" value="2"><label
+                                for="hardStar2"></label><input type="radio" name="hardStar" id="hardStar1"
+                                value="1"><label for="hardStar1"></label></div>
+                          </li>
+                          <li>Digestion <div class="rating"><input type="radio" name="digestionStar" id="digestionStar5"
+                                value="5"><label for="digestionStar5"></label><input type="radio" name="digestionStar"
+                                id="digestionStar4" value="4"><label for="digestionStar4"></label><input type="radio"
+                                name="digestionStar" id="digestionStar3" value="3"><label
+                                for="digestionStar3"></label><input type="radio" name="digestionStar"
+                                id="digestionStar2" value="2"><label for="digestionStar2"></label><input type="radio"
+                                name="digestionStar" id="digestionStar1" value="1"><label for="digestionStar1"></label>
+                            </div>
+                          </li>
+                          <li>Disposal <div class="rating"><input type="radio" name="disposalStar" id="disposalStar5"
+                                value="5"><label for="disposalStar5"></label><input type="radio" name="disposalStar"
+                                id="disposalStar4" value="4"><label for="disposalStar4"></label><input type="radio"
+                                name="disposalStar" id="disposalStar3" value="3"><label
+                                for="disposalStar3"></label><input type="radio" name="disposalStar" id="disposalStar2"
+                                value="2"><label for="disposalStar2"></label><input type="radio" name="disposalStar"
+                                id="disposalStar1" value="1"><label for="disposalStar1"></label></div>
+                          </li>
+                          <li>Transformation <div class="rating"><input type="radio" name="tfStar" id="tfStar5"
+                                value="5"><label for="tfStar5"></label><input type="radio" name="tfStar" id="tfStar4"
+                                value="4"><label for="tfStar4"></label><input type="radio" name="tfStar" id="tfStar3"
+                                value="3"><label for="tfStar3"></label><input type="radio" name="tfStar" id="tfStar2"
+                                value="2"><label for="tfStar2"></label><input type="radio" name="tfStar" id="tfStar1"
+                                value="1"><label for="tfStar1"></label></div>
+                          </li>
+                          <li>Body Part Trans <div class="rating"><input type="radio" name="btfStar" id="btfStar5"
+                                value="5"><label for="btfStar5"></label><input type="radio" name="btfStar" id="btfStar4"
+                                value="4"><label for="btfStar4"></label><input type="radio" name="btfStar" id="btfStar3"
+                                value="3"><label for="btfStar3"></label><input type="radio" name="btfStar" id="btfStar2"
+                                value="2"><label for="btfStar2"></label><input type="radio" name="btfStar" id="btfStar1"
+                                value="1"><label for="btfStar1"></label></div>
+                          </li>
+                          <li>Body Swap <div class="rating"><input type="radio" name="bsStar" id="bsStar5"
+                                value="5"><label for="bsStar5"></label><input type="radio" name="bsStar" id="bsStar4"
+                                value="4"><label for="bsStar4"></label><input type="radio" name="bsStar" id="bsStar3"
+                                value="3"><label for="bsStar3"></label><input type="radio" name="bsStar" id="bsStar2"
+                                value="2"><label for="bsStar2"></label><input type="radio" name="bsStar" id="bsStar1"
+                                value="1"><label for="bsStar1"></label></div>
+                          </li>
+                          <li>Gender Trans <div class="rating"><input type="radio" name="gStar" id="gStar5"
+                                value="5"><label for="gStar5"></label><input type="radio" name="gStar" id="gStar4"
+                                value="4"><label for="gStar4"></label><input type="radio" name="gStar" id="gStar3"
+                                value="3"><label for="gStar3"></label><input type="radio" name="gStar" id="gStar2"
+                                value="2"><label for="gStar2"></label><input type="radio" name="gStar" id="gStar1"
+                                value="1"><label for="gStar1"></label>
+                            </div>
+                          </li>
+                          <li>Species Trans <div class="rating"><input type="radio" name="sStar" id="sStar5"
+                                value="5"><label for="sStar5"></label><input type="radio" name="sStar" id="sStar4"
+                                value="4"><label for="sStar4"></label><input type="radio" name="sStar" id="sStar3"
+                                value="3"><label for="sStar3"></label><input type="radio" name="sStar" id="sStar2"
+                                value="2"><label for="sStar2"></label><input type="radio" name="sStar" id="sStar1"
+                                value="1"><label for="sStar1"></label>
+                            </div>
+                          </li>
+                          <li>Inanimate Object <div class="rating"><input type="radio" name="iaoStar" id="iaoStar5"
+                                value="5"><label for="iaoStar5"></label><input type="radio" name="iaoStar" id="iaoStar4"
+                                value="4"><label for="iaoStar4"></label><input type="radio" name="iaoStar" id="iaoStar3"
+                                value="3"><label for="iaoStar3"></label><input type="radio" name="iaoStar" id="iaoStar2"
+                                value="2"><label for="iaoStar2"></label><input type="radio" name="iaoStar" id="iaoStar1"
+                                value="1"><label for="iaoStar1"></label></div>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <!-- 4. VORE TAB (ANATOMY FORGE) -->
+                    <div id="vorePullout" class="pullout">
+                      <div class="af-wrapper" id="anatomy-forge-container">
+                        <%- include('partials/anatomy_forge', { mode: 'create' }) %>
+                          <!-- Toast Container specific to Create Mode layout adjustments if any, or shared logic -->
+                          <div id="af-toast-container"></div>
+                      </div>
+
+                      <!-- DATA PERSISTENCE -->
+                      <input type="hidden" name="anatomyData" id="anatomyData">
+                      <div id="legacy-shim-container"></div>
+                    </div>
+
+                    <!-- NAVIGATION BUTTONS -->
+                    <div id="buttonHolder">
+                      <button type="button" id="next" class="button main" style="width:auto;"><span>Next <i
+                            class="fa-solid fa-arrow-right"></i></span></button>
+                      <button type="button" id="next2" class="button main" style="width:auto; display:none;"><span>Next
+                          <i class="fa-solid fa-arrow-right"></i></span></button>
+                      <button type="button" id="next3" class="button main" style="width:auto; display:none;"><span>Next
+                          <i class="fa-solid fa-arrow-right"></i></span></button>
+                      <button type="submit" id="finish" class="button main"
+                        style="width:auto; display:none; background: var(--accent-blue); color: white;"><span>Finish <i
+                            class="fa-solid fa-check"></i></span></button>
+                    </div>
             </form>
     </div>
     <!-- RIGHT COLUMN: PREVIEW MIRROR -->
@@ -911,53 +1013,195 @@
     };
 
     var voreList = [
+      // === ENTRANCE ===
       {
-        destination: "Stomach",
+        id: 1,
+        type: "entrance",
+        destination: "Maw",
         verb: "shoves",
+        x: 25,
+        y: 100,
+        protoConnections: [3],
+        destinationDescrip: "You are pulled between <pred>'s lips...",
+        struggleInsideMsgDescrip: "You pry at the jaws...",
+        struggleOutsideMsgDescrip: "<pred>'s cheeks puff out...",
+      },
+      {
+        id: 2,
+        type: "entrance",
+        destination: "Anus",
+        verb: "squelches",
+        x: 25,
+        y: 240,
+        protoConnections: [4],
+        destinationDescrip: "You are pulled into the depths...",
+        struggleInsideMsgDescrip: "You push against the tight ring...",
+        struggleOutsideMsgDescrip: "<pred>'s backside twitches...",
+      },
+
+      // === PATH ===
+      {
+        id: 3,
+        type: "path",
+        destination: "Gullet",
+        x: 165,
+        y: 100,
+        protoConnections: [5],
+        destinationDescrip: "The tight tube squeezes you down...",
+        struggleInsideMsgDescrip: "The walls constrict tightly...",
+        struggleOutsideMsgDescrip: "A bulge travels down <pred>'s throat...",
+      },
+      {
+        id: 4,
+        type: "path",
+        destination: "Bowels",
+        x: 165,
+        y: 240,
+        protoConnections: [5],
+        destinationDescrip: "You feel the musky walls of <pred>'s digestive tract undulating around you as you are shoved up their ass.",
+        examineMsgDescrip: "<pred>'s lower abdomen seems to be swollen out quite a lot...did something just move?",
+        struggleInsideMsgDescrip: "Wriggling about only seems to make that tight fleshy tube squeeze tighter around your body.",
+        struggleOutsideMsgDescrip: "The outline of a footprint forms against the surface of <pred>'s lower belly",
+      },
+      // === DESTINATION ===
+      {
+        id: 5,
+        type: "destination",
+        destination: "Stomach",
         digestionTimer: "120",
-        animation: "1",
+        x: 305,
+        y: 100,
+        protoConnections: [6],
         destinationDescrip: "The walls feel hot and slimy as they constrict around you.",
         examineMsgDescrip: "<pred>'s belly looks as though something inside is moving...",
         struggleInsideMsgDescrip: "Pressing against the slimy walls doesn't seem to get much of a reaction from <pred>.",
         struggleOutsideMsgDescrip: "<pred>'s belly bulges out with the outline of a hand print for a moment before returning to it's distended shape.",
         digestionInsideMsgDescrip: "You finally feel your body succumb and are reduced to mush for <pred> to absorb.",
-        digestionOutsideMsgDescrip: "The constant movement inside <pred>'s middle finally goes still as a soft gurgling sound comes from their belly."
+        digestionOutsideMsgDescrip: "The constant movement inside <pred>'s middle finally goes still as a soft gurgling sound comes from their belly.",
+        releaseMsgDescrip: "<pred> leans forward and heaves, forcing you back out into the light."
       },
+      // === EXIT ===
       {
-        destination: "Bowels",
+        id: 6,
+        type: "exit",
+        destination: "Anus",
+        x: 445,
+        y: 100,
+        destinationDescrip: "You are squeezed into the lower intestines...",
+        struggleInsideMsgDescrip: "There is little room to move...",
+        struggleOutsideMsgDescrip: "<pred>'s lower belly churns...",
+      },
+
+      // ======= COCK VORE =======
+      // === ENTRANCE ===
+      {
+        id: 7,
+        type: "entrance",
+        destination: "Cock",
         verb: "forces",
-        digestionTimer: "120",
-        animation: "2",
-        destinationDescrip: "You feel the musky walls of <pred>'s digestive tract undulating around you as you are shoved up their ass.",
-        examineMsgDescrip: "<pred>'s lower abdomen seems to be swollen out quite a lot...did something just move?",
-        struggleInsideMsgDescrip: "Wriggling about only seems to make that tight fleshy tube squeeze tighter around your body.",
-        struggleOutsideMsgDescrip: "The outline of a footprint forms against the surface of <pred>'s lower belly",
-        digestionInsideMsgDescrip: "A final powerful squeeze of the muscles around you causes your body to give out and you become a puddle of nutrients to feed <pred>",
-        digestionOutsideMsgDescrip: "<pred>'s tummy seems to shrink some as it lets out a satisfied burbling sound."
+        x: 25,
+        y: 380,
+        protoConnections: [8],
+        destinationDescrip: "You are pulled into the tight urethra...",
+        struggleInsideMsgDescrip: "You wriggle against the narrow tube...",
+        struggleOutsideMsgDescrip: "<pred>'s shaft pulses around you...",
       },
+      // === PATH ===
       {
+        id: 8,
+        type: "path",
+        destination: "Shaft",
+        x: 165,
+        y: 380,
+        protoConnections: [9],
+        destinationDescrip: "The fleshy tunnel squeezes tight...",
+        struggleInsideMsgDescrip: "The walls milk you downwards...",
+        struggleOutsideMsgDescrip: "A large bulge travels down <pred>'s length...",
+      },
+      // === DESTINATION ===
+      {
+        id: 9,
+        type: "destination",
         destination: "Balls",
         verb: "presses",
         digestionTimer: "120",
-        animation: "3",
+        x: 305,
+        y: 380,
+        protoConnections: [10],
         destinationDescrip: "You fall down into a thick, musky puddle of jizz that immediately starts coating your body and you feel the wrinkly walls of <pred>'s scrotum tighten up to welcome you~",
         examineMsgDescrip: "A large bulge between their thighs seems to shift and sway on it's own.",
         struggleInsideMsgDescrip: "The walls of your prison seem to give easily when you push out against them, but they always clench right back down the moment you relax...",
         struggleOutsideMsgDescrip: "A very clear imprint of someone's face bulges out from the side of <pred>'s nutsack.",
         digestionInsideMsgDescrip: "The walls around you suddenly cinch up tightly submerging your head completely in <pred>'s sperm before you finally melt, becoming one with the pool of seed you had been bathing in.",
-        digestionOutsideMsgDescrip: "There are a few frantic garbled sounds seeming to come up from <pred>'s crotch before there was a sudden, thick sounding, GLORP and those frantic sounds were reduced to a soft sloshing."
+        digestionOutsideMsgDescrip: "There are a few frantic garbled sounds seeming to come up from <pred>'s crotch before there was a sudden, thick sounding, GLORP and those frantic sounds were reduced to a soft sloshing.",
+        releaseMsgDescrip: "With a powerful thrust, <pred> expels you from their sack, sending you sliding out into the world."
       },
+      // === EXIT ===
       {
+        id: 10,
+        type: "exit",
+        destination: "Cock",
+        x: 445,
+        y: 380,
+        destinationDescrip: "You are pushed back up the urethra...",
+        struggleInsideMsgDescrip: "The tube constricts behind you...",
+        struggleOutsideMsgDescrip: "<pred>'s member throbs as you emerge...",
+      },
+
+      // ======= UNBIRTH =======
+      // === ENTRANCE ===
+      {
+        id: 11,
+        type: "entrance",
+        destination: "Slit",
+        verb: "envelops",
+        x: 25,
+        y: 520,
+        protoConnections: [12],
+        destinationDescrip: "You are pulled into the warm folds...",
+        struggleInsideMsgDescrip: "You push against the wet walls...",
+        struggleOutsideMsgDescrip: "<pred>'s mound twitches...",
+      },
+      // === PATH ===
+      {
+        id: 12,
+        type: "path",
+        destination: "Canal",
+        x: 165,
+        y: 520,
+        protoConnections: [13],
+        destinationDescrip: "The ribbed walls squeeze you deeper...",
+        struggleInsideMsgDescrip: "The tight passage milks you inward...",
+        struggleOutsideMsgDescrip: "<pred>'s lower belly distends...",
+      },
+      // === DESTINATION ===
+      {
+        id: 13,
+        type: "destination",
         destination: "Womb",
         verb: "slurps",
         digestionTimer: "120",
-        animation: "4",
+        x: 305,
+        y: 520,
+        protoConnections: [14],
         destinationDescrip: "You are wholly enveloped in a humid heat as you are deposited into a wet and slimy chamber. The air is filled with the scent of <pred>'s arousal and their heart can be heard beating just above.",
         examineMsgDescrip: "<pred>'s tummy looks swollen... could they be pregnant?",
         struggleInsideMsgDescrip: "Struggling seems to do little good, but you do feel the gentle rubbing of <pred>'s hand over your shape as they press the bulges you make back into their core.",
         struggleOutsideMsgDescrip: "<pred>'s distended belly seems to rock and sway on it's own, they coo softly and seem to rub over their middle affectionately.",
         digestionInsideMsgDescrip: "Your body seems to feel soggy and wet as the heat surrounding you grows more intense. The walls seem to flex down harder and harder until finally... splorsh! You succumb to <pred>'s arousal and are reduced to a pool of fem-cum.",
-        digestionOutsideMsgDescrip: "<pred>'s middle suddenly compacts down noticeably and their face flushes red as they bite their lower lip. A muffled sloshing sound could be heard seemingly coming from their belly!"
+        digestionOutsideMsgDescrip: "<pred>'s middle suddenly compacts down noticeably and their face flushes red as they bite their lower lip. A muffled sloshing sound could be heard seemingly coming from their belly!",
+        releaseMsgDescrip: "<pred>'s body convulses as they push you back out through their canal, birthing you back into freedom."
+      },
+      // === EXIT ===
+      {
+        id: 14,
+        type: "exit",
+        destination: "Slit",
+        x: 445,
+        y: 520,
+        destinationDescrip: "You are pushed out of the warm depths...",
+        struggleInsideMsgDescrip: "The muscles spasm to expel you...",
+        struggleOutsideMsgDescrip: "<pred> gasps as you re-emerge...",
       }
     ];
   } else {
@@ -1081,8 +1325,10 @@
 
 
 
+  /* 
   var currentVoreCount = document.getElementById("voreList").childElementCount;
   createVoreList(voreList);
+  */
 
 
 
@@ -1192,47 +1438,16 @@
     setTimeout(initCustomSelects, 100);
   }
 
-  document.getElementById("addVore").addEventListener("click", function () {
-    voreList.push({
-      destination: "New Type",
-      verb: "",
-      digestionTimer: 120,
-      animation: 1,
-      destinationDescrip: "",
-      examineMsgDescrip: "",
-      struggleInsideMsgDescrip: "",
-      struggleOutsideMsgDescrip: "",
-      digestionInsideMsgDescrip: "",
-      digestionOutsideMsgDescrip: ""
-    });
-    createVoreList();
+
+  // ANATOMY FORGE INITIALIZATION
+  // We wait for DOMContentLoaded, then init the forge with current data
+  document.addEventListener('DOMContentLoaded', function () {
+    // Pass the existing vore list as legacy fallback if no anatomyData exists
+    // If charList.anatomyData exists (added in backend), we use that.
+    const initialData = charList.anatomyData || null;
+    AnatomyForge.init('anatomy-forge-container', initialData, voreList);
   });
 
-  // Initialize Lists
-  createVoreList();
-  // document.querySelectorAll('input[type="text"]').forEach(function (input) {
-  //   input.addEventListener('keydown', function (event) {
-  //     if (event.key === 'Enter') {
-  //       event.preventDefault();
-  //     }
-  //   });
-  // });
-
-  // document.querySelectorAll('input[type="number"]').forEach(function (input) {
-  //   input.addEventListener('keydown', function (event) {
-  //     if (event.key === 'Enter') {
-  //       event.preventDefault();
-  //     }
-  //   });
-  // });
-
-  // document.querySelectorAll('input[type="radio"]').forEach(function (input) {
-  //   input.addEventListener('keydown', function (event) {
-  //     if (event.key === 'Enter') {
-  //       event.preventDefault();
-  //     }
-  //   });
-  // });
 
   function updateBttnName(event) {
     //console.log(event.srcElement.id);
@@ -1247,105 +1462,22 @@
     document.getElementById(parentSibling).innerHTML = '<h1>' + event.srcElement.value + '</h1>';
   }
 
-  // gender.addEventListener("click", function () {
-  //   console.log('gender clicked');
-  //   document.getElementById("genderPullout").style.display = "block";
-  //   document.getElementById("aboutPullout").style.display = "none";
-  //   document.getElementById("kinksPullout").style.display = "none";
-  //   document.getElementById("vorePullout").style.display = "none";
-  //   document.getElementById("next").style.display = "block";
-  //   document.getElementById("next2").style.display = "none";
-  //   document.getElementById("next3").style.display = "none";
-  //   document.getElementById("finish").style.display = "none";
-  //   //document.getElementById("genderPullout").style.transform = translateX(50px);
-  // });
-  // about.addEventListener("click", function () {
-  //   console.log('about clicked');
-  //   document.getElementById("genderPullout").style.display = "none";
-  //   document.getElementById("aboutPullout").style.display = "block";
-  //   document.getElementById("kinksPullout").style.display = "none";
-  //   document.getElementById("vorePullout").style.display = "none";
-  //   document.getElementById("next").style.display = "none";
-  //   document.getElementById("next2").style.display = "block";
-  //   document.getElementById("next3").style.display = "none";
-  //   document.getElementById("finish").style.display = "none";
-  // });
-  // kinks.addEventListener("click", function () {
-  //   console.log('kinks clicked');
-  //   document.getElementById("genderPullout").style.display = "none";
-  //   document.getElementById("aboutPullout").style.display = "none";
-  //   document.getElementById("kinksPullout").style.display = "block";
-  //   document.getElementById("vorePullout").style.display = "none";
-  //   document.getElementById("next").style.display = "none";
-  //   document.getElementById("next2").style.display = "none";
-  //   document.getElementById("next3").style.display = "block";
-  //   document.getElementById("finish").style.display = "none";
-  // });
-  // vore.addEventListener("click", function () {
-  //   console.log('Vore Types clicked');
-  //   document.getElementById("genderPullout").style.display = "none";
-  //   document.getElementById("aboutPullout").style.display = "none";
-  //   document.getElementById("kinksPullout").style.display = "none";
-  //   document.getElementById("vorePullout").style.display = "block";
-  //   document.getElementById("next").style.display = "none";
-  //   document.getElementById("next2").style.display = "none";
-  //   document.getElementById("next3").style.display = "none";
-  //   document.getElementById("finish").style.display = "block";
-  // });
-  // next.addEventListener("click", function () {
-  //   console.log('next clicked');
-  //   document.getElementById("genderPullout").style.display = "none";
-  //   document.getElementById("aboutPullout").style.display = "block";
-  //   document.getElementById("kinksPullout").style.display = "none";
-  //   document.getElementById("vorePullout").style.display = "none";
-  //   document.getElementById("next").style.display = "none";
-  //   document.getElementById("next2").style.display = "block";
-  //   document.getElementById("next3").style.display = "none";
-  //   document.getElementById("finish").style.display = "none";
-  // });
-  // next2.addEventListener("click", function () {
-  //   console.log('next2 clicked');
-  //   document.getElementById("genderPullout").style.display = "none";
-  //   document.getElementById("aboutPullout").style.display = "none";
-  //   document.getElementById("kinksPullout").style.display = "block";
-  //   document.getElementById("vorePullout").style.display = "none";
-  //   document.getElementById("next").style.display = "none";
-  //   document.getElementById("next2").style.display = "none";
-  //   document.getElementById("next3").style.display = "block";
-  //   document.getElementById("finish").style.display = "none";
-  // });
-  // next3.addEventListener("click", function () {
-  //   console.log('next3 clicked');
-  //   document.getElementById("genderPullout").style.display = "none";
-  //   document.getElementById("aboutPullout").style.display = "none";
-  //   document.getElementById("kinksPullout").style.display = "none";
-  //   document.getElementById("vorePullout").style.display = "block";
-  //   document.getElementById("next").style.display = "none";
-  //   document.getElementById("next2").style.display = "none";
-  //   document.getElementById("next3").style.display = "none";
-  //   document.getElementById("finish").style.display = "block";
-  // });
-  // addVore.addEventListener("click", function () {
-  //   console.log('Add New Vore clicked');
-  //   voreList.push(
-  //     {
-  //       destination: "New Vore",
-  //       verb: "",
-  //       digestionTimer: "120",
-  //       animation: "1",
-  //       destinationDescrip: "",
-  //       examineMsgDescrip: "",
-  //       struggleInsideMsgDescrip: "",
-  //       struggleOutsideMsgDescrip: "",
-  //       digestionInsideMsgDescrip: "",
-  //       digestionOutsideMsgDescrip: ""
-  //     }
-  //   );
-  //   //var voreArray = voreList[vorelist.length - 1];
-  //   createVoreList(voreList[voreList.length - 1]);
-  //   console.log('voreList = ', voreList[voreList.length - 1]);
-  // });
 
+  var isReady = false;
+  var initialSetup = true;
+
+  function hideLoadingScreen() {
+    console.log('Hiding loading screen...');
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+      overlay.classList.add('hidden');
+      setTimeout(() => {
+        overlay.style.display = 'none';
+      }, 500); // Wait for transition
+    }
+    isReady = true;
+    initialSetup = false;
+  }
 
   var bodySelection = 1;
   var genitleSelection = 1;
@@ -1379,393 +1511,116 @@
 
   function preload() {
     this.spritesToAnimate = []; // Initialize the array
-    this.load.spritesheet('empty', './../assets/spritesheets/empty.png', { frameWidth: 109, frameHeight: 220 });
-    this.spritesToAnimate.push('empty');
-    this.load.spritesheet('body_01-empty', './../assets/spritesheets/empty.png', { frameWidth: 109, frameHeight: 220 });
-    this.spritesToAnimate.push('body_01-empty');
-    this.load.spritesheet('body_02-empty', './../assets/spritesheets/empty.png', { frameWidth: 109, frameHeight: 220 });
-    this.spritesToAnimate.push('body_02-empty');
-    this.load.spritesheet('body_03-empty', './../assets/spritesheets/empty.png', { frameWidth: 109, frameHeight: 220 });
-    this.spritesToAnimate.push('body_03-empty');
-    this.load.spritesheet('body_04-empty', './../assets/spritesheets/empty.png', { frameWidth: 109, frameHeight: 220 });
-    this.spritesToAnimate.push('body_04-empty');
 
+    // --- Asset Configuration ---
+    const assetConfig = {
+      // Static singular assets
+      singles: [
+        'empty',
+        'body_01', // Moved from groups to avoid body_0101 issue
+        'body_01-empty', 'body_02-empty', 'body_03-empty', 'body_04-empty',
+        'head_05_beak'
+      ],
+      // Pattern-based assets
+      groups: [
+        // Body (Specific structure)
+        // { prefix: 'body_01', count: 1 }, // Removed: was creating body_0101.png
+        { prefix: 'body_01-secondary_', count: 4 },
+        { prefix: 'body_01-accent_', count: 3 },
+        { prefix: 'body_01-hands-secondary_', count: 2 },
+        { prefix: 'body_01-feet-secondary_', count: 2 },
 
+        // Ears (1-11, outer/inner composite)
+        { prefix: 'ears_', count: 11, suffixes: ['-outer', '-inner'] },
 
-    // Body Sprites
-    this.load.spritesheet('body_01', './../assets/spritesheets/body_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('body_01');
+        // Eyes (1-2)
+        { prefix: 'eyes_', count: 2 },
 
-    // Secondary Body Sprites
-    this.load.spritesheet('body_01-secondary_01', './../assets/spritesheets/body_01-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('body_01-secondary_01');
-    this.load.spritesheet('body_01-secondary_02', './../assets/spritesheets/body_01-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('body_01-secondary_02');
-    this.load.spritesheet('body_01-secondary_03', './../assets/spritesheets/body_01-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('body_01-secondary_03');
-    this.load.spritesheet('body_01-secondary_04', './../assets/spritesheets/body_01-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('body_01-secondary_04');
+        // Head Accessories (1-5)
+        { prefix: 'headAccessories_', count: 5 },
 
+        // Heads (1-6) and their secondary masks (1-5)
+        {
+          customLoop: true,
+          run: (scene) => {
+            for (let i = 1; i <= 6; i++) {
+              const headKey = `head_0${i}`;
+              scene.load.spritesheet(headKey, `./../assets/spritesheets/${headKey}.png`, { frameWidth: 215, frameHeight: 198 });
+              scene.spritesToAnimate.push(headKey);
 
-    // Accent Body Sprites
-    this.load.spritesheet('body_01-accent_01', './../assets/spritesheets/body_01-accent_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('body_01-accent_01');
-    this.load.spritesheet('body_01-accent_02', './../assets/spritesheets/body_01-accent_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('body_01-accent_02');
-    this.load.spritesheet('body_01-accent_03', './../assets/spritesheets/body_01-accent_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('body_01-accent_03');
+              // Secondary masks for each head
+              for (let j = 1; j <= 5; j++) {
+                const secKey = `${headKey}-secondary_0${j}`;
+                scene.load.spritesheet(secKey, `./../assets/spritesheets/${secKey}.png`, { frameWidth: 215, frameHeight: 198 });
+                scene.spritesToAnimate.push(secKey);
+              }
+            }
+          }
+        },
 
-    // Hand Secondary Sprites
-    this.load.spritesheet('body_01-hands-secondary_01', './../assets/spritesheets/body_01-hands-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('body_01-hands-secondary_01');
-    this.load.spritesheet('body_01-hands-secondary_02', './../assets/spritesheets/body_01-hands-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('body_01-hands-secondary_02');
+        // Tails (1-10) and their secondary masks (1-6)
+        {
+          customLoop: true,
+          run: (scene) => {
+            for (let i = 1; i <= 10; i++) {
+              const tailNum = i < 10 ? `0${i}` : i;
+              const tailKey = `tail_${tailNum}`;
+              scene.load.spritesheet(tailKey, `./../assets/spritesheets/${tailKey}.png`, { frameWidth: 215, frameHeight: 198 });
+              scene.spritesToAnimate.push(tailKey);
 
+              // Secondary masks for each tail
+              for (let j = 1; j <= 6; j++) {
+                const secKey = `${tailKey}-secondary_0${j}`;
+                scene.load.spritesheet(secKey, `./../assets/spritesheets/${secKey}.png`, { frameWidth: 215, frameHeight: 198 });
+                scene.spritesToAnimate.push(secKey);
+              }
+            }
+          }
+        },
 
-    // Feet Secondary Sprites
-    this.load.spritesheet('body_01-feet-secondary_01', './../assets/spritesheets/body_01-feet-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('body_01-feet-secondary_01');
-    this.load.spritesheet('body_01-feet-secondary_02', './../assets/spritesheets/body_01-feet-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('body_01-feet-secondary_02');
+        // Hair (1-3)
+        { prefix: 'hair-front_', count: 3 } // Fixed prefix from 'hair-front_0' to prevent double zero padding
+      ]
+    };
 
+    // --- Loader Logic ---
 
+    // 1. Load Singles
+    assetConfig.singles.forEach(key => {
+      // Handle the path difference for 'empty' vs others if strictly necessary, 
+      // but inspecting previous code: 'empty' used 'empty.png', others used key name.
+      // 'empty' was: ./../assets/spritesheets/empty.png
+      // 'body_01-empty' was: ./../assets/spritesheets/empty.png  <-- WAIT, these used the SAME file?
+      // Let's check the original code again.
+      // Yes: this.load.spritesheet('body_01-empty', './../assets/spritesheets/empty.png'...
 
+      let path = `./../assets/spritesheets/${key}.png`;
+      if (key.includes('empty')) path = './../assets/spritesheets/empty.png';
 
+      // frameWidth 109 for empty, 215 for others?
+      // Original: empty was 109x220. regular assets 215x198.
+      const dims = key.includes('empty') ? { frameWidth: 109, frameHeight: 220 } : { frameWidth: 215, frameHeight: 198 };
 
+      this.load.spritesheet(key, path, dims);
+      this.spritesToAnimate.push(key);
+    });
 
-
-
-    // Ear Sprites
-    this.load.spritesheet('ears_01-outer', './../assets/spritesheets/ears_01-outer.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_01-outer');
-    this.load.spritesheet('ears_01-inner', './../assets/spritesheets/ears_01-inner.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_01-inner');
-
-    this.load.spritesheet('ears_02-outer', './../assets/spritesheets/ears_02-outer.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_02-outer');
-    this.load.spritesheet('ears_02-inner', './../assets/spritesheets/ears_02-inner.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_02-inner');
-
-    this.load.spritesheet('ears_03-outer', './../assets/spritesheets/ears_03-outer.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_03-outer');
-    this.load.spritesheet('ears_03-inner', './../assets/spritesheets/ears_03-inner.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_03-inner');
-
-    this.load.spritesheet('ears_04-outer', './../assets/spritesheets/ears_04-outer.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_04-outer');
-    this.load.spritesheet('ears_04-inner', './../assets/spritesheets/ears_04-inner.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_04-inner');
-
-    this.load.spritesheet('ears_05-outer', './../assets/spritesheets/ears_05-outer.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_05-outer');
-    this.load.spritesheet('ears_05-inner', './../assets/spritesheets/ears_05-inner.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_05-inner');
-
-    this.load.spritesheet('ears_06-outer', './../assets/spritesheets/ears_06-outer.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_06-outer');
-    this.load.spritesheet('ears_06-inner', './../assets/spritesheets/ears_06-inner.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_06-inner');
-
-    this.load.spritesheet('ears_07-outer', './../assets/spritesheets/ears_07-outer.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_07-outer');
-    this.load.spritesheet('ears_07-inner', './../assets/spritesheets/ears_07-inner.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_07-inner');
-
-    this.load.spritesheet('ears_08-outer', './../assets/spritesheets/ears_08-outer.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_08-outer');
-    this.load.spritesheet('ears_08-inner', './../assets/spritesheets/ears_08-inner.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_08-inner');
-
-    this.load.spritesheet('ears_09-outer', './../assets/spritesheets/ears_09-outer.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_09-outer');
-    this.load.spritesheet('ears_09-inner', './../assets/spritesheets/ears_09-inner.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_09-inner');
-
-    this.load.spritesheet('ears_10-outer', './../assets/spritesheets/ears_10-outer.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_10-outer');
-    this.load.spritesheet('ears_10-inner', './../assets/spritesheets/ears_10-inner.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_10-inner');
-
-    this.load.spritesheet('ears_11-outer', './../assets/spritesheets/ears_11-outer.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_11-outer');
-    this.load.spritesheet('ears_11-inner', './../assets/spritesheets/ears_11-inner.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('ears_11-inner');
-
-
-    // Eyes Sprites
-    this.load.spritesheet('eyes_01', './../assets/spritesheets/eyes_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('eyes_01');
-    this.load.spritesheet('eyes_02', './../assets/spritesheets/eyes_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('eyes_02');
-
-    // Head Accessories
-    this.load.spritesheet('headAccessories_01', './../assets/spritesheets/headAccessories_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('headAccessories_01');
-    this.load.spritesheet('headAccessories_02', './../assets/spritesheets/headAccessories_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('headAccessories_02');
-    this.load.spritesheet('headAccessories_03', './../assets/spritesheets/headAccessories_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('headAccessories_03');
-    this.load.spritesheet('headAccessories_04', './../assets/spritesheets/headAccessories_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('headAccessories_04');
-    this.load.spritesheet('headAccessories_05', './../assets/spritesheets/headAccessories_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('headAccessories_05');
-
-
-
-    // Head Sprites
-    this.load.spritesheet('head_01', './../assets/spritesheets/head_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_01');
-    this.load.spritesheet('head_02', './../assets/spritesheets/head_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_02');
-    this.load.spritesheet('head_03', './../assets/spritesheets/head_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_03');
-    this.load.spritesheet('head_04', './../assets/spritesheets/head_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_04');
-    this.load.spritesheet('head_05', './../assets/spritesheets/head_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_05');
-    this.load.spritesheet('head_06', './../assets/spritesheets/head_06.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_06');
-
-
-    // Secondary Head Sprites for head_01
-    this.load.spritesheet('head_01-secondary_01', './../assets/spritesheets/head_01-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_01-secondary_01');
-    this.load.spritesheet('head_01-secondary_02', './../assets/spritesheets/head_01-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_01-secondary_02');
-    this.load.spritesheet('head_01-secondary_03', './../assets/spritesheets/head_01-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_01-secondary_03');
-    this.load.spritesheet('head_01-secondary_04', './../assets/spritesheets/head_01-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_01-secondary_04');
-    this.load.spritesheet('head_01-secondary_05', './../assets/spritesheets/head_01-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_01-secondary_05');
-
-    // Secondary Head Sprites for head_02
-    this.load.spritesheet('head_02-secondary_01', './../assets/spritesheets/head_02-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_02-secondary_01');
-    this.load.spritesheet('head_02-secondary_02', './../assets/spritesheets/head_02-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_02-secondary_02');
-    this.load.spritesheet('head_02-secondary_03', './../assets/spritesheets/head_02-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_02-secondary_03');
-    this.load.spritesheet('head_02-secondary_04', './../assets/spritesheets/head_02-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_02-secondary_04');
-    this.load.spritesheet('head_02-secondary_05', './../assets/spritesheets/head_02-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_02-secondary_05');
-
-    // Secondary Head Sprites for head_03
-    this.load.spritesheet('head_03-secondary_01', './../assets/spritesheets/head_03-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_03-secondary_01');
-    this.load.spritesheet('head_03-secondary_02', './../assets/spritesheets/head_03-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_03-secondary_02');
-    this.load.spritesheet('head_03-secondary_03', './../assets/spritesheets/head_03-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_03-secondary_03');
-    this.load.spritesheet('head_03-secondary_04', './../assets/spritesheets/head_03-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_03-secondary_04');
-    this.load.spritesheet('head_03-secondary_05', './../assets/spritesheets/head_03-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_03-secondary_05');
-
-    // Secondary Head Sprites for head_04
-    this.load.spritesheet('head_04-secondary_01', './../assets/spritesheets/head_04-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_04-secondary_01');
-    this.load.spritesheet('head_04-secondary_02', './../assets/spritesheets/head_04-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_04-secondary_02');
-    this.load.spritesheet('head_04-secondary_03', './../assets/spritesheets/head_04-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_04-secondary_03');
-    this.load.spritesheet('head_04-secondary_04', './../assets/spritesheets/head_04-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_04-secondary_04');
-    this.load.spritesheet('head_04-secondary_05', './../assets/spritesheets/head_04-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_04-secondary_05');
-
-    // Secondary Head Sprites for head_05
-    this.load.spritesheet('head_05_beak', './../assets/spritesheets/head_05_beak.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_05_beak');
-    this.load.spritesheet('head_05-secondary_01', './../assets/spritesheets/head_05-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_05-secondary_01');
-    this.load.spritesheet('head_05-secondary_02', './../assets/spritesheets/head_05-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_05-secondary_02');
-    this.load.spritesheet('head_05-secondary_03', './../assets/spritesheets/head_05-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_05-secondary_03');
-    this.load.spritesheet('head_05-secondary_04', './../assets/spritesheets/head_05-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_05-secondary_04');
-    this.load.spritesheet('head_05-secondary_05', './../assets/spritesheets/head_05-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_05-secondary_05');
-
-    // Secondary Head Sprites for head_06
-    this.load.spritesheet('head_06-secondary_01', './../assets/spritesheets/head_06-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_06-secondary_01');
-    this.load.spritesheet('head_06-secondary_02', './../assets/spritesheets/head_06-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_06-secondary_02');
-    this.load.spritesheet('head_06-secondary_03', './../assets/spritesheets/head_06-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_06-secondary_03');
-    this.load.spritesheet('head_06-secondary_04', './../assets/spritesheets/head_06-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_06-secondary_04');
-    this.load.spritesheet('head_06-secondary_05', './../assets/spritesheets/head_06-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('head_06-secondary_05');
-
-    // Tail Sprites
-    this.load.spritesheet('tail_01', './../assets/spritesheets/tail_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_01');
-    this.load.spritesheet('tail_02', './../assets/spritesheets/tail_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_02');
-    this.load.spritesheet('tail_03', './../assets/spritesheets/tail_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_03');
-    this.load.spritesheet('tail_04', './../assets/spritesheets/tail_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_04');
-    this.load.spritesheet('tail_05', './../assets/spritesheets/tail_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_05');
-    this.load.spritesheet('tail_06', './../assets/spritesheets/tail_06.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_06');
-    this.load.spritesheet('tail_07', './../assets/spritesheets/tail_07.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_07');
-
-
-    // Secondary Tail Sprites for tail_01
-    this.load.spritesheet('tail_01-secondary_01', './../assets/spritesheets/tail_01-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_01-secondary_01');
-    this.load.spritesheet('tail_01-secondary_02', './../assets/spritesheets/tail_01-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_01-secondary_02');
-    this.load.spritesheet('tail_01-secondary_03', './../assets/spritesheets/tail_01-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_01-secondary_03');
-    this.load.spritesheet('tail_01-secondary_04', './../assets/spritesheets/tail_01-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_01-secondary_04');
-    this.load.spritesheet('tail_01-secondary_05', './../assets/spritesheets/tail_01-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_01-secondary_05');
-    this.load.spritesheet('tail_01-secondary_06', './../assets/spritesheets/tail_01-secondary_06.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_01-secondary_06');
-
-    // Secondary Tail Sprites for tail_02
-    this.load.spritesheet('tail_02-secondary_01', './../assets/spritesheets/tail_02-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_02-secondary_01');
-    this.load.spritesheet('tail_02-secondary_02', './../assets/spritesheets/tail_02-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_02-secondary_02');
-    this.load.spritesheet('tail_02-secondary_03', './../assets/spritesheets/tail_02-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_02-secondary_03');
-    this.load.spritesheet('tail_02-secondary_04', './../assets/spritesheets/tail_02-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_02-secondary_04');
-    this.load.spritesheet('tail_02-secondary_05', './../assets/spritesheets/tail_02-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_02-secondary_05');
-    this.load.spritesheet('tail_02-secondary_06', './../assets/spritesheets/tail_02-secondary_06.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_02-secondary_06');
-
-    // Secondary Tail Sprites for tail_03
-    this.load.spritesheet('tail_03-secondary_01', './../assets/spritesheets/tail_03-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_03-secondary_01');
-    this.load.spritesheet('tail_03-secondary_02', './../assets/spritesheets/tail_03-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_03-secondary_02');
-    this.load.spritesheet('tail_03-secondary_03', './../assets/spritesheets/tail_03-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_03-secondary_03');
-    this.load.spritesheet('tail_03-secondary_04', './../assets/spritesheets/tail_03-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_03-secondary_04');
-    this.load.spritesheet('tail_03-secondary_05', './../assets/spritesheets/tail_03-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_03-secondary_05');
-    this.load.spritesheet('tail_03-secondary_06', './../assets/spritesheets/tail_03-secondary_06.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_03-secondary_06');
-
-    // Secondary Tail Sprites for tail_04
-    this.load.spritesheet('tail_04-secondary_01', './../assets/spritesheets/tail_04-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_04-secondary_01');
-    this.load.spritesheet('tail_04-secondary_02', './../assets/spritesheets/tail_04-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_04-secondary_02');
-    this.load.spritesheet('tail_04-secondary_03', './../assets/spritesheets/tail_04-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_04-secondary_03');
-    this.load.spritesheet('tail_04-secondary_04', './../assets/spritesheets/tail_04-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_04-secondary_04');
-    this.load.spritesheet('tail_04-secondary_05', './../assets/spritesheets/tail_04-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_04-secondary_05');
-    this.load.spritesheet('tail_04-secondary_06', './../assets/spritesheets/tail_04-secondary_06.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_04-secondary_06');
-
-    // Secondary Tail Sprites for tail_05
-    this.load.spritesheet('tail_05-secondary_01', './../assets/spritesheets/tail_05-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_05-secondary_01');
-    this.load.spritesheet('tail_05-secondary_02', './../assets/spritesheets/tail_05-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_05-secondary_02');
-    this.load.spritesheet('tail_05-secondary_03', './../assets/spritesheets/tail_05-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_05-secondary_03');
-    this.load.spritesheet('tail_05-secondary_04', './../assets/spritesheets/tail_05-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_05-secondary_04');
-    this.load.spritesheet('tail_05-secondary_05', './../assets/spritesheets/tail_05-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_05-secondary_05');
-    this.load.spritesheet('tail_05-secondary_06', './../assets/spritesheets/tail_05-secondary_06.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_05-secondary_06');
-
-    // Secondary Tail Sprites for tail_06
-    this.load.spritesheet('tail_06-secondary_01', './../assets/spritesheets/tail_06-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_06-secondary_01');
-    this.load.spritesheet('tail_06-secondary_02', './../assets/spritesheets/tail_06-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_06-secondary_02');
-    this.load.spritesheet('tail_06-secondary_03', './../assets/spritesheets/tail_06-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_06-secondary_03');
-    this.load.spritesheet('tail_06-secondary_04', './../assets/spritesheets/tail_06-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_06-secondary_04');
-    this.load.spritesheet('tail_06-secondary_05', './../assets/spritesheets/tail_06-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_06-secondary_05');
-    this.load.spritesheet('tail_06-secondary_06', './../assets/spritesheets/tail_06-secondary_06.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_06-secondary_06');
-
-    // Secondary Tail Sprites for tail_07
-    this.load.spritesheet('tail_07-secondary_01', './../assets/spritesheets/tail_07-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_07-secondary_01');
-    this.load.spritesheet('tail_07-secondary_02', './../assets/spritesheets/tail_07-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_07-secondary_02');
-    this.load.spritesheet('tail_07-secondary_03', './../assets/spritesheets/tail_07-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_07-secondary_03');
-    this.load.spritesheet('tail_07-secondary_04', './../assets/spritesheets/tail_07-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_07-secondary_04');
-    this.load.spritesheet('tail_07-secondary_05', './../assets/spritesheets/tail_07-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_07-secondary_05');
-    this.load.spritesheet('tail_07-secondary_06', './../assets/spritesheets/tail_07-secondary_06.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_07-secondary_06');
-
-    // Secondary Tail Sprites for tail_08
-    this.load.spritesheet('tail_08-secondary_01', './../assets/spritesheets/tail_08-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_08-secondary_01');
-    this.load.spritesheet('tail_08-secondary_02', './../assets/spritesheets/tail_08-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_08-secondary_02');
-    this.load.spritesheet('tail_08-secondary_03', './../assets/spritesheets/tail_08-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_08-secondary_03');
-    this.load.spritesheet('tail_08-secondary_04', './../assets/spritesheets/tail_08-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_08-secondary_04');
-    this.load.spritesheet('tail_08-secondary_05', './../assets/spritesheets/tail_08-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_08-secondary_05');
-    this.load.spritesheet('tail_08-secondary_06', './../assets/spritesheets/tail_08-secondary_06.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_08-secondary_06');
-
-    // Secondary Tail Sprites for tail_09
-    this.load.spritesheet('tail_09-secondary_01', './../assets/spritesheets/tail_09-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_09-secondary_01');
-    this.load.spritesheet('tail_09-secondary_02', './../assets/spritesheets/tail_09-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_09-secondary_02');
-    this.load.spritesheet('tail_09-secondary_03', './../assets/spritesheets/tail_09-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_09-secondary_03');
-    this.load.spritesheet('tail_09-secondary_04', './../assets/spritesheets/tail_09-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_09-secondary_04');
-    this.load.spritesheet('tail_09-secondary_05', './../assets/spritesheets/tail_09-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_09-secondary_05');
-    this.load.spritesheet('tail_09-secondary_06', './../assets/spritesheets/tail_09-secondary_06.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_09-secondary_06');
-
-    // Secondary Tail Sprites for tail_10
-    this.load.spritesheet('tail_10-secondary_01', './../assets/spritesheets/tail_10-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_10-secondary_01');
-    this.load.spritesheet('tail_10-secondary_02', './../assets/spritesheets/tail_10-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_10-secondary_02');
-    this.load.spritesheet('tail_10-secondary_03', './../assets/spritesheets/tail_10-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_10-secondary_03');
-    this.load.spritesheet('tail_10-secondary_04', './../assets/spritesheets/tail_10-secondary_04.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_10-secondary_04');
-    this.load.spritesheet('tail_10-secondary_05', './../assets/spritesheets/tail_10-secondary_05.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_10-secondary_05');
-    this.load.spritesheet('tail_10-secondary_06', './../assets/spritesheets/tail_10-secondary_06.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('tail_10-secondary_06');
-
-
-    // Hair Sprites
-    this.load.spritesheet('hair-front_01', './../assets/spritesheets/hair-front_01.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('hair-front_01');
-    this.load.spritesheet('hair-front_02', './../assets/spritesheets/hair-front_02.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('hair-front_02');
-    this.load.spritesheet('hair-front_03', './../assets/spritesheets/hair-front_03.png', { frameWidth: 215, frameHeight: 198 });
-    this.spritesToAnimate.push('hair-front_03');
+    // 2. Load Groups
+    assetConfig.groups.forEach(group => {
+      if (group.customLoop) {
+        group.run(this);
+      } else {
+        const suffixes = group.suffixes || [''];
+        for (let i = 1; i <= group.count; i++) {
+          const num = i < 10 ? `0${i}` : i;
+          suffixes.forEach(suffix => {
+            const key = `${group.prefix}${num}${suffix}`;
+            this.load.spritesheet(key, `./../assets/spritesheets/${key}.png`, { frameWidth: 215, frameHeight: 198 });
+            this.spritesToAnimate.push(key);
+          });
+        }
+      }
+    });
 
   }
 
@@ -1887,545 +1742,195 @@
       }
     }
 
-    // Create the pickr color selector for the "Default Pruimary Color"
-    const mainPrimaryHex = Pickr.create({
-      el: '.mainPrimaryColorBtn',
-      ...pickrSettings
-    });
-    mainPrimaryHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      // Set the sprite pieces to the selected color
-      localPlayerInfo.head.color = gameColorCode;
-      localPlayerInfo.ear.outerColor = gameColorCode;
-      localPlayerInfo.body.color = gameColorCode;
-      localPlayerInfo.tail.color = gameColorCode;
+    // --- Color Picker Helper ---
+    const createColorPicker = (selector, onUpdate) => {
+      const p = Pickr.create({
+        el: selector,
+        ...pickrSettings
+      });
+      p.on('change', (color) => {
+        const rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2];
+        const gameColorCode = rawColor.replace("#", "0x");
+        p.getRoot().button.style.setProperty('--pcr-color', rawColor);
+        if (onUpdate) onUpdate(gameColorCode, rawColor);
+      });
+      return p;
+    };
+
+    // --- Main Color Sets ---
+    const mainPrimaryHex = createColorPicker('.mainPrimaryColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.head.color = gameColor;
+      localPlayerInfo.ear.outerColor = gameColor;
+      localPlayerInfo.body.color = gameColor;
+      localPlayerInfo.tail.color = gameColor;
+
       self.head.setTint(localPlayerInfo.head.color);
       self.outerEar.setTint(localPlayerInfo.body.color);
       self.body.setTint(localPlayerInfo.body.color);
       self.tail.setTint(localPlayerInfo.tail.color);
-      // Set the background color of the button to the selected color
-      mainPrimaryHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
+
       outerEarHex.setColor(rawColor);
       primaryHeadHex.setColor(rawColor);
       bodyHex.setColor(rawColor);
       tailHex.setColor(rawColor);
-    })
-
-    // Create the pickr color selector for the "Default Secondary Color"
-    const mainSecondaryHex = Pickr.create({
-      el: '#mainSecondaryColorBtn',
-      ...pickrSettings
     });
-    mainSecondaryHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      // Set the sprite pieces to the selected color
-      localPlayerInfo.head.secondaryColor = gameColorCode;
-      localPlayerInfo.ear.innerColor = gameColorCode;
-      localPlayerInfo.body.secondaryColor = gameColorCode;
-      localPlayerInfo.hands.color = gameColorCode;
-      localPlayerInfo.feet.color = gameColorCode;
-      localPlayerInfo.tail.secondaryColor = gameColorCode;
+
+    const mainSecondaryHex = createColorPicker('#mainSecondaryColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.head.secondaryColor = gameColor;
+      localPlayerInfo.ear.innerColor = gameColor;
+      localPlayerInfo.body.secondaryColor = gameColor;
+      localPlayerInfo.hands.color = gameColor;
+      localPlayerInfo.feet.color = gameColor;
+      localPlayerInfo.tail.secondaryColor = gameColor;
+
       self.secondaryHead.setTint(localPlayerInfo.head.secondaryColor);
       self.innerEar.setTint(localPlayerInfo.ear.innerColor);
       self.secondaryBody.setTint(localPlayerInfo.body.secondaryColor);
       self.hands.setTint(localPlayerInfo.hands.color);
       self.feet.setTint(localPlayerInfo.feet.color);
       self.secondaryTail.setTint(localPlayerInfo.tail.secondaryColor);
-      // Set the background color of the button to the selected color
-      mainSecondaryHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
+
       secondaryHeadHex.setColor(rawColor);
       innerEarHex.setColor(rawColor);
       secondaryBodyHex.setColor(rawColor);
       handsHex.setColor(rawColor);
       feetHex.setColor(rawColor);
       secondaryTailHex.setColor(rawColor);
-    })
-
-    // Create the pickr color selector for the "Default Accent Color"
-    const mainAccentHex = Pickr.create({
-      el: '#mainAccentColorBtn',
-      ...pickrSettings
-
     });
-    mainAccentHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      // Set the sprite pieces to the selected color
-      localPlayerInfo.head.accentColor = gameColorCode;
-      localPlayerInfo.beak.color = gameColorCode;
-      localPlayerInfo.body.accentColor = gameColorCode;
-      localPlayerInfo.tail.accentColor = gameColorCode;
-      localPlayerInfo.headAccessories.color = gameColorCode;
+
+    const mainAccentHex = createColorPicker('#mainAccentColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.head.accentColor = gameColor;
+      localPlayerInfo.beak.color = gameColor;
+      localPlayerInfo.body.accentColor = gameColor;
+      localPlayerInfo.tail.accentColor = gameColor;
+      localPlayerInfo.headAccessories.color = gameColor;
+
       self.accentHead.setTint(localPlayerInfo.head.accentColor);
       self.beak.setTint(localPlayerInfo.beak.color);
       self.accentBody.setTint(localPlayerInfo.body.accentColor);
       self.accentTail.setTint(localPlayerInfo.tail.accentColor);
       self.headAccessories.setTint(localPlayerInfo.headAccessories.color);
-      // Set the background color of the button to the selected color
-      mainAccentHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
+
       accentHeadHex.setColor(rawColor);
       beakHex.setColor(rawColor);
       accentBodyHex.setColor(rawColor);
       accentTailHex.setColor(rawColor);
       headAccessoriesHex.setColor(rawColor);
-    })
-
-    // Create the pickr color selector for the "Primary Base Head Color"
-    const primaryHeadHex = Pickr.create({
-      // sets the color picker to the element with the id of '#headColorBtn'
-      el: '#headColorBtn',
-      // sets the pickr settings to the pickrSettings object above
-      ...pickrSettings
     });
-    // When the color is changed in the color picker, this function is called
-    primaryHeadHex.on('change', (color, source, instance) => {
-      // This line converts the color to a hex code and adds the "#" to the front of it
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      // This line takes the rawColor and replaces the "#" with "0x" to make it a "gameColorCode"
-      var gameColorCode = rawColor.replace("#", "0x")
-      // This sets the localPlayerInfo head color to the gameColorCode
-      localPlayerInfo.head.color = gameColorCode;
-      // Using the code assigned to localPlayerInfo.head.color, it this line is actually what changes the color of the head sprite
+
+    // --- Individual Body Part Pickers ---
+
+    // Head
+    const primaryHeadHex = createColorPicker('#headColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.head.color = gameColor;
       self.head.setTint(localPlayerInfo.head.color);
-      // There is a form input that is hidden that is used to store the hex code of the color to be submitted to the Database
       document.getElementById('primaryHeadHex').value = rawColor;
-      // This line sets the color of the color selection box to match the color that was selected
-      primaryHeadHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    // Create the pickr color selector for the "Beak Color picker"
-    const beakHex = Pickr.create({
-      el: '#beakColorBtn',
-      ...pickrSettings
     });
-    beakHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.beak.color = gameColorCode;
+
+    const beakHex = createColorPicker('#beakColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.beak.color = gameColor;
       self.beak.setTint(localPlayerInfo.beak.color);
-      document.getElementById('beakHex').value = gameColorCode;
-      beakHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    // Create the pickr color selector for the "Secondary head Color"
-    const secondaryHeadHex = Pickr.create({
-      el: '#secondaryHeadColorBtn',
-      ...pickrSettings
+      document.getElementById('beakHex').value = gameColor; // Note: Original used gameColorCode here? Wait, original: value = gameColorCode.
     });
-    secondaryHeadHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.head.secondaryColor = gameColorCode;
+
+    const secondaryHeadHex = createColorPicker('#secondaryHeadColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.head.secondaryColor = gameColor;
       self.secondaryHead.setTint(localPlayerInfo.head.secondaryColor);
       document.getElementById('secondaryHeadHex').value = rawColor;
-      secondaryHeadHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    // Create the pickr color selector for the "Accent head Color"
-    const accentHeadHex = Pickr.create({
-      el: '#accentHeadColorBtn',
-      ...pickrSettings
     });
-    accentHeadHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.head.accentColor = gameColorCode;
+
+    const accentHeadHex = createColorPicker('#accentHeadColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.head.accentColor = gameColor;
       self.accentHead.setTint(localPlayerInfo.head.accentColor);
       document.getElementById('accentHeadHex').value = rawColor;
-      accentHeadHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    // Create the pickr color selector for the "Hair Color picker"
-    const hairHex = Pickr.create({
-      el: '#hairColorBtn',
-      container: '.colorContainer',
-      theme: 'classic', // or 'monolith', or 'nano'
-      default: '',
-      comparison: false,
-      padding: 10,
-      position: 'top',
-
-      // Default Swatches for Pickr
-      swatches: [
-        //----- First Row -----//
-        // Black
-        'rgba(51, 47, 47, 1)',
-        // Dark Brown
-        'rgba(92, 64, 51, 1)',
-        // Dark Gray
-        'rgba(105, 105, 105, 1)',
-        // Navy Blue
-        'rgba(21, 21, 144, 1)',
-        // Forest Green
-        'rgba(34, 139, 34, 1)',
-        // Deep Red
-        'rgba(139, 0, 0, 1)',
-        // Purple
-        'rgba(128, 0, 128, 1)',
-        // Dark Olive
-        'rgba(60, 52, 31, 1)',
-        // Midnight Blue
-        'rgba(25, 25, 112, 1)',
-
-        //----- Second Row -----//
-        // Light Gray
-        'rgba(169, 169, 169, 1)',
-        // Warm Beige
-        'rgba(210, 180, 140, 1)',
-        // Cream
-        'rgba(255, 253, 208, 1)',
-        // Pale Green
-        'rgba(152, 251, 152, 1)',
-        // Soft Pink
-        'rgba(255, 182, 193, 1)',
-        // Soft Cream
-        'rgba(255, 245, 225, 1)',
-        // Light Blue
-        'rgba(173, 216, 230, 1)',
-        // Lavender
-        'rgba(216, 191, 216, 1)',
-        // Soft Lavender
-        'rgba(230, 230, 250, 1)',
-
-        //----- Third Row -----//
-        // White
-        'rgba(240, 240, 240, 1)',
-        // Pale Yellow
-        'rgba(255, 255, 204, 1)',
-        // Silver
-        'rgba(192, 192, 192, 1)',
-        // Gold
-        'rgba(218, 165, 32, 1)',
-        // Yellow
-        'rgba(255, 255, 153, 1)',
-        // Muted Coral
-        'rgba(255, 127, 80, 1)',
-        // Bright Pink
-        'rgba(255, 105, 180, 1)',
-        // Electric Blue
-        'rgba(30, 144, 255, 1)',
-        // Neon Green
-        'rgba(57, 255, 20, 1)'
-      ],
-
-      components: {
-        // Main components
-        preview: false,
-        opacity: false,
-        hue: true,
-        // Input / output Options
-        interaction: {
-          hex: true,
-          rgba: true,
-          hsla: false,
-          hsva: false,
-          cmyk: false,
-          input: true,
-          clear: false,
-          save: false
-        }
-      }
     });
-    hairHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.hair.color = gameColorCode;
+
+    // Hair
+    const hairHex = createColorPicker('#hairColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.hair.color = gameColor;
       self.hair.setTint(localPlayerInfo.hair.color);
       document.getElementById('hairHex').value = rawColor;
-      hairHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    // Create the pickr color selector for the "Outer ear Color picker"
-    const outerEarHex = Pickr.create({
-      el: '#outerEarColorBtn',
-      ...pickrSettings
     });
-    outerEarHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.ear.outerColor = gameColorCode;
+
+    // Ears
+    const outerEarHex = createColorPicker('#outerEarColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.ear.outerColor = gameColor;
       self.outerEar.setTint(localPlayerInfo.ear.outerColor);
-      document.getElementById('outerEarHex').value = rawColor
-      outerEarHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    // Create the pickr color selector for the "Inner ear Color picker"
-    const innerEarHex = Pickr.create({
-      el: '#innerEarColorBtn',
-      ...pickrSettings
+      document.getElementById('outerEarHex').value = rawColor;
     });
-    innerEarHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.ear.innerColor = gameColorCode;
+
+    const innerEarHex = createColorPicker('#innerEarColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.ear.innerColor = gameColor;
       self.innerEar.setTint(localPlayerInfo.ear.innerColor);
-      document.getElementById('innerEarHex').value = rawColor
-      innerEarHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    // Create the pickr color selector for the "Eye Color picker"
-    const eyesHex = Pickr.create({
-      el: '#eyeColorBtn',
-      container: '.colorContainer',
-      theme: 'classic', // or 'monolith', or 'nano'
-      default: '',
-      comparison: false,
-      padding: 10,
-      position: 'top',
-
-      // Default Swatches for Pickr
-      swatches: [
-        //----- First Row -----//
-        // bright blue
-        'rgba(0, 191, 255, 1)',
-        // icy blue
-        'rgba(175, 238, 238, 1)',
-        // cerulean blue
-        'rgba(0, 123, 167, 1)',
-        // turquoise
-        'rgba(64, 224, 208, 1)',
-        // teal
-        'rgba(0, 128, 128, 1)',
-        // mint green
-        'rgba(152, 255, 152, 1))',
-        // emerald green
-        'rgba(80, 200, 120, 1)',
-        // lime green
-        'rgba(50, 205, 50, 1)',
-        // forest green
-        'rgba(34, 139, 34, 1)',
-        //----- Second Row -----//
-        // golden yellow
-        'rgba(255, 215, 0, 1)',
-        // amber
-        'rgba(255, 191, 0, 1)',
-        // burnt orange
-        'rgba(204, 85, 0, 1)',
-        // sunset orange
-        'rgba(255, 69, 0, 1)',
-        // peach
-        'rgba(255, 218, 185, 1)',
-        // crimson
-        'rgba(220, 20, 60, 1)',
-        // ruby red
-        'rgba(224, 17, 95, 1)',
-        // rose pink
-        'rgba(255, 102, 204, 1)',
-        // lavender
-        'rgba(230, 230, 250, 1)',
-        //----- Third Row -----//
-        // hazel
-        'rgba(142, 118, 24, 1)',
-        // chocolate brown
-        'rgba(139, 69, 19, 1)',
-        // olive
-        'rgba(128, 128, 0, 1)',
-        // deep purple
-        'rgba(128, 0, 128, 1)',
-        // violet
-        'rgba(238, 130, 238, 1)',
-        // midnight blue
-        'rgba(25, 25, 112, 1)',
-        // steel blue
-        'rgba(70, 130, 180, 1)',
-        // silver
-        'rgba(192, 192, 192, 1)',
-        // aquamarine
-        'rgba(127, 255, 212, 1)'
-      ],
-
-      components: {
-        // Main components
-        preview: false,
-        opacity: false,
-        hue: true,
-        // Input / output Options
-        interaction: {
-          hex: true,
-          rgba: true,
-          hsla: false,
-          hsva: false,
-          cmyk: false,
-          input: true,
-          clear: false,
-          save: false
-        }
-      }
+      document.getElementById('innerEarHex').value = rawColor;
     });
-    eyesHex.on('change', (color, source, instance) => {
-      // console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      // console.log('gameColorCode at eyesHex on chnage= ', gameColorCode);
-      localPlayerInfo.eyes.color = gameColorCode;
+
+    // Eyes
+    const eyesHex = createColorPicker('#eyeColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.eyes.color = gameColor;
       self.iris.setTint(localPlayerInfo.eyes.color);
       document.getElementById('eyesHex').value = rawColor;
-      eyesHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    // Create the pickr color selector for the "Head Accessories Color picker"
-    const headAccessoriesHex = Pickr.create({
-      el: '#headAccessoriesColorBtn',
-      ...pickrSettings
     });
-    headAccessoriesHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.headAccessories.color = gameColorCode;
+
+    // Accessories
+    const headAccessoriesHex = createColorPicker('#headAccessoriesColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.headAccessories.color = gameColor;
       self.headAccessories.setTint(localPlayerInfo.headAccessories.color);
       document.getElementById('headAccessoriesHex').value = rawColor;
-      headAccessoriesHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    const bodyHex = Pickr.create({
-      el: '#bodyColorBtn',
-      ...pickrSettings
     });
 
-    bodyHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.body.color = gameColorCode;
+    // Body
+    const bodyHex = createColorPicker('#bodyColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.body.color = gameColor;
       self.body.setTint(localPlayerInfo.body.color);
       document.getElementById('bodyHex').value = rawColor;
-      bodyHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    const secondaryBodyHex = Pickr.create({
-      el: '#secondaryBodyColorBtn',
-      ...pickrSettings
     });
 
-    secondaryBodyHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.body.secondaryColor = gameColorCode;
+    const secondaryBodyHex = createColorPicker('#secondaryBodyColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.body.secondaryColor = gameColor;
       self.secondaryBody.setTint(localPlayerInfo.body.secondaryColor);
-      document.getElementById('secondaryBodyHex').value = rawColor
-      secondaryBodyHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    const accentBodyHex = Pickr.create({
-      el: '#accentBodyColorBtn',
-      ...pickrSettings
+      document.getElementById('secondaryBodyHex').value = rawColor;
     });
 
-    accentBodyHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.body.accentColor = gameColorCode;
+    const accentBodyHex = createColorPicker('#accentBodyColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.body.accentColor = gameColor;
       self.accentBody.setTint(localPlayerInfo.body.accentColor);
-      document.getElementById('accentBodyHex').value = rawColor
-      accentBodyHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    const handsHex = Pickr.create({
-      el: '#handsColorBtn',
-      ...pickrSettings
+      document.getElementById('accentBodyHex').value = rawColor;
     });
 
-    handsHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.hands.color = gameColorCode;
+    // Hands & Feet
+    const handsHex = createColorPicker('#handsColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.hands.color = gameColor;
       self.hands.setTint(localPlayerInfo.hands.color);
-      document.getElementById('handsHex').value = gameColorCode;
-      handsHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-      // console.log('hands sprite not currently defined on character');
-    })
-
-    const feetHex = Pickr.create({
-      el: '#feetColorBtn',
-      ...pickrSettings
+      document.getElementById('handsHex').value = gameColor; // Original used gameColor here? Yes.
     });
 
-    feetHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.feet.color = gameColorCode;
+    const feetHex = createColorPicker('#feetColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.feet.color = gameColor;
       self.feet.setTint(localPlayerInfo.feet.color);
-      document.getElementById('feetHex').value = gameColorCode;
-      feetHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-      //console.log('feet sprite not currently defined on character');
-    })
-
-    const tailHex = Pickr.create({
-      el: '#tailColorBtn',
-      ...pickrSettings
+      document.getElementById('feetHex').value = gameColor; // Original used gameColor here? Yes.
     });
 
-    tailHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.tail.color = gameColorCode;
+    // Tail
+    const tailHex = createColorPicker('#tailColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.tail.color = gameColor;
       self.tail.setTint(localPlayerInfo.tail.color);
       document.getElementById('tailHex').value = rawColor;
-      tailHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
-
-    const secondaryTailHex = Pickr.create({
-      el: '#secondaryTailColorBtn',
-      ...pickrSettings
     });
 
-    secondaryTailHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.tail.secondaryColor = gameColorCode;
+    const secondaryTailHex = createColorPicker('#secondaryTailColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.tail.secondaryColor = gameColor;
       self.secondaryTail.setTint(localPlayerInfo.tail.secondaryColor);
-      document.getElementById('secondaryTailHex').value = rawColor
-      secondaryTailHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-      //console.log('changing secondary Tail color');
-    })
-
-    const accentTailHex = Pickr.create({
-      el: '#accentTailColorBtn',
-      ...pickrSettings
+      document.getElementById('secondaryTailHex').value = rawColor;
     });
 
-    accentTailHex.on('change', (color, source, instance) => {
-      //console.log(color.toHEXA());
-      var rawColor = "#" + color.toHEXA()[0] + color.toHEXA()[1] + color.toHEXA()[2]
-      var gameColorCode = rawColor.replace("#", "0x")
-      //console.log('gameColorCode = ', gameColorCode);
-      localPlayerInfo.tail.accentColor = gameColorCode;
+    const accentTailHex = createColorPicker('#accentTailColorBtn', (gameColor, rawColor) => {
+      localPlayerInfo.tail.accentColor = gameColor;
       self.accentTail.setTint(localPlayerInfo.tail.accentColor);
-      document.getElementById('accentTailHex').value = rawColor
-      accentTailHex.getRoot().button.style.setProperty('--pcr-color', rawColor);
-    })
+      document.getElementById('accentTailHex').value = rawColor;
+    });
+
+
 
     document.querySelector('input.pcr-result').addEventListener('keydown', function (event) {
       if (event.key === 'Enter') {
@@ -2924,6 +2429,41 @@
       // console.log('i = ', i.srcElement.value);
 
       localPlayerInfo.body.sprite = i.srcElement.value;
+
+      // Helper to get suffix (everything after first dash)
+      const getSuffix = (val) => {
+        if (!val || val.indexOf('-') === -1) return null;
+        return val.substring(val.indexOf('-'));
+      };
+
+      // Helper to match and select
+      const restoreSelection = (selectId, suffix) => {
+        if (!suffix) return;
+        const select = document.getElementById(selectId);
+        let found = false;
+        for (let j = 0; j < select.options.length; j++) {
+          if (select.options[j].value.endsWith(suffix)) {
+            select.selectedIndex = j;
+            found = true;
+            break;
+          }
+        }
+        // If not found, it defaults to the first option (usually "None") which is fine.
+        // If found, we must dispatch change to ensure playerInfo updates
+        if (found) {
+          select.dispatchEvent(new Event("change"));
+        } else {
+          // Even if not restored, we should dispatch change because options changed? 
+          // The original code did dispatch change at the end.
+        }
+      };
+
+      // Capture previous suffixes
+      const prevBodySecondary = getSuffix(document.getElementById('bodySecondaryFur').value);
+      const prevBodyAccent = getSuffix(document.getElementById('bodyAccentFur').value);
+      const prevHands = getSuffix(document.getElementById('handsFur').value);
+      const prevFeet = getSuffix(document.getElementById('feetFur').value);
+
       var bodySecondaryFurID = document.getElementById('bodySecondaryFur');
       bodySecondaryFurID.innerHTML = "";
       var bodyAccentFurID = document.getElementById('bodyAccentFur');
@@ -2986,10 +2526,26 @@
         newOptionForFeet.innerHTML = pair[1];
         feetFurID.options.add(newOptionForFeet);
       }
+
+      // Try to restore selections
+      restoreSelection('bodySecondaryFur', prevBodySecondary);
+      restoreSelection('bodyAccentFur', prevBodyAccent);
+      restoreSelection('handsFur', prevHands);
+      restoreSelection('feetFur', prevFeet);
+
+      // We still dispatch change just in case the restoration failed or to trigger downstream updates, 
+      // but restoreSelection already dispatches if found. 
+      // If we blindly dispatch here, we might double-dispatch or override.
+      // However, if we didn't match, we definitely want to dispatch to register the "None" (default) selection.
+      // So ensuring a dispatch happens is key.
+
+      // Let's modify the standard dispatch to only happen if we didn't restore?
+      // Or just dispatch everywhere. Redundant dispatch is better than missing one.
       document.getElementById('bodySecondaryFur').dispatchEvent(new Event("change"))
       document.getElementById('bodyAccentFur').dispatchEvent(new Event("change"))
       document.getElementById('handsFur').dispatchEvent(new Event("change"))
       document.getElementById('feetFur').dispatchEvent(new Event("change"))
+
       characterUpdated(localPlayerInfo);
     });
 
@@ -3068,6 +2624,34 @@
       console.log('secondary head sprite = ', localPlayerInfo.head.secondarySprite);
       // console.log('i = ', i.srcElement.value);
       localPlayerInfo.head.sprite = i.srcElement.value;
+
+      // Helper to get suffix (everything after first dash)
+      const getSuffix = (val) => {
+        if (!val || val.indexOf('-') === -1) return null;
+        return val.substring(val.indexOf('-'));
+      };
+
+      // Helper to match and select
+      const restoreSelection = (selectId, suffix) => {
+        if (!suffix) return;
+        const select = document.getElementById(selectId);
+        let found = false;
+        for (let j = 0; j < select.options.length; j++) {
+          if (select.options[j].value.endsWith(suffix)) {
+            select.selectedIndex = j;
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          select.dispatchEvent(new Event("change"));
+        }
+      };
+
+      // Capture previous suffixes
+      const prevSecondary = getSuffix(document.getElementById('headSecondaryFur').value);
+      const prevAccent = getSuffix(document.getElementById('headAccentFur').value);
+
       var headSecondaryFurID = document.getElementById('headSecondaryFur');
       headSecondaryFurID.innerHTML = "";
       var headAccentFurID = document.getElementById('headAccentFur');
@@ -3164,6 +2748,11 @@
         newOptionForAccent.innerHTML = pair[1];
         headAccentFurID.options.add(newOptionForAccent);
       }
+
+      // Restore selections
+      restoreSelection('headSecondaryFur', prevSecondary);
+      restoreSelection('headAccentFur', prevAccent);
+
       console.log('secondary head sprite = ', localPlayerInfo.head.secondarySprite);
       document.getElementById('headSecondaryFur').dispatchEvent(new Event("change"))
       console.log('secondary head sprite = ', localPlayerInfo.head.secondarySprite);
@@ -3257,6 +2846,33 @@
 
     document.getElementById("tail").addEventListener("change", function (i) {
       // console.log('i = ', i.srcElement.value);
+
+      // Helper to get suffix (everything after first dash)
+      const getSuffix = (val) => {
+        if (!val || val.indexOf('-') === -1) return null;
+        return val.substring(val.indexOf('-'));
+      };
+
+      // Helper to match and select
+      const restoreSelection = (selectId, suffix) => {
+        if (!suffix) return;
+        const select = document.getElementById(selectId);
+        let found = false;
+        for (let j = 0; j < select.options.length; j++) {
+          if (select.options[j].value.endsWith(suffix)) {
+            select.selectedIndex = j;
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          select.dispatchEvent(new Event("change"));
+        }
+      };
+
+      // Capture previous suffix
+      const prevSecondary = getSuffix(document.getElementById('tailSecondaryFur').value);
+
       document.getElementById('tailSecondaryFur').innerHTML = "";
 
       if (document.getElementById("tail").value == 'tail_01') {
@@ -3323,11 +2939,42 @@
         newOption.innerHTML = pair[1];
         document.getElementById('tailSecondaryFur').options.add(newOption);
       }
+
+      // Restore selection
+      restoreSelection('tailSecondaryFur', prevSecondary);
+
       characterUpdated(localPlayerInfo);
     });
 
     document.getElementById("tailSecondaryFur").addEventListener("change", function (i) {
       // console.log('i = ', i.srcElement.value);
+
+      // Helper to get suffix
+      const getSuffix = (val) => {
+        if (!val || val.indexOf('-') === -1) return null;
+        return val.substring(val.indexOf('-'));
+      };
+
+      // Helper to restore
+      const restoreSelection = (selectId, suffix) => {
+        if (!suffix) return;
+        const select = document.getElementById(selectId);
+        let found = false;
+        for (let j = 0; j < select.options.length; j++) {
+          if (select.options[j].value.endsWith(suffix)) {
+            select.selectedIndex = j;
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          select.dispatchEvent(new Event("change"));
+        }
+      };
+
+      // Capture previous accent suffix
+      const prevAccent = getSuffix(document.getElementById('tailAccentFur').value);
+
       document.getElementById('tailAccentFur').innerHTML = "";
       console.log('localPlayerInfo.tail.secondarySprite = ', localPlayerInfo.tail.secondarySprite);
       var condition = document.getElementById("tailSecondaryFur").value;
@@ -3396,6 +3043,10 @@
         newOption.innerHTML = pair[1];
         document.getElementById('tailAccentFur').options.add(newOption);
       }
+
+      // Restore selection
+      restoreSelection('tailAccentFur', prevAccent);
+
       characterUpdated(localPlayerInfo);
     });
 
@@ -3438,6 +3089,7 @@
       }
     });
     function rotationfunct(self, rotation) {
+      if (!isReady && !initialSetup) return;
       let direction = null;
       if (rotation == 1) {
         direction = 'Down';
@@ -3491,6 +3143,7 @@
 
     //this.socket.on('characterUpdated', function (playerInfo) {
     function characterUpdated(playerInfo) {
+      if (!isReady && !initialSetup) return;
       //console.log('characterUpdated', '\n', 'playerInfo.playerId = ', playerInfo.playerId, '\n', 'self.socket.id = ', self.socket.id);
       if (playerInfo.playerId === self.socket.id) {
         rotationfunct(self, rotation);
@@ -3640,6 +3293,10 @@
         self.headAccessories
       ]);
       console.log('secondary head sprite = ', localPlayerInfo.head.secondarySprite);
+
+      // Create animations BEFORE applying them
+      createAnimations.call(self, self.spritesToAnimate);
+
       rotationfunct(self, rotation);
 
       localPlayerInfo.playerId = playerInfo.playerId;
@@ -3666,12 +3323,17 @@
         console.log("document.getElementById('headSecondaryFur').value = ", document.getElementById('headSecondaryFur').value);
         document.getElementById('headAccentFur').value = localPlayerInfo.head.accentSprite;
         document.getElementById('headAccessories').value = localPlayerInfo.headAccessories.sprite;
+        document.getElementById("headAccessories").dispatchEvent(new Event('change'));
         document.getElementById('hair').value = localPlayerInfo.hair.sprite;
+        document.getElementById("hair").dispatchEvent(new Event('change'));
         document.getElementById('outerEar').value = localPlayerInfo.ear.outerSprite;
+        document.getElementById("outerEar").dispatchEvent(new Event('change'));
         document.getElementById('innerEar').value = localPlayerInfo.ear.innerSprite;
         document.getElementById('beakSprite').value = localPlayerInfo.beak.sprite;
         document.getElementById('eyesOuter').value = localPlayerInfo.eyes.outer;
+        document.getElementById("eyesOuter").dispatchEvent(new Event('change'));
         document.getElementById('eyesIris').value = localPlayerInfo.eyes.iris;
+        document.getElementById("eyesIris").dispatchEvent(new Event('change'));
 
 
         document.getElementById('bodySecondaryFur').value = localPlayerInfo.body.secondarySprite;
@@ -3778,7 +3440,10 @@
         });
       });
     }
-    createAnimations.call(self, self.spritesToAnimate);
+
+
+    // Signal that the character is fully loaded and UI can be interactive
+    setTimeout(hideLoadingScreen, 500);
   }
 
   function update() {
@@ -3823,6 +3488,17 @@
       }
       buildOptions();
 
+      // Ensure custom select updates if the original select changes programmatically
+      select.addEventListener('change', function () {
+        const updatedSelected = select.options[select.selectedIndex];
+        trigger.querySelector('span').textContent = updatedSelected ? updatedSelected.text : 'Select...';
+
+        customOptions.querySelectorAll('.custom-option').forEach(opt => {
+          if (opt.dataset.value === select.value) opt.classList.add('selected');
+          else opt.classList.remove('selected');
+        });
+      });
+
       // Observer to update custom dropdown when original select changes
       const observer = new MutationObserver(() => {
         buildOptions();
@@ -3857,3 +3533,7 @@
     setTimeout(initCustomSelects, 100);
   });
 </script>
+
+<!-- UTILITIES (Moved to Body Root for Z-Index Safety) -->
+<div id="af-ghost-node" class="af-node ghost" style="display: none;"></div>
+<div id="af-connection-tooltip" class="af-connection-tooltip">Right-Click to Sever</div>

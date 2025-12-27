@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css">
+  <link rel="stylesheet" href="/css/anatomy_forge.css">
 </head>
 
 
@@ -178,7 +179,7 @@
       topPanel.style.flex = `0 0 ${newTopHeightPct}%`;
       // bottomPanel typically has flex: 1, so it fills the rest
 
-      // No need to dispatch window resize unless components inside look for it
+      window.dispatchEvent(new Event('resize'));
     };
 
     const vMouseUpHandler = function () {
@@ -209,11 +210,64 @@
 <!-- <script type="module" src="/js/index.js"></script> -->
 <script src="/js/chat.js"></script>
 <script src="/js/contextMenu.js"></script>
+<script src="/js/anatomy_forge.js"></script>
 <!-- <script type="module">
     const serverPlayerInfo = <% charList %>
     console.log('serverPlayerInfo = ', serverPlayerInfo);
     export serverPlayerInfo;
   </script> -->
+<script>
+  // --- Anatomy Forge Integration ---
+  // --- Anatomy Forge Integration ---
+  window.saveAnatomyChanges = function (showToastMsg = true) {
+    if (typeof AnatomyForge === 'undefined') return;
+
+    // Use window.gameSocket if available
+    // Do NOT call io() here as it creates a new connection every save!
+    const targetSocket = window.gameSocket;
+
+    if (targetSocket) {
+      // Ensure we capture the latest data either from the hidden field or direct serialization
+      const serialized = document.getElementById('anatomyData') ? document.getElementById('anatomyData').value : AnatomyForge.serialize();
+
+      targetSocket.emit('updateVoreSettings', { anatomyData: serialized });
+
+      if (showToastMsg) {
+        if (typeof showToast === 'function') showToast("Anatomy Saved!", "success");
+        else console.log("Anatomy Saved");
+      }
+    } else {
+      console.warn("saveAnatomyChanges: No socket connection available.");
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof AnatomyForge !== 'undefined' && localPlayerInfo) {
+      // We need to inject the hidden input 'anatomyData' because AnatomyForge expects it for serialization
+      if (!document.getElementById('anatomyData')) {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.id = 'anatomyData';
+        inp.name = 'anatomyData';
+        document.body.appendChild(inp);
+      }
+
+      const initialData = localPlayerInfo.anatomyData || null;
+      // We pass localPlayerInfo.voreTypes as legacy fallback
+      AnatomyForge.init('anatomy-forge-container', initialData, localPlayerInfo.voreTypes, window.saveAnatomyChanges);
+
+      // Hook into tab switching to resize/reset view
+      const voreTabBtn = document.getElementById('voreTab');
+      if (voreTabBtn) {
+        voreTabBtn.addEventListener('click', () => {
+          setTimeout(() => {
+            AnatomyForge.resetView();
+          }, 100);
+        });
+      }
+    }
+  });
+</script>
 <!--Checks if the game is focused or the chat is focused-->
 <script>
   var chatFocused = true;
@@ -236,6 +290,7 @@
   var charList = JSON.parse(rawCharList.replace(/&quot;/g, '"'));
 
   var localPlayerInfo = charList
+  window.mapFilename = "<%= mapFilename %>"; // Injected from server logic
   // localPlayerInfo.position.x = 3291;
   // localPlayerInfo.position.y = 4287;
   // localPlayerInfo.consumedBy = null;

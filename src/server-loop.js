@@ -11,7 +11,9 @@ const log = require('./logger');
 const User = require('./model/User');
 const Chats = require('./model/Chat');
 const clothingData = require('./data/clothingData');
+
 const itemData = require('./data/itemData');
+const DatabaseResilience = require('./classes/DatabaseResilience');
 
 const VisibilityPolygon = require('visibility-polygon'); // New: For shadowcasting
 
@@ -20,6 +22,7 @@ const players = {};
 const spells = [];
 let collisionMap = [];
 let hillHomeMap = [];
+let zoneMap = []; // New: Map for zone strings
 let lightMap = []; // New: Map for shadowcasting (lightBlock property)
 let staticSegments = []; // New: Store map wall segments for raycasting
 let staticObjects = []; // New: Store static objects for collision
@@ -31,6 +34,8 @@ let worldItems = [];    // New: Store interactive items
 // Collision checks only need to query the specific cells a player is standing in.
 const GRID_CELL_SIZE = 128; // Size of each grid cell (4 x 32px tiles)
 let objectGrid = {};        // Hash Map: "x,y" -> [Array of objects]
+let mapLayers = [];         // New: Store layers for property lookup
+let globalTilesets = [];    // New: Store tilesets for property lookup
 
 // --- Constants ---
 const TICK_RATE = 30; // 30 updates per second
@@ -52,41 +57,61 @@ function initializeGame() {
  * Now checks for "Blocked" property for collision, and "lightBlock" for shadows.
  * ALSO loads static objects from the "Objects" layer for collision using "World Builder" logic.
  */
+const mapConfig = require('./server/mapConfig');
+
 function initializeMap() {
+  // developer_note:
+  // This function mirrors the Client's 'createMap' logic but for the Server.
+  // 1. It loads the EXACT SAME .json file defined in mapConfig.js.
+  // 2. It parses tile properties (like 'blocked') to build the server-side collision map.
+  // 3. It iterates through Object Layers to build static collision boxes for trees, furniture, etc.
+  //
+  // CRITICAL: Any logic change to how collision is determined on the client (e.g. changing 'blocked' to 'solid')
+  // MUST be reflected here, or the client and server will desync (ghost walking or invisible walls).
   try {
-    const mapPath = path.join(__dirname, 'client/assets/tilemaps/Demo_Map.json');
+    const mapPath = path.join(__dirname, 'client/assets/tilemaps', mapConfig.mapFilename);
     const tilemapData = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
 
     mapWidth = tilemapData.width;
     const mapHeight = tilemapData.height;
 
     // --- 1. Tile-based Collision & Shadows ---
-    const blockedTileIds = new Set();
-    const hillHomeTileIds = new Set();
-    const lightBlockTileIds = new Set(); // New: Set for light blocking tiles
+    // Stores Global GIDs for property lookup (Handling multiple tilesets)
+    const blockedGids = new Set();
+    const hillHomeGids = new Set();
+    const zoneGids = {}; // Map: globalGid -> zoneString
+    const lightBlockGids = new Set();
 
     if (tilemapData.tilesets) {
       tilemapData.tilesets.forEach(tileset => {
+        const firstgid = tileset.firstgid;
         if (tileset.tiles) {
           tileset.tiles.forEach(tile => {
+            const globalId = firstgid + tile.id;
+
             if (tile.properties) {
-              const blockedProp = tile.properties.find(p => p.name === 'Blocked');
-              if (blockedProp && blockedProp.value === 'True') {
-                blockedTileIds.add(tile.id);
+              // Updated to 'blocked' (lowercase) and boolean true
+              const blockedProp = tile.properties.find(p => p.name === 'blocked');
+              if (blockedProp && blockedProp.value === true) {
+                blockedGids.add(globalId);
               }
               const hillHomeProp = tile.properties.find(p => p.name === 'hillHome');
               if (hillHomeProp && hillHomeProp.value === 'True') {
-                hillHomeTileIds.add(tile.id);
+                hillHomeGids.add(globalId);
               }
               // Check for lightBlock
               const lightBlockProp = tile.properties.find(p => p.name === 'lightBlock');
-              // Accept boolean true or string "True"
               if (lightBlockProp && (lightBlockProp.value === true || lightBlockProp.value === 'True')) {
-                lightBlockTileIds.add(tile.id);
+                lightBlockGids.add(globalId);
+              }
+              // Check for zone
+              const zoneProp = tile.properties.find(p => p.name === 'zone');
+              if (zoneProp) {
+                zoneGids[globalId] = zoneProp.value;
               }
             }
           });
-          log.info(`Found ${lightBlockTileIds.size} tiles with lightBlock property.`);
+          log.info(`Tileset '${tileset.name}' parsed. Found ${Object.keys(zoneGids).length} zone tiles total.`);
         }
       });
     }
@@ -94,11 +119,14 @@ function initializeMap() {
     // 2. Initialize Maps with 0s
     collisionMap = Array(mapHeight).fill(null).map(() => Array(mapWidth).fill(0));
     hillHomeMap = Array(mapHeight).fill(null).map(() => Array(mapWidth).fill(0));
-    lightMap = Array(mapHeight).fill(null).map(() => Array(mapWidth).fill(0)); // New: Initialize lightMap
+    zoneMap = Array(mapHeight).fill(null).map(() => Array(mapWidth).fill(null));
+    lightMap = Array(mapHeight).fill(null).map(() => Array(mapWidth).fill(0));
 
     // 3. Iterate Layers and Populate Maps
-    const mainTileset = tilemapData.tilesets[0];
-    const firstGid = mainTileset ? mainTileset.firstgid : 1;
+    // No need for 'mainTileset' or 'firstGid' assumption anymore.
+
+    // Store layers globaly
+    mapLayers = tilemapData.layers;
 
     tilemapData.layers.forEach(layer => {
       if (layer.type === 'tilelayer' && layer.data) {
@@ -113,10 +141,10 @@ function initializeMap() {
         layer.data.forEach((gid, index) => {
           if (gid === 0) return; // Empty tile
 
-          const localId = gid - firstGid;
+          // Global ID Lookup (Correct for multiple tilesets)
 
           // Collision Map
-          if (blockedTileIds.has(localId)) {
+          if (blockedGids.has(gid)) {
             const x = index % mapWidth;
             const y = Math.floor(index / mapWidth);
             if (y < mapHeight && x < mapWidth) {
@@ -125,7 +153,7 @@ function initializeMap() {
           }
 
           // HillHome Map
-          if (hillHomeTileIds.has(localId) || layerIsHillHome) {
+          if (hillHomeGids.has(gid) || layerIsHillHome) {
             const x = index % mapWidth;
             const y = Math.floor(index / mapWidth);
             if (y < mapHeight && x < mapWidth) {
@@ -134,14 +162,20 @@ function initializeMap() {
           }
 
           // Light Map (Shadows)
-          // If explicit lightBlock is set, use it.
-          // Fallback: If no lightBlock tiles found at all, maybe default to blocked? 
-          // For now, strict: only use if in lightBlockTileIds
-          if (lightBlockTileIds.has(localId)) {
+          if (lightBlockGids.has(gid)) {
             const x = index % mapWidth;
             const y = Math.floor(index / mapWidth);
             if (y < mapHeight && x < mapWidth) {
               lightMap[y][x] = 1;
+            }
+          }
+
+          // Zone Map
+          if (zoneGids[gid]) {
+            const x = index % mapWidth;
+            const y = Math.floor(index / mapWidth);
+            if (y < mapHeight && x < mapWidth) {
+              zoneMap[y][x] = zoneGids[gid];
             }
           }
         });
@@ -181,6 +215,8 @@ function initializeMap() {
       });
     }
 
+    globalTilesets = rawTilesets; // Store globally
+
     // Process ALL Object Layers
     // We filter for any layer of type 'objectgroup' and process its objects.
     const objectLayers = tilemapData.layers.filter(l => l.type === 'objectgroup');
@@ -189,7 +225,13 @@ function initializeMap() {
       if (objectLayer.objects) {
         objectLayer.objects.forEach(obj => {
           // 1. Find Raw Tileset
-          const rawTs = rawTilesets.find(ts => obj.gid >= ts.firstgid && obj.gid < (ts.firstgid + ts.tilecount));
+          // developer_note:
+          // Updated to match client-side logic for "Collection of Images" sparse ID support.
+          // Finds the tileset with the highest firstgid <= obj.gid.
+          const rawTs = rawTilesets
+            .slice()
+            .reverse()
+            .find(ts => obj.gid >= ts.firstgid);
 
           if (rawTs) {
             const trueLocalID = obj.gid - rawTs.firstgid;
@@ -216,10 +258,28 @@ function initializeMap() {
             }
 
             // --- Collision Box Dimensions ---
+            // Extract Object Properties to Override Tile Props
+            let objectProps = {};
+            if (obj.properties && Array.isArray(obj.properties)) {
+              obj.properties.forEach(p => {
+                objectProps[p.name] = p.value;
+              });
+            }
+
+            // Merge Props (Object overrides Tile)
+            const combinedProps = { ...props, ...objectProps };
+
+            // Check for explicit blocked: false
+            // Tiled might send boolean false or string "false"
+            if (combinedProps.blocked === false || combinedProps.blocked === 'false') {
+              // console.log(`[Server] Skipping collision for object ${obj.id} (blocked: false)`);
+              return;
+            }
+
             // Prioritize custom properties (bodyWidth, bodyHeight, bodyOffsetY)
-            let width = props.bodyWidth;
-            let height = props.bodyHeight;
-            let offsetY = props.bodyOffsetY; // Can be undefined
+            let width = combinedProps.bodyWidth;
+            let height = combinedProps.bodyHeight;
+            let offsetY = combinedProps.bodyOffsetY; // Can be undefined
 
             // Fallback sizing
             if (!width || !height) {
@@ -243,7 +303,8 @@ function initializeMap() {
             // --- Vertical Offset Logic ---
             // Formula: BodyY = SpriteBottomY - BodyHeight - BodyOffsetY
 
-            const spriteTopLeftX = obj.x - (spriteWidth / 2); // Convert Center-X to Left-X
+            // Updated for Bottom Left Origin: obj.x is ALREADY the Left X
+            const spriteTopLeftX = obj.x;
 
             const bodyX = spriteTopLeftX + bodyOffsetX;
             const bodyY = obj.y - bodyHeight - offsetY;
@@ -597,25 +658,23 @@ function updatePlayers(delta, io) {
       }
     }
 
-    // Check for hillHome collision
-    if (checkHillHomeCollision(player.position.x, player.position.y)) {
-      if (!player.enteredBuilding) {
-        player.enteredBuilding = true;
-        log.info(`Player ${player.Username || player.playerId} entered hillHome!`);
-        // Emit event to the specific client
-        if (io.sockets.sockets.get(id)) {
-          io.sockets.sockets.get(id).emit('enterHillHome');
-        }
+    // Check for zone changes
+    // Only check if position is valid
+    const gridX = Math.floor(player.position.x / TILE_SIZE);
+    const gridY = Math.floor(player.position.y / TILE_SIZE);
+
+    let currentZone = null;
+    if (gridY >= 0 && gridY < zoneMap.length && gridX >= 0 && gridX < zoneMap[0].length) {
+      currentZone = zoneMap[gridY][gridX];
+    }
+
+    if (currentZone !== player.lastZone) {
+      player.lastZone = currentZone;
+      // Emit event to the socket
+      if (io.sockets.sockets.get(id)) {
+        // console.log(`[Zone] Player entered zone: ${currentZone}`);
+        io.sockets.sockets.get(id).emit('zoneUpdate', { zone: currentZone });
       }
-    } else {
-      if (player.enteredBuilding) {
-        log.info(`Player ${player.Username || player.playerId} exited hillHome!`);
-        // Emit event to the specific client
-        if (io.sockets.sockets.get(id)) {
-          io.sockets.sockets.get(id).emit('exitHillHome');
-        }
-      }
-      player.enteredBuilding = false;
     }
 
     // --- BREAK FREE / STRUGGLE LOGIC ---
@@ -1008,6 +1067,11 @@ module.exports.start = (io, _messageSystem) => {
       nickName: characterData ? characterData.nickName : "",
       Description: characterData ? characterData.icDescrip : "",
       icDescrip: characterData ? characterData.icDescrip : "",
+      // Semantic State Fields
+      speciesName: characterData ? characterData.speciesName : "Unknown",
+      pronouns: characterData ? characterData.pronouns : 0,
+      stats: characterData ? characterData.ratings : {},
+
       voreTypes: characterData ? characterData.voreTypes : [],
 
       equipment: loadedEquipment ? loadedEquipment : {
@@ -1091,6 +1155,7 @@ module.exports.start = (io, _messageSystem) => {
       },
 
       voreTypes: characterData ? characterData.voreTypes : [],
+      anatomyData: characterData ? characterData.anatomyData : "",
 
       actionHands: {
         leftNode: null,
@@ -1170,9 +1235,14 @@ module.exports.start = (io, _messageSystem) => {
                 character.equipment = p.equipment;
               }
 
+              // --- Save Vore & Resilience Data ---
+              if (p.voreTypes) character.voreTypes = p.voreTypes;
+              if (p.consumedBy !== undefined) character.consumedBy = p.consumedBy;
+              if (p.ratings) character.ratings = p.ratings;
+
               user.markModified('characters'); // Explicitly mark array/subdocs modified
-              await user.save();
-              log.success(`Saved data (pos/equip) for character ${character.firstName}`);
+              await DatabaseResilience.save(user);
+              // log.success(`Saved data (pos/equip/vore) for character ${character.firstName}`);
             }
           }
         } catch (err) {
@@ -1269,7 +1339,7 @@ module.exports.start = (io, _messageSystem) => {
     // Extracted to src/sockets/interactionHandlers.js
     const initInteractionHandlers = require('./sockets/interactionHandlers');
     // Note: We pass TILE_SIZE (32)
-    initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32);
+    initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32, saveCharacter);
 
     // --- ITEM & INVENTORY HANDLERS ---
     // Extracted to src/sockets/inventoryHandlers.js
@@ -1431,9 +1501,31 @@ module.exports.start = (io, _messageSystem) => {
         }
 
         // --- Send response to player to be picked up in play.ejs ---
+        // --- anatomyData Integration ---
+        let voreOptions = requestingPlayer.voreTypes || [];
+        if (requestingPlayer.anatomyData) {
+          try {
+            const graph = JSON.parse(requestingPlayer.anatomyData);
+            if (graph.nodes) {
+              const entrances = graph.nodes.filter(n => n.type === 'entrance');
+              if (entrances.length > 0) {
+                voreOptions = entrances.map(e => ({
+                  destination: e.properties.name || 'Unknown Entrance', // Client label
+                  id: e.id,
+                  graphNodeId: String(e.id),
+                  isEntrance: true,
+                  // We don't send the full graph here, just the entry points
+                }));
+              }
+            }
+          } catch (err) {
+            log.warn(`Failed to parse anatomyData for ${requestingPlayer.Username}`);
+          }
+        }
+
         const predatorInfo = {
           name: requestingPlayer.Username || (requestingPlayer.firstName + ' ' + requestingPlayer.lastName) || 'Unknown Predator',
-          voreTypes: requestingPlayer.voreTypes || []
+          voreTypes: voreOptions
         };
         socket.emit('playerRightClickedResponse', { responseInfo, predatorInfo, pointerX, pointerY });
       } catch (e) {
@@ -1588,3 +1680,34 @@ module.exports.broadcastToVisible = (io, sourceSocketId, eventName, data) => {
     }
   });
 };
+module.exports.getMapDataAt = (x, y) => {
+  const tileX = Math.floor(x / TILE_SIZE);
+  const tileY = Math.floor(y / TILE_SIZE);
+  const data = {};
+
+  if (tileX < 0 || tileY < 0 || tileX >= mapWidth || !mapLayers) return data;
+
+  mapLayers.forEach(layer => {
+    if (layer.type === 'tilelayer' && layer.data) {
+      const idx = tileY * mapWidth + tileX;
+      if (idx < layer.data.length) {
+        const gid = layer.data[idx];
+        if (gid > 0) {
+          // Find tileset
+          const ts = globalTilesets.find(t => gid >= t.firstgid && gid < (t.firstgid + t.tilecount));
+          if (ts) {
+            const localId = gid - ts.firstgid;
+            if (ts.tiles[localId] && ts.tiles[localId].properties) {
+              Object.assign(data, ts.tiles[localId].properties);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  return data;
+};
+
+module.exports.getAllPlayers = () => players;
+module.exports.getWorldItems = () => worldItems;

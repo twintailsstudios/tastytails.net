@@ -1,4 +1,5 @@
 const log = require('../logger');
+const DatabaseResilience = require('../classes/DatabaseResilience');
 
 module.exports = function (io, socket, players, User, saveCharacter) {
     const logPrefix = `[Vore:${socket.id}]`;
@@ -41,7 +42,8 @@ module.exports = function (io, socket, players, User, saveCharacter) {
                                 voreType.audioStruggle = data.audioStruggle;
                                 voreType.audioExit = data.audioExit;
 
-                                await user.save();
+                                // Use DatabaseResilience to ensure it saves/queues
+                                await DatabaseResilience.save(user);
                                 log.success(`Saved updated vore settings for ${playerName} to DB.`);
 
                                 // Broadcast update to all clients
@@ -92,7 +94,8 @@ module.exports = function (io, socket, players, User, saveCharacter) {
                             };
 
                             character.voreTypes.push(newVore);
-                            await user.save();
+                            // Use DatabaseResilience
+                            await DatabaseResilience.save(user);
 
                             // Get the newly created item with _id
                             const savedVore = character.voreTypes[character.voreTypes.length - 1];
@@ -111,4 +114,100 @@ module.exports = function (io, socket, players, User, saveCharacter) {
             log.error(`Error handling addVoreType for ${socket.id}:`, e);
         }
     });
-}
+
+    // --- Anatomy Forge Full Save ---
+    socket.on('updateVoreSettings', async function (data) {
+        try {
+            const player = players[socket.id];
+            if (player && player._id) {
+                const playerName = player.Username || (player.firstName + ' ' + player.lastName) || 'Unknown Player';
+
+                // Update in-memory anatomyData
+                if (data.anatomyData) {
+                    player.anatomyData = data.anatomyData;
+                }
+
+                // --- NEW LOGIC: Sync voreTypes from Anatomy Data ---
+                let newVoreTypes = [];
+                let syncSuccess = false;
+
+                try {
+                    const parsed = JSON.parse(data.anatomyData || '{}');
+                    if (parsed.nodes && Array.isArray(parsed.nodes)) {
+                        // Filter for destinations AND entrances
+                        // Entrances are needed for the menu selection (Stage 1)
+                        const relevantNodes = parsed.nodes.filter(n => n.type === 'destination' || n.type === 'entrance');
+
+                        // Map to voreType objects
+                        newVoreTypes = relevantNodes.map(node => {
+                            const props = node.properties || {};
+                            // Try to find existing voreType to preserve state (contents, _id)
+                            // We match by graphNodeId if available, else name (legacy fallback)
+                            const existing = player.voreTypes.find(v => v.graphNodeId === String(node.id) || v.destination === props.name);
+
+                            return {
+                                _id: existing ? existing._id : undefined, // Let Mongoose generate if new
+                                destination: props.name || 'Unknown',
+                                verb: props.verb || 'eats',
+                                digestionTimer: parseInt(props.digestionTimer) || 0,
+                                animation: existing ? existing.animation : 0,
+                                mode: existing ? existing.mode : (props.mode || 'Hold'),
+                                destinationDescrip: props.destinationDescrip || '',
+                                examineMsgDescrip: props.examineMsgDescrip || '',
+                                struggleInsideMsgDescrip: props.struggleInsideMsgDescrip || '',
+                                struggleOutsideMsgDescrip: props.struggleOutsideMsgDescrip || '',
+                                digestionInsideMsgDescrip: props.digestionInsideMsgDescrip || '',
+                                digestionOutsideMsgDescrip: props.digestionOutsideMsgDescrip || '',
+                                audioEntry: props.enterSound || 'none',
+                                audioAmbient: props.ambientSound || 'none',
+                                audioStruggle: props.struggleSound || 'none',
+                                audioExit: props.exitSound || 'none',
+                                contents: existing ? existing.contents : [],
+                                isEntrance: node.type === 'entrance',
+                                graphNodeId: String(node.id)
+                            };
+                        });
+                        syncSuccess = true;
+                    }
+                } catch (parseErr) {
+                    log.error(`Failed to parse anatomyData for ${playerName}:`, parseErr);
+                }
+
+                // Update Database
+                try {
+                    const user = await User.findOne({ 'characters._id': player._id });
+                    if (user) {
+                        const character = user.characters.id(player._id);
+                        if (character) {
+                            if (data.anatomyData) character.anatomyData = data.anatomyData;
+
+                            // Replace voreTypes list if sync was successful
+                            if (syncSuccess) {
+                                character.voreTypes = newVoreTypes;
+                            }
+
+                            await DatabaseResilience.save(user);
+                            log.success(`Saved Anatomy Forge data & Synced voreTypes for ${playerName}`);
+
+                            // Re-fetch to get new _ids/proper objects
+                            const savedChar = user.characters.id(player._id);
+
+                            // Update in-memory player object
+                            player.voreTypes = savedChar.voreTypes;
+
+                            // Broadcast update to all clients
+                            io.emit('voreSettingsUpdated', {
+                                playerId: player.playerId,
+                                voreTypes: player.voreTypes
+                            });
+                        }
+                    }
+                } catch (err) {
+                    log.error(`Error saving anatomy data for ${playerName}:`, err);
+                }
+            }
+        } catch (e) {
+            log.error(`Error handling updateVoreSettings for ${socket.id}:`, e);
+        }
+    });
+};

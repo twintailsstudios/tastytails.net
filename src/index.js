@@ -65,6 +65,8 @@ process.on('unhandledRejection', (err) => {
 // ---------------------------------
 
 // --- Database Connection ---
+const DatabaseResilience = require('./classes/DatabaseResilience');
+
 mongoose.connect(process.env.DB_CONNECT)
   .then(() => log.success('Successfully connected to MongoDB!'))
   .catch(err => gracefulShutdown('Database Connection Failed', err));
@@ -75,11 +77,7 @@ mongoose.connection.on('error', (err) => {
   // gracefulShutdown('Database Error', err); 
 });
 
-mongoose.connection.on('disconnected', () => {
-  log.warn('MongoDB Disconnected!');
-  // If we lose DB, the game state is likely invalid. Restarting is safer.
-  gracefulShutdown('Database Disconnected', new Error('Connection to MongoDB lost'));
-});
+
 
 // --- View Engine Setup ---
 app.set('view engine', 'ejs');
@@ -133,6 +131,10 @@ app.use((err, req, res, next) => {
 
 const MessageSystem = require('./classes/MessageSystem');
 const messageSystem = new MessageSystem(io);
+
+// Initialize Resilience Module with Mongoose, Shutdown Callback, and Socket.IO
+// Moved here to ensure 'io' is defined.
+DatabaseResilience.init(mongoose, gracefulShutdown, io);
 
 // Start the lightweight game loop. It will handle its own game-related socket events.
 serverGame.start(io, messageSystem);

@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { registerValidation, loginValidation, charCreateValidation, voreTypeValidation, ratingsValidation } = require('../validation');
 const log = require('../logger');
+const DatabaseResilience = require('../classes/DatabaseResilience');
 
 
 
@@ -30,7 +31,7 @@ router.post('/register', async (req, res) => {
       password: hashedPassword,
       birthday: req.body.birthday
     });
-    const savedUser = await user.save();
+    const savedUser = await DatabaseResilience.save(user);
     //res.send({ user: user._id });
     res.redirect('/registered');
   } catch (err) {
@@ -234,8 +235,8 @@ router.post('/createcharacter', async (req, res) => {
       color: req.body.beakHex
     }
     var position = {
-      x: 0,
-      y: 0,
+      x: 3795,
+      y: 3728,
       time: null
     }
     var input = {
@@ -260,7 +261,7 @@ router.post('/createcharacter', async (req, res) => {
     // log('verified._id = ', verified._id);
     // log('characterId = ', characterId);
 
-    const updateChar = await User.updateOne({ _id: verified._id }, {
+    const updateChar = await DatabaseResilience.updateOne(User, { _id: verified._id }, {
       $push: {
         "characters": {
           "firstName": req.body.firstName,
@@ -291,7 +292,8 @@ router.post('/createcharacter', async (req, res) => {
           "input": input,
           "itentifier": "player",
 
-          "deleted": false
+          "deleted": false,
+          "anatomyData": req.body.anatomyData || ""
         }
       }
     });
@@ -433,21 +435,29 @@ router.post('/editcharacter', async (req, res) => {
     //log('verified = ', verified._id);
     log.debug('token = ', token);
 
-    // Safety check for rawHeaders, this is brittle but I am wrapping it
-    let characterId = '';
-    if (req.rawHeaders && req.rawHeaders[33]) {
-      characterId = req.rawHeaders[33].split('/').pop();
-    } else {
-      // Fallback or error if necessary, but original code just read [33]
-      // This likely crashes if header structure changes.
-      // It's part of why we need Try-Catch!
+    // Safety check for character ID extraction
+    let characterId = req.body.charId;
+
+    if (!characterId && req.headers.referer) {
+      // Fallback: Try to parse from Referer (e.g. .../edit/ID)
+      // This is less reliable but kept as backup for legacy calls
+      try {
+        const parts = req.headers.referer.split('/');
+        const potentialId = parts.pop();
+        // Simple check if it looks like a Mongo ID (24 hex chars) to avoid "gzip" etc.
+        if (/^[0-9a-fA-F]{24}$/.test(potentialId)) {
+          characterId = potentialId;
+        }
+      } catch (e) {
+        log.warn('Failed to parse character ID from Referer');
+      }
     }
 
     // log('req = ', req.rawHeaders[33]);
     // log('verified._id = ', verified._id);
     // log('characterId = ', characterId);
 
-    const updateChar = await User.findOneAndUpdate({ _id: verified._id, "characters._id": characterId }, {
+    const updateChar = await DatabaseResilience.findOneAndUpdate(User, { _id: verified._id, "characters._id": characterId }, {
       $set: {
         "characters.$.firstName": req.body.firstName,
         "characters.$.lastName": req.body.lastName,
@@ -469,7 +479,9 @@ router.post('/editcharacter', async (req, res) => {
         "characters.$.genitles": genitles,
         "characters.$.hands": hands,
         "characters.$.feet": feet,
-        "characters.$.beak": beak
+        "characters.$.feet": feet,
+        "characters.$.beak": beak,
+        "characters.$.anatomyData": req.body.anatomyData || ""
       }
     },
       { new: true });
@@ -496,7 +508,7 @@ router.post('/deletecharacter', async (req, res) => {
     const characterId = req.body.charId;
     log.debug('Deleting characterId = ', characterId);
 
-    const updateChar = await User.findOneAndUpdate({ _id: verified._id, "characters._id": characterId }, {
+    const updateChar = await DatabaseResilience.findOneAndUpdate(User, { _id: verified._id, "characters._id": characterId }, {
       $set: {
         "characters.$.deleted": true
       }

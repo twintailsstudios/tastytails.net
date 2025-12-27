@@ -276,6 +276,24 @@ function initializeChat(socket) {
         if (type === 'Interactional') messageClasses += " interactional-message";
         if (type === 'OOC') messageClasses += " ooc-message";
 
+        // --- Reactions Rendering ---
+        let reactionsHtml = '';
+        if (msg.reactions) {
+            reactionsHtml = '<div class="reaction-bar">';
+            const reactionMap = { heart: '❤️', blush: '😳', laugh: '😂', thumbsup: '👍', thumbsdown: '👎' };
+            const myCharId = document.location.href.split('play/')[1];
+
+            for (const [type, users] of Object.entries(msg.reactions)) {
+                if (users && users.length > 0) {
+                    const isActive = users.includes(myCharId) ? 'active' : '';
+                    reactionsHtml += `<div class="reaction-pill ${isActive}" data-reaction-toggle="${type}" data-msg-id="${msgId}">${reactionMap[type]} <span class="count">${users.length}</span></div>`;
+                }
+            }
+            // Add Shortcut Button
+            reactionsHtml += `<div class="reaction-pill add-reaction-btn" data-msg-id="${msgId}" title="Add Reaction"><i class="fas fa-plus"></i> <i class="far fa-smile"></i></div>`;
+            reactionsHtml += '</div>';
+        }
+
         return `
             <div id="${msgId}" class="${messageClasses}" data-timestamp="${rawTime}" data-scope="${scope}">
                 <div class="msg-title-bar">
@@ -288,6 +306,7 @@ function initializeChat(socket) {
                 <div class="${contentClasses}" data-spoiler-type="${spoilerStatus}">
                     ${content}
                 </div>
+                ${reactionsHtml}
             </div >
             `;
     }
@@ -435,6 +454,35 @@ function initializeChat(socket) {
                 }
                 applySpoilerFilters();
             }
+            applySpoilerFilters();
+        });
+
+        socket.on('messageReactionUpdate', function (data) {
+            const msgEl = document.getElementById(data._id);
+            if (!msgEl) return;
+
+            const existingBar = msgEl.querySelector('.reaction-bar');
+            if (existingBar) existingBar.remove();
+
+            let reactionsHtml = '<div class="reaction-bar">';
+            const reactionMap = { heart: '❤️', blush: '😳', laugh: '😂', thumbsup: '👍', thumbsdown: '👎' };
+            const myCharId = document.location.href.split('play/')[1];
+            let hasReactions = false;
+
+            for (const [type, users] of Object.entries(data.reactions)) {
+                if (users && users.length > 0) {
+                    hasReactions = true;
+                    const isActive = users.includes(myCharId) ? 'active' : '';
+                    reactionsHtml += `<div class="reaction-pill ${isActive}" data-reaction-toggle="${type}" data-msg-id="${data._id}">${reactionMap[type]} <span class="count">${users.length}</span></div>`;
+                }
+            }
+
+            if (hasReactions) {
+                // Add Shortcut Button
+                reactionsHtml += `<div class="reaction-pill add-reaction-btn" data-msg-id="${data._id}" title="Add Reaction"><i class="fas fa-plus"></i> <i class="far fa-smile"></i></div>`;
+                reactionsHtml += '</div>';
+                msgEl.insertAdjacentHTML('beforeend', reactionsHtml);
+            }
         });
 
         socket.on('tooManyChars', function (data, message) {
@@ -471,6 +519,32 @@ function initializeChat(socket) {
 
         socket.on('voreLog', function (message) {
             console.log(message);
+        });
+
+        // --- Connection Stability Events ---
+        socket.on('serverUnstable', function () {
+            const banner = document.getElementById('connection-banner');
+            if (banner) {
+                banner.style.display = 'block';
+                banner.innerText = 'Connection Unstable: Changes are being queued...';
+                banner.style.background = 'orange';
+            }
+        });
+
+        socket.on('serverStable', function () {
+            const banner = document.getElementById('connection-banner');
+            if (banner) {
+                banner.style.display = 'none';
+            }
+        });
+
+        socket.on('serverCriticalWarning', function (data) {
+            const banner = document.getElementById('connection-banner');
+            if (banner) {
+                banner.style.display = 'block';
+                banner.innerText = `CRITICAL WARNING: Server shutting down in ${data.seconds} seconds!`;
+                banner.style.background = 'red';
+            }
         });
     }
 
@@ -527,6 +601,24 @@ function initializeChat(socket) {
 
             createContextMenu(e.clientX, e.clientY, msgId, senderId, contentEl, spoilerEl);
         }
+
+        // 3. Handle Reaction Toggle Clicks
+        const reactionToggle = e.target.closest('[data-reaction-toggle]');
+        if (reactionToggle) {
+            e.stopPropagation();
+            const msgId = reactionToggle.getAttribute('data-msg-id');
+            const reaction = reactionToggle.getAttribute('data-reaction-toggle');
+            const charId = document.location.href.split('play/')[1];
+            socket.emit('toggleReaction', { _id: msgId, reaction: reaction, token: getToken(), charId: charId });
+        }
+
+        // 4. Handle Add Reaction Shortcut Click
+        const addReactionBtn = e.target.closest('.add-reaction-btn');
+        if (addReactionBtn) {
+            e.stopPropagation();
+            const msgId = addReactionBtn.getAttribute('data-msg-id');
+            showReactionOptions(addReactionBtn, msgId);
+        }
     });
 
     // --- Context Menu Logic ---
@@ -551,8 +643,10 @@ function initializeChat(socket) {
             html += `<div class="msg-settings-option" data-action="edit">Edit</div>`;
             html += `<div class="msg-settings-option" data-action="delete">Delete</div>`;
             html += `<div class="msg-settings-option" data-action="spoiler">Edit Spoiler</div>`;
+            html += `<div class="msg-settings-option" data-action="reaction">Add Reaction</div>`;
         } else {
             html += `<div class="msg-settings-option" data-action="spoiler">Edit Spoiler</div>`;
+            html += `<div class="msg-settings-option" data-action="reaction">Add Reaction</div>`;
         }
 
         menu.innerHTML = html;
@@ -573,8 +667,9 @@ function initializeChat(socket) {
             if (action === 'edit') startEditing(msgId, contentEl);
             if (action === 'delete') confirmDelete(msgId);
             if (action === 'spoiler') showSpoilerOptions(e.target, msgId, spoilerEl);
+            if (action === 'reaction') showReactionOptions(e.target, msgId);
 
-            if (action !== 'spoiler') menu.remove();
+            if (action !== 'spoiler' && action !== 'reaction') menu.remove();
         });
 
         // Close on click outside
@@ -693,6 +788,53 @@ function initializeChat(socket) {
         targetEl.appendChild(list);
 
         // Adjust position if off-screen
+        const rect = list.getBoundingClientRect();
+        if (rect.right > window.innerWidth) {
+            list.style.left = 'auto';
+            list.style.right = '100%';
+        }
+        if (rect.bottom > window.innerHeight) {
+            list.style.top = 'auto';
+            list.style.bottom = '0';
+        }
+    }
+
+    function showReactionOptions(targetEl, msgId) {
+        if (targetEl.querySelector('.reaction-sub-menu')) return; // Already open
+
+        // Create sub-menu for reactions
+        const options = ['heart', 'blush', 'laugh', 'thumbsup', 'thumbsdown'];
+        const reactionMap = { heart: '❤️', blush: '😳', laugh: '😂', thumbsup: '👍', thumbsdown: '👎' };
+
+        const list = document.createElement('div');
+        list.className = 'msg-settings-menu reaction-sub-menu';
+
+        // Ensure relative positioning
+        targetEl.style.position = 'relative';
+
+        options.forEach(opt => {
+            const item = document.createElement('div');
+            item.className = 'msg-settings-option reaction-menu-option';
+
+            item.innerHTML = `${reactionMap[opt]} ${opt.charAt(0).toUpperCase() + opt.slice(1)}`;
+
+            item.onclick = (e) => {
+                e.stopPropagation();
+                const charId = document.location.href.split('play/')[1];
+                socket.emit('toggleReaction', {
+                    _id: msgId,
+                    reaction: opt,
+                    token: getToken(),
+                    charId: charId
+                });
+                list.remove(); // Safely remove the menu we just created
+            };
+            list.appendChild(item);
+        });
+
+        targetEl.appendChild(list);
+
+        // Adjust position
         const rect = list.getBoundingClientRect();
         if (rect.right > window.innerWidth) {
             list.style.left = 'auto';

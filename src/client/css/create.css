@@ -183,6 +183,22 @@ nav {
     display: block;
 }
 
+#vorePullout {
+    height: 100%;
+    /* display: flex;  <-- REMOVED to allow class .pullout display:none to work */
+    padding: 0;
+    min-height: 600px;
+}
+
+#vorePullout .af-wrapper {
+    display: flex;
+    /* Make the wrapper the flex container */
+    flex-direction: row;
+    height: 100%;
+    min-height: 600px;
+    border: none;
+}
+
 /* --- COLLAPSIBLES --- */
 .collapsible {
     background-color: rgba(62, 39, 35, 0.1);
@@ -497,11 +513,21 @@ textarea {
     border: 2px solid var(--wood-dark) !important;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
     overflow: hidden !important;
+    background: var(--pcr-color) !important;
 }
 
 .pcr-button::before,
 .pcr-button::after {
     border-radius: 50% !important;
+}
+
+.pcr-button::after {
+    width: 120% !important;
+    height: 120% !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    background: var(--pcr-color) !important;
 }
 
 /* --- RIGHT COLUMN: PREVIEW MIRROR (COMPACT) --- */

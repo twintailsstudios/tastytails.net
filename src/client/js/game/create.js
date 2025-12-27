@@ -4,7 +4,7 @@ import { displayPlayers, displayOtherPlayers, getPlayerSprite, updateStruggleBar
 import { reconcile } from './reconcile.js';
 import { createMap } from './map.js';
 import { initializeTabs } from './tabs.js';
-import { createVoreList, createStruggleButton } from './ui.js';
+import { createVoreList, createStruggleButton, createPredatorVoreControls, removePredatorVoreControls } from './ui.js';
 import { initDebugGraph } from './debugGraph.js';
 import { actionHands } from './hands.js';
 
@@ -54,6 +54,7 @@ export function create() {
 
     // Socket.io is global
     this.socket = io({ query: { charId: charId } });
+    window.gameSocket = this.socket; // Expose globally for UI interactions
     console.log('this.socket = ', this.socket);
 
     this.socket.emit('getAllChats', {
@@ -103,6 +104,15 @@ export function create() {
             if (self.showDebug) {
                 self.socket.emit('requestCollisionData');
                 if (debugOverlay) debugOverlay.style.display = 'block';
+
+                // Show zones layer
+                if (self.mapLayers) {
+                    self.mapLayers.forEach(layer => {
+                        if (layer.layer.name.toLowerCase().includes('zones')) {
+                            layer.alpha = 0.5; // Visible but semi-transparent
+                        }
+                    });
+                }
             } else {
                 if (self.debugGraphics) {
                     self.debugGraphics.clear();
@@ -115,6 +125,15 @@ export function create() {
                     playerDebugGraphics.clear();
                 }
                 if (debugOverlay) debugOverlay.style.display = 'none';
+
+                // Hide zones layer
+                if (self.mapLayers) {
+                    self.mapLayers.forEach(layer => {
+                        if (layer.layer.name.toLowerCase().includes('zones')) {
+                            layer.alpha = 0;
+                        }
+                    });
+                }
             }
         });
     }
@@ -284,6 +303,28 @@ export function create() {
         });
     });
 
+    // --- Vore Stage Update (Predator Controls) ---
+    this.socket.on('voreStageUpdate', function (data) {
+        console.log('[Client] voreStageUpdate:', data);
+        if (data.predatorId === self.socket.id) {
+            // We are the predator
+            createPredatorVoreControls(data, self.socket);
+        }
+        // If we are the target (or anyone else), ensure no controls are shown? 
+        // controls are specific to predator client.
+    });
+
+    // Listener to clear controls if released
+    this.socket.on('voreLog', function (msg) {
+        // Simple heuristic: if we have controls open, and log says "released", maybe close?
+        // Better: InteractionHandlers should emit specific 'clearVoreControls' or we infer from updates.
+        // If we receive playerUpdate and target is no longer consumed/stage 0, we can clear.
+        // But playerUpdate is frequent. 
+        // For now, relies on explicit handling in createPredatorVoreControls (it clears existing).
+        // If Action Ends, we need to clear. 
+        // The release button inside the controls clears itself.
+    });
+
     this.socket.on('collisionData', (blockedTiles) => {
         // blockedTiles is an array of {x, y} objects from the server
         // console.log('Received collision data:', blockedTiles);
@@ -379,31 +420,35 @@ export function create() {
         }
     });
 
-    // --- HillHome Transparency ---
-    this.socket.on('enterHillHome', () => {
-        console.log('Entering HillHome - Transparency ON');
-        if (self.mapLayers) {
-            // Assuming 'objects2' is the roof/upper layer based on map.js
-            // We need to find the layer by name or index.
-            // In map.js: scene.mapLayers = [grass, inside, objects, objects2, outsideWallLayer, bushes, trees];
-            // objects2 is index 3. outsideWallLayer is index 4.
-            // Let's try fading objects2 and outsideWallLayer.
-            const objects2 = self.mapLayers[3];
-            const outsideWallLayer = self.mapLayers[4];
+    // --- Zone-Based Transparency ---
+    this.socket.on('zoneUpdate', (data) => {
+        const currentZone = data.zone;
+        console.log(`[Zone] Entered: ${currentZone}`);
 
-            if (objects2) self.tweens.add({ targets: objects2, alpha: 0, duration: 500 });
-            if (outsideWallLayer) self.tweens.add({ targets: outsideWallLayer, alpha: 0, duration: 500 });
-        }
-    });
-
-    this.socket.on('exitHillHome', () => {
-        console.log('Exiting HillHome - Transparency OFF');
-        if (self.mapLayers) {
-            const objects2 = self.mapLayers[3];
-            const outsideWallLayer = self.mapLayers[4];
-
-            if (objects2) self.tweens.add({ targets: objects2, alpha: 1, duration: 500 });
-            if (outsideWallLayer) self.tweens.add({ targets: outsideWallLayer, alpha: 1, duration: 500 });
+        if (self.objectGroup) {
+            self.objectGroup.getChildren().forEach(sprite => {
+                if (sprite.clearZone) {
+                    // If sprite's clearZone matches current zone, fade OUT
+                    if (sprite.clearZone === currentZone) {
+                        if (sprite.alpha > 0) {
+                            self.tweens.add({
+                                targets: sprite,
+                                alpha: 0,
+                                duration: 150
+                            });
+                        }
+                    } else {
+                        // Otherwise, ensure it is faded IN
+                        if (sprite.alpha < 1) {
+                            self.tweens.add({
+                                targets: sprite,
+                                alpha: 1,
+                                duration: 250
+                            });
+                        }
+                    }
+                }
+            });
         }
     });
 

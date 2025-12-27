@@ -1,6 +1,18 @@
 export function createMap(scene) {
     //----- Loads the json  file and also the map tileset -----//
-    const map = scene.make.tilemap({ key: 'demo_map' });
+    const map = scene.make.tilemap({ key: 'dynamic_map' }); // Using the dynamic key
+    if (!map.tilesets || map.tilesets.length === 0) {
+        console.error("[createMap] No tilesets found in map data!");
+        const rawCache = scene.cache.tilemap.get('dynamic_map');
+        console.log("[createMap] Raw cache entry:", rawCache);
+        if (rawCache) {
+            console.log("[createMap] Raw Cache Data:", rawCache.data);
+        } else {
+            console.error("[createMap] Cache entry for 'dynamic_map' is missing!");
+        }
+    } else {
+        console.log(`[createMap] Found ${map.tilesets.length} tilesets in map.`);
+    }
 
     // 1. Identify Object Layers
     // Phaser puts all layers with type="objectgroup" into the 'objects' array.
@@ -11,20 +23,24 @@ export function createMap(scene) {
         });
     }
 
-    // 2. Identify Tilesets (Embedded or External)
+    // 2. Identify Tilesets and Load Images Dynamically
+    // developer_note:
+    // This loop iterates through every tileset defined in the map JSON.
+    // It attempts to finding a matching image key in Phaser's texture manager.
+    // If you see a "black screen" or missing tiles, it usually means the key in preload.js
+    // does not match the tileset name in Tiled.
     console.log("--- Tilesets Found ---");
     map.tilesets.forEach(tileset => {
         const hasCustomProps = tileset.tileProperties && Object.keys(tileset.tileProperties).length > 0;
-
         let type = 'Single Image Tileset';
-        // Peek at raw data to verify type (Collection of Images tilesets in Tiled JSON lack a top-level 'image' property)
-        const rawData = scene.cache.tilemap.get('demo_map').data;
+
+        // Peek at raw data to verify type
+        const tilemapCache = scene.cache.tilemap.get('dynamic_map');
+        const rawData = tilemapCache ? tilemapCache.data : null;
         if (rawData && rawData.tilesets) {
             const rawTileset = rawData.tilesets.find(t => t.name === tileset.name);
-            if (rawTileset) {
-                if (!rawTileset.image) {
-                    type = 'Collection of Images';
-                }
+            if (rawTileset && !rawTileset.image) {
+                type = 'Collection of Images';
             }
         }
 
@@ -32,10 +48,33 @@ export function createMap(scene) {
         console.log(`- Type: ${type}`);
         console.log(`- First GID: ${tileset.firstgid}`);
         console.log(`- Total Tiles: ${tileset.total}`);
-        console.log(`- Contains Custom Data: ${hasCustomProps ? 'Yes' : 'No'}`);
+
+        // --- Dynamic Image Binding ---
+        const tilesetName = tileset.name;
+        // We assume the image key in Phaser cache matches the tileset name from Tiled 
+        // SKIPPING Collection of Images (they don't use a single master image)
+        if (type === 'Collection of Images') {
+            console.log(`[createMap] Skipping addTilesetImage for '${tilesetName}' (Collection of Images)`);
+        } else if (scene.textures.exists(tilesetName)) {
+            console.log(`[createMap] Matched tileset '${tilesetName}' to image key '${tilesetName}'`);
+            map.addTilesetImage(tilesetName, tilesetName);
+        } else {
+            console.warn(`[createMap] WARNING: Could not find image key for tileset '${tilesetName}'. Checking for fallbacks...`);
+
+            // Legacy Fallback
+            if (tilesetName === 'Demo_tileset' && scene.textures.exists('tileset')) {
+                console.log(`[createMap] ...Found legacy 'tileset' image for '${tilesetName}'`);
+                map.addTilesetImage(tilesetName, 'tileset');
+            } else {
+                console.error(`[createMap] FAILED to load image for tileset: ${tilesetName}. Rendering might be incomplete.`);
+            }
+        }
     });
 
-    const tileset = map.addTilesetImage('Demo_tileset', 'tileset');
+    // Check if any tilesets failed to load
+    if (map.tilesets.length > 0 && !map.tilesets[0].image) {
+        console.log("[createMap] Tileset loading process complete (check for previous errors if black screen).");
+    }
 
     // --- THE AUTOMATION START ---
 
@@ -57,32 +96,49 @@ export function createMap(scene) {
     }
 
     //----- Loads a Dynamic Tilemap Layer -----//
+    // This seems to be a debug test sprite? Leaving it for now.
     const testTile = scene.add.sprite(3291, 4287, 'tilesetSprite', 8);
     testTile.depth = testTile.y - 92;
     // console.log('testTile = ', testTile);
 
     //----- Creates "layers" of different map tiles to be placed on top of one another -----//
-    const grass = map.createLayer('grass', tileset, 0, 0);
-    const inside = map.createLayer('inside', tileset, 0, 0);
-    const objects = map.createLayer('objects', tileset, 0, 0);
-    const objects2 = map.createLayer('objects2', tileset, 0, 0);
-    const outsideWallLayer = map.createLayer('outsideWallLayer', tileset, 0, 0);
-    const bushes = map.createLayer('bushes', tileset, 0, 0);
-    const trees = map.createLayer('trees', tileset, 0, 0);
+    // DYNAMIC LAYER LOADING REFACTOR
+    scene.mapLayers = [];
 
-    // Store layers for collision handling
-    scene.mapLayers = [grass, inside, objects, objects2, outsideWallLayer, bushes, trees];
+    map.layers.forEach((layerData, index) => {
+        // console.log(`Creating layer: ${layerData.name}`);
+        const layer = map.createLayer(layerData.name, map.tilesets, 0, 0);
 
-    // Enable collision for tiles with 'Blocked' property set to 'True'
-    scene.mapLayers.forEach(layer => {
         if (layer) {
-            layer.setCollisionByProperty({ Blocked: 'True' });
+            scene.mapLayers.push(layer);
+
+            // Check if this layer should have collision
+            // We check if any tile in the layer has collision enabled in Tiled
+            // Updated to 'blocked' (lowercase) and boolean true
+            layer.setCollisionByProperty({ blocked: true });
+
+            // Set depth based on Tiled order or custom logic
+            // Default behavior: layers render in order of creation.
+            // If explicit depth is needed, we can set it.
+            // For now, let's keep the 'grass' behavior (depth -6) if named grass, otherwise standard.
+            if (layerData.name === 'grass') {
+                layer.depth = -6;
+            } else {
+                layer.depth = 0; // Default
+            }
+
+            // Hillhome handling (Example usage from previous code)
+            // If the layer is 'objects2', the original code made it fade.
+            // We'll rely on index or name if that feature is needed, but the server event handles transparency via scene.mapLayers index.
+            // Since we push in order, the indexes should align IF the map file has the same structure.
+            // If not, we might need a more robust way to identify "Roof" layers.
+
+            // Hide 'zones' layer by default
+            if (layerData.name.toLowerCase().includes('zones')) {
+                layer.alpha = 0;
+            }
         }
     });
-
-    // Set depths
-    grass.depth = -6;
-    // Other layers depth defaults to 0 or based on Y if needed, but here they seem to be 0 except grass.
 
     scene.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
 
@@ -106,7 +162,7 @@ function buildObjectLayer(scene, map, layerName) {
     // We store them as an array of ranges to perform GID-based lookups.
     // This bypasses the issue where Phaser splits "Collection of Images" into multiple tilesets, breaking name/ID matching.
     const rawTilesets = [];
-    const rawMapData = scene.cache.tilemap.get('demo_map').data;
+    const rawMapData = scene.cache.tilemap.get('dynamic_map').data;
 
     if (rawMapData && rawMapData.tilesets) {
         rawMapData.tilesets.forEach(rawTs => {
@@ -153,10 +209,18 @@ function buildObjectLayer(scene, map, layerName) {
         let tileProps = {};
         let usedLocalID = -1;
         let rawImage = null;
-
-        // 1. Find Raw Tileset by GID Range
-        // This is the robust link between Object GID and Original Tiled Data
-        const rawTs = rawTilesets.find(ts => obj.gid >= ts.firstgid && obj.gid < (ts.firstgid + ts.tilecount));
+        // 1. Find Raw Tileset
+        // developer_note:
+        // We find the tileset with the highest firstgid that is <= obj.gid.
+        // This is CRITICAL for "Collection of Images" tilesets (like 'alpha_objects') because:
+        // 1. Tiled assigns IDs sparsely (e.g., skips from ID 5 to ID 30).
+        // 2. The 'tilecount' property might be smaller than the ID range (e.g., 27 items, but highest ID is 30).
+        // 3. Standard 'ranges' (firstGid to firstGid + count) fail for these sparse IDs.
+        // By finding the nearest 'start point' (firstGid) below the object's GID, we correctly identify the parent tileset.
+        const rawTs = rawTilesets
+            .slice()
+            .reverse()
+            .find(ts => obj.gid >= ts.firstgid);
 
         if (rawTs) {
             // Calculate TRUE local ID relative to the original collection
@@ -245,7 +309,8 @@ function buildObjectLayer(scene, map, layerName) {
         // 4. Apply "Smart" Configuration
 
         // Default Origin/Depth
-        sprite.setOrigin(0.5, 1);
+        // Updated to Bottom Left (0, 1) to match Tiled default
+        sprite.setOrigin(0, 1);
         sprite.setDepth(sprite.y);
 
         let customCollisionApplied = false;
@@ -289,5 +354,63 @@ function buildObjectLayer(scene, map, layerName) {
             name: tileProps.name || obj.name || textureKey, // Use Tiled object name, tile property name, or texture
             description: tileProps.description || tileProps.desc || tileProps.icDescrip || 'It is a ' + (obj.type || 'object') + '.'
         };
+
+        // --- Zone Transparency Prop ---
+        // Store 'clearZone' on the sprite for the zoneUpdate listener
+        // Priority: Object Property > Tile Property
+        // Note: Tiled Object properties are in 'obj.properties' (array of objects {name, value}).
+        // Depending on Phaser version/loader, obj.properties might be normalized. 
+        // Let's check obj.properties if it exists.
+
+        let clearZone = null;
+        if (obj.properties) {
+            // Check object-level custom properties
+            if (Array.isArray(obj.properties)) {
+                const p = obj.properties.find(prop => prop.name === 'clearZone');
+                if (p) clearZone = p.value;
+            } else {
+                // Format might be object if Phaser normalized it
+                if (obj.properties.clearZone) clearZone = obj.properties.clearZone;
+            }
+        }
+
+        // Fallback to Tile Property if not on Object
+        if (!clearZone && tileProps && tileProps.clearZone) {
+            clearZone = tileProps.clearZone;
+        }
+
+        if (clearZone) {
+            sprite.clearZone = clearZone;
+            // console.log(`[World Builder] Object ${sprite.objectInfo.name} assigned clearZone: ${clearZone}`);
+        }
+
+        // --- Blocked Property (Collision) ---
+        // Priority: Object Property > Tile Property
+        let isBlocked = true; // Default to blocked (collidable)
+
+        let blockedProp = null;
+        if (obj.properties) {
+            if (Array.isArray(obj.properties)) {
+                const p = obj.properties.find(prop => prop.name === 'blocked');
+                if (p) blockedProp = p.value;
+            } else {
+                if (obj.properties.blocked !== undefined) blockedProp = obj.properties.blocked;
+            }
+        }
+
+        // If not found on object, check tile
+        if (blockedProp === null && tileProps && tileProps.blocked !== undefined) {
+            blockedProp = tileProps.blocked;
+        }
+
+        // Interpret value (handle string "false" from Tiled sometimes)
+        if (blockedProp === false || blockedProp === 'false') {
+            isBlocked = false;
+        }
+
+        if (!isBlocked) {
+            sprite.body.enable = false;
+            // console.log(`[World Builder] Disabled collision for ${sprite.objectInfo.name}`);
+        }
     });
 }

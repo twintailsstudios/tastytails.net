@@ -12,6 +12,9 @@ export function createVoreList(voreTypes, self) {
 
     // 1. Render the Accordion List
     voreTypes.forEach((vore, index) => {
+        // Filter out nodes that are NOT destinations (e.g. Entrances)
+        if (vore.isEntrance) return;
+
         // Create Card
         const card = document.createElement("div");
         card.className = "anatomy-card";
@@ -122,26 +125,29 @@ export function createVoreList(voreTypes, self) {
         };
 
         // Restore State
+        // Restore State check
         if (openIds.has(vore._id)) {
             btn.classList.add("is-open");
-            // Use timeout to allow render to finish for scrollHeight
+            // Disable transition temporarily to snap open
+            panel.style.transition = 'none';
+            panel.style.maxHeight = 'none'; // Allow it to expand fully to calculate height naturally if needed, or just keep it open?
+            // Actually, accordions usually need specific height for transition to close. 
+            // But for opening INSTANTLY, we can just set it. 
+            // We need to read scrollHeight to set the specific pixel value so it can close later with animation.
+
+            // Force a reflow to ensure scrollHeight is ready? 
+            // It's already appended.
+            const height = panel.scrollHeight;
+            panel.style.maxHeight = height + "px";
+
+            // Re-enable transition after a microtask to ensure the 'none' applied for the initial paint
             setTimeout(() => {
-                panel.style.maxHeight = panel.scrollHeight + "px";
-            }, 0);
+                panel.style.transition = '';
+            }, 10);
         }
     });
 
-    // 2. Setup "Add New" Button
-    const addBtn = document.getElementById("addVoreBtn");
-    if (addBtn) {
-        // Remove old listeners to prevent duplicates if re-run
-        const newBtn = addBtn.cloneNode(true);
-        addBtn.parentNode.replaceChild(newBtn, addBtn);
-        newBtn.onclick = () => {
-            // Open modal with empty/default data
-            openSettings(null, self);
-        };
-    }
+
 
     // 3. Setup Modal Logic (Global listeners, run once)
     setupModalListeners(self);
@@ -186,12 +192,11 @@ function updateVoreMode(id, mode, self) {
     }
 
     // Emit socket event
-    self.socket.emit('voreModeUpdate', { id, mode });
+    self.socket.emit('updateVoreType', { id, mode });
 }
 
-// --- MODAL LOGIC ---
+// --- MODAL LOGIC (Refactored for Anatomy Forge) ---
 
-let currentEditingId = null;
 let modalInitialized = false;
 
 function setupModalListeners(self) {
@@ -199,159 +204,59 @@ function setupModalListeners(self) {
 
     const modal = document.getElementById("settingsModal");
     const closeBtn = modal.querySelector(".close");
-    const saveBtn = document.getElementById("saveSettingsBtn");
-    const tabs = modal.querySelectorAll(".modal-tab");
 
-    // Close Modal
-    closeBtn.onclick = () => modal.style.display = "none";
-    window.onclick = (event) => {
-        if (event.target == modal) modal.style.display = "none";
-    };
+    // Fix Layering: Move modal to body to escape sidePanel stacking context
+    if (modal && modal.parentNode !== document.body) {
+        document.body.appendChild(modal);
+    }
 
-    // Tab Switching
-    tabs.forEach(tab => {
-        tab.onclick = () => {
-            // Deactivate all
-            tabs.forEach(t => t.classList.remove("active"));
-            document.querySelectorAll(".tab-content").forEach(c => c.style.display = "none");
-
-            // Activate clicked
-            tab.classList.add("active");
-            const target = tab.getAttribute("data-target");
-            document.getElementById(`tab-${target}`).style.display = "block";
-        };
-    });
-
-    // Save Button
-    saveBtn.onclick = () => {
-        saveSettings(self);
+    // Close Modal Logic
+    const closeModal = () => {
         modal.style.display = "none";
+        // Optional: Reset Forge state or selection if needed
     };
+
+    if (closeBtn) closeBtn.onclick = closeModal;
+
+    window.onclick = (event) => {
+        if (event.target == modal) closeModal();
+    };
+
+    // Open Main Forge Button (from Vore Dashboard Header)
+    const openForgeBtn = document.getElementById("openAnatomyForgeBtn");
+    if (openForgeBtn) {
+        openForgeBtn.onclick = () => {
+            openSettings(null, self);
+        };
+    }
 
     modalInitialized = true;
 }
 
-let initialVoreData = {};
-
 function openSettings(voreData, self) {
     const modal = document.getElementById("settingsModal");
-    const form = document.getElementById("settingsForm");
+    modal.style.display = "block";
 
-    // Reset Tabs
-    document.querySelectorAll(".modal-tab").forEach(t => t.classList.remove("active"));
-    document.querySelectorAll(".tab-content").forEach(c => c.style.display = "none");
-    document.querySelector(".modal-tab[data-target='general']").classList.add("active");
-    document.getElementById("tab-general").style.display = "block";
+    // Trigger Resize for Anatomy Forge since it was hidden
+    if (window.AnatomyForge && typeof window.AnatomyForge.resize === 'function') {
+        // slight delay to ensure display:block applies
+        setTimeout(() => {
+            window.AnatomyForge.resize();
+        }, 50);
+    }
 
     if (voreData) {
-        // EDIT MODE
-        currentEditingId = voreData._id;
-        document.getElementById("modalTitle").innerText = `Edit ${voreData.destination}`;
-
-        document.getElementById("editId").value = voreData._id;
-        document.getElementById("editName").value = voreData.destination || "";
-        document.getElementById("editVerb").value = voreData.verb || "";
-        document.getElementById("editTimer").value = voreData.digestionTimer || 120;
-        document.getElementById("editAnimation").value = voreData.animation || 1;
-        document.getElementById("editMode").value = voreData.mode || "Hold";
-
-        document.getElementById("editDesc").value = voreData.destinationDescrip || "";
-        document.getElementById("editExamine").value = voreData.examineMsgDescrip || "";
-
-        document.getElementById("editStruggleIn").value = voreData.struggleInsideMsgDescrip || "";
-        document.getElementById("editStruggleOut").value = voreData.struggleOutsideMsgDescrip || "";
-        document.getElementById("editDigestIn").value = voreData.digestionInsideMsgDescrip || "";
-        document.getElementById("editDigestOut").value = voreData.digestionOutsideMsgDescrip || "";
-
-        // Audio (Mock data for now)
-        document.getElementById("editEntrySound").value = voreData.audioEntry || "none";
-        document.getElementById("editAmbientSound").value = voreData.audioAmbient || "none";
-        document.getElementById("editStruggleSound").value = voreData.audioStruggle || "none";
-        document.getElementById("editExitSound").value = voreData.audioExit || "none";
-
-        // Store initial state for change detection
-        initialVoreData = {
-            id: voreData._id,
-            destination: voreData.destination || "",
-            verb: voreData.verb || "",
-            digestionTimer: String(voreData.digestionTimer || 120),
-            animation: String(voreData.animation || 1),
-            mode: voreData.mode || "Hold",
-            destinationDescrip: voreData.destinationDescrip || "",
-            examineMsgDescrip: voreData.examineMsgDescrip || "",
-            struggleInsideMsgDescrip: voreData.struggleInsideMsgDescrip || "",
-            struggleOutsideMsgDescrip: voreData.struggleOutsideMsgDescrip || "",
-            digestionInsideMsgDescrip: voreData.digestionInsideMsgDescrip || "",
-            digestionOutsideMsgDescrip: voreData.digestionOutsideMsgDescrip || "",
-            audioEntry: voreData.audioEntry || "none",
-            audioAmbient: voreData.audioAmbient || "none",
-            audioStruggle: voreData.audioStruggle || "none",
-            audioExit: voreData.audioExit || "none"
-        };
-
+        console.log("Opening Forge for specific destination:", voreData._id);
+        // TODO: In future, tell AnatomyForge to focus/select this node
+        // e.g. AnatomyForge.selectNode(voreData._id);
     } else {
-        // CREATE MODE
-        currentEditingId = "NEW";
-        document.getElementById("modalTitle").innerText = "Create New Destination";
-        form.reset();
-        document.getElementById("editId").value = "NEW";
-        initialVoreData = {}; // No initial data for new entry
+        console.log("Opening Forge (General)");
     }
-
-    modal.style.display = "block";
 }
 
+// Deprecated: saveSettings was replaced by AnatomyForge's internal save logic
 function saveSettings(self) {
-    const data = {
-        id: document.getElementById("editId").value,
-        destination: document.getElementById("editName").value,
-        verb: document.getElementById("editVerb").value,
-        digestionTimer: document.getElementById("editTimer").value,
-        animation: document.getElementById("editAnimation").value,
-        mode: document.getElementById("editMode").value,
-
-        destinationDescrip: document.getElementById("editDesc").value,
-        examineMsgDescrip: document.getElementById("editExamine").value,
-
-        struggleInsideMsgDescrip: document.getElementById("editStruggleIn").value,
-        struggleOutsideMsgDescrip: document.getElementById("editStruggleOut").value,
-        digestionInsideMsgDescrip: document.getElementById("editDigestIn").value,
-        digestionOutsideMsgDescrip: document.getElementById("editDigestOut").value,
-
-        audioEntry: document.getElementById("editEntrySound").value,
-        audioAmbient: document.getElementById("editAmbientSound").value,
-        audioStruggle: document.getElementById("editStruggleSound").value,
-        audioExit: document.getElementById("editExitSound").value,
-
-        // Auth
-        token: document.cookie.replace('TastyTails=', ''),
-        charId: document.location.href.split('play/')[1]
-    };
-
-    // Check for changes
-    if (data.id !== "NEW") {
-        let hasChanges = false;
-        for (const key in initialVoreData) {
-            if (initialVoreData[key] !== data[key]) {
-                hasChanges = true;
-                break;
-            }
-        }
-
-        if (!hasChanges) {
-            console.log("No changes detected.");
-            return;
-        }
-    }
-
-    console.log("Saving Vore Settings:", data);
-
-    // Emit to server
-    if (data.id === "NEW") {
-        self.socket.emit('addVoreType', data);
-    } else {
-        self.socket.emit('updateVoreType', data);
-    }
+    console.warn("saveSettings called but functionality moved to Anatomy Forge.");
 }
 
 // Global helper for audio preview (called by inline onclick)
@@ -383,6 +288,82 @@ window.toggleAudioPreview = function (btn, type) {
 // --- Struggle Button UI ---
 // This function creates or removes the "Struggle" button for consumed players.
 // It is called from create.js when the player's consumed status changes.
+// --- Predator Controls UI ---
+export function createPredatorVoreControls(data, socket) {
+    removePredatorVoreControls();
+
+    // If Stage is not 1 or 2, we don't show controls. 
+    // Stage 0 = Released/None. Stage 3+ = Full Consumption.
+    if (!data.stage || data.stage <= 0 || data.stage >= 3) return;
+
+    const container = document.createElement('div');
+    container.id = 'predator-controls';
+    container.style.position = 'absolute';
+    container.style.bottom = '150px';
+    container.style.left = '50%';
+    container.style.transform = 'translateX(-50%)';
+    container.style.display = 'flex';
+    container.style.gap = '10px';
+    container.style.zIndex = '1000';
+
+    // Buttons style helper
+    const btnStyle = (bg) => `
+        padding: 10px 20px;
+        font-size: 16px; 
+        font-weight: bold; 
+        color: white; 
+        background-color: ${bg}; 
+        border: none; 
+        border-radius: 5px; 
+        cursor: pointer;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    `;
+
+    // 1. Release Button (Available in Stage 1 ONLY)
+    if (data.stage === 1) {
+        const releaseBtn = document.createElement('button');
+        releaseBtn.innerText = 'Release';
+        releaseBtn.style.cssText = btnStyle('#d9534f'); // Red
+        releaseBtn.onclick = () => {
+            // Emit release event (needs separate listener or update releaseVoreTarget)
+            // For now using releaseClicked generic or new one? 
+            // releaseVoreTarget expects voreTypeId. We might not have it here easily unless passed in data.
+            // We passed `nodeName`? 
+            // But `releaseClicked` works on targetId.
+            socket.emit('releaseClicked', { playerId: data.playerId });
+            removePredatorVoreControls();
+        };
+        container.appendChild(releaseBtn);
+    }
+
+    // 2. Reverse Button (Available in Stage 2)
+    if (data.stage === 2) {
+        const reverseBtn = document.createElement('button');
+        reverseBtn.innerText = 'Reverse';
+        reverseBtn.style.cssText = btnStyle('#f0ad4e'); // Orange
+        reverseBtn.onclick = () => {
+            socket.emit('advanceVoreStage', { targetId: data.playerId, direction: 'backward' });
+        };
+        container.appendChild(reverseBtn);
+    }
+
+    // 3. Proceed Button (Available in Stage 1 & 2)
+    const proceedBtn = document.createElement('button');
+    proceedBtn.innerText = 'Proceed';
+    proceedBtn.style.cssText = btnStyle('#5cb85c'); // Green
+    proceedBtn.onclick = () => {
+        socket.emit('advanceVoreStage', { targetId: data.playerId, direction: 'forward' });
+    };
+    container.appendChild(proceedBtn);
+
+    document.body.appendChild(container);
+}
+
+export function removePredatorVoreControls() {
+    const existing = document.getElementById('predator-controls');
+    if (existing) existing.remove();
+}
+
 export function createStruggleButton(isConsumed, socket) {
     let struggleBtn = document.getElementById('struggle-btn');
 

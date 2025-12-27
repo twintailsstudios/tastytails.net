@@ -1,0 +1,1711 @@
+{
+    "sprites": {
+        "tail_01": {
+            "internal_id": "tail_vulpine_style",
+            "visual_primitives": {
+                "shape": [
+                    "brush",
+                    "plume",
+                    "voluminous",
+                    "tapered",
+                    "tear-drop"
+                ],
+                "texture": [
+                    "bushy",
+                    "thick",
+                    "luxuriant",
+                    "dense",
+                    "coarse"
+                ],
+                "motion": [
+                    "sweeping",
+                    "swishing",
+                    "counter-balancing",
+                    "lofting"
+                ],
+                "state": [
+                    "puffed",
+                    "bristled",
+                    "sleeked",
+                    "wrapped"
+                ]
+            },
+            "negatives": [
+                "skinny",
+                "whip-like",
+                "prehensile",
+                "docked",
+                "coiled",
+                "scaled"
+            ]
+        },
+        "tail_02": {
+            "internal_id": "tail_canine_style",
+            "visual_primitives": {
+                "shape": [
+                    "feathered",
+                    "flag-like",
+                    "fringed",
+                    "broad"
+                ],
+                "texture": [
+                    "silky",
+                    "flowing",
+                    "soft",
+                    "draping"
+                ],
+                "motion": [
+                    "wagging",
+                    "swaying",
+                    "beating",
+                    "lashing"
+                ],
+                "acoustics": [
+                    "thumping",
+                    "drumming",
+                    "swish",
+                    "heavy-impact"
+                ]
+            },
+            "negatives": [
+                "bushy",
+                "bottle-brush",
+                "coiled",
+                "prehensile",
+                "stiff"
+            ]
+        },
+        "tail_03": {
+            "internal_id": "tail_feline_style",
+            "visual_primitives": {
+                "shape": [
+                    "sinuous",
+                    "tubular",
+                    "slender",
+                    "whip-like",
+                    "tapered"
+                ],
+                "texture": [
+                    "sleek",
+                    "smooth",
+                    "velvety",
+                    "glossy"
+                ],
+                "motion": [
+                    "lashing",
+                    "flicking",
+                    "twitching",
+                    "wrapping",
+                    "undulating"
+                ],
+                "state": [
+                    "held high",
+                    "curled",
+                    "question-mark shape",
+                    "trailing"
+                ]
+            },
+            "negatives": [
+                "bushy",
+                "plumed",
+                "shaggy",
+                "stiff",
+                "feathered",
+                "bobbed"
+            ]
+        },
+        "tail_04": {
+            "internal_id": "tail_lagomorph_style",
+            "visual_primitives": {
+                "shape": [
+                    "scut",
+                    "pom-pom",
+                    "nub",
+                    "sphere",
+                    "rounded-tuft"
+                ],
+                "texture": [
+                    "cottony",
+                    "plush",
+                    "dense",
+                    "woolly",
+                    "soft"
+                ],
+                "motion": [
+                    "twitching",
+                    "bobbing",
+                    "quivering",
+                    "wiggling"
+                ],
+                "visibility": [
+                    "unobtrusive",
+                    "small",
+                    "compact",
+                    "tucked"
+                ]
+            },
+            "negatives": [
+                "long",
+                "sweeping",
+                "swishing",
+                "prehensile",
+                "whip-like",
+                "dragging"
+            ]
+        },
+        "tail_05": {
+            "internal_id": "tail_avian_style",
+            "visual_primitives": {
+                "shape": [
+                    "fan-shaped",
+                    "wedge-shaped",
+                    "layered",
+                    "tiered",
+                    "spade-like"
+                ],
+                "texture": [
+                    "plumed",
+                    "rigid",
+                    "sleek",
+                    "glossy",
+                    "stiff"
+                ],
+                "motion": [
+                    "steering",
+                    "balancing",
+                    "banking",
+                    "rudder-like"
+                ],
+                "state": [
+                    "fanned",
+                    "flared",
+                    "folded",
+                    "spread",
+                    "compressed"
+                ]
+            },
+            "negatives": [
+                "furry",
+                "bushy",
+                "curly",
+                "prehensile",
+                "wagging",
+                "soft"
+            ]
+        },
+        "tail_06": {
+            "internal_id": "tail_reptile_heavy",
+            "visual_primitives": {
+                "shape": [
+                    "thick-based",
+                    "conical",
+                    "muscular",
+                    "tapered",
+                    "ridged",
+                    "thick-girth",
+                    "thicc"
+                ],
+                "texture": [
+                    "scaled",
+                    "plated",
+                    "armored",
+                    "rough",
+                    "hard"
+                ],
+                "motion": [
+                    "thrashing",
+                    "dragging",
+                    "slashing",
+                    "whipping",
+                    "sweeping"
+                ],
+                "physics": [
+                    "heavy",
+                    "massive",
+                    "rigid-base",
+                    "bludgeoning"
+                ]
+            },
+            "negatives": [
+                "fluffy",
+                "curly",
+                "wagging",
+                "soft",
+                "tufted",
+                "prehensile",
+                "light"
+            ]
+        },
+        "tail_07": {
+            "internal_id": "tail_equine_style",
+            "visual_primitives": {
+                "shape": [
+                    "docked-base",
+                    "cascading",
+                    "flowing",
+                    "waterfall-shape"
+                ],
+                "texture": [
+                    "coarse",
+                    "thick-stranded",
+                    "heavy",
+                    "fibrous"
+                ],
+                "motion": [
+                    "swatting",
+                    "whisking",
+                    "streaming",
+                    "flagging"
+                ],
+                "style": [
+                    "braided",
+                    "bound",
+                    "loose",
+                    "knotted"
+                ]
+            },
+            "negatives": [
+                "bushy",
+                "puffed",
+                "tubular",
+                "prehensile",
+                "stiff",
+                "scaled"
+            ]
+        },
+        "tail_08": {
+            "internal_id": "tail_marsupial_style",
+            "visual_primitives": {
+                "shape": [
+                    "prehensile",
+                    "tapered",
+                    "coiling",
+                    "long",
+                    "tubular",
+                    "girthy",
+                    "thicc"
+                ],
+                "texture": [
+                    "hairless",
+                    "naked",
+                    "leathery",
+                    "ringed-scales",
+                    "high-friction"
+                ],
+                "motion": [
+                    "grasping",
+                    "hanging",
+                    "anchoring",
+                    "wrapping",
+                    "holding"
+                ],
+                "state": [
+                    "curled",
+                    "extended",
+                    "gripping",
+                    "relaxed"
+                ]
+            },
+            "negatives": [
+                "fluffy",
+                "bushy",
+                "plumed",
+                "rigid",
+                "slippery",
+                "furry"
+            ]
+        },
+        "tail_09": {
+            "internal_id": "tail_rodent_style",
+            "visual_primitives": {
+                "shape": [
+                    "whip-thin",
+                    "cord-like",
+                    "filament",
+                    "long",
+                    "slender"
+                ],
+                "texture": [
+                    "naked",
+                    "annulated",
+                    "ringed-scales",
+                    "smooth-skinned"
+                ],
+                "motion": [
+                    "twitching",
+                    "trailing",
+                    "whipping",
+                    "balancing"
+                ],
+                "sensation": [
+                    "sensitive",
+                    "warm",
+                    "exposed",
+                    "tactile"
+                ]
+            },
+            "negatives": [
+                "fluffy",
+                "bushy",
+                "thick",
+                "muscular",
+                "heavy",
+                "fan-shaped"
+            ]
+        },
+        "tail_10": {
+            "internal_id": "tail_arthropod_abdomen_style",
+            "visual_primitives": {
+                "shape": [
+                    "bulbous",
+                    "segmented",
+                    "plump",
+                    "elongated",
+                    "oval"
+                ],
+                "texture": [
+                    "chitinous",
+                    "velvety",
+                    "iridescent",
+                    "fuzzy",
+                    "hard-shelled"
+                ],
+                "motion": [
+                    "pulsing",
+                    "bobbing",
+                    "swelling",
+                    "quivering"
+                ],
+                "mechanism": [
+                    "stinger",
+                    "spinneret",
+                    "bioluminescent",
+                    "silk-gland"
+                ]
+            },
+            "negatives": [
+                "wagging",
+                "vertebrate",
+                "bony",
+                "furry",
+                "prehensile",
+                "spine"
+            ]
+        },
+        "secondary_tail_01": {
+            "internal_id": "tail_pattern_tiger",
+            "visual_primitives": {
+                "shape": [
+                    "ringed",
+                    "banded",
+                    "transverse stripes",
+                    "barred",
+                    "hoops"
+                ],
+                "coverage": [
+                    "full-length",
+                    "encircling",
+                    "repeating",
+                    "alternating"
+                ],
+                "mimicry": [
+                    "tabby",
+                    "tiger-striped",
+                    "raccoon-ringed",
+                    "lemur-like"
+                ],
+                "style": [
+                    "broken-silhouette",
+                    "bold",
+                    "striking",
+                    "high-contrast"
+                ]
+            },
+            "negatives": [
+                "lengthwise stripe",
+                "spotted",
+                "solid",
+                "tipped",
+                "skunk-stripe"
+            ]
+        },
+        "secondary_tail_02": {
+            "internal_id": "tail_pattern_raccoon",
+            "visual_primitives": {
+                "shape": [
+                    "concentric rings",
+                    "block-bands",
+                    "hoops",
+                    "annular"
+                ],
+                "cadence": [
+                    "uniform",
+                    "repeating",
+                    "A-B-A-B",
+                    "rhythmic"
+                ],
+                "style": [
+                    "bandit-style",
+                    "bold",
+                    "geometric",
+                    "graphic"
+                ],
+                "coverage": [
+                    "full-length",
+                    "encircling"
+                ]
+            },
+            "negatives": [
+                "irregular",
+                "jagged",
+                "thin-striped",
+                "spotted",
+                "broken"
+            ]
+        },
+        "secondary_tail_03": {
+            "internal_id": "tail_pattern_spots",
+            "visual_primitives": {
+                "shape": [
+                    "spotted",
+                    "splotched",
+                    "dappled",
+                    "mottled",
+                    "irregular-dots"
+                ],
+                "density": [
+                    "scattered",
+                    "peppered",
+                    "flecked",
+                    "dense"
+                ],
+                "mimicry": [
+                    "camouflaged",
+                    "leopard-print",
+                    "cheetah-spots",
+                    "warning-dots"
+                ],
+                "style": [
+                    "organic",
+                    "natural",
+                    "wild",
+                    "broken"
+                ]
+            },
+            "negatives": [
+                "striped",
+                "banded",
+                "geometric",
+                "polka-dot",
+                "uniform",
+                "linear"
+            ]
+        },
+        "secondary_tail_04": {
+            "internal_id": "tail_pattern_tip",
+            "visual_primitives": {
+                "shape": [
+                    "tipped",
+                    "dipped",
+                    "apical-spot",
+                    "terminal-cap"
+                ],
+                "style": [
+                    "paint-dipped",
+                    "frosted-end",
+                    "snow-capped",
+                    "candle-flame"
+                ],
+                "function": [
+                    "signaling",
+                    "flagging",
+                    "beacon",
+                    "high-visibility"
+                ],
+                "coverage": [
+                    "distal-only",
+                    "minimal",
+                    "end-point"
+                ]
+            },
+            "negatives": [
+                "striped",
+                "ringed",
+                "full-color",
+                "base-color",
+                "spotted"
+            ]
+        },
+        "secondary_tail_05": {
+            "internal_id": "tail_pattern_underside",
+            "visual_primitives": {
+                "shape": [
+                    "ventral-stripe",
+                    "underside",
+                    "counter-shaded",
+                    "bottom-layer"
+                ],
+                "zone": [
+                    "ventral",
+                    "beneath",
+                    "inner-curl",
+                    "belly-extension"
+                ],
+                "dynamic_visibility": [
+                    "flash-signal",
+                    "hidden-when-low",
+                    "visible-when-raised"
+                ],
+                "style": [
+                    "natural",
+                    "soft-belly",
+                    "deer-flag",
+                    "cryptic"
+                ]
+            },
+            "negatives": [
+                "dorsal-stripe",
+                "skunk-stripe",
+                "ringed",
+                "top-color",
+                "full-wrap"
+            ]
+        },
+        "secondary_tail_06": {
+            "internal_id": "tail_pattern_dorsal_stripe",
+            "visual_primitives": {
+                "shape": [
+                    "dorsal-stripe",
+                    "spine-line",
+                    "longitudinal",
+                    "racing-stripe"
+                ],
+                "zone": [
+                    "top-side",
+                    "ridge",
+                    "vertebral-line"
+                ],
+                "continuity": [
+                    "spine-connected",
+                    "head-to-tail",
+                    "unbroken"
+                ],
+                "style": [
+                    "skunk-stripe",
+                    "badger-mark",
+                    "bold",
+                    "warning"
+                ]
+            },
+            "negatives": [
+                "ventral",
+                "ringed",
+                "transverse",
+                "spotted",
+                "underbelly"
+            ]
+        },
+        "secondary_01": {
+            "internal_id": "pattern_half_mask",
+            "visual_primitives": {
+                "shape": [
+                    "lower-mask",
+                    "horizontal-split",
+                    "jaw-line-cut",
+                    "counter-shaded"
+                ],
+                "zones": [
+                    "muzzle",
+                    "chin",
+                    "throat",
+                    "lower-cheeks",
+                    "inner-ear"
+                ],
+                "style": [
+                    "natural",
+                    "soft-edged",
+                    "frosted",
+                    "gradient"
+                ],
+                "mimicry": [
+                    "wolf-underside",
+                    "deer-belly",
+                    "fox-throat"
+                ]
+            },
+            "negatives": [
+                "eye-mask",
+                "blaze",
+                "forehead",
+                "full-face",
+                "bandit-mask"
+            ]
+        },
+        "secondary_02": {
+            "internal_id": "pattern_full_mask",
+            "visual_primitives": {
+                "shape": [
+                    "t-shaped",
+                    "bridge-spanning",
+                    "cruciform",
+                    "pillar",
+                    "connected"
+                ],
+                "zones": [
+                    "muzzle",
+                    "nose-bridge",
+                    "forehead",
+                    "center-face",
+                    "jaw"
+                ],
+                "style": [
+                    "continuous",
+                    "vertical-flow",
+                    "bold",
+                    "distinct"
+                ],
+                "mimicry": [
+                    "bull-terrier",
+                    "badger-face",
+                    "inverse-spectacles"
+                ]
+            },
+            "negatives": [
+                "separated",
+                "broken",
+                "lower-only",
+                "upper-only",
+                "spotted",
+                "goggles"
+            ]
+        },
+        "secondary_03": {
+            "internal_id": "pattern_single_stripe",
+            "visual_primitives": {
+                "shape": [
+                    "central-stripe",
+                    "racing-stripe",
+                    "vertical-band",
+                    "bisecting-line",
+                    "upward-sweeping"
+                ],
+                "zones": [
+                    "snout-ridge",
+                    "forehead",
+                    "crown",
+                    "scalp"
+                ],
+                "style": [
+                    "clean",
+                    "sharp",
+                    "bold",
+                    "geometric",
+                    "linear"
+                ],
+                "mimicry": [
+                    "skunk-stripe",
+                    "blaze-mark",
+                    "horse-blaze"
+                ]
+            },
+            "negatives": [
+                "mask",
+                "spreading",
+                "wide",
+                "cheek-color",
+                "horizontal",
+                "eye-rings"
+            ]
+        },
+        "secondary_04": {
+            "internal_id": "pattern_around_eyes",
+            "visual_primitives": {
+                "shape": [
+                    "spectacled",
+                    "eye-rings",
+                    "owl-faced",
+                    "high-mask",
+                    "open-center"
+                ],
+                "zones": [
+                    "periorbital",
+                    "eye-sockets",
+                    "upper-cheeks",
+                    "brow"
+                ],
+                "style": [
+                    "open",
+                    "friendly",
+                    "expressive",
+                    "bright-faced"
+                ],
+                "mimicry": [
+                    "husky-mask",
+                    "raccoon-bandit",
+                    "panda-eyes",
+                    "spectacled-bear"
+                ]
+            },
+            "negatives": [
+                "widow-peak",
+                "t-shape",
+                "blaze",
+                "connected-mask",
+                "forehead-stripe"
+            ]
+        },
+        "secondary_05": {
+            "internal_id": "pattern_snout_only",
+            "visual_primitives": {
+                "shape": [
+                    "dipped",
+                    "snout-tip",
+                    "apical-spot",
+                    "frosted-end",
+                    "kiss-mark"
+                ],
+                "zones": [
+                    "muzzle-tip",
+                    "nose-surround",
+                    "upper-lip-center"
+                ],
+                "style": [
+                    "minimal",
+                    "subtle",
+                    "accented",
+                    "focal",
+                    "soft-edged"
+                ],
+                "mimicry": [
+                    "siamese-point",
+                    "fox-muzzle",
+                    "milk-dipped"
+                ]
+            },
+            "negatives": [
+                "mask",
+                "cheek-color",
+                "forehead-stripe",
+                "eye-color",
+                "broad",
+                "jaw-line"
+            ]
+        },
+        "ears_01": {
+            "internal_id": "ears_vulpine_style",
+            "visual_primitives": {
+                "shape": [
+                    "triangular",
+                    "tapered",
+                    "upright",
+                    "prominent",
+                    "pointed",
+                    "large-pinnae"
+                ],
+                "texture": [
+                    "tufted-inner",
+                    "fur-lined",
+                    "plush",
+                    "soft"
+                ],
+                "motion": [
+                    "swiveling",
+                    "perked",
+                    "alert",
+                    "twitching"
+                ]
+            },
+            "negatives": [
+                "floppy",
+                "rounded",
+                "small",
+                "folded",
+                "drooping"
+            ]
+        },
+        "ears_02": {
+            "internal_id": "ears_floppy_canine_style",
+            "visual_primitives": {
+                "shape": [
+                    "folded",
+                    "floppy",
+                    "drooping",
+                    "rounded-tip",
+                    "draped"
+                ],
+                "texture": [
+                    "silky",
+                    "feathered-edges",
+                    "dense-fur",
+                    "soft"
+                ],
+                "motion": [
+                    "swaying",
+                    "heavy",
+                    "bouncing",
+                    "passive"
+                ]
+            },
+            "negatives": [
+                "upright",
+                "pointed",
+                "rigid",
+                "triangular",
+                "alert",
+                "perked"
+            ]
+        },
+        "ears_03": {
+            "internal_id": "ears_feline_style",
+            "visual_primitives": {
+                "shape": [
+                    "triangular",
+                    "equilateral",
+                    "cupped",
+                    "perked",
+                    "pointed"
+                ],
+                "texture": [
+                    "velvety",
+                    "short-furred",
+                    "smooth",
+                    "sleek"
+                ],
+                "motion": [
+                    "swiveling",
+                    "flattening",
+                    "twitching",
+                    "rotating",
+                    "pinned-back"
+                ]
+            },
+            "negatives": [
+                "floppy",
+                "long-tufted",
+                "drooping",
+                "feathered",
+                "rounded"
+            ]
+        },
+        "ears_04": {
+            "internal_id": "ears_lop_bunny_style",
+            "visual_primitives": {
+                "shape": [
+                    "elongated",
+                    "oblong",
+                    "hanging",
+                    "rounded-tip",
+                    "spoon-shaped"
+                ],
+                "texture": [
+                    "plush",
+                    "dense",
+                    "woolly",
+                    "soft",
+                    "thick"
+                ],
+                "motion": [
+                    "heavy",
+                    "swinging",
+                    "trailing",
+                    "draping"
+                ]
+            },
+            "negatives": [
+                "pointed",
+                "triangular",
+                "erect",
+                "perked",
+                "feathered",
+                "short"
+            ]
+        },
+        "ears_05": {
+            "internal_id": "ears_hare_erect",
+            "visual_primitives": {
+                "shape": [
+                    "tall",
+                    "elongated",
+                    "spoon-shaped",
+                    "upright",
+                    "ovate"
+                ],
+                "texture": [
+                    "thin-skinned",
+                    "short-furred",
+                    "velvety",
+                    "smooth",
+                    "veined"
+                ],
+                "motion": [
+                    "swiveling",
+                    "independent-rotation",
+                    "perked",
+                    "twitching",
+                    "radar-dish"
+                ]
+            },
+            "negatives": [
+                "floppy",
+                "folded",
+                "triangular",
+                "tufted",
+                "small",
+                "thick"
+            ]
+        },
+        "ears_06": {
+            "internal_id": "ears_avian_tufts",
+            "visual_primitives": {
+                "shape": [
+                    "swept-back",
+                    "flared",
+                    "fan-shaped",
+                    "tapered-clusters",
+                    "wing-like"
+                ],
+                "texture": [
+                    "plumed",
+                    "layered",
+                    "glossy",
+                    "feathered",
+                    "downy"
+                ],
+                "motion": [
+                    "ruffling",
+                    "smoothing",
+                    "flattening",
+                    "flaring"
+                ]
+            },
+            "negatives": [
+                "furry",
+                "skin",
+                "fleshy",
+                "cartilage",
+                "lobe",
+                "velvety"
+            ]
+        },
+        "ears_07": {
+            "internal_id": "ears_reptile_fin_frill",
+            "visual_primitives": {
+                "shape": [
+                    "webbed",
+                    "spined",
+                    "fan-shaped",
+                    "ribbed",
+                    "frilled"
+                ],
+                "texture": [
+                    "membranous",
+                    "leathery",
+                    "scaled",
+                    "glossy",
+                    "iridescent"
+                ],
+                "motion": [
+                    "flaring",
+                    "collapsing",
+                    "vibrating",
+                    "extended",
+                    "flattened"
+                ]
+            },
+            "negatives": [
+                "furry",
+                "fluffy",
+                "wool",
+                "tufted",
+                "soft",
+                "hair"
+            ]
+        },
+        "ears_08": {
+            "internal_id": "ears_ungulate_lateral",
+            "visual_primitives": {
+                "shape": [
+                    "leaf-shaped",
+                    "lateral",
+                    "ovate",
+                    "horizontal",
+                    "tapered"
+                ],
+                "texture": [
+                    "velvety",
+                    "soft-lined",
+                    "short-furred",
+                    "smooth"
+                ],
+                "motion": [
+                    "flicking",
+                    "twitching",
+                    "swiveling",
+                    "rotating"
+                ]
+            },
+            "negatives": [
+                "pointed",
+                "triangular",
+                "upright",
+                "long-tufted",
+                "shaggy",
+                "round"
+            ]
+        },
+        "ears_09": {
+            "internal_id": "ears_rodent_round",
+            "visual_primitives": {
+                "shape": [
+                    "round",
+                    "circular",
+                    "saucer-shaped",
+                    "disc-like",
+                    "broad"
+                ],
+                "texture": [
+                    "thin-skinned",
+                    "velvety",
+                    "smooth",
+                    "bare",
+                    "delicate"
+                ],
+                "motion": [
+                    "perked",
+                    "twitching",
+                    "alert",
+                    "prominent"
+                ]
+            },
+            "negatives": [
+                "pointed",
+                "sharp",
+                "triangular",
+                "floppy",
+                "tufted",
+                "long"
+            ]
+        },
+        "ears_10": {
+            "internal_id": "ears_sciurid_tufted",
+            "visual_primitives": {
+                "shape": [
+                    "triangular",
+                    "cupped",
+                    "perked",
+                    "tipped"
+                ],
+                "texture": [
+                    "tufted-tips",
+                    "brush-tipped",
+                    "tasseled",
+                    "wispy-ends"
+                ],
+                "motion": [
+                    "alert",
+                    "expressive",
+                    "twitching",
+                    "swiveling"
+                ]
+            },
+            "negatives": [
+                "round",
+                "floppy",
+                "bald",
+                "smooth-tipped",
+                "heavy"
+            ]
+        },
+        "ears_11": {
+            "internal_id": "",
+            "visual_primitives": {
+                "shape": [],
+                "texture": [],
+                "motion": []
+            },
+            "negatives": []
+        },
+        "head_01": {
+            "internal_id": "head_vulpine_style",
+            "visual_primitives": {
+                "structure": [
+                    "wedge-shaped",
+                    "angular",
+                    "fine-boned",
+                    "narrow",
+                    "triangular"
+                ],
+                "nose_mouth": [
+                    "tapered-muzzle",
+                    "pointed",
+                    "slender",
+                    "snipey",
+                    "elongated"
+                ],
+                "sensory": [
+                    "sharp-eyed",
+                    "alert",
+                    "streamlined",
+                    "aerodynamic"
+                ],
+                "texture": [
+                    "cheek-ruffs",
+                    "flared-fur",
+                    "sleek",
+                    "plush"
+                ]
+            },
+            "negatives": [
+                "blocky",
+                "square",
+                "flat-faced",
+                "broad",
+                "heavy",
+                "jowly"
+            ]
+        },
+        "head_02": {
+            "internal_id": "head_canine_style",
+            "visual_primitives": {
+                "structure": [
+                    "boxy",
+                    "broad-skulled",
+                    "stout",
+                    "deep-stop",
+                    "robust"
+                ],
+                "nose_mouth": [
+                    "blunt-muzzle",
+                    "squared",
+                    "thick",
+                    "heavy-jowled",
+                    "fleshy-lips"
+                ],
+                "sensory": [
+                    "open-expression",
+                    "honest",
+                    "furrowed-brow",
+                    "expressive"
+                ],
+                "texture": [
+                    "short-furred",
+                    "smooth-faced",
+                    "velvet"
+                ]
+            },
+            "negatives": [
+                "snipey",
+                "pointed",
+                "wedge-shaped",
+                "narrow",
+                "aerodynamic",
+                "flat"
+            ]
+        },
+        "head_03": {
+            "internal_id": "head_feline_style",
+            "visual_primitives": {
+                "structure": [
+                    "short-muzzled",
+                    "round-skulled",
+                    "compact",
+                    "heart-shaped",
+                    "flat-faced"
+                ],
+                "nose_mouth": [
+                    "button-nosed",
+                    "short-jawed",
+                    "delicate",
+                    "cleft-lip"
+                ],
+                "sensory": [
+                    "large-eyed",
+                    "wide-gazing",
+                    "forward-facing",
+                    "binocular",
+                    "whiskered"
+                ],
+                "texture": [
+                    "soft",
+                    "cheek-fluff",
+                    "dense"
+                ]
+            },
+            "negatives": [
+                "long-snouted",
+                "elongated",
+                "boxy",
+                "heavy-jowled",
+                "rectangular"
+            ]
+        },
+        "head_04": {
+            "internal_id": "head_lagomorph_style",
+            "visual_primitives": {
+                "structure": [
+                    "convex",
+                    "ovate",
+                    "egg-shaped",
+                    "soft-contoured",
+                    "domed"
+                ],
+                "nose_mouth": [
+                    "blunt",
+                    "short-snouted",
+                    "cleft-lipped",
+                    "twitching-nose",
+                    "small-chin"
+                ],
+                "sensory": [
+                    "wide-set-eyes",
+                    "lateral-vision",
+                    "large-eyes",
+                    "prominent",
+                    "vigilant"
+                ],
+                "texture": [
+                    "velvety",
+                    "soft",
+                    "plush"
+                ]
+            },
+            "negatives": [
+                "pointed",
+                "sharp",
+                "flat-faced",
+                "binocular",
+                "predatory",
+                "long-jawed"
+            ]
+        },
+        "head_05": {
+            "internal_id": "head_avian_style",
+            "visual_primitives": {
+                "structure": [
+                    "streamlined",
+                    "aerodynamic",
+                    "crested",
+                    "sleek",
+                    "tapered"
+                ],
+                "nose_mouth": [
+                    "hooked-beak",
+                    "razor-edged",
+                    "keratin-beak",
+                    "rigid",
+                    "sharp"
+                ],
+                "sensory": [
+                    "piercing-gaze",
+                    "sharp-eyed",
+                    "intense",
+                    "hawk-eyed",
+                    "monocular"
+                ],
+                "texture": [
+                    "feathered",
+                    "plumed",
+                    "scaled-face"
+                ]
+            },
+            "negatives": [
+                "lips",
+                "snout",
+                "muzzle",
+                "teeth",
+                "furred-face",
+                "nose",
+                "whiskers"
+            ]
+        },
+        "head_06": {
+            "internal_id": "head_reptile_style",
+            "visual_primitives": {
+                "structure": [
+                    "angular",
+                    "chiseled",
+                    "plated",
+                    "heavy-browed",
+                    "flat-skulled"
+                ],
+                "nose_mouth": [
+                    "lipless",
+                    "forked-tongue",
+                    "toothed-maw",
+                    "hinged-jaw",
+                    "snout"
+                ],
+                "sensory": [
+                    "vertical-slit-pupil",
+                    "cold-gaze",
+                    "unblinking",
+                    "gold-eyed"
+                ],
+                "texture": [
+                    "scaled",
+                    "leathery",
+                    "rough",
+                    "armored",
+                    "dry"
+                ]
+            },
+            "negatives": [
+                "whiskers",
+                "soft",
+                "fluffy",
+                "lips",
+                "pout",
+                "furry",
+                "smile"
+            ]
+        },
+        "head_07": {
+            "internal_id": "head_equine_style",
+            "visual_primitives": {
+                "structure": [
+                    "elongated",
+                    "long-faced",
+                    "strong-jawed",
+                    "sloping-profile",
+                    "roman-nose"
+                ],
+                "nose_mouth": [
+                    "velvety-muzzle",
+                    "mobile-lipped",
+                    "soft",
+                    "square-tipped",
+                    "nostrils-flaring"
+                ],
+                "sensory": [
+                    "wide-set",
+                    "gentle-eyed",
+                    "lateral-vision",
+                    "lashed"
+                ],
+                "texture": [
+                    "forelock",
+                    "maned",
+                    "flowing-hair",
+                    "short-coat"
+                ]
+            },
+            "negatives": [
+                "pointed",
+                "sharp",
+                "fangs",
+                "snout",
+                "short-faced",
+                "beak"
+            ]
+        },
+        "head_08": {
+            "internal_id": "head_rodent_style",
+            "visual_primitives": {
+                "structure": [
+                    "conical",
+                    "tapered",
+                    "delicate",
+                    "teardrop-shaped",
+                    "small"
+                ],
+                "nose_mouth": [
+                    "pointed-muzzle",
+                    "fine-snouted",
+                    "twitching",
+                    "pink-tipped",
+                    "buck-toothed"
+                ],
+                "sensory": [
+                    "long-whiskered",
+                    "alert",
+                    "bright-eyed",
+                    "beady-eyes"
+                ],
+                "texture": [
+                    "velvety",
+                    "soft-furred",
+                    "smooth"
+                ]
+            },
+            "negatives": [
+                "broad",
+                "boxy",
+                "flat-faced",
+                "heavy-jowled",
+                "grim",
+                "square"
+            ]
+        },
+        "headAccessories_01": {
+            "internal_id": "accessory_horns_nub",
+            "visual_primitives": {
+                "shape": [
+                    "nub",
+                    "bud",
+                    "button",
+                    "blunt-cone",
+                    "low-profile"
+                ],
+                "material": [
+                    "velvet-covered",
+                    "skin-covered",
+                    "smooth-horn",
+                    "ossicone",
+                    "bony"
+                ],
+                "structure": [
+                    "paired",
+                    "forehead-mount",
+                    "vestigial",
+                    "short"
+                ],
+                "style": [
+                    "impish",
+                    "cute",
+                    "juvenile",
+                    "harmless"
+                ]
+            },
+            "negatives": [
+                "curved",
+                "branching",
+                "sharp",
+                "long",
+                "spiral",
+                "antlers"
+            ]
+        },
+        "headAccessories_02": {
+            "internal_id": "accessory_antlers_cervid",
+            "visual_primitives": {
+                "shape": [
+                    "branching",
+                    "dendritic",
+                    "tree-like",
+                    "spreading"
+                ],
+                "material": [
+                    "bone",
+                    "calcified",
+                    "hard",
+                    "solid",
+                    "ivory-tipped"
+                ],
+                "structure": [
+                    "rack",
+                    "multi-tined",
+                    "wide-span",
+                    "crown-like"
+                ],
+                "style": [
+                    "natural",
+                    "forest-lord",
+                    "druidic",
+                    "wild",
+                    "majestic"
+                ]
+            },
+            "negatives": [
+                "curved-horn",
+                "spiral",
+                "smooth-cone",
+                "single-point",
+                "hollow"
+            ]
+        },
+        "headAccessories_03": {
+            "internal_id": "accessory_horns_dragon",
+            "visual_primitives": {
+                "shape": [
+                    "swept-back",
+                    "spikes",
+                    "rearward-pointing",
+                    "bladed",
+                    "tapered"
+                ],
+                "material": [
+                    "scaled-base",
+                    "keratinous",
+                    "hardened-scales",
+                    "rugged"
+                ],
+                "structure": [
+                    "ridge-aligned",
+                    "seamless-integration",
+                    "armored-crown",
+                    "paired"
+                ],
+                "style": [
+                    "menacing",
+                    "draconic",
+                    "sharp",
+                    "formidable"
+                ]
+            },
+            "negatives": [
+                "branching",
+                "antlers",
+                "velvet",
+                "spiral",
+                "curled",
+                "blunt",
+                "forward-facing"
+            ]
+        },
+        "headAccessories_04": {
+            "internal_id": "accessory_antenna_insect",
+            "visual_primitives": {
+                "shape": [
+                    "filament",
+                    "stalk",
+                    "clubbed-tip",
+                    "segmented",
+                    "slender"
+                ],
+                "material": [
+                    "chitin",
+                    "smooth",
+                    "flexible",
+                    "glossy"
+                ],
+                "structure": [
+                    "paired",
+                    "brow-mounted",
+                    "long-stemmed"
+                ],
+                "motion": [
+                    "twitching",
+                    "swiveling",
+                    "seeking",
+                    "quivering",
+                    "sensory"
+                ]
+            },
+            "negatives": [
+                "bony",
+                "heavy",
+                "rigid",
+                "spiked",
+                "sharp",
+                "thick-base"
+            ]
+        },
+        "headAccessories_05": {
+            "internal_id": "accessory_horn_unicorn",
+            "visual_primitives": {
+                "shape": [
+                    "spiral",
+                    "helical",
+                    "conical",
+                    "straight",
+                    "lance-like"
+                ],
+                "material": [
+                    "pearlescent",
+                    "ivory",
+                    "crystalline",
+                    "grooved",
+                    "glowing"
+                ],
+                "structure": [
+                    "central-brow",
+                    "single-point",
+                    "unilateral"
+                ],
+                "style": [
+                    "magical",
+                    "pure",
+                    "regal",
+                    "mystical",
+                    "divine"
+                ]
+            },
+            "negatives": [
+                "curved",
+                "paired",
+                "branching",
+                "smooth-cone",
+                "rough",
+                "bilateral"
+            ]
+        }
+    },
+    "colors": {
+        "#000000": "black",
+        "#2f4f4f": "dark slate grey",
+        "#708090": "slate grey",
+        "#bebebe": "grey",
+        "#ffffff": "white",
+        "#800000": "maroon",
+        "#8b0000": "dark red",
+        "#a52a2a": "brown",
+        "#b22222": "firebrick",
+        "#dc143c": "crimson",
+        "#ff0000": "red",
+        "#ff6347": "tomato",
+        "#ff7f50": "coral",
+        "#cd5c5c": "indian red",
+        "#f08080": "light coral",
+        "#e9967a": "dark salmon",
+        "#fa8072": "salmon",
+        "#ffa07a": "light salmon",
+        "#ff4500": "orange red",
+        "#ff8c00": "dark orange",
+        "#ffa500": "orange",
+        "#ffd700": "gold",
+        "#f0e68c": "khaki",
+        "#bdb76b": "dark khaki",
+        "#808000": "olive",
+        "#6b8e23": "olive drab",
+        "#9acd32": "yellow green",
+        "#006400": "dark green",
+        "#008000": "green",
+        "#228b22": "forest green",
+        "#32cd32": "lime green",
+        "#90ee90": "light green",
+        "#98fb98": "pale green",
+        "#00fa9a": "medium spring green",
+        "#00ff7f": "spring green",
+        "#2e8b57": "sea green",
+        "#20b2aa": "light sea green",
+        "#008080": "teal",
+        "#00ced1": "dark turquoise",
+        "#40e0d0": "turquoise",
+        "#191970": "midnight blue",
+        "#000080": "navy",
+        "#00008b": "dark blue",
+        "#0000cd": "medium blue",
+        "#0000ff": "blue",
+        "#4169e1": "royal blue",
+        "#1e90ff": "dodger blue",
+        "#00bfff": "deep sky blue",
+        "#87ceeb": "sky blue",
+        "#4682b4": "steel blue",
+        "#b0c4de": "light steel blue",
+        "#4b0082": "indigo",
+        "#8a2be2": "blue violet",
+        "#9400d3": "dark violet",
+        "#9932cc": "dark orchid",
+        "#800080": "purple",
+        "#da70d6": "orchid",
+        "#ee82ee": "violet",
+        "#ff00ff": "magenta",
+        "#c71585": "medium violet red",
+        "#ff1493": "deep pink",
+        "#ff69b4": "hot pink",
+        "#ffc0cb": "pink",
+        "#ffb6c1": "light pink",
+        "#f5deb3": "wheat",
+        "#d2b48c": "tan",
+        "#bc8f8f": "rosy brown",
+        "#f4a460": "sandy brown",
+        "#daa520": "goldenrod",
+        "#b8860b": "dark goldenrod",
+        "#d2691e": "chocolate",
+        "#8b4513": "saddle brown",
+        "#a0522d": "sienna",
+        "#fffaf0": "floral white",
+        "#f0f8ff": "alice blue",
+        "#f5f5f5": "white smoke"
+    }
+}

@@ -302,11 +302,23 @@ const userSchema = new mongoose.Schema({
           audioExit: {
             type: String
           },
+          isEntrance: {
+            type: Boolean,
+            default: false
+          },
+          graphNodeId: {
+            type: String
+          },
           contents: {
             type: [String],
             default: []
           }
         }]
+      },
+
+      anatomyData: {
+        type: String,
+        default: ""
       },
 
       equipment: {
@@ -335,6 +347,16 @@ const userSchema = new mongoose.Schema({
 
       consumedBy: {
         type: String
+      },
+
+      voreStage: {
+        type: Number,
+        default: 0
+      },
+
+      currentVoreNodeId: {
+        type: String,
+        default: null
       },
 
       rotation: {

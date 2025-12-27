@@ -1,5 +1,7 @@
 export function preload() {
     console.log('Preload Started');
+    console.log('Window Object contents:', window);
+    console.log('Map Filename from Window:', window.mapFilename);
 
     // 1. Get Center of Canvas
     const width = this.cameras.main.width;
@@ -61,6 +63,14 @@ export function preload() {
     }).setOrigin(0.5);
 
     // --- LOADING EVENTS ---
+    this.load.on('loaderror', (file) => {
+        console.error(`[Preload] ERROR loading file: ${file.key} from ${file.url}`);
+    });
+
+    this.load.on('filecomplete-tilemapJSON-dynamic_map', (key, type, data) => {
+        console.log(`[Preload] SUCCESS: Map 'dynamic_map' loaded! Data keys:`, Object.keys(data));
+    });
+
     this.load.on('progress', function (value) {
         // Clear old bar
         progressBar.clear();
@@ -92,10 +102,30 @@ export function preload() {
         percentText.destroy();
     });
     // this.load.image('spritesheet', './../assets/images/spritesheet.png');
-    this.load.image('tileset', './../assets/tilemaps/tileset.png');
-    this.load.spritesheet('tilesetSprite', './../assets/tilemaps/tileset.png', { frameWidth: 32, frameHeight: 32 });
-    this.load.image('scroll', './../assets/images/Scroll_01.png')
-    this.load.image('scroll2', './../assets/images/Scroll_02.png')
+
+    // --- Universal Tileset Loading ---
+    // developer_note:
+    // The keys used here MUST MATCH the 'source name' of the tileset in Tiled.
+    // When the map loader runs, it looks at the JSON data, finds the tileset name (e.g., "alpha_tileset"),
+    // and looks for a Phaser texture with that EXACT key.
+    //
+    // If you add a new tileset in Tiled:
+    // 1. Export the map to JSON.
+    // 2. Add a line below: this.load.image('YourTilesetName', '/path/to/image.png');
+
+    // Old Map Tileset
+    this.load.image('Demo_tileset', '/assets/tilemaps/tileset.png');
+
+    // New Map Tilesets
+    this.load.image('alpha_tileset', '/assets/tilemaps/alpha_tileset.png');
+    this.load.image('alpha_ground_set', '/assets/tilemaps/alpha_ground_set.png');
+    this.load.image('alpha_zones', '/assets/tilemaps/alpha_zones.png');
+
+    // Load spritesheet version for effects (keeping generic name or specific if needed)
+    this.load.spritesheet('tilesetSprite', '/assets/tilemaps/tileset.png', { frameWidth: 32, frameHeight: 32 });
+
+    this.load.image('scroll', '/assets/images/Scroll_01.png')
+    this.load.image('scroll2', '/assets/images/Scroll_02.png')
 
     this.spritesToAnimate = []; // Initialize the array
     this.load.spritesheet('empty', './../assets/spritesheets/empty.png', { frameWidth: 109, frameHeight: 220 });
@@ -494,15 +524,20 @@ export function preload() {
 
 
     //This loads the map json file that says what coordinates have what pictures
-    // this.load.tilemapTiledJSON('level_2', './../assets/tilemaps/level2.json');
-    // this.load.tilemapTiledJSON('tastytails_v01', './../assets/tilemaps/tastytails_v01.json');
-    this.load.tilemapTiledJSON('demo_map', './../assets/tilemaps/Demo_Map.json');
+    if (window.mapFilename) {
+        console.log(`[Preload] Loading dynamic map: ${window.mapFilename}`);
+        this.load.tilemapTiledJSON('dynamic_map', `/assets/tilemaps/${window.mapFilename}`);
+    } else {
+        console.warn('No map filename found in window.mapFilename, falling back to Demo_Map.json');
+        this.load.tilemapTiledJSON('dynamic_map', '/assets/tilemaps/Demo_Map.json');
+    }
 
     //----- Loads images used for interactive objects -----//
     this.load.image('tree_01', './../assets/tilemaps/tree_01.png');
     this.load.image('tree_02', './../assets/tilemaps/tree_02.png');
     this.load.image('lamp_01', './../assets/tilemaps/lamp_01.png');
     this.load.image('lamp_02', './../assets/tilemaps/lamp_02.png');
+    this.load.image('grand_altar', './../assets/tilemaps/grand_altar.png');
     this.load.image('cloth_shelf_01', './../assets/tilemaps/cloth_shelf_01.png');
     this.load.image('cloth_shelf_02', './../assets/tilemaps/cloth_shelf_02.png');
     this.load.image('mirror_01', './../assets/tilemaps/mirror_01.png');
@@ -518,12 +553,32 @@ export function preload() {
     this.load.image('bar_front', './../assets/tilemaps/bar_front.png');
     this.load.image('card_table', './../assets/tilemaps/card_table.png');
     this.load.image('pub_stool_tall', './../assets/tilemaps/pub_stool_tall.png');
+    this.load.image('desk_horizontal_01', './../assets/tilemaps/desk_horizontal_01.png');
+    this.load.image('counter_br', './../assets/tilemaps/counter_br.png');
+    this.load.image('counter_vertical', './../assets/tilemaps/counter_vertical.png');
+    this.load.image('counter_tl', './../assets/tilemaps/counter_tl.png');
+    this.load.image('counter_horizontal_01', './../assets/tilemaps/counter_horizontal_01.png');
+    this.load.image('counter_horizontal_02', './../assets/tilemaps/counter_horizontal_02.png');
+    this.load.image('counter_horizontal_03', './../assets/tilemaps/counter_horizontal_03.png');
+
+    this.load.image('smelter', './../assets/tilemaps/smelter.png');
+    this.load.image('anvil_01', './../assets/tilemaps/anvil_01.png');
+
 
     this.load.image('spa_massage_bed', './../assets/tilemaps/spa_massage_bed.png');
 
+    //----- Items -----//
     this.load.image('pants', './../assets/tilemaps/pants.png');
     this.load.image('shirt', './../assets/tilemaps/shirt.png');
     this.load.image('key', './../assets/tilemaps/key.png');
+
+    //----- Building Sprites -----//
+    this.load.image('blacksmith_outside_01', './../assets/tilemaps/blacksmith_outside_01.png');
+    this.load.image('blacksmith_outside_02', './../assets/tilemaps/blacksmith_outside_02.png');
+    this.load.image('seamstress', './../assets/tilemaps/seamstress.png');
+    this.load.image('great_ash', './../assets/tilemaps/great_ash.png');
+    this.load.image('tailor_structure', './../assets/tilemaps/tailor_structure.png');
+    this.load.image('cozy_house', './../assets/tilemaps/cozy_house.png');
 
 
 
