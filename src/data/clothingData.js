@@ -20,6 +20,12 @@ module.exports = {
             { id: 'breast_pocket', name: 'Front Pocket', capacity: 2 }
         ]
     },
+    'shirt_01': {
+        name: 'Plain T-Shirt',
+        pockets: [
+            { id: 'breast_pocket', name: 'Front Pocket', capacity: 2 }
+        ]
+    },
     // Add more clothing items as needed
     'backpack_01': {
         name: 'Explorer Backpack',

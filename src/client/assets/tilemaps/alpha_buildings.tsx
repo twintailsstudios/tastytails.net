@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.11.2" name="alpha_buildings" tilewidth="1982" tileheight="1456" tilecount="6" columns="0">
+<tileset version="1.10" tiledversion="1.11.2" name="alpha_buildings" tilewidth="1982" tileheight="1456" tilecount="7" columns="0">
  <grid orientation="orthogonal" width="1" height="1"/>
  <tile id="1">
   <properties>
@@ -57,5 +57,16 @@
    <property name="texture" value="seamstress"/>
   </properties>
   <image source="seamstress.png" width="1184" height="576"/>
+ </tile>
+ <tile id="7">
+  <properties>
+   <property name="blocked" type="bool" value="false"/>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="768"/>
+   <property name="clearZone" value="maintenance"/>
+   <property name="texture" value="maintenance_outside"/>
+  </properties>
+  <image source="maintenance_outside.png" width="768" height="1440"/>
  </tile>
 </tileset>

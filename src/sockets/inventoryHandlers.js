@@ -224,4 +224,66 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             log.error(`Error handling dropItemClicked for ${socket.id}:`, e);
         }
     });
+
+    socket.on('useItemClicked', (data) => {
+        try {
+            const { uid } = data;
+            const player = players[socket.id];
+            if (!player) return;
+
+            let item = null;
+            let isWorldItem = false;
+
+            // 1. Try World Items
+            const itemIndex = worldItems.findIndex(i => i.uid === uid);
+            if (itemIndex > -1) {
+                item = worldItems[itemIndex];
+                isWorldItem = true;
+                // Validation: Distance Check
+                const dist = Math.sqrt(Math.pow(player.position.x - item.x, 2) + Math.pow(player.position.y - item.y, 2));
+                if (dist > 150) return; // Too far
+            }
+
+            // 2. Try Hands (if not found in world)
+            if (!item) {
+                if (player.actionHands.leftNode && player.actionHands.leftNode.uid === uid) {
+                    item = player.actionHands.leftNode;
+                } else if (player.actionHands.rightNode && player.actionHands.rightNode.uid === uid) {
+                    item = player.actionHands.rightNode;
+                }
+            }
+
+            if (!item) {
+                log.warn(`${logPrefix} 'useItemClicked': Item ${uid} not found in world or hands.`);
+                return;
+            }
+
+            // Logic: Increment usage
+            // Initialize count if missing
+            if (item.timesUsed === undefined) item.timesUsed = 0;
+
+            const def = itemData[item.itemId] || { maxUses: 10 };
+            const max = def.maxUses || 10;
+
+            if (item.timesUsed < max) {
+                item.timesUsed++;
+                log.info(`Player ${player.Username} used item ${item.name} (Uses: ${item.timesUsed}/${max})`);
+
+                if (isWorldItem) {
+                    // Emit Update for map object
+                    io.emit('itemUpdated', item);
+                } else {
+                    // Emit Update for player inventory/hands
+                    // We broadcast to ensure other players see the potential visual change (if held item rendered differently)
+                    io.emit('playerUpdates', { [socket.id]: player });
+                    saveCharacter(socket.id);
+                }
+            } else {
+                log.info(`Player ${player.Username} tried to use ${item.name} but it is empty.`);
+            }
+
+        } catch (e) {
+            log.error(`Error handling useItemClicked for ${socket.id}:`, e);
+        }
+    });
 };

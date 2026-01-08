@@ -1,0 +1,33 @@
+<link rel="stylesheet" href="/css/job-demos.css">
+
+<div class="page-header">
+    <h1>Job Training Demos</h1>
+    <p style="text-align: center; color: #eee; font-size: 1.2rem;">Select a job to try out its gameplay mechanics!</p>
+</div>
+
+<div class="job-grid">
+    <% const jobs=[ { name: 'Blacksmith' , icon: 'fa-hammer' , id: 'blacksmith' }, { name: 'Bar Tender' ,
+        icon: 'fa-wine-glass' , id: 'bartender' }, { name: 'Farmer' , icon: 'fa-wheat-awn' , id: 'farmer' }, {
+        name: 'Seamstress' , icon: 'fa-scissors' , id: 'seamstress' }, { name: 'Miner' , icon: 'fa-gem' , id: 'miner' },
+        { name: 'Maintenance' , icon: 'fa-wrench' , id: 'maintenance' }, { name: 'Alchemist' , icon: 'fa-flask' ,
+        id: 'alchemist' }, { name: 'Healer' , icon: 'fa-heart-pulse' , id: 'healer' } ]; %>
+
+        <% jobs.forEach(job=> { %>
+            <div class="job-card">
+                <div class="card-header">
+                    <div class="card-pin"></div>
+                    <div class="job-title">
+                        <%= job.name %>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <i class="fa-solid <%= job.icon %> job-icon"></i>
+                </div>
+                <div class="card-footer">
+                    <a href="/job-demos/<%= job.id %>" class="btn btn-play">
+                        <i class="fa-solid fa-gamepad"></i> Play Demo!
+                    </a>
+                </div>
+            </div>
+            <% }); %>
+</div>

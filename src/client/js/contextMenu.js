@@ -297,7 +297,9 @@ function initializeContextMenu(scene, socket) {
                     playerId: playerInfo.playerId,
                     uniqueId: playerInfo.uniqueId,
                     name: playerInfo.name,
-                    description: playerInfo.description
+                    description: playerInfo.description,
+                    verb: playerInfo.verb,
+                    flavor: playerInfo.flavor
                 };
 
                 // 1. Create Action List for this target
@@ -313,6 +315,15 @@ function initializeContextMenu(scene, socket) {
                             actionsUl.appendChild(createMenuItem('Release', 'fa-solid fa-hand-sparkles', () => socket.emit('releaseClicked', currentItem)));
                         } else if (action === 'Grip Firmly') {
                             actionsUl.appendChild(createMenuItem('Grip Firmly', 'fa-solid fa-handshake-simple', () => socket.emit('gripFirmly', currentItem)));
+                        } else if (action === 'Craft') {
+                            actionsUl.appendChild(createMenuItem('Craft', 'fa-solid fa-hammer', () => {
+                                socket.emit('openCrafting', { stationId: currentItem.uniqueId });
+                            }));
+                        } else if (action === 'Use') {
+                            const useLabel = currentItem.verb || 'Use';
+                            actionsUl.appendChild(createMenuItem(useLabel, 'fa-solid fa-hand-holding-water', () => {
+                                socket.emit('useItemClicked', { uid: currentItem.uniqueId });
+                            }));
                         } else if (action === 'Vore') {
                             actionsUl.appendChild(createVoreSubMenu(predatorInfo, playerInfo.name, currentItem));
                         }

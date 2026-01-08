@@ -161,6 +161,34 @@ router.get('/character-bank', verify, async (req, res) => {
   }
 })
 
+router.get('/job-demos', verify, (req, res) => {
+  const token = req.cookies.TastyTails;
+  res.render('job-demos', {
+    token: token,
+    loginForm: 0
+  });
+})
+
+router.get('/job-demos/:jobName', verify, (req, res) => {
+  const token = req.cookies.TastyTails;
+  const jobName = req.params.jobName;
+
+  if (jobName.toLowerCase() === 'blacksmith') {
+    return res.render('job-blacksmith', {
+      token: token,
+      loginForm: 0
+    });
+  }
+
+  // Basic validation or mapping could go here if needed
+
+  res.render('job-play', {
+    token: token,
+    loginForm: 0,
+    jobName: jobName
+  });
+})
+
 // router.use('/edit', edit) //tell the router to use edit.js for child routes
 
 

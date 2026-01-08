@@ -145,6 +145,11 @@ export const EQUIPMENT_VISUALS = {
         slotId: 'torsoOuter', // Matches equipmentManager.slots
         depth: 10 // Relative z-index
     },
+    'shirt_01': {
+        atlas: 'shirt_01',
+        slotId: 'torsoOuter',
+        depth: 10
+    },
     'pants': {
         atlas: 'pants_01',
         slotId: 'legs',

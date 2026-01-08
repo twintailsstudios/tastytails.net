@@ -1,3 +1,5 @@
+import { updateCraftingBar } from './player.js';
+
 export function update(time, delta) {
     const chatFocused = window.chatFocused;
     const showDebug = this.showDebug;
@@ -26,16 +28,31 @@ export function update(time, delta) {
         down: false
     };
 
-    // Disable movement if consumed
+    // Disable movement if consumed OR crafting
+    // If the player is consumed, we ignore their keyboard input for movement.
+    // This prevents them from moving their invisible sprite around while inside someone.
     // If the player is consumed, we ignore their keyboard input for movement.
     // This prevents them from moving their invisible sprite around while inside someone.
     if (!this.playerContainer.playerInfo.consumedBy) {
-        inputPayload = {
-            left: this.cursors.left.isDown,
-            right: this.cursors.right.isDown,
-            up: this.cursors.up.isDown,
-            down: this.cursors.down.isDown,
-        };
+        if (!this.playerContainer.playerInfo.isCrafting) {
+            // Normal Movement
+            inputPayload = {
+                left: this.cursors.left.isDown,
+                right: this.cursors.right.isDown,
+                up: this.cursors.up.isDown,
+                down: this.cursors.down.isDown,
+            };
+        } else {
+            // Crafting - Check for movement attempt to trigger Pause
+            if (this.cursors.left.isDown || this.cursors.right.isDown ||
+                this.cursors.up.isDown || this.cursors.down.isDown) {
+
+                if (window.craftingUI && typeof window.craftingUI.showPauseConfirmation === 'function') {
+                    // Throttle logic handled by UI check `if (document.querySelector...)`
+                    window.craftingUI.showPauseConfirmation();
+                }
+            }
+        }
     }
 
     this.playerContainer.body.setVelocity(0);
@@ -181,5 +198,35 @@ export function update(time, delta) {
     // --- Shadow System Update (Client Prediction) ---
     if (this.shadowSystem) {
         this.shadowSystem.update();
+    }
+
+    // --- Crafting Range Check ---
+    if (window.craftingUI && window.craftingUI.isOpen && window.craftingUI.currentStationId) {
+        // Find the station object to check distance
+        // We iterate the object group. Performance note: if object count is huge, this might be slow every frame.
+        // Optimization: We could cache the station object in craftingUI.open().
+        const stationId = window.craftingUI.currentStationId;
+        const station = this.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === stationId);
+
+        if (station) {
+            const dist = Phaser.Math.Distance.Between(this.playerContainer.x, this.playerContainer.y, station.x, station.y);
+            if (dist > 150) {
+                // console.log(`[Range Check] Too far from station (${dist.toFixed(0)}px). Closing.`);
+                window.craftingUI.close();
+                window.craftingUI.showFloatingText("Too far away!", true);
+            }
+        }
+    }
+
+    // --- Update Crafting Bars (Animate Progress) ---
+    if (this.playerContainer) {
+        updateCraftingBar(this.playerContainer, this.playerContainer.playerInfo, this);
+    }
+    if (this.otherPlayersGroup) {
+        this.otherPlayersGroup.getChildren().forEach(otherPlayer => {
+            if (otherPlayer.playerInfo) {
+                updateCraftingBar(otherPlayer, otherPlayer.playerInfo, this);
+            }
+        });
     }
 }

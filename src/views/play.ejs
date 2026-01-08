@@ -7,12 +7,13 @@
   <link rel="stylesheet" type="text/css" href="/css/chat.css" />
   <link rel="stylesheet" type="text/css" href="/css/contextMenu.css" />
   <link rel="stylesheet" type="text/css" href="/css/inventory.css" />
+  <link rel="stylesheet" type="text/css" href="/css/crafting.css" />
 
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Caveat+Brush&family=Cinzel:wght@400;700&family=Lato:ital,wght@0,400;0,700;1,400&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Caveat+Brush&family=Cinzel:wght@400;700&family=Crimson+Pro:ital,wght@0,400;0,700;1,400&family=Fredoka:wght@400;600&family=Lato:ital,wght@0,400;0,700;1,400&family=MedievalSharp&family=Patrick+Hand&family=Philosopher:wght@400;700&family=Playfair+Display:ital@0;1&family=Rye&display=swap"
     rel="stylesheet">
 
   <!-- Icons & Tools -->
@@ -46,6 +47,111 @@
 </script>
 
 <div id="game-wrapper">
+  <!-- Crafting UI Modal (Hearthside Forge) -->
+
+
+  <!-- Crafting UI Modal (Hearthside Forge) -->
+  <div class="crafting-overlay" id="crafting-overlay" style="display: none;">
+    <div class="crafting-window" id="crafting-window">
+
+      <!-- Structural Details (Rivets) -->
+      <div class="rivet tl"></div>
+      <div class="rivet tr"></div>
+      <div class="rivet bl"></div>
+      <div class="rivet br"></div>
+
+      <!-- Top Header -->
+      <div class="window-header" id="crafting-header">
+        <h2 class="window-title" id="crafting-window-title">The Hearthside Forge</h2>
+        <div class="window-controls">
+          <div class="minimize-btn" id="crafting-btn-minimize">_</div>
+          <div class="close-btn" id="crafting-btn-close">✕</div>
+        </div>
+      </div>
+
+      <div class="window-body">
+        <!-- LEFT COL: RECIPES -->
+        <div class="recipe-book">
+          <div class="recipe-header" id="crafting-recipe-header">Blueprints</div>
+          <div class="recipe-list" id="recipe-list">
+            <!-- Recipes are injected here by JS -->
+          </div>
+        </div>
+
+        <!-- RIGHT COL: WORKSTATION -->
+        <div class="workstation">
+          <div class="anvil-surface">
+            <!-- Flash FX layer -->
+            <div class="flash-overlay" id="flashOverlay"></div>
+
+            <!-- Top: Info about selected recipe -->
+            <div class="crafting-info">
+              <div class="selected-preview">
+                <div class="preview-icon-lg" id="previewIcon">?</div>
+                <div>
+                  <h3 style="margin:0; font-family:'Cinzel', serif;" id="previewName">Select a Recipe</h3>
+                  <span style="font-size:12px; opacity:0.7;" id="previewDesc">---</span>
+                </div>
+              </div>
+              <div class="cost-display" id="costDisplay">
+                <!-- Cost breakdown injected by JS -->
+              </div>
+            </div>
+
+            <!-- Middle: Input Slots (The Crucible) -->
+            <div style="font-size:12px; opacity:0.6; margin-bottom:5px;" id="crafting-input-label">Crucible (Deposit
+              Materials)</div>
+            <div class="input-zone" id="station-input-slot">
+              <!-- Slots for Ingredients (Managed by JS) -->
+            </div>
+
+            <!-- Controls: Button & Progress Bar -->
+            <div class="crafting-controls">
+              <button class="craft-btn" id="crafting-action-btn">Strike Iron</button>
+              <div class="progress-container">
+                <div class="progress-bar" id="crafting-progress-bar"></div>
+                <div class="progress-label" id="crafting-progress-label"></div>
+              </div>
+            </div>
+
+            <!-- Bottom: Output Zone (Cooling Rack) -->
+            <div class="output-zone">
+              <div class="output-slot" id="outputSlot">
+                <!-- Finished Item Appears Here -->
+              </div>
+              <div class="output-hint" id="outputHint">Cooling Rack</div>
+            </div>
+
+          </div>
+
+
+        </div>
+      </div>
+
+      <!-- Resize Handles -->
+      <div class="resize-handle top"></div>
+      <div class="resize-handle left"></div>
+      <div class="resize-handle right"></div>
+      <div class="resize-handle bottom"></div>
+      <div class="resize-handle br"></div>
+    </div>
+  </div>
+
+
+  <!-- Minimized Crafting Tab (Floating) -->
+  <div id="crafting-minimized-tab" class="minimized-tab" style="display: none;">
+    <div class="tab-icon">⚒️</div>
+    <div class="tab-content">
+      <div class="tab-title" id="minimized-tab-title">Crafting Paused</div>
+      <div class="tab-progress-bg">
+        <div class="tab-progress-bar" id="crafting-tab-progress"></div>
+      </div>
+    </div>
+    <div class="tab-controls">
+      <div class="restore-btn" id="crafting-tab-restore">☐</div>
+    </div>
+  </div>
+
   <div id="phaserApp" tabindex="0" oncontextmenu="return showContextMenu(event);">
     <%- include('partials/gameOverlay') %>
       <div id="debug-overlay"

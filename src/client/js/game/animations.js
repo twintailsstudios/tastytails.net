@@ -111,9 +111,14 @@ export function updatePlayerAnimations(playerSprite, playerState) {
             playerSprite.list.forEach(child => {
                 // Check if it's an equipment sprite (starts with equip_)
                 if (child.name.startsWith('equip_')) {
+                    if (!child.visible) return; // Skip invisible items
+
                     // console.log('[Anim] Found equipment sprite:', child.name, child.visualConfig);
-                    if (child.visualConfig) {
-                        const atlasKey = child.visualConfig.atlas;
+                    if (child.visualConfig || child.texture) {
+                        // Use the actual texture key of the sprite if possible (supports layers)
+                        // Fallback to visualConfig for base items if texture is generic
+                        const atlasKey = child.texture ? child.texture.key : child.visualConfig.atlas;
+
                         const animKey = atlasKey + animationSuffix;
                         // console.log('[Anim] Playing:', animKey);
                         child.play(animKey, true);

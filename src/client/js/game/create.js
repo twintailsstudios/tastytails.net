@@ -1,6 +1,6 @@
 import { windowSize, drawDebug } from './utils.js';
 import { createAnimations, updatePlayerAnimations, createEmoteAnimations } from './animations.js';
-import { displayPlayers, displayOtherPlayers, getPlayerSprite, updateStruggleBar, updatePlayerEquipmentVisuals, updateTypingIndicator } from './player.js';
+import { displayPlayers, displayOtherPlayers, getPlayerSprite, updateStruggleBar, updatePlayerEquipmentVisuals, updateTypingIndicator, updateCraftingBar } from './player.js';
 import { reconcile } from './reconcile.js';
 import { createMap } from './map.js';
 import { initializeTabs } from './tabs.js';
@@ -13,6 +13,7 @@ import { ShadowSystem } from './shadows.js';  // New Import
 import { itemManager } from './items.js';
 import { equipmentManager } from './equipment.js';
 import { inventoryUI } from './inventory.js';
+import { CraftingUI } from './crafting.js'; // NEW
 
 let debugGraphics;
 let playerDebugGraphics;
@@ -77,10 +78,14 @@ export function create() {
         equipmentManager.init(this.socket);
     }
 
-    // Initialize Inventory UI
-    if (inventoryUI) {
-        inventoryUI.init(this.socket);
-    }
+    // Initialize Items
+    // itemManager.init is checked above, but let's consolidate or leave if fine.
+    // Actually, line 73 checks 'if (itemManager)' which is safe.
+    // Line 82 calls it blindly. I will remove the blind one as it's redundant.
+
+    inventoryUI.init(this.socket);
+    this.craftingUI = new CraftingUI(this.socket, this); // Initialize Crafting UI (Socket first, Scene/Player second)
+    window.craftingUI = this.craftingUI; // Expose globally for Inventory integration
 
     // These are assumed to be global functions defined in play.ejs or other included scripts
     if (typeof initializeChat === 'function') initializeChat(this.socket);
@@ -203,10 +208,14 @@ export function create() {
                 if (self.playerContainer) {
                     // console.log('[Client] Calling reconcile for local player');
                     reconcile(players[id], self);
+                    // Update local playerInfo with latest server state (crucial for isCrafting flag)
+                    Object.assign(self.playerContainer.playerInfo, players[id]);
+
                     if (actionHands) actionHands.update(players[id]);
                     if (equipmentManager) equipmentManager.update(players[id]);
                     if (inventoryUI) inventoryUI.update(players[id]);
                     updatePlayerEquipmentVisuals(self.playerContainer, players[id].equipment);
+                    updateCraftingBar(self.playerContainer, players[id], self);
 
                     // Update Shadows
                     if (shadowSystem) {
@@ -275,9 +284,13 @@ export function create() {
                 if (otherPlayer) {
                     // Update position and state
                     otherPlayer.setPosition(players[id].position.x, players[id].position.y);
+                    // Update playerInfo with latest server state
+                    Object.assign(otherPlayer.playerInfo, players[id]);
+
                     updatePlayerAnimations(otherPlayer, players[id]);
                     updateStruggleBar(otherPlayer, players[id], self);
                     updatePlayerEquipmentVisuals(otherPlayer, players[id].equipment);
+                    updateCraftingBar(otherPlayer, players[id], self);
                     otherPlayer.depth = otherPlayer.y;
 
                     // Hide other players if they are consumed
@@ -390,10 +403,12 @@ export function create() {
             if (note) {
                 const displayName = info.name || (info.firstName ? `${info.firstName} ${info.lastName}` : 'Unknown');
                 const displayDesc = info.description || info.icDescrip || 'No description available.';
+                const flavor = info.flavor ? `<p style="font-style:italic; color:#aaa; margin-top:5px;">${info.flavor}</p>` : '';
 
                 note.innerHTML = `
                     <h3>Inspection: ${displayName}</h3>
                     <p>${displayDesc}</p>
+                    ${flavor}
                 `;
             }
             // Switch to Look tab
@@ -417,6 +432,30 @@ export function create() {
             updateTypingIndicator(targetContainer, data.isTyping);
         } else {
             // console.warn('[Client] Typing target not found:', data.charId);
+        }
+    });
+
+
+
+    // --- Door Update Listener ---
+    this.socket.on('doorUpdate', (data) => {
+        // data = { id, state, blocked, lightBlock }
+        // Find the door sprite
+        if (self.objectGroup) {
+            const doorSprite = self.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === data.id);
+            if (doorSprite) {
+                // Play Animation
+                if (data.state === 'open') {
+                    doorSprite.play('door_open');
+                    doorSprite.body.enable = false; // Disable collision
+                } else {
+                    doorSprite.play('door_close');
+                    doorSprite.body.enable = true; // Enable collision
+                }
+
+                // Update Metadata if needed
+                doorSprite.objectInfo.state = data.state;
+            }
         }
     });
 

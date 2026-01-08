@@ -306,6 +306,50 @@ function buildObjectLayer(scene, map, layerName) {
             return;
         }
 
+        // --- Door System Special Handling ---
+        if (textureKey === 'alpha_door') {
+            // Create Animations (Once)
+            if (!scene.anims.exists('door_open')) {
+                scene.anims.create({
+                    key: 'door_open',
+                    frames: scene.anims.generateFrameNumbers('alpha_door', { frames: [0, 1, 2] }),
+                    frameRate: 10,
+                    repeat: 0
+                });
+            }
+            if (!scene.anims.exists('door_close')) {
+                scene.anims.create({
+                    key: 'door_close',
+                    frames: scene.anims.generateFrameNumbers('alpha_door', { frames: [2, 1, 0] }),
+                    frameRate: 10,
+                    repeat: 0
+                });
+            }
+
+            // Set Initial State (Closed)
+            // If the server sends initial state later, we'll update. 
+            // For now, assume closed.
+            sprite.setFrame(0);
+
+            // Interaction
+            sprite.setInteractive({ cursor: 'pointer' });
+            sprite.on('pointerdown', (pointer) => {
+                // Check distance to player
+                const player = scene.playerContainer;
+                if (player) {
+                    const dist = Phaser.Math.Distance.Between(player.x, player.y, sprite.x, sprite.y);
+                    if (dist < 150) {
+                        console.log(`[Door] Interacting with ${sprite.objectInfo.uniqueId}`);
+                        if (scene.socket) {
+                            scene.socket.emit('doorInteract', sprite.objectInfo.uniqueId);
+                        }
+                    } else {
+                        console.log('[Door] Too far to interact');
+                    }
+                }
+            });
+        }
+
         // 4. Apply "Smart" Configuration
 
         // Default Origin/Depth

@@ -10,9 +10,14 @@ const path = require('path');
 const log = require('./logger');
 const User = require('./model/User');
 const Chats = require('./model/Chat');
+
+// Handlers
+const inventoryHandlers = require('./sockets/inventoryHandlers');
+const craftingHandlers = require('./sockets/craftingHandlers'); // Now returns { init, checkCraftingRange }
 const clothingData = require('./data/clothingData');
 
 const itemData = require('./data/itemData');
+const { resolveItemDef } = require('./utils/itemUtils');
 const DatabaseResilience = require('./classes/DatabaseResilience');
 
 const VisibilityPolygon = require('visibility-polygon'); // New: For shadowcasting
@@ -27,6 +32,8 @@ let lightMap = []; // New: Map for shadowcasting (lightBlock property)
 let staticSegments = []; // New: Store map wall segments for raycasting
 let staticObjects = []; // New: Store static objects for collision
 let worldItems = [];    // New: Store interactive items
+let worldDoors = {};    // New: Store door objects (Key: layer_id)
+let craftingStations = {}; // New: Store crafting stations
 // --- Spatial Partitioning (Collision Optimization) ---
 // To avoid O(N) collision checks against every static object in the world,
 // we divide the map into large grid cells (buckets).
@@ -185,7 +192,13 @@ function initializeMap() {
     // --- 4. Object Layer Collision (Updated: World Builder Logic and Item System) ---
     // This uses Raw GID Lookup to find properties correctly, matching client logic.
     staticObjects = [];
+    // 4. Object Layer Collision & Doors (Updated: World Builder Logic and Item System)
+    // This uses Raw GID Lookup to find properties correctly, matching client logic.
+    staticObjects = [];
     worldItems = [];
+    worldDoors = {};
+    worldDoors = {};
+    craftingStations = {}; // Global: { [uniqueId]: { type, x, y, inventory: [] } }
 
     // Index all Raw Tilesets by GID Range
     const rawTilesets = [];
@@ -238,6 +251,57 @@ function initializeMap() {
             const tileData = rawTs.tiles[trueLocalID];
             const props = tileData ? tileData.properties : {};
 
+            // --- Door System Check ---
+            // If we are in the 'doors' layer, treat as a door
+            if (objectLayer.name.toLowerCase() === 'doors' || props.isDoor) {
+              // Initialize Door
+              const doorId = `${objectLayer.name}_${obj.id}`;
+
+              // Merge Props
+              let objectProps = {};
+              if (obj.properties && Array.isArray(obj.properties)) {
+                obj.properties.forEach(p => {
+                  objectProps[p.name] = p.value;
+                });
+              }
+              const combinedProps = { ...props, ...objectProps };
+
+              // Determine State
+              // Default: Closed (blocked: true, lightBlock: true) if not specified
+              // BUT user said: "if locked set to true then keys... if locked is true then door should not open"
+              // User said: "blocked ... if true door should not allow pass"
+              // User said: "lightBlock ... if true cast shadows"
+
+              // Initial State Logic:
+              // Frame 0 = Closed.
+              // We assume map places them as Frame 0 (Closed).
+
+              const isLocked = combinedProps.locked === true;
+              const isBlocked = combinedProps.blocked !== false; // Default true
+              const lightBlock = combinedProps.lightBlock !== false; // Default true
+
+              worldDoors[doorId] = {
+                id: doorId,
+                x: obj.x,
+                y: obj.y,
+                width: obj.width,
+                height: obj.height,
+                rotation: obj.rotation,
+                locked: isLocked,
+                blocked: isBlocked,     // Physics State
+                lightBlock: lightBlock, // Shadow State
+                state: 'closed',        // logical state
+                reqKey: combinedProps.reqKey || null
+              };
+
+              // If it blocks light, we might need to add a static segment equivalent?
+              // For now, we rely on the dynamic update or static segment generation
+              // PROBLEM: If we want it to be dynamic, we shouldn't bake it into 'staticSegments'.
+              // So we will NOT add it to staticSegments here, but handle it separately.
+
+              return; // SKIP adding to staticObjects (handled separately)
+            }
+
             // --- Item System Check ---
             if (props.isItem) {
               // It's an Item! Add to worldItems and Skip collision (unless isSolid)
@@ -246,7 +310,7 @@ function initializeMap() {
                 x: obj.x,
                 y: obj.y,
                 name: props.name || obj.name || 'Unknown Item',
-                itemId: props.itemId || 'unknown_item',
+                itemId: props.itemId || props.itemID || 'unknown_item',
                 itemType: props.itemType || 'misc',
                 texture: props.texture || 'default_item',
                 properties: props // Store all props just in case
@@ -255,6 +319,19 @@ function initializeMap() {
               if (!props.isSolid) {
                 return; // Skip adding to staticObjects
               }
+            }
+
+            // --- Crafting Station Check ---
+            if (props.stationType) {
+              const stationId = `${objectLayer.name}_${obj.id}`;
+              craftingStations[stationId] = {
+                id: stationId,
+                type: props.stationType, // e.g. 'anvil'
+                x: obj.x,
+                y: obj.y,
+                inventory: [] // Volatile storage for deposited items
+              };
+              log.info(`[Server] Registered Crafting Station: ${stationId} (${props.stationType})`);
             }
 
             // --- Collision Box Dimensions ---
@@ -563,6 +640,47 @@ function checkCollision(x, y) {
     }
   }
 
+  // 3. Check Doors
+  if (worldDoors) {
+    const pWidth = PLAYER_WIDTH;
+    const pHeight = PLAYER_HEIGHT;
+    const pLeft = x + 30 - pWidth / 2;
+    const pRight = x + 30 + pWidth / 2;
+    const pTop = y - pHeight / 2;
+    const pBottom = y + pHeight / 2;
+
+    for (const key in worldDoors) {
+      const door = worldDoors[key];
+      if (door.blocked) {
+        // Door is blocked (Closed)
+        // Use door bounds (bottom-left origin in Tiled, but typically x,y is top-left in Phaser depending on origin)
+        // Tiled JSON objects: x,y is Top-Left (if rectangle) or Bottom-Left (if tile/image)?
+        // "Each individual frame is 96 pixels wide and 288 pixels tall."
+        // In Tiled, Insert Tile objects have origin (0,1) i.e. Bottom Left.
+        // So obj.x is Left, obj.y is Bottom.
+
+        // Re-use logic from static objects:
+        // "Updated for Bottom Left Origin: obj.x is ALREADY the Left X"
+        // "bodyY = obj.y - bodyHeight..."
+
+        // Door collision box: use full width, maybe thin depth?
+        // "Frame 0 displays the closed door."
+        // Standard door: maybe 10px depth?
+        const doorW = door.width;
+        const doorH = 20; // Thin collision for door
+
+        const dLeft = door.x;
+        const dRight = door.x + doorW;
+        const dBottom = door.y;
+        const dTop = door.y - doorH;
+
+        if (pLeft < dRight && pRight > dLeft && pTop < dBottom && pBottom > dTop) {
+          return true;
+        }
+      }
+    }
+  }
+
   return false;
 }
 
@@ -789,6 +907,12 @@ function updatePlayers(delta, io) {
         player.lastShadowCalcPosition = { x: player.position.x, y: player.position.y };
       }
     }
+
+    // --- CRAFTING RANGE CHECK & AUTO-PAUSE ---
+    // Delegated to handler for server authority
+    if (player.isCrafting) {
+      craftingHandlers.checkCraftingRange(id, player, io, craftingStations);
+    }
   });
 }
 
@@ -917,11 +1041,10 @@ function gameLoop(io) {
 // --- Network Packet Helpers ---
 
 /**
- * Creates a filtered player object for the player themselves.
- * Includes 'visibilityPolygon' (for client-side shadow rendering).
- * Excludes server-only flags like 'inputQueue'.
+ * Returns the common state fields shared by both Self and Other packets.
+ * Centralizes duplicate logic to prevent desync bugs.
  */
-function getUpdatePacketForSelf(player) {
+function getCommonPlayerState(player) {
   return {
     Identifier: player.Identifier,
     playerId: player.playerId,
@@ -929,7 +1052,6 @@ function getUpdatePacketForSelf(player) {
     position: player.position,
     rotation: player.rotation,
     isMoving: player.isMoving,
-    visibilityPolygon: player.visibilityPolygon, // REQUIRED for self
 
     // Identity & Visuals
     Username: player.Username,
@@ -938,10 +1060,12 @@ function getUpdatePacketForSelf(player) {
     skin: player.skin,
     hair: player.hair,
     face: player.face,
+
+    // Visual Gear
     clothing: player.clothing,
     equipment: player.equipment,
 
-    // Detailed Visuals (Required for Animations)
+    // Detailed Visuals
     head: player.head,
     body: player.body,
     hands: player.hands,
@@ -953,7 +1077,7 @@ function getUpdatePacketForSelf(player) {
     beak: player.beak,
     headAccessories: player.headAccessories,
 
-    // States
+    // Visible States
     isHeld: player.isHeld,
     heldBySocketId: player.heldBySocketId,
     consumedBy: player.consumedBy,
@@ -968,7 +1092,22 @@ function getUpdatePacketForSelf(player) {
     // Interactive State
     actionHands: player.actionHands,
 
-    // Reconciliation & Debugging (REQUIRED for client prediction)
+    // Crafting State
+    isCrafting: player.isCrafting,
+    craftingStartTime: player.craftingStartTime,
+    craftingDuration: player.craftingDuration
+  };
+}
+
+/**
+ * Creates the update packet for YOUR OWN player.
+ * Includes sensitive/local-only data like visibilityPolygon and reconciliation stats.
+ */
+function getUpdatePacketForSelf(player) {
+  const common = getCommonPlayerState(player);
+  return {
+    ...common,
+    visibilityPolygon: player.visibilityPolygon, // Only self needs this for shadow calc
     lastProcessedInputSequence: player.lastProcessedInputSequence,
     lastClientTimestamp: player.lastClientTimestamp
   };
@@ -979,45 +1118,8 @@ function getUpdatePacketForSelf(player) {
  * STRICTLY EXCLUDES 'visibilityPolygon' to save massive bandwidth.
  */
 function getUpdatePacketForOther(player) {
-  return {
-    Identifier: player.Identifier,
-    playerId: player.playerId,
-    socketId: player.socketId,
-    position: player.position,
-    rotation: player.rotation,
-    isMoving: player.isMoving,
-    // NO visibilityPolygon
-
-    // Identity & Visuals
-    Username: player.Username,
-    firstName: player.firstName,
-    lastName: player.lastName,
-    skin: player.skin,
-    hair: player.hair,
-    face: player.face,
-
-    // Visual Gear
-    clothing: player.clothing,
-    equipment: player.equipment,
-
-    // Detailed Visuals (Required for Animations)
-    head: player.head,
-    body: player.body,
-    hands: player.hands,
-    feet: player.feet,
-    tail: player.tail,
-    eyes: player.eyes,
-    ear: player.ear,
-    genitles: player.genitles,
-    beak: player.beak,
-    headAccessories: player.headAccessories,
-
-    // Visible States
-    isHeld: player.isHeld,
-    heldBySocketId: player.heldBySocketId, // Needed to sync position if held
-    consumedBy: player.consumedBy,       // Needed to hide if consumed
-    action: player.action
-  };
+  // Currently identical to common state, but wrapper kept for future specificity
+  return getCommonPlayerState(player);
 }
 
 // --- Main Exported Start Function ---
@@ -1211,6 +1313,8 @@ module.exports.start = (io, _messageSystem) => {
     // Send initial state to the new player
     socket.emit('currentPlayers', players, spells);
     socket.emit('currentItems', worldItems); // Send World Items
+    // Send Map Segments (Shadows) including Doors
+    socket.emit('mapSegments', getDynamicSegments());
     // Inform other players of the new player
     socket.broadcast.emit('newPlayer', players[socket.id]);
 
@@ -1218,35 +1322,58 @@ module.exports.start = (io, _messageSystem) => {
     // --- Helper to Save Character Data ---
     const saveCharacter = async (socketId) => {
       const p = players[socketId];
-      if (p && p._id) {
-        try {
-          const user = await User.findOne({ 'characters._id': p._id });
-          if (user) {
-            const character = user.characters.id(p._id);
-            if (character) {
-              // Save Position
-              character.position = {
-                x: p.position.x,
-                y: p.position.y,
-                time: new Date()
-              };
-              // Save Equipment
-              if (p.equipment) {
-                character.equipment = p.equipment;
-              }
+      if (!p || !p._id) return;
 
-              // --- Save Vore & Resilience Data ---
-              if (p.voreTypes) character.voreTypes = p.voreTypes;
-              if (p.consumedBy !== undefined) character.consumedBy = p.consumedBy;
-              if (p.ratings) character.ratings = p.ratings;
+      // Concurrency Lock: Check if already saving
+      if (p.isSaving) {
+        // Mark as needing another save after current one finishes
+        p.savePending = true;
+        // log.debug(`[Persistence] Save for ${p.Username} queued (already saving).`);
+        return;
+      }
 
-              user.markModified('characters'); // Explicitly mark array/subdocs modified
-              await DatabaseResilience.save(user);
-              // log.success(`Saved data (pos/equip/vore) for character ${character.firstName}`);
-            }
+      p.isSaving = true;
+
+      try {
+        // Perform the actual save logic
+        await performSaveCharacter(p);
+      } catch (err) {
+        log.error(`Error saving character data for ${p.Username}:`, err);
+      } finally {
+        p.isSaving = false;
+        // Check if another save was requested during the lock
+        if (p.savePending) {
+          p.savePending = false;
+          // Trigger next save immediately
+          saveCharacter(socketId);
+        }
+      }
+    };
+
+    const performSaveCharacter = async (p) => {
+      const user = await User.findOne({ 'characters._id': p._id });
+      if (user) {
+        const character = user.characters.id(p._id);
+        if (character) {
+          // Save Position
+          character.position = {
+            x: p.position.x,
+            y: p.position.y,
+            time: new Date()
+          };
+          // Save Equipment
+          if (p.equipment) {
+            character.equipment = p.equipment;
           }
-        } catch (err) {
-          log.error(`Error saving character data for ${p.Username}:`, err);
+
+          // --- Save Vore & Resilience Data ---
+          if (p.voreTypes) character.voreTypes = p.voreTypes;
+          if (p.consumedBy !== undefined) character.consumedBy = p.consumedBy;
+          if (p.ratings) character.ratings = p.ratings;
+
+          user.markModified('characters');
+          await DatabaseResilience.save(user);
+          // log.success(`Saved data (pos/equip/vore) for character ${character.firstName}`);
         }
       }
     };
@@ -1258,10 +1385,18 @@ module.exports.start = (io, _messageSystem) => {
       io.emit('removePlayer', socket.id);
     });
 
-    // Handle movement input
+    // --- Player Input Handling ---
     socket.on('playerInput', (inputData) => {
       try {
         const player = players[socket.id];
+        if (!player) return;
+
+        // Block movement if crafting
+        if (player.isCrafting) {
+          return;
+        }
+
+        // Handle input normally
         if (player) {
           // Push to queue instead of overwriting
           if (!player.inputQueue) player.inputQueue = [];
@@ -1275,12 +1410,6 @@ module.exports.start = (io, _messageSystem) => {
           }
           if (inputData.clientTimestamp) {
             const now = Date.now();
-            if (player.lastInputTime) {
-              const jitter = now - player.lastInputTime;
-              if (jitter > 50) { // Log if > 50ms variance (expected ~33ms)
-                // log(`[Lag Debug] Input Jitter for ${player.Username}: ${jitter}ms`);
-              }
-            }
             player.lastInputTime = now;
             player.lastClientTimestamp = inputData.clientTimestamp;
           }
@@ -1338,13 +1467,19 @@ module.exports.start = (io, _messageSystem) => {
     // --- INTERACTION & MOVEMENT HANDLERS ---
     // Extracted to src/sockets/interactionHandlers.js
     const initInteractionHandlers = require('./sockets/interactionHandlers');
-    // Note: We pass TILE_SIZE (32)
-    initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32, saveCharacter);
+    // Note: We pass TILE_SIZE (32) and craftingStations
+    initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32, saveCharacter, craftingStations);
 
     // --- ITEM & INVENTORY HANDLERS ---
     // Extracted to src/sockets/inventoryHandlers.js
     const initInventoryHandlers = require('./sockets/inventoryHandlers');
     initInventoryHandlers(io, socket, players, worldItems, saveCharacter, clothingData, itemData);
+
+    // --- CRAFTING HANDLERS ---
+    const initCraftingHandlers = require('./sockets/craftingHandlers');
+    // Initialize Handlers
+    // Initialize Handlers
+    initCraftingHandlers.init(io, socket, players, itemData, saveCharacter, craftingStations, worldItems, module.exports.broadcastToVisible);
 
     socket.on('pickUpClicked', (clicked) => {
       try {
@@ -1442,6 +1577,10 @@ module.exports.start = (io, _messageSystem) => {
     socket.on('playerRightClicked', (data) => {
       try {
         const { rightClickedList, playerIntent, pointerX, pointerY } = data;
+
+        // RAW DEBUG LOG
+        log.debug(`[RightClick] Received list: ${JSON.stringify(rightClickedList)}`);
+
         const responseInfo = [];
         const requestingPlayer = players[socket.id];
         if (!requestingPlayer) return;
@@ -1488,14 +1627,92 @@ module.exports.start = (io, _messageSystem) => {
             });
           }
 
-          // --- Check if the clicked item is a map object ---
+          // --- Check if the clicked item is a map object (or Item reused as mapObject) ---
           else if (clickedItem.Identifier === 'mapObject') {
+            const actions = ['Examine'];
+            // Check if it's a known crafting station
+            if (craftingStations[clickedItem.uniqueId]) {
+              actions.push('Craft');
+            }
+
+            // --- Check for Dynamic Item (World Item) ---
+            const worldItem = worldItems.find(i => i.uid === clickedItem.uniqueId);
+
+            // Log matching attempt
+            log.debug(`[RightClick] Checking MapObject ${clickedItem.uniqueId}. isWorldItem? ${!!worldItem}`);
+
+            let name = clickedItem.name;
+            let description = clickedItem.description;
+
+            if (worldItem) {
+              const def = resolveItemDef(worldItem, itemData);
+              // Log definition
+              log.debug(`[RightClick] WorldItemDef: ${JSON.stringify(def)}`);
+
+              // [FIXED] Use Instance Properties -> Def Properties -> Client Data
+              name = worldItem.name || def.name || name;
+              description = worldItem.description || def.description || description;
+            }
+
             responseInfo.push({
-              name: clickedItem.name,
+              name: name,
               Identifier: 'mapObject',
               uniqueId: clickedItem.uniqueId,
-              description: clickedItem.description, // Pass through description
-              availableActions: ['Examine']
+              description: description,
+              availableActions: actions
+            });
+          }
+
+          // --- Check if the clicked item is a HELD ITEM (Inventory Slot) ---
+          else if (clickedItem.Identifier === 'heldItem') {
+            const actions = ['Examine'];
+
+            // Verify the player is actually holding this item
+            let heldNode = null;
+            if (clickedItem.slot === 'left') heldNode = requestingPlayer.actionHands.leftNode;
+            else if (clickedItem.slot === 'right') heldNode = requestingPlayer.actionHands.rightNode;
+
+            // Fallback: search both if slot missing or mismatch (e.g. race condition)
+            if (!heldNode || heldNode.uid !== clickedItem.uniqueId) {
+              if (requestingPlayer.actionHands.leftNode && requestingPlayer.actionHands.leftNode.uid === clickedItem.uniqueId) heldNode = requestingPlayer.actionHands.leftNode;
+              else if (requestingPlayer.actionHands.rightNode && requestingPlayer.actionHands.rightNode.uid === clickedItem.uniqueId) heldNode = requestingPlayer.actionHands.rightNode;
+            }
+
+            let def = {};
+            let name = clickedItem.name;
+            let description = clickedItem.description;
+            let flavor = '';
+            let verb = '';
+
+            if (heldNode) {
+              // Check definition
+              def = resolveItemDef(heldNode, itemData);
+              if (def.isDynamic || (heldNode.properties && heldNode.properties.isDynamic)) {
+
+                // Get Max Uses
+                const maxUses = def.maxUses || 10;
+                const currentUses = heldNode.timesUsed || 0;
+
+                if (currentUses < maxUses) {
+                  actions.push('Use');
+                }
+              }
+
+              // [FIXED] Use Instance Properties -> Def Properties -> Client Data
+              name = heldNode.name || def.name || name;
+              description = heldNode.description || def.description || description;
+              flavor = heldNode.flavor || def.flavor || '';
+              verb = def.verb; // Verbs usually static, but instance override possible
+            }
+
+            responseInfo.push({
+              name: name,
+              Identifier: 'heldItem',
+              uniqueId: clickedItem.uniqueId,
+              description: description,
+              verb: verb,
+              flavor: flavor,
+              availableActions: actions
             });
           }
         }
@@ -1547,6 +1764,9 @@ module.exports.start = (io, _messageSystem) => {
           // --- Check if the clicked item is a player ---
           if (clickedItem.Identifier === 'player' && players[clickedItem.playerId]) {
             const targetPlayer = players[clickedItem.playerId];
+
+            // --- SELF-CLICK CHECK removed (Moved to interactionHandlers) --
+
             // Use in-memory data
             const targetName = targetPlayer.Username || (targetPlayer.firstName + ' ' + targetPlayer.lastName) || 'Unknown Player';
 
@@ -1569,6 +1789,46 @@ module.exports.start = (io, _messageSystem) => {
 
 
 
+
+    // --- Door Interaction ---
+    socket.on('doorInteract', (doorId) => {
+      const door = worldDoors[doorId];
+      if (door) {
+        // Validation: Distance Check
+        const player = players[socket.id];
+        if (player) {
+          const dist = Math.abs(player.position.x - door.x) + Math.abs(player.position.y - door.y); // Approx
+          if (dist > 150) return; // Too far
+
+          if (door.locked) {
+            log.info(`Player ${player.firstName} tried to open locked door ${doorId}`);
+            socket.emit('doorLocked', doorId);
+          } else {
+            // Toggle
+            if (door.state === 'closed') {
+              door.state = 'open';
+              door.blocked = false;
+              door.lightBlock = false;
+            } else {
+              door.state = 'closed';
+              door.blocked = true;
+              door.lightBlock = true;
+            }
+
+            // Broadcast Update
+            io.emit('doorUpdate', {
+              id: doorId,
+              state: door.state,
+              blocked: door.blocked,
+              lightBlock: door.lightBlock
+            });
+
+            // Shadow Update
+            updateDynamicSegments(io);
+          }
+        }
+      }
+    });
 
     // --- Settings Update Listener ---
     // --- VORE SETTINGS HANDLERS ---
@@ -1711,3 +1971,50 @@ module.exports.getMapDataAt = (x, y) => {
 
 module.exports.getAllPlayers = () => players;
 module.exports.getWorldItems = () => worldItems;
+module.exports.updateDynamicSegments = updateDynamicSegments; // Export if needed
+
+/**
+ * Updates and broadcasts the visibility segments including dynamic doors.
+ */
+
+/**
+ * Generates the full list of visibility segments (Static + Dynamic Doors).
+ */
+function getDynamicSegments() {
+  if (!staticSegments) return [];
+
+  let allSegments = [...staticSegments];
+
+  // Add Door Segments
+  if (worldDoors) {
+    for (const key in worldDoors) {
+      const door = worldDoors[key];
+      if (door.lightBlock) {
+        const w = door.width;
+        const h = 20; // Match collision height
+
+        const x1 = door.x;
+        const x2 = door.x + w;
+        const y1 = door.y;
+        const y2 = door.y - h;
+
+        // 4 Segments (Top, Bottom, Left, Right)
+        allSegments.push([[x1, y1], [x2, y1]]); // Bottom
+        allSegments.push([[x2, y1], [x2, y2]]); // Right
+        allSegments.push([[x2, y2], [x1, y2]]); // Top
+        allSegments.push([[x1, y2], [x1, y1]]); // Left
+      }
+    }
+  }
+  return allSegments;
+}
+
+/**
+ * Updates and broadcasts the visibility segments including dynamic doors.
+ */
+function updateDynamicSegments(io) {
+  const segments = getDynamicSegments();
+  if (io) {
+    io.emit('mapSegments', segments);
+  }
+}

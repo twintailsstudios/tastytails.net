@@ -38,8 +38,20 @@
         "C:/Users/kkmcl/Documents/GitHub/tastytails.net/Map_Testing/Demo_Map.tmx#Demo_tileset": {
             "scaleInDock": 1
         },
+        "alpha_bottle.tsx": {
+            "dynamicWrapping": false
+        },
         "alpha_buildings.tsx": {
             "dynamicWrapping": true
+        },
+        "alpha_door.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "alpha_dye.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 3
         },
         "alpha_ground_set.tsx": {
             "dynamicWrapping": false,
@@ -57,11 +69,11 @@
                 6,
                 5
             ],
-            "scale": 0.75,
+            "scale": 0.33,
             "selectedLayer": 6,
             "viewCenter": {
-                "x": 1977.3333333333333,
-                "y": 1108
+                "x": 4215.151515151515,
+                "y": 1903.030303030303
             }
         },
         "alpha_map.tmx#alpha_ground_set": {
@@ -85,6 +97,9 @@
             "scaleInDock": 1,
             "scaleInEditor": 0.0625
         },
+        "alpha_thread.tsx": {
+            "dynamicWrapping": false
+        },
         "alpha_tileset..tsx": {
             "dynamicWrapping": false
         },
@@ -98,10 +113,10 @@
         },
         "auto_tile_rules.tmx": {
             "scale": 0.75,
-            "selectedLayer": 2,
+            "selectedLayer": 3,
             "viewCenter": {
-                "x": 461.3333333333333,
-                "y": 306.6666666666667
+                "x": 1897.3333333333333,
+                "y": 260
             }
         }
     },
@@ -118,6 +133,8 @@
     "project": "alpha_map.tiled-project",
     "property.type": "string",
     "recentFiles": [
+        "alpha_dye.tsx",
+        "alpha_door.tsx",
         "auto_tile_rules.tmx",
         "alpha_objects.tsx",
         "alpha_items.tsx",
@@ -127,5 +144,9 @@
     ],
     "tileset.lastUsedFilter": "Tiled tileset files (*.tsx *.xml)",
     "tileset.lastUsedFormat": "tsx",
+    "tileset.tileSize": {
+        "height": 64,
+        "width": 12
+    },
     "tileset.type": 0
 }

@@ -517,9 +517,16 @@ export function preload() {
     this.spritesToAnimate.push('hair-front_03');
 
     // Clothing Sprites
-    this.load.spritesheet('shirt_01', './../assets/spritesheets/shirt_01.png', { frameWidth: 215, frameHeight: 198 });
+    this.load.spritesheet('shirt_01', './../assets/clothes/shirt_01.png', { frameWidth: 215, frameHeight: 198 });
     this.spritesToAnimate.push('shirt_01');
-    this.load.spritesheet('pants_01', './../assets/spritesheets/pants_01.png', { frameWidth: 215, frameHeight: 198 });
+    this.load.spritesheet('shirt_01-secondary_01', './../assets/clothes/shirt_01-secondary_01.png', { frameWidth: 215, frameHeight: 198 });
+    this.spritesToAnimate.push('shirt_01-secondary_01');
+    this.load.spritesheet('shirt_01-secondary_02', './../assets/clothes/shirt_01-secondary_02.png', { frameWidth: 215, frameHeight: 198 });
+    this.spritesToAnimate.push('shirt_01-secondary_02');
+    this.load.spritesheet('shirt_01-secondary_03', './../assets/clothes/shirt_01-secondary_03.png', { frameWidth: 215, frameHeight: 198 });
+    this.spritesToAnimate.push('shirt_01-secondary_03');
+
+    this.load.spritesheet('pants_01', './../assets/clothes/pants_01.png', { frameWidth: 215, frameHeight: 198 });
     this.spritesToAnimate.push('pants_01');
 
 
@@ -544,7 +551,6 @@ export function preload() {
     this.load.image('mannequin_00', './../assets/tilemaps/mannequin_00.png');
     this.load.image('mannequin_01', './../assets/tilemaps/mannequin_01.png');
     this.load.image('mannequin_02', './../assets/tilemaps/mannequin_02.png');
-    this.load.image('sewing_machine_01', './../assets/tilemaps/sewing_machine_01.png');
     this.load.image('cloth_roll_basket01', './../assets/tilemaps/cloth_roll_basket01.png');
     this.load.image('yarn_basket_01', './../assets/tilemaps/yarn_basket_01.png');
 
@@ -554,23 +560,64 @@ export function preload() {
     this.load.image('card_table', './../assets/tilemaps/card_table.png');
     this.load.image('pub_stool_tall', './../assets/tilemaps/pub_stool_tall.png');
     this.load.image('desk_horizontal_01', './../assets/tilemaps/desk_horizontal_01.png');
-    this.load.image('counter_br', './../assets/tilemaps/counter_br.png');
-    this.load.image('counter_vertical', './../assets/tilemaps/counter_vertical.png');
-    this.load.image('counter_tl', './../assets/tilemaps/counter_tl.png');
-    this.load.image('counter_horizontal_01', './../assets/tilemaps/counter_horizontal_01.png');
-    this.load.image('counter_horizontal_02', './../assets/tilemaps/counter_horizontal_02.png');
+    // this.load.image('counter_br', './../assets/tilemaps/counter_br.png');
+    // this.load.image('counter_vertical', './../assets/tilemaps/counter_vertical.png');
+    // this.load.image('counter_tl', './../assets/tilemaps/counter_tl.png');
     this.load.image('counter_horizontal_03', './../assets/tilemaps/counter_horizontal_03.png');
 
+    this.load.image('counter_front_left_base', './../assets/tilemaps/counter_front_left_base.png');
+    this.load.image('counter_front_middle_base', './../assets/tilemaps/counter_front_middle_base.png');
+    this.load.image('counter_front_right_base', './../assets/tilemaps/counter_front_right_base.png');
+    this.load.image('counter_front_small', './../assets/tilemaps/counter_front_small.png');
+    this.load.image('counter_corner_tl', './../assets/tilemaps/counter_corner_tl.png');
+    this.load.image('counter_corner_tr', './../assets/tilemaps/counter_corner_tr.png');
+    this.load.image('counter_corner_bl', './../assets/tilemaps/counter_corner_bl.png');
+    this.load.image('counter_corner_br', './../assets/tilemaps/counter_corner_br.png');
+    this.load.image('counter_side_noBase', './../assets/tilemaps/counter_side_noBase.png');
+    this.load.image('counter_side_base', './../assets/tilemaps/counter_side_base.png');
+    this.load.image('counter_corner_left_noBase', './../assets/tilemaps/counter_corner_left_noBase.png');
+    this.load.image('counter_corner_right_noBase', './../assets/tilemaps/counter_corner_right_noBase.png');
+
+    //----- Crafting Stations -----//
     this.load.image('smelter', './../assets/tilemaps/smelter.png');
     this.load.image('anvil_01', './../assets/tilemaps/anvil_01.png');
+    this.load.image('cocktail_bar', './../assets/tilemaps/cocktail_bar.png');
+    this.load.image('juicer', './../assets/tilemaps/juicer.png');
+    this.load.image('distillery', './../assets/tilemaps/distillery.png');
+    this.load.image('spinning_wheel', './../assets/tilemaps/spinning_wheel.png');
+    this.load.image('sewing_machine', './../assets/tilemaps/sewing_machine.png');
+    this.load.image('cauldron', './../assets/tilemaps/cauldron.png');
+
+    this.load.image('toilet', './../assets/tilemaps/toilet.png');
+    this.load.image('sink', './../assets/tilemaps/sink.png');
 
 
     this.load.image('spa_massage_bed', './../assets/tilemaps/spa_massage_bed.png');
+
+    //----- Drinkware -----//
+    this.load.spritesheet('alpha_bottle', './../assets/tilemaps/alpha_bottle.png', { frameWidth: 12, frameHeight: 64 });
+    this.load.spritesheet('alpha_thread', './../assets/tilemaps/alpha_thread.png', { frameWidth: 12, frameHeight: 64 });
+    this.load.spritesheet('alpha_dye', './../assets/tilemaps/alpha_dye.png', { frameWidth: 12, frameHeight: 64 });
 
     //----- Items -----//
     this.load.image('pants', './../assets/tilemaps/pants.png');
     this.load.image('shirt', './../assets/tilemaps/shirt.png');
     this.load.image('key', './../assets/tilemaps/key.png');
+
+    //----- Crafting Items -----//
+    this.load.image('ingot_iron', './../assets/tilemaps/ingot_iron.png');
+
+    this.load.image('ore_iron', './../assets/tilemaps/ore_iron.png');
+
+    //----- Food -----//
+    this.load.image('food_orange', './../assets/tilemaps/food_orange.png');
+    this.load.image('food_potato', './../assets/tilemaps/food_potato.png');
+
+    //----- Fibers -----//
+    this.load.image('fiber_wool', './../assets/tilemaps/fiber_wool.png');
+
+    //----- Dye precursors -----//
+    this.load.image('indigo', './../assets/tilemaps/indigo.png');
 
     //----- Building Sprites -----//
     this.load.image('blacksmith_outside_01', './../assets/tilemaps/blacksmith_outside_01.png');
@@ -579,6 +626,7 @@ export function preload() {
     this.load.image('great_ash', './../assets/tilemaps/great_ash.png');
     this.load.image('tailor_structure', './../assets/tilemaps/tailor_structure.png');
     this.load.image('cozy_house', './../assets/tilemaps/cozy_house.png');
+    this.load.image('maintenance_outside', './../assets/tilemaps/maintenance_outside.png');
 
 
 
@@ -590,6 +638,8 @@ export function preload() {
     this.load.image('pub_exit_rug', './../assets/tilemaps/pub_exit_rug.png');
 
     this.load.spritesheet('door_spa', './../assets/spritesheets/door_spa.png', { frameWidth: 197, frameHeight: 255 });
+
+    this.load.spritesheet('alpha_door', './../assets/tilemaps/alpha_door.png', { frameWidth: 96, frameHeight: 288 });
 
 
     // ----- Emotes -----//

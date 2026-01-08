@@ -16,4 +16,24 @@
    <property name="zone" value="seamstress"/>
   </properties>
  </tile>
+ <tile id="48">
+  <properties>
+   <property name="zone" value="pub"/>
+  </properties>
+ </tile>
+ <tile id="49">
+  <properties>
+   <property name="zone" value="farmHouse"/>
+  </properties>
+ </tile>
+ <tile id="50">
+  <properties>
+   <property name="zone" value="maintenance"/>
+  </properties>
+ </tile>
+ <tile id="51">
+  <properties>
+   <property name="zone" value="miner"/>
+  </properties>
+ </tile>
 </tileset>

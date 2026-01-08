@@ -116,7 +116,7 @@ export function reconcile(serverPlayerState, self) {
     let isMoving = false;
     let rotation = serverPlayerState.rotation; // Default to server rotation
 
-    if (self.cursors) {
+    if (self.cursors && !serverPlayerState.isCrafting) {
         const left = self.cursors.left.isDown;
         const right = self.cursors.right.isDown;
         const up = self.cursors.up.isDown;

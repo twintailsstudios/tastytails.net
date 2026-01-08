@@ -1,6 +1,7 @@
 const log = require('../logger');
 
-module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter) {
+
+module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter, craftingStations) {
     const logPrefix = `[Inter:${socket.id}]`;
 
     // --- Inputs & Movement ---
@@ -83,7 +84,59 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
             if (distance < 100) {
                 if (playerIntent == 'friendly') {
-                    log.info(`Player ${players[socket.id].firstName} has hugged ${targetName} with ${playerIntent} intent.`);
+                    // --- CHECK FOR USE ITEM ON TARGET (Active Hand) ---
+                    const player = players[socket.id];
+                    const activeHand = player.actionHands.activeHand;
+                    const heldItem = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+                    let itemUsed = false;
+
+                    if (heldItem) {
+                        // Check if item is dynamic/usable
+                        const itemData = require('../data/itemData'); // Require directly
+                        const { resolveItemDef } = require('../utils/itemUtils');
+                        const def = resolveItemDef(heldItem, itemData);
+
+                        if (def.isDynamic || (heldItem.properties && heldItem.properties.isDynamic)) {
+                            // EXECUTE USE ITEM
+                            log.info(`[Interaction] ${player.firstName} used ${heldItem.name} on ${targetName} instead of hugging.`);
+
+                            // Increment Usage
+                            // Helper to get max uses
+                            const maxUses = def.maxUses || 10;
+                            const currentUses = heldItem.timesUsed || 0;
+
+                            if (currentUses < maxUses) {
+                                heldItem.timesUsed = currentUses + 1;
+                                itemUsed = true;
+
+                                log.info(`[Interaction] ${player.firstName} used ${heldItem.name} on ${targetName} (Uses: ${heldItem.timesUsed}/${maxUses}).`);
+
+                                // Emit Update for player inventory/hands
+                                io.emit('playerUpdates', { [socket.id]: player });
+                                if (saveCharacter) saveCharacter(socket.id);
+                            } else {
+                                // Item is empty
+                                log.info(`[Interaction] ${player.firstName} tried to use empty ${heldItem.name} on ${targetName}.`);
+                                // Do not set itemUsed=true, so it might fall through to hug? 
+                                // User said: "default "hug" behavior should only occur ... (with) empty hand"
+                                // User said: "If you have friendly intent enabled, and a usable item... it should perform the use action"
+                                // "Once .. max number of uses .. use option should no longer be available"
+                                // If I hold an empty bottle and click properly, NOTHING should happen (no hug, no use).
+                                itemUsed = true; // Mark as handled to prevent hug
+                            }
+
+                            // Emit Update for player inventory/hands (NOT itemUpdated which spawns it)
+                            // We broadcast to ensure other players see the potential visual change
+                            io.emit('playerUpdates', { [socket.id]: player });
+                            if (saveCharacter) saveCharacter(socket.id);
+
+                            itemUsed = true;
+                        }
+                    }
+
+                    if (!itemUsed) {
+                        log.info(`Player ${players[socket.id].firstName} has hugged ${targetName} with ${playerIntent} intent.`);
+                    }
                 }
                 if (playerIntent == 'grabbing') {
                     if (targetPlayer.isHeld && targetPlayer.heldBySocketId === socket.id) {
@@ -200,7 +253,61 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 };
                 socket.emit('examinedInfo', info);
             }
+            else if (data.Identifier === 'heldItem') {
+                const itemData = require('../data/itemData');
+                // For held items, we might only have uniqueId, or we might have name/texture from client?
+                // Client sends: Identifier, uniqueId, name, description.
+                // We should try to lookup the static info if description is missing.
 
+                // Note: Client 'data' comes from the Context Menu item which we just populated in server-loop. 
+                // However, 'examineClicked' data might just be what the client checked?
+                // The client 'examineClicked' emits 'currentItem'.
+
+                // Let's try to find the item in the player's hands to be secure, or just trust the ID/Static lookup if it's a known item type.
+                // Since it is just text description, looking up by name/id is fine.
+
+                // Actually, let's just use the data sent or lookup by uniqueId if possible? 
+                // But uniqueId for held items is dynamic.
+                // We can't easily lookup the specific item instance from just uniqueId without searching all players.
+                // BUT, the player examining it serves as context.
+                // If I am examining my OWN item, I have it.
+
+                // Let's search the requesting player's hands.
+                let heldItem = null;
+                if (requestingPlayer.actionHands.leftNode && requestingPlayer.actionHands.leftNode.uid === data.uniqueId) {
+                    heldItem = requestingPlayer.actionHands.leftNode;
+                } else if (requestingPlayer.actionHands.rightNode && requestingPlayer.actionHands.rightNode.uid === data.uniqueId) {
+                    heldItem = requestingPlayer.actionHands.rightNode;
+                }
+
+                let name = data.name;
+                let description = data.description || '';
+                let flavor = '';
+
+                if (heldItem) {
+                    const { resolveItemDef } = require('../utils/itemUtils');
+                    const def = resolveItemDef(heldItem, itemData);
+
+                    // [FIXED] Use Instance Properties -> Def Properties -> Client Data
+                    name = heldItem.name || def.name || name;
+                    description = heldItem.description || def.description || description;
+                    flavor = heldItem.flavor || def.flavor || '';
+                }
+
+                log.info(`${requestingPlayer.firstName} EXAMINED held item ${name}.`);
+
+                const message = `You examined ${name}. ${description}`;
+                if (messageSystem) {
+                    messageSystem.sendSystemMessage('Interactional', message, socket, [], 'local');
+                }
+
+                socket.emit('examinedInfo', {
+                    Identifier: 'heldItem',
+                    name: name,
+                    description: description,
+                    flavor: flavor
+                });
+            }
             else if (data.Identifier === 'mapObject') {
                 log.info(`${requestingPlayer.firstName} EXAMINED object ${data.name}.`);
 

@@ -1,3 +1,4 @@
+import StaticItemData from './itemData.js';
 
 export const itemManager = {
     scene: null,
@@ -16,6 +17,14 @@ export const itemManager = {
         socket.on('itemSpawned', (item) => this.spawnItem(item));
         socket.on('itemRemoved', (uid) => this.removeItem(uid));
 
+        // Handle Item Updates (Client-side sprite refresh)
+        socket.on('itemUpdated', (item) => {
+            console.log('[ItemManager] Item Updated:', item.uid);
+            // Simplest way: Remove old and spawn new to update properties/frame
+            this.removeItem(item.uid);
+            this.spawnItem(item);
+        });
+
         console.log('[ItemManager] Initialized');
     },
 
@@ -27,8 +36,116 @@ export const itemManager = {
         serverItems.forEach(item => this.spawnItem(item));
     },
 
+    setupItemInteraction: function (interactiveTarget, itemData, staticDef, tintTargets = []) {
+        // Interaction
+        interactiveTarget.setInteractive({ cursor: 'pointer' });
+
+        // Attach Object Info
+        interactiveTarget.objectInfo = {
+            Identifier: 'mapObject',
+            uniqueId: itemData.uid,
+            name: itemData.name || 'Item',
+            description: itemData.description || staticDef.description || 'A dropped item.',
+            verb: itemData.verb || staticDef.verb,
+            flavor: itemData.flavor || staticDef.flavor
+        };
+
+        // Also ensure the target itself has it (useful for container logic)
+        if (interactiveTarget !== tintTargets) {
+            // If target is container, maybe we attach to children? No, usually handled by caller.
+        }
+
+        // Hover Effects
+        interactiveTarget.on('pointerover', () => {
+            tintTargets.length ? tintTargets.forEach(t => t.setTint(0xffeeaa)) : interactiveTarget.setTint(0xffeeaa);
+            this.scene.input.setDefaultCursor('pointer');
+        });
+
+        interactiveTarget.on('pointerout', () => {
+            tintTargets.length ? tintTargets.forEach(t => {
+                if (t.originalTint) t.setTint(t.originalTint);
+                else t.clearTint();
+            }) : interactiveTarget.clearTint();
+            this.scene.input.setDefaultCursor('default');
+        });
+
+        // Click to Pickup
+        interactiveTarget.on('pointerdown', (pointer) => {
+            if (pointer.leftButtonDown()) {
+                console.log('[ItemManager] Clicked item:', itemData.uid);
+                this.socket.emit('pickUpClicked', {
+                    Identifier: 'item',
+                    Name: itemData.uid
+                });
+            }
+        });
+    },
+
     spawnItem: function (itemData) {
         if (this.items[itemData.uid]) return; // Already exists
+
+        // Resolve Static Definition for Rendering Config
+        const staticDef = StaticItemData[itemData.itemId] || StaticItemData[itemData.texture] || {};
+
+        // [FIX] Prioritize Instance Rendering Data (from Sewing Machine etc)
+        const rendering = itemData.rendering || staticDef.rendering || {};
+
+        // GENERIC LAYERED RENDERING
+        if (rendering.type === 'layered') {
+            const container = this.scene.add.container(itemData.x, itemData.y);
+            container.setDepth(itemData.y);
+
+            const timesUsed = itemData.timesUsed || 0;
+            const layers = rendering.layers || [];
+            let interactiveSprite = null;
+
+            layers.forEach(layerDef => {
+                const frame = (layerDef.frameOffset || 0) + timesUsed;
+                const textureKey = layerDef.texture || itemData.texture;
+                const sprite = this.scene.add.sprite(0, 0, textureKey, frame);
+                sprite.setOrigin(0.5, 1);
+
+                // Apply Initial Tint if param exists
+                if (layerDef.tintParam) {
+                    const tintColor = itemData[layerDef.tintParam] || staticDef[layerDef.tintParam];
+                    if (tintColor) {
+                        sprite.setTint(tintColor);
+                        sprite.originalTint = tintColor; // Save for generic hover
+                    }
+                } else if (layerDef.tint) {
+                    // [FIX] Support direct tint value (from Sewing Module)
+                    sprite.setTint(layerDef.tint);
+                    sprite.originalTint = layerDef.tint;
+                }
+
+                container.add(sprite);
+
+                if (layerDef.interactive) {
+                    interactiveSprite = sprite;
+                    sprite.setInteractive({ cursor: 'pointer' });
+                }
+            });
+
+            // If no interactive layer defined, default to the first layer (Base)
+            if (!interactiveSprite && layers.length > 0 && container.list.length > 0) {
+                const baseSprite = container.list[0];
+                baseSprite.setInteractive({ cursor: 'pointer' });
+                interactiveSprite = baseSprite;
+            }
+
+            if (interactiveSprite) {
+                // Collect tint targets (all children)
+                const tintTargets = container.list;
+                this.setupItemInteraction(interactiveSprite, itemData, staticDef, tintTargets);
+
+                // Copy objectInfo to container for reference if needed
+                container.objectInfo = interactiveSprite.objectInfo;
+            }
+
+            this.items[itemData.uid] = container;
+            this.itemsGroup.add(container);
+            return;
+        }
 
         // Texture: Use itemData.texture or default
         const texture = itemData.texture || 'default_item';
@@ -41,43 +158,15 @@ export const itemManager = {
         sprite.setOrigin(0.5, 1);
         sprite.setDepth(itemData.y); // Simple depth sorting
 
-        // Interaction
-        sprite.setInteractive({ cursor: 'pointer' });
+        // Dynamic Frame Rendering (for simple items that are usable but not layered)
+        if (itemData.timesUsed) {
+            sprite.setFrame(itemData.timesUsed);
+        }
 
-        // Hover Effects
-        sprite.on('pointerover', () => {
-            sprite.setTint(0xffeeaa); // Light yellow tint
-            this.scene.input.setDefaultCursor('pointer');
-        });
+        // Interaction & Metadata via Helper
+        this.setupItemInteraction(sprite, itemData, staticDef);
 
-        sprite.on('pointerout', () => {
-            sprite.clearTint();
-            this.scene.input.setDefaultCursor('default');
-        });
-
-        // Click to Pickup
-        sprite.on('pointerdown', (pointer) => {
-            if (pointer.leftButtonDown()) {
-                console.log('[ItemManager] Clicked item:', itemData.uid);
-                this.socket.emit('pickUpClicked', {
-                    Identifier: 'item',
-                    Name: itemData.uid
-                });
-            }
-        });
-
-        // Add to tracking
-        this.items[itemData.uid] = sprite;
-
-        // Attach metadata for Context Menu (Treat as mapObject or similar)
-        sprite.objectInfo = {
-            Identifier: 'mapObject', // Use 'mapObject' to reuse existing contextMenu/server logic? Or 'item'?
-            // Re-using 'mapObject' logic in server (which echoes name/desc) is easiest.
-            uniqueId: itemData.uid,
-            name: itemData.name || 'Item',
-            description: itemData.description || 'A dropped item.'
-        };
-
+        this.items[itemData.uid] = sprite; // FIX: Track the sprite
         this.itemsGroup.add(sprite);
     },
 

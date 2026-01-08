@@ -2,83 +2,20 @@ import { windowSize } from './utils.js';
 import { createVoreList } from './ui.js';
 import { EQUIPMENT_VISUALS } from './equipment.js';
 
+// --- Constants ---
+const CRAFTING_BAR_WIDTH = 60;
+const CRAFTING_BAR_HEIGHT = 8;
+const CRAFTING_BAR_Y_OFFSET = -165; // Height relative to player center
+const CRAFTING_BAR_X_OFFSET = 30; // Graphics object offset (container + 30)
+const CRAFTING_BAR_DRAW_X = -30; // Draw offset (centers the bar if X_OFFSET is 30)
+const CRAFTING_BAR_COLOR_BG = 0x222222;
+const CRAFTING_BAR_COLOR_FILL = 0xFFA500;
+const CRAFTING_BAR_COLOR_BORDER = 0x000000;
+
 export function updatePlayerEquipmentVisuals(container, equipmentData) {
     if (!equipmentData) return;
 
-    // Check each defined visual mapping
-    Object.keys(EQUIPMENT_VISUALS).forEach(itemTexture => {
-        const visualConfig = EQUIPMENT_VISUALS[itemTexture];
-        const slotId = visualConfig.slotId;
-        const equippedItem = equipmentData[slotId];
-        const spriteName = `equip_${slotId}`;
-
-        // Check if the player has THIS specific item equipped in the correct slot
-        const shouldShow = equippedItem && equippedItem.texture === itemTexture;
-
-        let sprite = container.getByName(spriteName);
-
-        if (shouldShow) {
-            if (!sprite) {
-                // Create sprite if it doesn't exist
-                // Position 30, -81.5 relative to container (matching other body parts)
-                sprite = container.scene.add.sprite(30, -81.5, visualConfig.atlas).setName(spriteName);
-                container.add(sprite);
-
-                // Set depth/z-index relative to other parts
-                // Note: Exact z-indexing is handled in animations.js often, but initial depth helps
-                // For now, allow animations.js to control sort, or use helper
-            }
-            // Ensure visible (might have been hidden)
-            sprite.setVisible(true);
-            // Store config reference for animation system
-            sprite.visualConfig = visualConfig;
-        } else {
-            // If sprite exists but shouldn't show (item removed or different item), hide or destroy it
-            // If different item is equipped, we might need to destroy this one to make room for new name?
-            // Actually, naming by slotId (`equip_legs`) means we reuse the sprite NAME, 
-            // but if the TEXTURE changes, we need to handle that.
-
-            // Re-eval logic:
-            // If the slot has an item that matches A mapping, we show it. 
-            // If the slot has an item that matches DIFFERENT mapping, we show that one.
-            // Current loop iterates by TEXTURE.
-
-            // Allow this loop to only handle "turning on" or "turning off" specific textures?
-            // Better: Iterate slots or use the spriteName as the key.
-
-            if (sprite && sprite.texture.key !== visualConfig.atlas) {
-                // The sprite exists but has the wrong texture (e.g. upgraded shirt).
-                // In this loop, we are checking `itemTexture`.
-                // If `shouldShow` is false, it means this specific item isn't on.
-                // We shouldn't destroy the sprite immediately because another loop iteration might want it?
-                // No, `spriteName` is unique to ID.
-
-                // If proper item is NOT equipped, we destroy/hide the visual for this slot IF it matches this texture?
-                // Wait, simpler approach:
-                // 1. Iterate all potential sprites/slots.
-                // 2. OR Just iterate `equipmentData`?
-            }
-        }
-    });
-
     // Better Approach: Iterate the SLOTS defined in visuals to decide what to show
-    // Invert the loop:
-    const activeVisuals = {};
-    Object.keys(EQUIPMENT_VISUALS).forEach(key => {
-        const config = EQUIPMENT_VISUALS[key];
-        // If player has this item equipped
-        if (equipmentData[config.slotId] && equipmentData[config.slotId].texture === key) {
-            activeVisuals[config.slotId] = config;
-        }
-    });
-
-    // Now update container
-    // For each possible slot that HAS a visual mapping available generally...
-    // We only have 2 mappings now.
-
-    // Let's just iterate all children? No, too expensive.
-
-    // Iterate our known possible visual slots (from mappings)
     const processedSlots = new Set();
     Object.values(EQUIPMENT_VISUALS).forEach(config => {
         if (processedSlots.has(config.slotId)) return;
@@ -96,22 +33,98 @@ export function updatePlayerEquipmentVisuals(container, equipmentData) {
         }
 
         if (activeConfig && activeConfig.slotId === config.slotId) {
-            // We should show something
-            if (!sprite) {
-                sprite = container.scene.add.sprite(30, -81.5, activeConfig.atlas).setName(spriteName);
-                container.add(sprite);
-            } else if (sprite.texture.key !== activeConfig.atlas) {
-                // Update texture if changed
-                sprite.setTexture(activeConfig.atlas);
+
+            // CHECK FOR DYNAMIC LAYERED RENDERING (e.g. Crafted Shirts)
+            if (equippedItem.rendering && equippedItem.rendering.layers) {
+                // Iterate Layers
+                equippedItem.rendering.layers.forEach((layer, idx) => {
+                    // Base layer (idx 0) keeps original name, others get suffix
+                    const layerName = idx === 0 ? spriteName : `${spriteName}_layer_${idx}`;
+                    let layerSprite = container.getByName(layerName);
+
+                    const textureKey = layer.texture || activeConfig.atlas;
+
+                    if (layerSprite) {
+                        if (layerSprite.texture.key !== textureKey) {
+                            layerSprite.setTexture(textureKey);
+                        }
+                    } else {
+                        layerSprite = container.scene.add.sprite(30, -81.5, textureKey).setName(layerName);
+                        container.add(layerSprite);
+                    }
+
+                    layerSprite.setVisible(true);
+                    layerSprite.visualConfig = activeConfig;
+
+                    if (layer.tint) {
+                        layerSprite.setTint(layer.tint);
+                    } else {
+                        layerSprite.clearTint();
+                    }
+                });
+
+                // Hide extra layers
+                let i = equippedItem.rendering.layers.length;
+                while (true) {
+                    const extraName = `${spriteName}_layer_${i}`;
+                    const extraSprite = container.getByName(extraName);
+                    if (extraSprite) {
+                        extraSprite.setVisible(false);
+                        i++;
+                    } else {
+                        break;
+                    }
+                }
+
+            } else {
+                // STANDARD SINGLE-LAYER RENDERING
+                if (sprite) {
+                    if (sprite.texture.key !== activeConfig.atlas) {
+                        sprite.setTexture(activeConfig.atlas);
+                    }
+                } else {
+                    sprite = container.scene.add.sprite(30, -81.5, activeConfig.atlas).setName(spriteName);
+                    container.add(sprite);
+                }
+
+                sprite.setVisible(true);
+                sprite.visualConfig = activeConfig;
+
+                if (equippedItem.color) {
+                    sprite.setTint(equippedItem.color);
+                } else {
+                    sprite.clearTint();
+                }
+
+                // Hide secondary layers
+                let i = 1;
+                while (true) {
+                    const extraName = `${spriteName}_layer_${i}`;
+                    const extraSprite = container.getByName(extraName);
+                    if (extraSprite) {
+                        extraSprite.setVisible(false);
+                        i++;
+                    } else {
+                        break;
+                    }
+                }
             }
-            sprite.setVisible(true);
-            sprite.visualConfig = activeConfig;
+
         } else {
-            // Nothing equipped, or equipped item has no visual
-            if (sprite) {
-                sprite.setVisible(false);
-                // Optionally destroy to save memory if needed, but hiding is faster for toggle
-                // sprite.destroy(); 
+            // Nothing to show for this slot
+            if (sprite) sprite.setVisible(false);
+
+            // Hide layers
+            let i = 1;
+            while (true) {
+                const extraName = `${spriteName}_layer_${i}`;
+                const extraSprite = container.getByName(extraName);
+                if (extraSprite) {
+                    extraSprite.setVisible(false);
+                    i++;
+                } else {
+                    break;
+                }
             }
         }
     });
@@ -438,6 +451,60 @@ export function updateVoreProgressBar(playerContainer, playerInfo, scene) {
         bar.fillStyle(0xFFD700);
         const fillPercent = playerInfo.voreStage / 3;
         bar.fillRect(-30, -200, 60 * fillPercent, 10);
+
+    } else {
+        bar.setVisible(false);
+    }
+}
+
+export function updateCraftingBar(playerContainer, playerInfo, scene) {
+    if (!playerContainer.active) return;
+
+    // Create craftingBar if not exists
+    if (!playerContainer.craftingBar) {
+        playerContainer.craftingBar = scene.add.graphics();
+        playerContainer.on('destroy', () => {
+            if (playerContainer.craftingBar) playerContainer.craftingBar.destroy();
+        });
+    }
+
+    const bar = playerContainer.craftingBar;
+
+    // console.log(`[CraftingBar] Updating for ${playerInfo.name || 'Player'}: isCrafting=${playerInfo.isCrafting}`);
+
+    if (playerInfo.isCrafting && playerInfo.craftingStartTime && playerInfo.craftingDuration) {
+        bar.setVisible(true);
+        bar.clear();
+
+        // Calculate Progress
+        const elapsed = Date.now() - playerInfo.craftingStartTime;
+        let progress = elapsed / playerInfo.craftingDuration;
+        progress = Math.max(0, Math.min(1, progress));
+
+        // Position: Above Head (approx -120 to -140 range? Typing is -150)
+        // Let's put it below typing, above struggle (-180?? wait. Struggle is -180, Typing -150)
+        // Struggle is highest? No, y decreases upwards.
+        // -200 is Vore (High)
+        // -180 is Struggle
+        // -150 is Typing
+        // Let's put Crafting at -165 (Between Typing and Struggle)
+
+        // Position using constants
+        bar.x = playerContainer.x + CRAFTING_BAR_X_OFFSET;
+        bar.y = playerContainer.y;
+        bar.depth = playerContainer.depth + 102; // Topmost
+
+        // Background
+        bar.fillStyle(CRAFTING_BAR_COLOR_BG);
+        bar.fillRect(CRAFTING_BAR_DRAW_X, CRAFTING_BAR_Y_OFFSET, CRAFTING_BAR_WIDTH, CRAFTING_BAR_HEIGHT);
+
+        // Fill (Orange/Gold)
+        bar.fillStyle(CRAFTING_BAR_COLOR_FILL);
+        bar.fillRect(CRAFTING_BAR_DRAW_X, CRAFTING_BAR_Y_OFFSET, CRAFTING_BAR_WIDTH * progress, CRAFTING_BAR_HEIGHT);
+
+        // Border
+        bar.lineStyle(1, CRAFTING_BAR_COLOR_BORDER);
+        bar.strokeRect(CRAFTING_BAR_DRAW_X, CRAFTING_BAR_Y_OFFSET, CRAFTING_BAR_WIDTH, CRAFTING_BAR_HEIGHT);
 
     } else {
         bar.setVisible(false);

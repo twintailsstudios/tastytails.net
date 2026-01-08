@@ -1,0 +1,4380 @@
+/* --- THEME VARIABLES ---
+   Centralized color palette to ensure the "Cozy Tavern" vibe is consistent.
+   We use specific wood and iron tones to distinguish the UI parts.
+*/
+:root {
+    /* Palette */
+    --wood-dark: #3e2723;
+    /* Main structural frames */
+    --wood-light: #5d4037;
+    /* Background panels */
+    --wood-border: #281815;
+    /* Deep borders for depth */
+    --parchment: #fff8e1;
+    /* Text areas/lists */
+    --parchment-dark: #ffe0b2;
+    /* Headers within parchment */
+    --parchment-text: #4e342e;
+    /* Ink color */
+    --iron: #78909c;
+    /* Metal accents */
+    --iron-dark: #37474f;
+    /* The Anvil surface */
+    --gold: #ffb300;
+    /* Gold ingots/accents */
+    --copper: #d84315;
+    /* Interactive highlights */
+    --fire-core: #ffeb3b;
+    /* Progress bar inner glow */
+    --fire-outer: #ff5722;
+    /* Progress bar outer flame */
+    --success: #66bb6a;
+    /* Success states */
+
+    /* Spacing & Radius */
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --radius-main: 12px;
+    /* Outer window curves */
+    --radius-slot: 6px;
+    /* Inner slot curves */
+}
+
+/* --- THEME OVERRIDES --- */
+
+/* =========================================
+       BASE STRUCTURAL CSS (The Skeleton)
+       -----------------------------------------
+       These styles apply to every theme to ensure the layout
+       remains consistent (Flexbox columns, spacing) while
+       the themes change the "Skin" (Colors, Shapes, Textures).
+       ========================================= */
+
+/* --- Crafting Overlay (Non-Blocking) --- */
+.crafting-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    /* Remove background and blur for non-blocking */
+    background: transparent;
+    backdrop-filter: none;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    /* Let clicks pass through to game */
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.crafting-overlay.active {
+    opacity: 1;
+}
+
+.crafting-window {
+    pointer-events: auto;
+    /* Re-enable clicks for the window itself */
+    position: relative;
+    /* Allow JS to switch to absolute */
+
+    width: 800px;
+    min-height: 550px;
+    height: auto;
+
+    display: flex;
+    flex-direction: column;
+    transition: background 0.5s, color 0.5s, box-shadow 0.5s, border-color 0.5s;
+    user-select: none;
+
+    /* Default generic styles fallback */
+    background: #333;
+    color: #fff;
+}
+
+/* --- Resize Handles --- */
+.resize-handle {
+    position: absolute;
+    background: transparent;
+    z-index: 10;
+}
+
+.resize-handle.top {
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    cursor: n-resize;
+}
+
+.resize-handle.left {
+    top: 0;
+    left: 0;
+    width: 5px;
+    height: 100%;
+    cursor: w-resize;
+}
+
+.resize-handle.right {
+    top: 0;
+    right: 0;
+    width: 5px;
+    height: 100%;
+    cursor: e-resize;
+}
+
+.resize-handle.bottom {
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    cursor: s-resize;
+}
+
+.resize-handle.br {
+    bottom: 0;
+    right: 0;
+    width: 15px;
+    height: 15px;
+    cursor: se-resize;
+}
+
+.window-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    cursor: grab;
+}
+
+.window-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.window-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.recipe-book {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+}
+
+.workstation {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.anvil-surface {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+}
+
+.input-zone {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.crafting-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin-top: 20px;
+}
+
+.output-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 20px;
+    /* Added spacing to separate from progress bar */
+}
+
+/* =========================================
+       THEME 1: THE TIPSY TAIL (Tavern / Bar Maid)
+       -----------------------------------------
+       VIBE: Warm, inviting, wooden signpost, leather, wax.
+       TECHNIQUES: 
+       - Background: Multi-layered radial gradients + SVG Data URI noise for wood grain.
+       - Buttons: Border-radius manipulation to create organic "Wax Seal" blobs.
+       ========================================= */
+
+.theme-cocktail {
+    --c-wood-dark: #3e2723;
+    --c-wood-light: #5d4037;
+    --c-parchment: #fff8e1;
+    --c-gold: #ffb300;
+    --c-text: #4e342e;
+
+    font-family: 'Crimson Pro', serif;
+    border-radius: 12px;
+
+    /* Deep Wood Grain with Vignette to look like a dark tavern wall */
+    background-color: #4e342e;
+    background-image:
+        radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.8) 100%),
+        url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' fill='%233e2723'/%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.1'/%3E%3Cpath d='M0 0h100v2H0zM0 20h100v2H0zM0 40h100v2H0zM0 60h100v2H0zM0 80h100v2H0z' fill='%23281815' opacity='0.2'/%3E%3C/svg%3E");
+
+    border: 6px double #8d6e63;
+    box-shadow:
+        0 0 0 4px #281815,
+        0 20px 40px rgba(0, 0, 0, 0.6);
+    color: var(--c-text);
+}
+
+.theme-cocktail .rivet {
+    display: none;
+}
+
+/* Clean look, no industrial bolts */
+
+/* Header: "Hanging Sign" Style - narrower than body with bottom border radius */
+.theme-cocktail .window-header {
+    background: #2d1e18;
+    padding: 10px 30px;
+    border: 2px solid #8d6e63;
+    border-top: none;
+    width: 85%;
+    margin: 0 auto;
+    /* Center it */
+    border-radius: 0 0 15px 15px;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.5);
+    margin-bottom: 10px;
+}
+
+.theme-cocktail .window-title {
+    font-family: 'Rye', serif;
+    font-size: 2rem;
+    color: #ffb74d;
+    text-shadow: 2px 2px 0px #281815, 0 0 10px rgba(255, 183, 77, 0.5);
+}
+
+/* Controls: Wax Seal & Brass Coin */
+.theme-cocktail .window-controls div {
+    /* Reset generics */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.theme-cocktail .window-controls .close-btn {
+    background: radial-gradient(circle at 35% 35%, #ef5350, #b71c1c);
+    color: #5d1010;
+    /* Dark red stamp color */
+    width: 36px;
+    height: 36px;
+    /* Organic wax blob shape using irregular border-radius */
+    border-radius: 55% 45% 50% 50% / 50% 55% 45% 50%;
+    border: 1px solid #b71c1c;
+    box-shadow:
+        2px 3px 4px rgba(0, 0, 0, 0.4),
+        inset 2px 2px 5px rgba(255, 255, 255, 0.2),
+        /* Highlight */
+        inset -2px -2px 5px rgba(0, 0, 0, 0.2);
+    /* Shadow */
+    font-size: 1.2rem;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2);
+    line-height: 1;
+}
+
+.theme-cocktail .window-controls .minimize-btn {
+    background: radial-gradient(circle at 30% 30%, #ffca28, #ff6f00);
+    color: #3e2723;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid #ff8f00;
+    box-shadow:
+        1px 2px 3px rgba(0, 0, 0, 0.3),
+        inset 1px 1px 2px rgba(255, 255, 255, 0.5);
+    font-weight: bold;
+    font-size: 1rem;
+    margin-right: 5px;
+    /* Spacing from seal */
+}
+
+.theme-cocktail .window-controls div:hover {
+    transform: scale(1.1);
+}
+
+/* Body */
+.theme-cocktail .window-body {
+    padding: 10px 30px 30px 30px;
+    gap: 30px;
+}
+
+/* Recipe Book: Parchment Menu - slight rotation for realism */
+.theme-cocktail .recipe-book {
+    width: 35%;
+    background-color: var(--c-parchment);
+    background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='5'/%3E%3CfeColorMatrix type='matrix' values='1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.3 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)' opacity='0.2'/%3E%3C/svg%3E");
+    transform: rotate(-1deg);
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4);
+    border: 1px solid #d7ccc8;
+    padding: 15px;
+}
+
+.theme-cocktail .recipe-header {
+    font-family: 'Rye', serif;
+    color: #3e2723;
+    text-align: center;
+    font-size: 1.4rem;
+    border-bottom: 2px solid #3e2723;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+}
+
+.theme-cocktail .recipe-list-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dotted #a1887f;
+    cursor: pointer;
+    transition: 0.2s;
+    color: #5d4037;
+    font-style: italic;
+}
+
+.theme-cocktail .recipe-list-item:hover {
+    color: #d84315;
+    transform: translateX(5px);
+}
+
+.theme-cocktail .recipe-list-item.active {
+    color: #bf360c;
+    font-weight: bold;
+}
+
+/* Workstation: Warm Wood Table */
+.theme-cocktail .anvil-surface {
+    background: transparent;
+    /* Letting the body wood show through */
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.theme-cocktail .crafting-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: var(--c-parchment);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+.theme-cocktail .preview-icon-lg {
+    font-size: 2.5rem;
+    width: 70px;
+    height: 70px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Inputs: Leather Coasters - Dashed borders mimic stitching */
+.theme-cocktail .input-zone {
+    gap: 15px;
+}
+
+.theme-cocktail .anvil-slot {
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(#6d4c41, #3e2723);
+    border: 2px dashed #a1887f;
+    /* Stitching */
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
+    transition: 0.2s;
+}
+
+.theme-cocktail .anvil-slot:hover {
+    border-color: var(--c-gold);
+    border-style: solid;
+}
+
+/* Button: Tap Handle - Uses partial borders to look like handle shape */
+.theme-cocktail .craft-btn {
+    background: linear-gradient(to right, #3e2723, #5d4037, #3e2723);
+    border: 2px solid #ffb300;
+    /* Brass bands */
+    border-left: none;
+    border-right: none;
+    color: #fff;
+    font-family: 'Rye', serif;
+    padding: 10px 40px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    /* Tap handle shape */
+}
+
+.theme-cocktail .craft-btn:active {
+    transform: translateY(2px);
+}
+
+.theme-cocktail .craft-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* Progress: Bubbling Beer - Gradient mimics foam at the tip */
+.theme-cocktail .progress-container {
+    width: 100%;
+    height: 10px;
+    background: #281815;
+    border-radius: 5px;
+    margin-top: 15px;
+    overflow: hidden;
+}
+
+.theme-cocktail .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ffc107 90%, #fff 100%);
+    /* Foam at tip */
+    width: 0%;
+}
+
+/* Output */
+.theme-cocktail .output-slot {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 4px double #8d6e63;
+    display: grid;
+    place-items: center;
+    font-size: 2.5rem;
+}
+
+.theme-cocktail .output-slot.has-item {
+    background: radial-gradient(circle, rgba(255, 179, 0, 0.2), transparent);
+    border-color: var(--c-gold);
+    box-shadow: 0 0 30px rgba(255, 179, 0, 0.4);
+}
+
+
+/* =========================================
+       THEME 2: THE VILLAGE ANVIL (Blacksmith)
+       -----------------------------------------
+       VIBE: Heavy, Angular, Sooty, Slate.
+       TECHNIQUES: 
+       - Background: Heat gradient (Red -> Grey).
+       - Clip-path: Used extensively on corners and menu items for angular look.
+       - Inputs: Hexagonal clip-path holes.
+       ========================================= */
+
+.theme-anvil {
+    --f-iron: #263238;
+    --f-iron-light: #455a64;
+    --f-fire: #ff5722;
+
+    font-family: 'Cinzel', serif;
+
+    /* Dark Iron Texture */
+    background-color: #212121;
+    background-image: url("data:image/svg+xml,%3Csvg width='64' height='64' viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 16c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm0 0c4.418 0 8 3.582 8 8s-3.582 8-8 8-8-3.582-8-8 3.582-8 8-8zM40 16c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm0 0c4.418 0 8 3.582 8 8s-3.582-8-8 8-8-3.582-8-8 3.582-8 8-8zM8 48c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm0 0c4.418 0 8 3.582 8 8s-3.582-8-8 8-8-3.582-8-8 3.582-8 8-8zM40 48c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm0 0c4.418 0 8 3.582 8 8s-3.582-8-8 8-8-3.582-8-8 3.582-8 8-8z' fill='%232c3e50' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E");
+
+    /* Clip all 4 corners for "Iron Plate" look */
+    clip-path: polygon(20px 0, calc(100% - 20px) 0,
+            100% 20px, 100% calc(100% - 20px),
+            calc(100% - 20px) 100%, 20px 100%,
+            0 calc(100% - 20px), 0 20px);
+
+    border: none;
+    padding: 4px;
+    background-clip: content-box;
+    color: #cfd8dc;
+}
+
+.theme-forge::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #37474f;
+    z-index: -1;
+}
+
+/* Heavy Bolts - rotated squares */
+.theme-forge .rivet {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #000;
+    border: 2px solid #546e7a;
+    transform: rotate(45deg);
+    z-index: 10;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.theme-forge .rivet.tl {
+    top: 22px;
+    left: 22px;
+}
+
+.theme-forge .rivet.tr {
+    top: 22px;
+    right: 22px;
+}
+
+.theme-forge .rivet.bl {
+    bottom: 22px;
+    left: 22px;
+}
+
+.theme-forge .rivet.br {
+    bottom: 22px;
+    right: 22px;
+}
+
+/* Header */
+.theme-forge .window-header {
+    background: #111;
+    padding: 15px 40px;
+    border-bottom: 4px solid #37474f;
+}
+
+.theme-forge .window-title {
+    color: #b0bec5;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: bold;
+}
+
+.theme-forge .window-controls div {
+    background: #263238;
+    color: #fff;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border: 2px solid #546e7a;
+    cursor: pointer;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.8);
+}
+
+.theme-forge .window-controls div:hover {
+    border-color: #ff5722;
+    color: #ff5722;
+}
+
+/* Body */
+.theme-forge .window-body {
+    padding: 0;
+    gap: 0;
+}
+
+/* Recipe Book: Slate Chalkboard */
+.theme-forge .recipe-book {
+    width: 260px;
+    background: #212121;
+    /* Slate color */
+    border-right: 4px solid #000;
+    padding: 15px;
+}
+
+.theme-forge .recipe-header {
+    background: transparent;
+    color: #e0e0e0;
+    padding: 5px;
+    text-align: center;
+    border-bottom: 2px solid #bdbdbd;
+    /* Chalk line */
+    margin-bottom: 15px;
+    font-family: 'Cinzel', serif;
+    /* Restored Font */
+    font-size: 1.2rem;
+    letter-spacing: 1px;
+    font-weight: bold;
+}
+
+/* Angular cut list items */
+.theme-forge .recipe-list-item {
+    padding: 10px;
+    background: #263238;
+    /* Dark metal background */
+    margin-bottom: 6px;
+    border: 1px solid #37474f;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    color: #bdbdbd;
+    font-size: 1rem;
+    /* Angular Cut (Bottom Right) */
+    clip-path: polygon(0 0, 100% 0, 100% 70%, 92% 100%, 0 100%);
+    transition: 0.2s;
+}
+
+.theme-forge .recipe-list-item:hover {
+    background: #37474f;
+    color: #fff;
+    transform: translateX(5px);
+    border-color: #546e7a;
+}
+
+.theme-forge .recipe-list-item.active {
+    background: #3e2723;
+    /* Heat color backing */
+    color: #ff5722;
+    border-left: 4px solid #ff5722;
+    border-color: #ff5722;
+}
+
+/* Workstation */
+.theme-forge .workstation {
+    background: radial-gradient(circle at 80% 80%, #3e2723 0%, #1a1a1a 70%);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.theme-forge .crafting-info {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 10px;
+    border: 1px solid #455a64;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.theme-forge .preview-icon-lg {
+    font-size: 2rem;
+    width: 50px;
+    height: 50px;
+    background: #263238;
+    border: 1px solid #78909c;
+    display: grid;
+    place-items: center;
+}
+
+/* Inputs: Hexagonal indentations (Per Request) */
+.theme-forge .input-zone {
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid #37474f;
+    padding: 15px;
+    margin-top: 10px;
+    box-shadow: inset 0 0 10px #000;
+}
+
+.theme-forge .anvil-slot {
+    width: 60px;
+    height: 60px;
+    background: #263238;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    display: grid;
+    place-items: center;
+    transition: 0.2s;
+}
+
+.theme-forge .anvil-slot:hover {
+    background: #37474f;
+}
+
+/* Inner pseudo for border effect on hex */
+.theme-forge .anvil-slot::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    bottom: 2px;
+    background: #1a1a1a;
+    z-index: -1;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+/* Button - Bellows/Lever Style */
+.theme-forge .craft-btn {
+    background: #3e2723;
+    border: 2px solid #ff5722;
+    color: #ff5722;
+    padding: 15px 40px;
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    transition: 0.2s;
+}
+
+.theme-forge .craft-btn:disabled {
+    border-color: #555;
+    color: #555;
+    background: #212121;
+    cursor: default;
+}
+
+.theme-forge .craft-btn:not(:disabled):hover {
+    background: #ff5722;
+    color: #000;
+    box-shadow: 0 0 15px #ff5722;
+}
+
+/* Progress: Heat Gradient (Dark Grey -> Red -> Orange) */
+.theme-forge .progress-container {
+    width: 100%;
+    height: 15px;
+    background: #000;
+    margin-top: 15px;
+    border: 1px solid #333;
+}
+
+.theme-forge .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #424242, #b71c1c, #ff6f00, #ffeb3b);
+    width: 0%;
+}
+
+/* Output */
+.theme-forge .output-slot {
+    width: 100px;
+    height: 100px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px dashed #546e7a;
+    margin-top: 20px;
+    display: grid;
+    place-items: center;
+    font-size: 2.5rem;
+}
+
+.theme-forge .output-slot.has-item {
+    border-style: solid;
+    border-color: #ff5722;
+    box-shadow: 0 0 20px #ff5722;
+}
+
+
+/* =========================================
+       THEME 3: THE CLAY SMELTER (Foundry)
+       -----------------------------------------
+       VIBE: Brick, Soot, Heat, Industrial Casts.
+       TECHNIQUES: 
+       - Background: Complex linear-gradients to create brick pattern.
+       - Output: Clip-path used to create Trapezoid "Ingot Mold".
+       - Decoration: Vertical bars mimic ventilation grills.
+       ========================================= */
+
+.theme-furnace {
+    --s-brick: #8d6e63;
+    --s-mortar: #3e2723;
+    --s-fire: #ffca28;
+
+    font-family: 'Lato', sans-serif;
+    border-radius: 40px 40px 4px 4px;
+
+    /* Brick Pattern */
+    background-color: #a1887f;
+    background-image:
+        linear-gradient(335deg, rgba(62, 39, 35, 0.3) 23px, transparent 23px),
+        linear-gradient(155deg, rgba(62, 39, 35, 0.3) 23px, transparent 23px),
+        linear-gradient(335deg, rgba(62, 39, 35, 0.3) 23px, transparent 23px),
+        linear-gradient(155deg, rgba(62, 39, 35, 0.3) 23px, transparent 23px);
+    background-size: 58px 58px;
+
+    border: 8px solid #3e2723;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+    color: #fff;
+}
+
+/* Vertical Vent Grills */
+.theme-smelter .rivet {
+    position: absolute;
+    width: 20px;
+    top: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(0deg, #212121, #212121 2px, #424242 2px, #424242 4px);
+    border-left: 2px solid #000;
+    border-right: 2px solid #000;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.theme-smelter .rivet.tl {
+    left: 10px;
+    border-top-left-radius: 40px;
+}
+
+.theme-smelter .rivet.tr {
+    right: 10px;
+    border-top-right-radius: 40px;
+}
+
+.theme-smelter .rivet.bl,
+.theme-smelter .rivet.br {
+    display: none;
+}
+
+/* Header */
+.crafting-window.theme-smelter .window-header {
+    background: #3e2723;
+    padding: 20px 40px;
+    border-radius: 32px 32px 0 0;
+    border-bottom: 4px solid #1a1a1a;
+}
+
+.theme-smelter .window-title {
+    font-family: 'Cinzel', serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: #ffca28;
+    text-shadow: 0 0 5px #e65100;
+    letter-spacing: 1px;
+}
+
+/* Controls: Valve Wheels - Simplified for Readability */
+.theme-smelter .window-controls div {
+    background: #1a1a1a;
+    /* Solid dark iron */
+    color: #ffca28;
+    /* Bright gold text */
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    border: 2px solid #ffca28;
+    cursor: pointer;
+    box-shadow: inset 0 0 5px #000;
+    font-weight: bold;
+}
+
+.theme-smelter .window-controls div:hover {
+    background: #3e2723;
+    box-shadow: 0 0 10px #ffca28;
+}
+
+/* Body */
+.theme-smelter .window-body {
+    padding: 20px 55px;
+    /* Clear Vents */
+    background: radial-gradient(circle at bottom, #4e342e 0%, #212121 80%);
+    /* Sooty interior */
+    gap: 20px;
+}
+
+/* Recipe Book */
+.theme-smelter .recipe-book {
+    width: 30%;
+    background: #5d4037;
+    border: 2px solid #3e2723;
+    border-radius: 4px;
+    padding: 5px;
+}
+
+.theme-smelter .recipe-header {
+    background: #3e2723;
+    padding: 8px;
+    text-align: center;
+    color: #d7ccc8;
+    font-weight: bold;
+}
+
+.theme-smelter .recipe-list-item {
+    padding: 12px;
+    background: #4e342e;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    border-left: 4px solid transparent;
+}
+
+.theme-smelter .recipe-list-item:hover {
+    background: #6d4c41;
+}
+
+.theme-smelter .recipe-list-item.active {
+    background: #3e2723;
+    border-left-color: #ffca28;
+    color: #ffca28;
+}
+
+/* Workstation: Clean Heat Gradient */
+.theme-smelter .anvil-surface {
+    background: linear-gradient(to top, #bf360c 0%, #212121 100%);
+    border-radius: 12px;
+    border: 4px solid #3e2723;
+    padding: 20px;
+    box-shadow: inset 0 0 50px #000;
+}
+
+.theme-smelter .crafting-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px dashed #4e342e;
+    padding-bottom: 10px;
+}
+
+.theme-smelter .preview-icon-lg {
+    font-size: 2rem;
+    width: 60px;
+    height: 60px;
+    background: #3e2723;
+    border: 2px solid #5d4037;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    color: #ffca28;
+}
+
+/* Inputs: Terracotta Pots */
+.theme-smelter .input-zone {
+    gap: 12px;
+}
+
+.theme-smelter .anvil-slot {
+    width: 55px;
+    height: 60px;
+    background: #5d4037;
+    border: 2px solid #8d6e63;
+    border-top: 4px solid #8d6e63;
+    border-radius: 4px 4px 20px 20px;
+    display: grid;
+    place-items: center;
+    transition: 0.2s;
+}
+
+.theme-smelter .anvil-slot:hover {
+    border-color: #ffca28;
+    background: #6d4c41;
+}
+
+/* Button */
+.theme-smelter .craft-btn {
+    background: #ff6f00;
+    border: none;
+    color: #212121;
+    padding: 15px 40px;
+    font-family: 'Lato', sans-serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #bf360c;
+    transition: 0.1s;
+}
+
+.theme-smelter .craft-btn:disabled {
+    background: #4e342e;
+    box-shadow: none;
+    color: #757575;
+    cursor: default;
+}
+
+.theme-smelter .craft-btn:not(:disabled):hover {
+    background: #ff8f00;
+    transform: scale(1.02);
+}
+
+/* Progress */
+.theme-smelter .progress-container {
+    width: 100%;
+    height: 12px;
+    background: #000;
+    border-radius: 6px;
+    margin-top: 15px;
+    overflow: hidden;
+    border: 1px solid #333;
+}
+
+.theme-smelter .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #e65100, #ffca28);
+    width: 0%;
+}
+
+/* Output: Trapezoid Ingot Mold */
+.theme-smelter .output-slot {
+    width: 140px;
+    height: 60px;
+    /* Slightly wider for ingot shape */
+    background: #d7ccc8;
+    /* Sand color */
+    /* Sand noise */
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E");
+    margin-top: 20px;
+    display: grid;
+    place-items: center;
+    font-size: 2rem;
+
+    /* Trapezoid Shape using clip-path */
+    clip-path: polygon(15% 0, 85% 0, 100% 100%, 0% 100%);
+    border: none;
+
+    /* Simulate depth since box-shadow is clipped */
+    filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.5));
+}
+
+.theme-smelter .output-slot.has-item {
+    background: radial-gradient(circle, #fff, #ffca28);
+    filter: drop-shadow(0 0 15px #ff6f00);
+}
+
+/* =========================================
+       THEME 4: THE SPUN SILK (Seamstress)
+       -----------------------------------------
+       VIBE: Tactile, Fabric, Sewing, Clean.
+       TECHNIQUES:
+       - Background: CSS Grid pattern for "Cutting Mat".
+       - Borders: Dashed borders mimic stitching.
+       - Output: Radial gradients create a puffy "Pincushion" effect.
+       ========================================= */
+
+.theme-seamstress {
+    --s-fabric: #f3e5f5;
+    --s-wood: #8d6e63;
+    --s-accent: #ab47bc;
+
+    font-family: 'Crimson Pro', serif;
+    border-radius: 12px;
+
+    /* Scalloped Border Simulation using dashed border */
+    background-color: #d7ccc8;
+    border: 8px dashed #8d6e63;
+    box-shadow: 0 0 0 6px #d7ccc8, 0 20px 40px rgba(0, 0, 0, 0.3);
+    color: #4e342e;
+}
+
+/* RIVETS -> Pearl Pins */
+.theme-seamstress .rivet {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #f48fb1;
+    border-radius: 50%;
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    z-index: 10;
+}
+
+.theme-seamstress .rivet.tl {
+    top: 10px;
+    left: 10px;
+    background: #ce93d8;
+}
+
+.theme-seamstress .rivet.tr {
+    top: 10px;
+    right: 10px;
+    background: #90caf9;
+}
+
+.theme-seamstress .rivet.bl {
+    bottom: 10px;
+    left: 10px;
+    background: #a5d6a7;
+}
+
+.theme-seamstress .rivet.br {
+    bottom: 10px;
+    right: 10px;
+    background: #fff59d;
+}
+
+/* Header */
+.theme-seamstress .window-header {
+    background: #fff3e0;
+    padding: 15px 40px;
+    border-bottom: 2px dashed #8d6e63;
+}
+
+.theme-seamstress .window-title {
+    font-family: 'Crimson Pro', serif;
+    font-weight: 700;
+    font-style: italic;
+    font-size: 2rem;
+    color: #5d4037;
+}
+
+/* Controls: Pin Heads with Visible Icons */
+.theme-seamstress .window-controls div {
+    background: radial-gradient(circle at 30% 30%, #fff, #ef5350);
+    color: #b71c1c;
+    /* Visible text color */
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    /* Larger touch target */
+    border: 1px solid #b71c1c;
+    /* Distinct border */
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.theme-seamstress .window-controls .minimize-btn {
+    background: radial-gradient(circle at 30% 30%, #fff, #42a5f5);
+    color: #0d47a1;
+    border-color: #0d47a1;
+}
+
+/* Body */
+.theme-seamstress .window-body {
+    padding: 25px;
+    gap: 25px;
+}
+
+/* Recipe Book */
+.theme-seamstress .recipe-book {
+    width: 30%;
+    background: #fff;
+    border: 1px solid #d7ccc8;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+    transform: rotate(1deg);
+}
+
+.theme-seamstress .recipe-header {
+    background: #f8bbd0;
+    color: #880e4f;
+    padding: 8px;
+    text-align: center;
+    font-family: 'Crimson Pro', serif;
+    font-weight: bold;
+    border-bottom: 1px dashed #c2185b;
+}
+
+.theme-seamstress .recipe-list-item {
+    padding: 10px;
+    border-bottom: 1px solid #f3e5f5;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.theme-seamstress .recipe-list-item:hover {
+    background: #fce4ec;
+}
+
+.theme-seamstress .recipe-list-item.active {
+    background: #f8bbd0;
+    border-left: 4px solid #c2185b;
+    font-weight: bold;
+}
+
+/* Workstation: Cutting Mat Grid */
+.theme-seamstress .anvil-surface {
+    background-color: #1b5e20;
+    /* Dark green mat */
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.3) 1px, transparent 1px);
+    background-size: 20px 20px;
+    border-radius: 4px;
+    border: 4px solid #fff;
+    padding: 20px;
+}
+
+/* Readability Plate for Info - Dark backing to read text on grid */
+.theme-seamstress .crafting-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.6);
+    /* Dark backing for text */
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 10px;
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+.theme-seamstress .preview-icon-lg {
+    font-size: 2.5rem;
+    width: 70px;
+    height: 70px;
+    background: #fff;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    color: #000;
+}
+
+/* Label: Printed markings directly on the mat */
+.theme-seamstress #crafting-input-label {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    padding: 0;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    opacity: 1 !important;
+    box-shadow: none;
+    transform: none;
+    display: block;
+    width: 100%;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+    margin-bottom: 15px;
+    font-size: 0.8rem;
+}
+
+/* Inputs: Canvas Hoops */
+.theme-seamstress .input-zone {
+    gap: 15px;
+}
+
+.theme-seamstress .anvil-slot {
+    width: 60px;
+    height: 60px;
+    background: #f5f5f5;
+    /* Canvas color */
+    /* Canvas texture */
+    background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
+    background-size: 4px 4px;
+    border: 4px solid #d2b48c;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.theme-seamstress .anvil-slot:hover {
+    border-color: #8d6e63;
+}
+
+.theme-seamstress .anvil-slot::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    width: 10px;
+    height: 4px;
+    background: #a1887f;
+    border-radius: 2px;
+}
+
+/* Button: Clothing Tag */
+.theme-seamstress .craft-btn {
+    background: #fff;
+    border: 1px dashed #bdbdbd;
+    color: #424242;
+    padding: 10px 40px;
+    font-family: 'Crimson Pro', serif;
+    font-weight: bold;
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.theme-seamstress .craft-btn::before {
+    /* Hole punch */
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+    background: #1b5e20;
+    border-radius: 50%;
+}
+
+.theme-seamstress .craft-btn:disabled {
+    background: #e0e0e0;
+    color: #9e9e9e;
+    cursor: default;
+}
+
+.theme-seamstress .craft-btn:not(:disabled):hover {
+    background: #fafafa;
+    transform: rotate(-2deg);
+}
+
+/* Progress: Measuring Tape in Recessed Groove */
+.theme-seamstress .progress-container {
+    width: 100%;
+    /* Added width */
+    height: 14px;
+    background: rgba(0, 0, 0, 0.3);
+    /* Dark groove */
+    border-radius: 2px;
+    margin-top: 15px;
+    overflow: hidden;
+    border: none;
+    /* Removed border to sink it in */
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.theme-seamstress .progress-bar {
+    height: 100%;
+    background: repeating-linear-gradient(90deg,
+            #ffeb3b, #ffeb3b 10px,
+            #fbc02d 10px, #fbc02d 11px);
+    width: 0%;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+    /* Shadow at end of tape */
+}
+
+/* Output: Velvet Pincushion */
+.theme-seamstress .output-slot {
+    width: 90px;
+    height: 90px;
+    background: radial-gradient(circle at 30% 30%, #e91e63, #880e4f);
+    /* Velvet Puffy look */
+    border-radius: 50%;
+    margin-top: 20px;
+    display: grid;
+    place-items: center;
+    font-size: 2.5rem;
+    color: #fff;
+    border: 4px dotted #f8bbd0;
+    /* Trim */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.theme-seamstress .output-slot.has-item {
+    box-shadow: 0 5px 15px rgba(233, 30, 99, 0.5);
+}
+
+/* Output Hint Label */
+.theme-seamstress .output-hint {
+    color: #fff;
+    opacity: 0.9;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    font-weight: bold;
+    margin-top: 5px;
+}
+
+/* =========================================
+       THEME 5: THE BERRY PRESS (Juicer)
+       -----------------------------------------
+       VIBE: Farm-to-Table, Organic, Wooden Crate.
+       TECHNIQUES: 
+       - Background: Gingham pattern via gradients.
+       - Inputs: Wicker texture via repeating gradients.
+       - Controls: "Berry" shapes with green leaf pseudo-elements.
+       ========================================= */
+.crafting-window.theme-juicer {
+    --j-light: #dcedc8;
+    --j-dark: #33691e;
+
+    font-family: 'Fredoka', sans-serif;
+    border-radius: 8px;
+
+    /* Crate Texture: Horizontal wooden slats */
+    background-color: #8d6e63;
+    background-image: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.1) 0px, rgba(0, 0, 0, 0.1) 2px, transparent 2px, transparent 40px);
+    background-size: 100% 40px;
+
+    border: 8px solid #5d4037;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    color: #fff;
+}
+
+/* Vine/Leaf Corners */
+.theme-juicer .rivet {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    filter: drop-shadow(1px 2px 2px rgba(0, 0, 0, 0.5));
+}
+
+.theme-juicer .rivet::after {
+    content: '🍃';
+}
+
+.theme-juicer .rivet.tl {
+    top: -10px;
+    left: -10px;
+    transform: rotate(-45deg);
+}
+
+.theme-juicer .rivet.tr {
+    top: -10px;
+    right: -10px;
+    transform: rotate(45deg);
+}
+
+.theme-juicer .rivet.bl {
+    bottom: -10px;
+    left: -10px;
+    transform: rotate(-135deg);
+}
+
+.theme-juicer .rivet.br {
+    bottom: -10px;
+    right: -10px;
+    transform: rotate(135deg);
+}
+
+/* Header */
+.crafting-window.theme-juicer .window-header {
+    background: #558b2f;
+    padding: 15px 40px;
+    border-bottom: 4px solid #33691e;
+    border-radius: 4px 4px 0 0;
+}
+
+.theme-juicer .window-title {
+    font-family: 'MedievalSharp', cursive;
+    color: #fff;
+    text-shadow: 0 2px 0 #33691e;
+}
+
+/* Controls: Berries - FIXED SIZING & ALIGNMENT */
+.theme-juicer .window-controls .close-btn {
+    background: #e53935;
+    color: #fff;
+    width: 30px;
+    height: 30px;
+    /* Explicit Size */
+    border-radius: 50%;
+    border: 2px solid #b71c1c;
+    /* Definition */
+    box-shadow: inset -2px -2px 5px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.theme-juicer .window-controls .minimize-btn {
+    background: #1e88e5;
+    color: #fff;
+    width: 30px;
+    height: 30px;
+    /* Explicit Size */
+    border-radius: 50%;
+    border: 2px solid #0d47a1;
+    /* Definition */
+    box-shadow: inset -2px -2px 5px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+    font-size: 14px;
+    cursor: pointer;
+    padding-bottom: 8px;
+    /* Visually centers the underscore character */
+}
+
+.theme-juicer .window-controls div:hover {
+    transform: scale(1.1);
+    /* Pop animation */
+}
+
+/* Body */
+.theme-juicer .window-body {
+    padding: 25px;
+    gap: 25px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Recipe Book: Gingham Picnic */
+.theme-juicer .recipe-book {
+    width: 30%;
+    background-color: #fff;
+    background-image:
+        linear-gradient(90deg, rgba(200, 0, 0, 0.1) 50%, transparent 50%),
+        linear-gradient(rgba(200, 0, 0, 0.1) 50%, transparent 50%);
+    background-size: 20px 20px;
+    border: 2px solid #8d6e63;
+    border-radius: 4px;
+    padding: 10px;
+    color: #3e2723;
+}
+
+.theme-juicer .recipe-header {
+    background: #fff;
+    padding: 5px;
+    text-align: center;
+    color: #3e2723;
+    border: 1px solid #d7ccc8;
+    margin-bottom: 10px;
+    font-weight: bold;
+    transform: rotate(-2deg);
+}
+
+.theme-juicer .recipe-list-item {
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.8);
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.theme-juicer .recipe-list-item:hover {
+    background: #fff;
+}
+
+.theme-juicer .recipe-list-item.active {
+    border-left: 4px solid #c62828;
+    font-weight: bold;
+}
+
+/* Workstation */
+.theme-juicer .anvil-surface {
+    background: #795548;
+    border-radius: 12px;
+    border: 4px solid #5d4037;
+    padding: 20px;
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
+}
+
+.theme-juicer .crafting-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px dashed #a1887f;
+    padding-bottom: 10px;
+}
+
+.theme-juicer .preview-icon-lg {
+    font-size: 2.5rem;
+    width: 70px;
+    height: 70px;
+    background: #dcedc8;
+    border: 2px solid #81c784;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+}
+
+/* Inputs: Wooden Bowls */
+.theme-juicer .input-zone {
+    gap: 15px;
+}
+
+.theme-juicer .anvil-slot {
+    width: 60px;
+    height: 60px;
+    background: #d7ccc8;
+    /* Lighter wood inside */
+    border: 4px solid #8d6e63;
+    /* Bowl rim */
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 4px 5px rgba(0, 0, 0, 0.3), inset 0 -5px 10px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    /* Bouncy transition */
+}
+
+.theme-juicer .anvil-slot:hover {
+    border-color: #6d4c41;
+    transform: scale(1.15) translateY(-5px);
+    /* Pop up effect */
+    box-shadow: 0 15px 20px rgba(0, 0, 0, 0.3), inset 0 -5px 10px rgba(0, 0, 0, 0.1);
+    background: #efebe9;
+    cursor: pointer;
+}
+
+/* Button: Crank Handle */
+.theme-juicer .craft-btn {
+    background: #8d6e63;
+    border: 4px solid #5d4037;
+    border-radius: 50px 10px 10px 50px;
+    color: #fff;
+    padding: 10px 40px;
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #3e2723;
+}
+
+.theme-juicer .craft-btn:disabled {
+    background: #bdbdbd;
+    border-color: #9e9e9e;
+    box-shadow: none;
+    cursor: default;
+}
+
+.theme-juicer .craft-btn:not(:disabled):hover {
+    background: #a1887f;
+}
+
+.theme-juicer .craft-btn:active {
+    transform: rotate(5deg);
+}
+
+/* Progress */
+.theme-juicer .progress-container {
+    width: 100%;
+    height: 12px;
+    background: #3e2723;
+    border-radius: 6px;
+    margin-top: 15px;
+    overflow: hidden;
+    border: 2px solid #5d4037;
+}
+
+.theme-juicer .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #c62828, #ff6f00);
+    width: 0%;
+}
+
+/* Output: Pitcher */
+.theme-juicer .output-slot {
+    width: 80px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 4px 4px 20px 20px;
+    margin-top: 20px;
+    display: grid;
+    place-items: center;
+    font-size: 2.5rem;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.theme-juicer .output-slot.has-item {
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.2) 20%, #ef5350 20%, #c62828 100%);
+    border-color: #fff;
+}
+
+/* =========================================
+       THEME 6: THE COPPER STILL (Distillery)
+       -----------------------------------------
+       VIBE: Industrial, Steampunk-lite, Warm Copper.
+       TECHNIQUES:
+       - Texture: Brushed metal using linear-gradients.
+       - Output: Complex Glass Bottle shape using ::before pseudo-elements.
+       - Progress: "Sight Glass" tube effect.
+       ========================================= */
+.crafting-window.theme-distillery {
+    --d-copper: #b87333;
+    --d-brass: #d4af37;
+
+    font-family: 'Lato', sans-serif;
+    border-radius: 30px 30px 10px 10px;
+
+    /* Copper Texture */
+    background-color: #a05a2c;
+    background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 10%, transparent 50%, rgba(0, 0, 0, 0.1) 50%, transparent 60%, transparent 100%);
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.5), 0 20px 40px rgba(0, 0, 0, 0.5);
+    border: 4px solid #b87333;
+    color: #fff;
+}
+
+.theme-distillery .rivet {
+    display: none;
+}
+
+/* Clean look */
+
+/* Header */
+.crafting-window.theme-distillery .window-header {
+    background: linear-gradient(to right, #8d5524, #b87333);
+    padding: 15px 50px;
+    border-bottom: 4px solid #5d4037;
+    border-radius: 26px 26px 0 0;
+}
+
+.theme-distillery .window-title {
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    text-transform: uppercase;
+    text-shadow: 1px 1px 0 #3e2723;
+}
+
+/* Valve Controls - FIXED: Solid brass look for readability */
+.theme-distillery .window-controls div {
+    background: radial-gradient(circle, #d4af37 60%, #8d5524 100%);
+    color: #3e2723;
+    border: 2px solid #5d4037;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.theme-distillery .window-controls div:hover {
+    background: #ffe082;
+    border-color: #3e2723;
+}
+
+/* Body */
+.theme-distillery .window-body {
+    padding: 25px;
+    gap: 25px;
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.05), transparent);
+}
+
+.theme-distillery .recipe-book {
+    width: 30%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 2px solid #b87333;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.theme-distillery .recipe-header {
+    background: #8d5524;
+    padding: 5px;
+    text-align: center;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    font-family: 'Lato', sans-serif;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+.theme-distillery .recipe-list-item {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #8d5524;
+    margin-bottom: 5px;
+    padding: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.theme-distillery .recipe-list-item.active {
+    background: #d4af37;
+    color: #3e2723;
+    font-weight: bold;
+}
+
+/* Workstation */
+.theme-distillery .anvil-surface {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 15px;
+    border: 4px solid #b87333;
+    padding: 20px;
+    position: relative;
+}
+
+/* Removed distracting gold bar ::before element */
+
+.theme-distillery .crafting-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px dashed #b87333;
+    padding-bottom: 10px;
+    position: relative;
+    z-index: 1;
+}
+
+.theme-distillery .preview-icon-lg {
+    font-size: 2rem;
+    width: 60px;
+    height: 60px;
+    background: #5d4037;
+    border: 2px solid #b87333;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+}
+
+/* Inputs: Funnels */
+.theme-distillery .input-zone {
+    gap: 15px;
+    position: relative;
+    z-index: 1;
+}
+
+.theme-distillery .anvil-slot {
+    width: 50px;
+    height: 50px;
+    background: #5d4037;
+    border: 2px solid #b87333;
+    clip-path: polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%);
+    display: grid;
+    place-items: center;
+    transition: 0.2s;
+}
+
+.theme-distillery .anvil-slot::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: #d4af37;
+}
+
+.theme-distillery .anvil-slot:hover {
+    background: #8d5524;
+}
+
+/* Button: Pressure Lever */
+.theme-distillery .craft-btn {
+    background: #212121;
+    border: 2px solid #b87333;
+    color: #b87333;
+    padding: 10px 40px;
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #000;
+}
+
+.theme-distillery .craft-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.theme-distillery .craft-btn:not(:disabled):hover {
+    background: #424242;
+}
+
+/* Progress: Glass Sight Tube */
+.theme-distillery .progress-container {
+    width: 100%;
+    height: 16px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    margin-top: 15px;
+    overflow: hidden;
+    border: 2px solid #d4af37;
+}
+
+.theme-distillery .progress-bar {
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    /* Liquid Spirit */
+    width: 0%;
+    box-shadow: 0 0 10px #fff;
+}
+
+/* Output: Glass Bottle with Gold Spirit */
+.theme-distillery .output-slot {
+    width: 60px;
+    height: 90px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px 10px 5px 5px;
+    /* Bottle shoulders */
+    margin-top: 20px;
+    display: grid;
+    place-items: center;
+    font-size: 2.5rem;
+    position: relative;
+}
+
+/* Bottle Neck */
+.theme-distillery .output-slot::before {
+    content: '';
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-bottom: none;
+    border-radius: 2px 2px 0 0;
+}
+
+/* Filled State: Gold Gradient */
+.theme-distillery .output-slot.has-item {
+    background: linear-gradient(to top, #d4af37 0%, rgba(212, 175, 55, 0.2) 80%);
+    border-color: #fff;
+    box-shadow: 0 0 25px rgba(212, 175, 55, 0.6);
+}
+
+/* Ensure the neck lights up too */
+.theme-distillery .output-slot.has-item::before {
+    border-color: #fff;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* =========================================
+       THEME 7: ALCHEMIST'S BENCH (Potion Station)
+       -----------------------------------------
+       VIBE: Scholarly, Magical Science, Green Marble.
+       TECHNIQUES: 
+       - Background: Green marble noise texture.
+       - Inputs: "Shelf" perspective using gradients and alignment.
+       - Controls: Drop-shadow borders to outline complex clipped shapes.
+       ========================================= */
+.theme-alchemy {
+    --a-green: #1b5e20;
+    --a-brass: #fbc02d;
+
+    font-family: 'Philosopher', sans-serif;
+    border-radius: 20px;
+
+    /* Green Marble Texture */
+    background-color: #004d40;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100' height='100' fill='%23004d40'/%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.3'/%3E%3C/svg%3E");
+
+    border: 4px inset #fbc02d;
+    box-shadow: 0 20px 50px #000;
+    color: #e0f2f1;
+}
+
+.theme-alchemy .rivet {
+    display: none;
+}
+
+/* Header */
+.theme-alchemy .window-header {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 15px 40px;
+    border-bottom: 1px solid #fbc02d;
+}
+
+.theme-alchemy .window-title {
+    font-family: 'Philosopher', sans-serif;
+    color: #fbc02d;
+    text-shadow: 0 0 5px #fbc02d;
+    font-weight: bold;
+}
+
+/* Controls: Crystal Stoppers */
+.theme-alchemy .window-controls div {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    width: 20px;
+    height: 30px;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    /* Replaced standard border with drop-shadow to outline the clipped shape */
+    filter: drop-shadow(0 0 2px #fff);
+    transition: 0.2s;
+}
+
+.theme-alchemy .window-controls div:hover {
+    background: rgba(255, 255, 255, 0.4);
+    filter: drop-shadow(0 0 5px #a7ffeb);
+}
+
+/* Body */
+.theme-alchemy .window-body {
+    padding: 25px;
+    gap: 25px;
+}
+
+/* Recipe Book */
+.theme-alchemy .recipe-book {
+    width: 30%;
+    background: #263238;
+    border: 2px solid #546e7a;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.theme-alchemy .recipe-header {
+    font-family: 'MedievalSharp', cursive;
+    color: #a7ffeb;
+    text-align: center;
+    border-bottom: 1px solid #546e7a;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+}
+
+.theme-alchemy .recipe-list-item {
+    padding: 8px;
+    border-bottom: 1px solid #37474f;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: #b0bec5;
+    transition: 0.3s;
+}
+
+.theme-alchemy .recipe-list-item:hover {
+    color: #fff;
+}
+
+.theme-alchemy .recipe-list-item.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: #a7ffeb;
+    border-left: 2px solid #a7ffeb;
+}
+
+/* Workstation */
+.theme-alchemy .anvil-surface {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    border: 1px solid #fbc02d;
+    padding: 20px;
+}
+
+.theme-alchemy .crafting-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed #fbc02d;
+    padding-bottom: 10px;
+}
+
+.theme-alchemy .preview-icon-lg {
+    font-size: 2.5rem;
+    width: 60px;
+    height: 60px;
+    background: transparent;
+    border: 2px solid #a7ffeb;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: #a7ffeb;
+}
+
+/* Inputs: Wooden Shelf Background */
+.theme-alchemy .input-zone {
+    gap: 15px;
+    background: linear-gradient(to bottom, transparent 80%, #5d4037 80%, #3e2723 100%);
+    border-bottom: 4px solid #3e2723;
+    padding-bottom: 10px;
+    align-items: flex-end;
+    /* Sit on shelf */
+}
+
+.theme-alchemy .anvil-slot {
+    width: 40px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 0 0 10px 10px;
+    /* Beaker bottom */
+    display: grid;
+    place-items: center;
+    transition: 0.2s;
+}
+
+.theme-alchemy .anvil-slot:hover {
+    border-color: #a7ffeb;
+    box-shadow: 0 0 10px #a7ffeb;
+}
+
+/* Button */
+.theme-alchemy .craft-btn {
+    background: #fbc02d;
+    border: 2px solid #fff;
+    color: #3e2723;
+    padding: 10px 40px;
+    font-family: 'Philosopher', sans-serif;
+    font-weight: bold;
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 0 15px rgba(251, 192, 45, 0.4);
+}
+
+.theme-alchemy .craft-btn:disabled {
+    background: #5d4037;
+    border-color: #3e2723;
+    opacity: 0.5;
+    cursor: default;
+}
+
+.theme-alchemy .craft-btn:not(:disabled):hover {
+    background: #fffde7;
+}
+
+/* Progress: Bubbling */
+.theme-alchemy .progress-container {
+    width: 100%;
+    height: 8px;
+    background: #004d40;
+    border-radius: 4px;
+    margin-top: 15px;
+    overflow: hidden;
+}
+
+.theme-alchemy .progress-bar {
+    height: 100%;
+    background: #64ffda;
+    width: 0%;
+    /* Bubble pattern */
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.4) 2px, transparent 3px);
+    background-size: 10px 10px;
+}
+
+/* Output: Potion Bottle */
+.theme-alchemy .output-slot {
+    width: 80px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 40px 40px 10px 10px;
+    margin-top: 20px;
+    display: grid;
+    place-items: center;
+    font-size: 2.5rem;
+}
+
+.theme-alchemy .output-slot.has-item {
+    background: radial-gradient(circle at bottom, #1de9b6, transparent 70%);
+    border-color: #1de9b6;
+    box-shadow: 0 0 20px #1de9b6;
+    animation: pulseMagic 2s infinite;
+}
+
+/* =========================================
+       THEME 8: THE ARCANE SCRIPTORIUM (Spell Crafting)
+       -----------------------------------------
+       VIBE: Celestial, Geometric, Cosmic, Runes.
+       TECHNIQUES:
+       - Background: "Star Chart" using radial gradients for stars.
+       - Inputs: Rotated "Diamond" slots to break the square grid.
+       - Output: "Summoning Circle" using double borders and animations.
+       ========================================= */
+.theme-scriptorium {
+    --s-paper: #efebe9;
+    --s-magic: #d500f9;
+
+    font-family: 'Cinzel', serif;
+    border-radius: 4px;
+
+    /* Star Chart Background */
+    background-color: #0d1b2a;
+    background-image:
+        radial-gradient(circle, #fff 1px, transparent 1px),
+        linear-gradient(rgba(255, 215, 0, 0.1) 1px, transparent 1px);
+    background-size: 100px 100px;
+
+    border: 4px solid #ffd700;
+    box-shadow: 0 20px 50px #000;
+    color: #cfd8dc;
+}
+
+/* Uniform Othala Rune Rivets */
+.theme-scriptorium .rivet {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    color: var(--s-magic);
+    font-family: 'MedievalSharp', cursive;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 0 10px var(--s-magic);
+    z-index: 10;
+    pointer-events: none;
+}
+
+.theme-scriptorium .rivet::after {
+    content: 'ᛟ';
+}
+
+.theme-scriptorium .rivet.tl {
+    top: 10px;
+    left: 10px;
+}
+
+.theme-scriptorium .rivet.tr {
+    top: 10px;
+    right: 10px;
+}
+
+.theme-scriptorium .rivet.bl {
+    bottom: 10px;
+    left: 10px;
+}
+
+.theme-scriptorium .rivet.br {
+    bottom: 10px;
+    right: 10px;
+}
+
+/* Header */
+.theme-scriptorium .window-header {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 15px 40px;
+    border-bottom: 2px solid #ffd700;
+}
+
+.theme-scriptorium .window-title {
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px var(--s-magic);
+}
+
+.theme-scriptorium .window-controls div {
+    background: #0d1b2a;
+    color: #fff;
+    border: 1px solid #ffd700;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+/* Body */
+.theme-scriptorium .window-body {
+    padding: 25px;
+    gap: 25px;
+}
+
+/* Recipe Book: Tome */
+.theme-scriptorium .recipe-book {
+    width: 30%;
+    background: #1b2631;
+    border: 4px double #8d6e63;
+    border-radius: 4px;
+    padding: 10px;
+    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.theme-scriptorium .recipe-header {
+    color: #d7ccc8;
+    text-align: center;
+    border-bottom: 1px solid #8d6e63;
+    margin-bottom: 10px;
+}
+
+.theme-scriptorium .recipe-list-item {
+    padding: 8px;
+    border-bottom: 1px dashed #5d4037;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: #a1887f;
+    transition: 0.3s;
+}
+
+.theme-scriptorium .recipe-list-item:hover {
+    color: #fff;
+}
+
+.theme-scriptorium .recipe-list-item.active {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--s-magic);
+    font-weight: bold;
+}
+
+/* Workstation */
+.theme-scriptorium .anvil-surface {
+    background: #0d1b2a;
+    border: 1px solid #ffd700;
+    padding: 20px;
+    box-shadow: inset 0 0 50px #000;
+}
+
+.theme-scriptorium .crafting-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed #ffd700;
+    padding-bottom: 10px;
+}
+
+.theme-scriptorium .preview-icon-lg {
+    font-size: 2.5rem;
+    width: 60px;
+    height: 60px;
+    background: transparent;
+    border: 1px solid var(--s-magic);
+    clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+    display: grid;
+    place-items: center;
+    color: var(--s-magic);
+    box-shadow: 0 0 10px rgba(213, 0, 249, 0.2);
+}
+
+/* Inputs: Diamond Nodes */
+.theme-scriptorium .input-zone {
+    gap: 25px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid #ffd700;
+    padding: 15px;
+}
+
+.theme-scriptorium .anvil-slot {
+    width: 46px;
+    height: 46px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid #546e7a;
+    border-radius: 4px;
+    display: grid;
+    place-items: center;
+    transition: 0.3s;
+    transform: rotate(45deg);
+    margin: 5px;
+}
+
+.theme-scriptorium .anvil-slot>* {
+    transform: rotate(-45deg);
+    display: block;
+}
+
+.theme-scriptorium .anvil-slot:hover {
+    background: #4a148c;
+    border-color: var(--s-magic);
+    box-shadow: 0 0 15px var(--s-magic);
+    transform: rotate(45deg) scale(1.1);
+}
+
+/* Button: Wax Seal Refined */
+.theme-scriptorium .craft-btn {
+    background: radial-gradient(circle at 30% 30%, #e53935, #b71c1c);
+    border: 2px solid #880e4f;
+    color: #ffcdd2;
+    /* Pale pink text like impressed wax */
+    padding: 15px 40px;
+    font-family: 'Cinzel', serif;
+    /* Wobbly seal shape */
+    border-radius: 55% 45% 60% 40% / 50% 60% 40% 50%;
+    cursor: pointer;
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.5),
+        inset 2px 2px 5px rgba(255, 255, 255, 0.3),
+        inset -2px -2px 10px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Inner Ring Impression */
+.theme-scriptorium .craft-btn::before {
+    content: '';
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    right: 5px;
+    bottom: 5px;
+    border: 2px dashed rgba(88, 14, 79, 0.5);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.theme-scriptorium .craft-btn:disabled {
+    background: #546e7a;
+    border-color: #37474f;
+    box-shadow: none;
+    color: #90a4ae;
+    cursor: default;
+}
+
+.theme-scriptorium .craft-btn:not(:disabled):hover {
+    transform: scale(1.1) rotate(2deg);
+    box-shadow: 0 0 20px var(--s-magic);
+    color: #fff;
+}
+
+/* Progress: Magical Stardust Flow */
+.theme-scriptorium .progress-container {
+    width: 100%;
+    height: 10px;
+    background: #000;
+    margin-top: 15px;
+    overflow: hidden;
+    border: 1px solid #546e7a;
+    box-shadow: inset 0 0 10px #000;
+    border-radius: 10px;
+}
+
+.theme-scriptorium .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(213, 0, 249, 0) 0%, rgba(213, 0, 249, 0.8) 50%, #fff 100%);
+    box-shadow: 0 0 15px var(--s-magic);
+    width: 0%;
+    position: relative;
+}
+
+/* Sparkles in progress bar */
+.theme-scriptorium .progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image:
+        radial-gradient(white 15%, transparent 16%),
+        radial-gradient(white 15%, transparent 16%);
+    background-size: 10px 10px;
+    background-position: 0 0, 5px 5px;
+    opacity: 0.5;
+    animation: stardustFlow 1s linear infinite;
+}
+
+@keyframes stardustFlow {
+    from {
+        background-position: 0 0, 5px 5px;
+    }
+
+    to {
+        background-position: -20px 0, -15px 5px;
+    }
+}
+
+/* Output: Summoning Circle */
+.theme-scriptorium .output-slot {
+    width: 100px;
+    height: 100px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 3px double var(--s-magic);
+    border-radius: 50%;
+    margin-top: 20px;
+    display: grid;
+    place-items: center;
+    font-size: 2.5rem;
+    box-shadow: inset 0 0 20px rgba(213, 0, 249, 0.2);
+    position: relative;
+}
+
+.theme-scriptorium .output-slot::after {
+    content: '';
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    right: 5px;
+    bottom: 5px;
+    border: 1px dashed rgba(213, 0, 249, 0.5);
+    border-radius: 50%;
+}
+
+.theme-scriptorium .output-slot.has-item {
+    background: radial-gradient(circle, #fff, var(--s-magic));
+    box-shadow: 0 0 40px var(--s-magic);
+    animation: pulseMagic 4s infinite;
+    /* Slower zen animation */
+}
+
+@keyframes pulseMagic {
+    0% {
+        box-shadow: 0 0 10px var(--s-magic);
+    }
+
+    50% {
+        box-shadow: 0 0 30px var(--s-magic);
+    }
+
+    100% {
+        box-shadow: 0 0 10px var(--s-magic);
+    }
+}
+
+/* =========================================
+   MINIMIZED TABS
+   ========================================= */
+
+/* --- Base Minimized Tab Structure --- */
+.minimized-tab {
+    /* Positioning: Fixed to screen edge */
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 2000;
+    /* Above game and overlay */
+
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    gap: 15px;
+    min-width: 250px;
+    height: 64px;
+
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+    user-select: none;
+
+    /* Default Base Styles */
+    background: #333;
+    color: #fff;
+    /* Flat Left Edge for docking */
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-left: none !important;
+
+    border-radius: 0 8px 8px 0;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+}
+
+.minimized-tab:hover {
+    transform: translateX(10px);
+    /* Slide out animation instead of up */
+    box-shadow: 0 15px 25px rgba(0, 0, 0, 0.6);
+}
+
+.minimized-tab .tab-icon {
+    font-size: 24px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.minimized-tab .tab-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    overflow: hidden;
+}
+
+.minimized-tab .tab-title {
+    font-size: 14px;
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Ensure visibility */
+    width: 100%;
+    min-height: 20px;
+    line-height: 20px;
+    flex-shrink: 0;
+    display: block;
+    position: relative;
+    z-index: 5;
+}
+
+.minimized-tab .tab-progress-bg {
+    width: 100%;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.minimized-tab .tab-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #ff6f00, #ffca28);
+    transition: width 0.2s linear;
+}
+
+.minimized-tab .tab-controls {
+    display: flex;
+    align-items: center;
+}
+
+.minimized-tab .restore-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 10;
+    color: #bdbdbd;
+    transition: color 0.2s;
+}
+
+.minimized-tab .restore-btn:hover {
+    color: #fff;
+}
+
+
+/* =========================================
+   THEME 1: TIPSY TAIL (Tavern)
+   ========================================= */
+.minimized-tab.theme-cocktail {
+    background-color: #4e342e;
+    /* Wood Grain */
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' fill='%233e2723'/%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.1'/%3E%3Cpath d='M0 0h100v2H0zM0 20h100v2H0zM0 40h100v2H0zM0 60h100v2H0zM0 80h100v2H0z' fill='%23281815' opacity='0.2'/%3E%3C/svg%3E");
+    border: 2px solid #8d6e63;
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.6);
+    color: #ffb74d;
+    font-family: 'Rye', serif;
+}
+
+.theme-cocktail .tab-icon {
+    /* Leather Coaster Look */
+    background: radial-gradient(#6d4c41, #3e2723);
+    border-radius: 50%;
+    border: 1px dashed #a1887f;
+    text-shadow: 0 2px 2px rgba(0, 0, 0, 0.5);
+}
+
+.theme-cocktail .tab-title {
+    text-shadow: 1px 1px 0 #281815;
+    letter-spacing: 1px;
+}
+
+.theme-cocktail .tab-progress-bg {
+    background: #281815;
+    border: 1px solid #5d4037;
+}
+
+.theme-cocktail .tab-progress-bar {
+    background: linear-gradient(90deg, #ffc107 90%, #fff 100%);
+    /* Foam */
+}
+
+.theme-cocktail .restore-btn {
+    /* Wax Seal */
+    background: radial-gradient(circle at 35% 35%, #ef5350, #b71c1c);
+    color: #5d1010;
+    border-radius: 50%;
+    border: 1px solid #b71c1c;
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* =========================================
+   THEME 2: VILLAGE ANVIL (Forge)
+   ========================================= */
+.minimized-tab.theme-forge {
+    background-color: #212121;
+    background-image: url("data:image/svg+xml,%3Csvg width='64' height='64' viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 16c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm0 0c4.418 0 8 3.582 8 8s-3.582 8-8 8-8-3.582-8-8 3.582-8 8-8z' fill='%232c3e50' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E");
+    color: #b0bec5;
+    font-family: 'Cinzel', serif;
+    border-radius: 0;
+    /* Clip corners only on the RIGHT side */
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+    border-left: none;
+    box-shadow: none;
+    /* Clip path removes box shadow, handled by parent filter usually, but simple here */
+    filter: drop-shadow(5px 5px 5px rgba(0, 0, 0, 0.5));
+}
+
+.theme-forge .tab-icon {
+    color: #ff5722;
+    filter: drop-shadow(0 0 2px #ff5722);
+}
+
+.theme-forge .tab-progress-bg {
+    background: #000;
+    border: 1px solid #333;
+    height: 8px;
+}
+
+.theme-forge .tab-progress-bar {
+    background: linear-gradient(90deg, #424242, #b71c1c, #ff6f00, #ffeb3b);
+}
+
+.theme-forge .restore-btn {
+    /* Iron Bolt */
+    background: #3e2723;
+    color: #ff5722;
+    border: 1px solid #ff5722;
+    box-shadow: inset 0 0 5px #000;
+    /* Removed rotation and content override for consistency */
+}
+
+/* =========================================
+   THEME 3: CLAY SMELTER (Foundry)
+   ========================================= */
+.minimized-tab.theme-smelter {
+    /* Updated: Heat Gradient (Red-Orange to Smoky Black) */
+    background: linear-gradient(to top, #bf360c 0%, #212121 100%);
+
+    border: 2px solid #3e2723;
+    border-left: none;
+    border-bottom: 4px solid #3e2723;
+    /* Flat left, rounded right */
+    border-radius: 0 12px 2px 0;
+    font-family: 'Cinzel', serif;
+    color: #fff;
+    /* Inner heat glow */
+    box-shadow: inset 0 -10px 20px rgba(255, 87, 34, 0.3), 0 10px 20px rgba(0, 0, 0, 0.5);
+}
+
+.theme-smelter .tab-title {
+    text-shadow: 0 1px 2px #3e2723;
+    font-weight: 900;
+    color: #ffca28;
+}
+
+.theme-smelter .tab-progress-bg {
+    background: #212121;
+    border: 1px solid #000;
+}
+
+.theme-smelter .tab-progress-bar {
+    background: linear-gradient(90deg, #e65100, #ffca28);
+}
+
+.theme-smelter .restore-btn {
+    /* Valve Wheel */
+    background: #1a1a1a;
+    color: #ffca28;
+    border-radius: 50%;
+    border: 2px solid #ffca28;
+    box-shadow: 0 0 5px #ffca28;
+}
+
+/* =========================================
+   THEME 4: SPUN SILK (Seamstress)
+   ========================================= */
+.minimized-tab.theme-seamstress {
+    /* Updated to Green Cutting Mat Background */
+    background-color: #1b5e20;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.3) 1px, transparent 1px);
+    background-size: 10px 10px;
+
+    border: 2px dashed #8d6e63;
+    border-left: none;
+    /* Flat left */
+    border-radius: 0 8px 8px 0;
+    color: #fff;
+    font-family: 'Crimson Pro', serif;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+}
+
+.theme-seamstress .tab-title {
+    /* White Tag Style for readability */
+    background: #fff;
+    color: #4e342e;
+    padding: 2px 6px;
+    display: inline-block;
+    border-radius: 2px;
+    font-style: italic;
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    font-weight: bold;
+}
+
+.theme-seamstress .tab-progress-bg {
+    background: rgba(0, 0, 0, 0.3);
+    border: none;
+    /* Recessed look */
+    height: 12px;
+    /* Taller for tape measure */
+}
+
+.theme-seamstress .tab-progress-bar {
+    /* Measuring Tape */
+    background: repeating-linear-gradient(90deg, #ffeb3b, #ffeb3b 5px, #000 5px, #000 6px);
+}
+
+.theme-seamstress .restore-btn {
+    /* Pearl Pin - Visible Icon */
+    background: radial-gradient(circle at 30% 30%, #fff, #ef5350);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    color: #b71c1c;
+    /* Changed from transparent to visible dark red */
+    border: 1px solid #b71c1c;
+    box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+/* =========================================
+   THEME 5: BERRY PRESS (Juicer)
+   ========================================= */
+.minimized-tab.theme-juicer {
+    background-color: #8d6e63;
+    /* Horizontal Slats */
+    background-image: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.1) 0px, rgba(0, 0, 0, 0.1) 2px, transparent 2px, transparent 20px);
+    border: 2px solid #5d4037;
+    border-left: none;
+    /* Flat left */
+    border-radius: 0 6px 6px 0;
+    font-family: 'MedievalSharp', cursive;
+    color: #fff;
+}
+
+.theme-juicer .tab-icon {
+    font-size: 20px;
+    background: #dcedc8;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid #33691e;
+    display: grid;
+    place-items: center;
+}
+
+.theme-juicer .tab-title {
+    text-shadow: 0 1px 2px #3e2723;
+}
+
+.theme-juicer .tab-progress-bg {
+    background: #3e2723;
+    border: 1px solid #5d4037;
+}
+
+.theme-juicer .tab-progress-bar {
+    background: linear-gradient(90deg, #c62828, #ff6f00);
+}
+
+.theme-juicer .restore-btn {
+    /* Berry Button */
+    background: #1e88e5;
+    /* Blueberry */
+    border-radius: 50%;
+    color: #fff;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset -2px -2px 5px rgba(0, 0, 0, 0.3);
+    font-size: 12px;
+}
+
+/* =========================================
+   THEME 6: COPPER STILL (Distillery)
+   ========================================= */
+.minimized-tab.theme-distillery {
+    background-color: #a05a2c;
+    /* Copper texture */
+    background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 10%, transparent 50%, rgba(0, 0, 0, 0.1) 50%, transparent 60%, transparent 100%);
+    border: 2px solid #b87333;
+    border-left: none;
+    /* Flat left, rounded tank right */
+    border-radius: 0 30px 10px 0;
+    font-family: 'Cinzel', serif;
+    color: #fff;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.theme-distillery .tab-title {
+    text-shadow: 1px 1px 0 #8d5524;
+    font-weight: bold;
+}
+
+.theme-distillery .tab-progress-bg {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #d4af37;
+    border-radius: 4px;
+}
+
+.theme-distillery .tab-progress-bar {
+    background: rgba(255, 255, 255, 0.8);
+    /* Liquid Spirit */
+}
+
+.theme-distillery .restore-btn {
+    /* Brass Valve */
+    background: radial-gradient(circle, #d4af37 60%, #8d5524 100%);
+    color: #3e2723;
+    border-radius: 50%;
+    border: 1px solid #8d5524;
+}
+
+/* =========================================
+   THEME 7: ALCHEMIST'S BENCH (Potion)
+   ========================================= */
+.minimized-tab.theme-alchemy {
+    background-color: #004d40;
+    /* Green Marble */
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100' height='100' fill='%23004d40'/%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.3'/%3E%3C/svg%3E");
+    border: 2px inset #fbc02d;
+    border-left: none;
+    /* Flat left */
+    border-radius: 0 12px 12px 0;
+    font-family: 'Philosopher', sans-serif;
+    color: #e0f2f1;
+}
+
+.theme-alchemy .tab-icon {
+    color: #a7ffeb;
+    filter: drop-shadow(0 0 5px #a7ffeb);
+}
+
+.theme-alchemy .tab-progress-bg {
+    background: #004d40;
+    border: 1px solid #fbc02d;
+}
+
+.theme-alchemy .tab-progress-bar {
+    background: #64ffda;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.4) 2px, transparent 3px);
+    background-size: 8px 8px;
+}
+
+.theme-alchemy .restore-btn {
+    /* Crystal */
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    width: 24px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    filter: drop-shadow(0 0 2px #fff);
+}
+
+/* =========================================
+   THEME 8: ARCANE SCRIPTORIUM (Spells)
+   ========================================= */
+.minimized-tab.theme-scriptorium {
+    background-color: #0d1b2a;
+    /* Star Chart */
+    background-image: radial-gradient(circle, #fff 1px, transparent 1px);
+    background-size: 50px 50px;
+    border: 1px solid #ffd700;
+    /* Fixed to Gold */
+    border-left: none;
+    box-shadow: 0 0 10px rgba(213, 0, 249, 0.3);
+    /* Flat left */
+    border-radius: 0 4px 4px 0;
+    color: #d500f9;
+    font-family: 'Cinzel', serif;
+}
+
+.theme-scriptorium .tab-title {
+    color: #fff;
+    text-shadow: 0 0 5px #d500f9;
+}
+
+.theme-scriptorium .tab-progress-bg {
+    background: #000;
+    border: 1px solid #546e7a;
+}
+
+.theme-scriptorium .tab-progress-bar {
+    background: linear-gradient(90deg, #7c4dff, #fff);
+    box-shadow: 0 0 10px #d500f9;
+}
+
+.theme-scriptorium .restore-btn {
+    /* Wax Seal */
+    background: #b71c1c;
+    color: #fff;
+    border-radius: 50% 40% 50% 60%;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+/* =========================================
+       THEME 9: THE WEAVER'S WHEEL (Spinning)
+       -----------------------------------------
+       VIBE: Rhythm, Wood, Thread, Simple Mechanics.
+       TECHNIQUES:
+       - Texture: Ash Wood grain.
+       - Button: 3D "Treadle" pedal using perspective transform.
+       - Output: Tall spool/bobbin shape.
+       ========================================= */
+.theme-spinner {
+    --s-ash: #d7ccc8;
+    --s-walnut: #4e342e;
+    --s-thread: #fff9c4;
+
+    font-family: 'Crimson Pro', serif;
+    border-radius: 24px;
+
+    /* Light Ash Wood Texture */
+    background-color: #efebe9;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' fill='%23efebe9'/%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.15'/%3E%3Cpath d='M0 0h100v100H0z' fill='none' stroke='%23d7ccc8' stroke-width='2' opacity='0.5'/%3E%3C/svg%3E");
+
+    border: 4px solid #8d6e63;
+    box-shadow: inset 0 0 0 2px #fff, 0 20px 40px rgba(0, 0, 0, 0.3);
+    color: #3e2723;
+}
+
+/* Rivets -> Wooden Pegs */
+.theme-spinner .rivet {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: radial-gradient(circle at 30% 30%, #a1887f, #5d4037);
+    border-radius: 50%;
+    box-shadow: 1px 2px 2px rgba(0, 0, 0, 0.3);
+    z-index: 10;
+}
+
+.theme-spinner .rivet.tl {
+    top: 15px;
+    left: 15px;
+}
+
+.theme-spinner .rivet.tr {
+    top: 15px;
+    right: 15px;
+}
+
+.theme-spinner .rivet.bl {
+    bottom: 15px;
+    left: 15px;
+}
+
+.theme-spinner .rivet.br {
+    bottom: 15px;
+    right: 15px;
+}
+
+/* Header */
+.theme-spinner .window-header {
+    background: #d7ccc8;
+    padding: 15px 40px;
+    border-bottom: 2px solid #8d6e63;
+    border-radius: 20px 20px 0 0;
+}
+
+.theme-spinner .window-title {
+    font-family: 'Crimson Pro', serif;
+    font-weight: bold;
+    font-style: italic;
+    color: #3e2723;
+    text-shadow: 0 1px 0 #fff;
+}
+
+/* Controls: Bone Buttons */
+.theme-spinner .window-controls div {
+    background: #fff8e1;
+    color: #3e2723;
+    border: 1px solid #a1887f;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Body */
+.theme-spinner .window-body {
+    padding: 25px;
+    gap: 25px;
+    /* Subtle vertical grain */
+    background: repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(141, 110, 99, 0.1) 50px);
+}
+
+/* Recipe Book */
+.theme-spinner .recipe-book {
+    width: 30%;
+    background: #fff;
+    border: 1px solid #bcaaa4;
+    padding: 10px;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
+    transform: rotate(-1deg);
+}
+
+.theme-spinner .recipe-header {
+    border-bottom: 1px solid #d7ccc8;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+    color: #5d4037;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.9rem;
+}
+
+.theme-spinner .recipe-list-item {
+    padding: 8px;
+    border-bottom: 1px dashed #efebe9;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.theme-spinner .recipe-list-item:hover {
+    background: #fbe9e7;
+}
+
+.theme-spinner .recipe-list-item.active {
+    background: #ffccbc;
+    border-left: 3px solid #ff7043;
+    font-weight: bold;
+}
+
+/* Workstation */
+.theme-spinner .anvil-surface {
+    background: rgba(255, 255, 255, 0.4);
+    border: 2px solid #a1887f;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.theme-spinner .crafting-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #d7ccc8;
+    padding-bottom: 10px;
+}
+
+.theme-spinner .preview-icon-lg {
+    font-size: 2.5rem;
+    width: 60px;
+    height: 60px;
+    background: #fff;
+    border: 1px solid #d7ccc8;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: #5d4037;
+}
+
+/* Inputs: Wool Baskets */
+.theme-spinner .input-zone {
+    gap: 15px;
+}
+
+.theme-spinner .anvil-slot {
+    width: 60px;
+    height: 60px;
+    background: #fff;
+    border: none;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    /* Soft wool texture */
+    background: radial-gradient(circle, #fafafa, #eeeeee);
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: 0.2s;
+}
+
+.theme-spinner .anvil-slot:hover {
+    transform: scale(1.05);
+    background: #fff;
+}
+
+.theme-spinner .anvil-slot::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: #a1887f;
+    border-radius: 50%;
+}
+
+/* Button: Treadle Pedal */
+.theme-spinner .craft-btn {
+    background: #8d6e63;
+    background-image: repeating-linear-gradient(90deg, transparent 0, transparent 10px, rgba(0, 0, 0, 0.1) 10px, rgba(0, 0, 0, 0.1) 11px);
+    border: 2px solid #5d4037;
+    color: #fff;
+    padding: 10px 50px;
+    font-family: 'Crimson Pro', serif;
+    font-weight: bold;
+    text-transform: uppercase;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #3e2723;
+    /* Deep 3D press */
+    transform: perspective(100px) rotateX(10deg);
+    margin-bottom: 5px;
+}
+
+.theme-spinner .craft-btn:disabled {
+    background: #bcaaa4;
+    box-shadow: none;
+    cursor: default;
+    transform: none;
+}
+
+.theme-spinner .craft-btn:not(:disabled):hover {
+    background: #a1887f;
+}
+
+.theme-spinner .craft-btn:active {
+    transform: perspective(100px) rotateX(0deg) translateY(5px);
+    box-shadow: 0 0 0 #3e2723;
+}
+
+/* Progress: Spinning Thread */
+.theme-spinner .progress-container {
+    width: 100%;
+    height: 6px;
+    background: #d7ccc8;
+    margin-top: 20px;
+    overflow: hidden;
+    border-radius: 3px;
+}
+
+.theme-spinner .progress-bar {
+    height: 100%;
+    background: repeating-linear-gradient(45deg, #fff9c4, #fff9c4 5px, #f0f4c3 5px, #f0f4c3 10px);
+    width: 0%;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Output: Bobbin/Spool */
+.theme-spinner .output-slot {
+    width: 40px;
+    height: 100px;
+    /* Tall and thin */
+    background: #a1887f;
+    /* Wood core */
+    border: 2px solid #5d4037;
+    margin-top: 15px;
+    display: grid;
+    place-items: center;
+    font-size: 2rem;
+    border-radius: 4px;
+    position: relative;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+}
+
+.theme-spinner .output-slot::before {
+    /* Top flange */
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: -10px;
+    right: -10px;
+    height: 10px;
+    background: #5d4037;
+    border-radius: 4px;
+}
+
+.theme-spinner .output-slot::after {
+    /* Bottom flange */
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: -10px;
+    right: -10px;
+    height: 10px;
+    background: #5d4037;
+    border-radius: 4px;
+}
+
+.theme-spinner .output-slot.has-item {
+    /* Wrapped thread look */
+    background: repeating-linear-gradient(0deg, #fff9c4, #fff9c4 2px, #fff59d 2px, #fff59d 4px);
+    border-color: #fbc02d;
+}
+
+
+
+/* =========================================
+   DYNAMIC LAYOUT MODULES
+   ========================================= */
+
+/* Single Column Layout (No Recipe Book) */
+.crafting-window.layout-single-col {
+    width: 500px;
+    /* Reduced width since we dropped a column */
+    min-width: 400px;
+}
+
+.crafting-window.layout-single-col .recipe-book {
+    display: none !important;
+}
+
+.crafting-window.layout-single-col .workstation {
+    width: 100%;
+    max-width: none;
+    border-left: none;
+    /* Remove separator if it exists */
+    border-radius: var(--radius-main);
+    /* Ensure corners are rounded if they were flat on one side */
+}
+
+/* Adjust header for single column */
+.crafting-window.layout-single-col .window-header {
+    width: 100%;
+    border-radius: var(--radius-main) var(--radius-main) 0 0;
+}
+
+/* --- SEWING MODULE: SPUN SILK THEME --- */
+
+/* Theme Container override */
+/* Theme Container override */
+.crafting-window.theme-seamstress {
+    width: 900px;
+    height: 750px;
+    /* Lift window up to avoid Active Hands UI overlap */
+    transform: translateY(-80px);
+
+    background-color: #d7ccc8;
+    /* Green Cutting Mat Texture */
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.3) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-color: #1b5e20;
+    /* Dark Green Mat */
+
+    border: 12px solid #8d6e63;
+    /* Wood Frame */
+    border-radius: 12px;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+    color: #fff;
+    font-family: 'Crimson Pro', serif;
+}
+
+/* Decorative Pearl Pins (Replaces Rivets) */
+.theme-seamstress .rivet {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
+    background: #fff;
+    /* Fallback */
+    border: none;
+    z-index: 10;
+}
+
+.theme-seamstress .rivet.tl {
+    top: 12px;
+    left: 12px;
+    background: radial-gradient(circle at 30% 30%, #fff, #f48fb1);
+}
+
+.theme-seamstress .rivet.tr {
+    top: 12px;
+    right: 12px;
+    background: radial-gradient(circle at 30% 30%, #fff, #90caf9);
+}
+
+.theme-seamstress .rivet.bl {
+    bottom: 12px;
+    left: 12px;
+    background: radial-gradient(circle at 30% 30%, #fff, #a5d6a7);
+}
+
+.theme-seamstress .rivet.br {
+    bottom: 12px;
+    right: 12px;
+    background: radial-gradient(circle at 30% 30%, #fff, #fff59d);
+}
+
+/* Header */
+.theme-seamstress .window-header {
+    background: #fff3e0;
+    padding: 15px 40px;
+    border-bottom: 2px dashed #8d6e63;
+    border-radius: 0;
+    /* Clear previous theme radius */
+    color: #4e342e;
+    width: auto;
+    margin: 0;
+    box-shadow: none;
+    /* Reset */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.theme-seamstress .window-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    font-style: italic;
+    color: #4e342e;
+    text-shadow: none;
+    text-transform: none;
+}
+
+.theme-seamstress .window-controls div {
+    width: 30px;
+    height: 30px;
+    background: radial-gradient(circle at 30% 30%, #fff, #ef5350);
+    border-radius: 50%;
+    border: none;
+    color: #b71c1c;
+    font-weight: bold;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Body */
+.theme-seamstress .window-body {
+    padding: 20px;
+    overflow: hidden;
+}
+
+.sewing-interface {
+    display: flex;
+    flex: 1;
+    gap: 20px;
+    width: 100%;
+    height: 100%;
+}
+
+/* Pattern Book */
+.theme-seamstress .pattern-book {
+    width: 300px;
+    background: #fff;
+    border-radius: 4px;
+    border: 1px solid #a1887f;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
+    transform: rotate(-1deg);
+    overflow: hidden;
+    color: #4e342e;
+}
+
+.theme-seamstress .book-tabs {
+    display: flex;
+    background: #f8bbd0;
+    border-bottom: 1px dashed #c2185b;
+}
+
+.theme-seamstress .book-tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #880e4f;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.3);
+    transition: 0.2s;
+    white-space: nowrap;
+}
+
+.theme-seamstress .book-tab.active {
+    background: #fff;
+    font-weight: bold;
+    border-top: 3px solid #c2185b;
+}
+
+.theme-seamstress .pattern-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    color: #4e342e;
+}
+
+.theme-seamstress .pattern-item {
+    padding: 12px;
+    border-bottom: 1px solid #f3e5f5;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.theme-seamstress .pattern-item:hover {
+    background: #fce4ec;
+}
+
+.theme-seamstress .pattern-item.selected {
+    background: #f8bbd0;
+    border-left: 4px solid #c2185b;
+    font-weight: bold;
+}
+
+/* Workstation */
+.theme-seamstress .workstation {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: transparent;
+    /* Override */
+    padding: 0;
+    box-shadow: none;
+    border: none;
+}
+
+/* Canvas Preview */
+.theme-seamstress .preview-container {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px dashed rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+    min-height: 200px;
+}
+
+.theme-seamstress #clothing-canvas {
+    filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.5));
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.theme-seamstress .preview-label {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: #fff;
+    color: #333;
+    padding: 4px 8px;
+    font-family: 'Lato', sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+    transform: rotate(-2deg);
+}
+
+/* Thread Deck */
+.theme-seamstress .thread-deck {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.theme-seamstress .spool-slot-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.theme-seamstress .layer-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.7);
+    font-family: 'Lato', sans-serif;
+}
+
+.theme-seamstress .spool-slot {
+    width: 60px;
+    height: 80px;
+    /* Slightly larger */
+    background: #a1887f;
+    /* Empty Wood Peg */
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.3);
+    transition: 0.2s;
+    border: 2px solid transparent;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.2);
+    clip-path: none;
+    /* Reset generic anvil clip path if present */
+}
+
+.theme-seamstress .spool-slot:hover {
+    background: #bcaaa4;
+    border-color: #fff;
+}
+
+/* Thread Spool Visual */
+.theme-seamstress .spool-thread {
+    width: 46px;
+    height: 60px;
+    border-radius: 4px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4);
+    position: relative;
+    background-image: repeating-linear-gradient(0deg,
+            rgba(0, 0, 0, 0.1) 0px,
+            rgba(0, 0, 0, 0.1) 1px,
+            transparent 1px,
+            transparent 3px);
+}
+
+.theme-seamstress .spool-thread::before,
+.theme-seamstress .spool-thread::after {
+    content: '';
+    position: absolute;
+    left: -2px;
+    right: -2px;
+    height: 8px;
+    background: #8d6e63;
+    border-radius: 2px;
+}
+
+.theme-seamstress .spool-thread::before {
+    top: -6px;
+}
+
+.theme-seamstress .spool-thread::after {
+    bottom: -6px;
+}
+
+/* Controls */
+.theme-seamstress .craft-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 50px;
+}
+
+.theme-seamstress .craft-btn {
+    background: #ec407a;
+    color: #fff;
+    font-family: 'Crimson Pro', serif;
+    font-weight: bold;
+    font-size: 1.2rem;
+    padding: 12px 40px;
+    border: 2px dashed #fff;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(233, 30, 99, 0.4);
+    position: relative;
+    transition: transform 0.1s;
+}
+
+.theme-seamstress .craft-btn::before {
+    /* Hole punch */
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 10px;
+    background: #333;
+    border-radius: 50%;
+}
+
+.theme-seamstress .craft-btn:disabled {
+    background: #bdbdbd;
+    box-shadow: none;
+    cursor: not-allowed;
+    border-style: solid;
+}
+
+.theme-seamstress .craft-btn:not(:disabled):hover {
+    transform: scale(1.05) rotate(-2deg);
+
+    /* --- Minimized Tab Theme: Seamstress --- */
+    .minimized-tab.theme-seamstress {
+        background-color: #1b5e20;
+        /* Green Mat */
+        background-image:
+            linear-gradient(rgba(255, 255, 255, 0.3) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.3) 1px, transparent 1px);
+        background-size: 15px 15px;
+        border: 4px solid #8d6e63;
+        /* Wood Frame */
+        border-left: none;
+        border-radius: 0 8px 8px 0;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        color: #fff;
+        font-family: 'Crimson Pro', serif;
+        width: 260px;
+        padding: 10px;
+    }
+
+    .theme-seamstress .tab-icon {
+        /* Pincushion Style */
+        width: 40px;
+        height: 40px;
+        background: radial-gradient(circle at 30% 30%, #e57373, #d32f2f);
+        border-radius: 50%;
+        border: 2px dotted #ffcdd2;
+        display: grid;
+        place-items: center;
+        box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.4);
+        font-size: 1.2rem;
+        color: #fff;
+    }
+
+    .theme-seamstress .tab-title {
+        font-weight: bold;
+        letter-spacing: 0.5px;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    }
+
+    .theme-seamstress .tab-progress-bg {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .theme-seamstress .tab-progress-bar {
+        background: #fff;
+        /* White fill like main UI */
+    }
+
+    .theme-seamstress .restore-btn {
+        /* Pink Button Style */
+        background: #ec407a;
+        color: #fff;
+        border: 2px dashed #fff;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    }
+
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.theme-seamstress .spool-slot-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.theme-seamstress .layer-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.7);
+    font-family: 'Lato', sans-serif;
+}
+
+.theme-seamstress .spool-slot {
+    width: 60px;
+    height: 80px;
+    /* Slightly larger */
+    background: #a1887f;
+    /* Empty Wood Peg */
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.3);
+    transition: 0.2s;
+    border: 2px solid transparent;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.2);
+    clip-path: none;
+    /* Reset generic anvil clip path if present */
+}
+
+.theme-seamstress .spool-slot:hover {
+    background: #bcaaa4;
+    border-color: #fff;
+}
+
+/* Thread Spool Visual */
+.theme-seamstress .spool-thread {
+    width: 46px;
+    height: 60px;
+    border-radius: 4px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4);
+    position: relative;
+    background-image: repeating-linear-gradient(0deg,
+            rgba(0, 0, 0, 0.1) 0px,
+            rgba(0, 0, 0, 0.1) 1px,
+            transparent 1px,
+            transparent 3px);
+}
+
+.theme-seamstress .spool-thread::before,
+.theme-seamstress .spool-thread::after {
+    content: '';
+    position: absolute;
+    left: -2px;
+    right: -2px;
+    height: 8px;
+    background: #8d6e63;
+    border-radius: 2px;
+}
+
+.theme-seamstress .spool-thread::before {
+    top: -6px;
+}
+
+.theme-seamstress .spool-thread::after {
+    bottom: -6px;
+}
+
+/* Controls */
+.theme-seamstress .craft-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 50px;
+}
+
+.theme-seamstress .craft-btn {
+    background: #ec407a;
+    color: #fff;
+    font-family: 'Crimson Pro', serif;
+    font-weight: bold;
+    font-size: 1.2rem;
+    padding: 12px 40px;
+    border: 2px dashed #fff;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(233, 30, 99, 0.4);
+    position: relative;
+    transition: transform 0.1s;
+}
+
+.theme-seamstress .craft-btn::before {
+    /* Hole punch */
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 10px;
+    background: #333;
+    border-radius: 50%;
+}
+
+.theme-seamstress .craft-btn:disabled {
+    background: #bdbdbd;
+    box-shadow: none;
+    cursor: not-allowed;
+    border-style: solid;
+}
+
+.theme-seamstress .craft-btn:not(:disabled):hover {
+    transform: scale(1.05) rotate(-2deg);
+
+    /* --- Minimized Tab Theme: Seamstress --- */
+    .minimized-tab.theme-seamstress {
+        background-color: #1b5e20;
+        /* Green Mat */
+        background-image:
+            linear-gradient(rgba(255, 255, 255, 0.3) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.3) 1px, transparent 1px);
+        background-size: 15px 15px;
+        border: 4px solid #8d6e63;
+        /* Wood Frame */
+        border-left: none;
+        border-radius: 0 8px 8px 0;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        color: #fff;
+        font-family: 'Crimson Pro', serif;
+        width: 260px;
+        padding: 10px;
+    }
+
+    .theme-seamstress .tab-icon {
+        /* Pincushion Style */
+        width: 40px;
+        height: 40px;
+        background: radial-gradient(circle at 30% 30%, #e57373, #d32f2f);
+        border-radius: 50%;
+        border: 2px dotted #ffcdd2;
+        display: grid;
+        place-items: center;
+        box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.4);
+        font-size: 1.2rem;
+        color: #fff;
+    }
+
+    .theme-seamstress .tab-title {
+        font-weight: bold;
+        letter-spacing: 0.5px;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    }
+
+    .theme-seamstress .tab-progress-bg {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .theme-seamstress .tab-progress-bar {
+        background: #fff;
+        /* White fill like main UI */
+    }
+
+    .theme-seamstress .restore-btn {
+        /* Pink Button Style */
+        background: #ec407a;
+        color: #fff;
+        border: 2px dashed #fff;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* --- Minimized Tab Theme: Seamstress --- */
+.minimized-tab.theme-seamstress {
+    background-color: #1b5e20;
+    /* Green Mat */
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.3) 1px, transparent 1px);
+    background-size: 15px 15px;
+    border: 4px solid #8d6e63;
+    /* Wood Frame */
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    color: #fff;
+    font-family: 'Crimson Pro', serif;
+    width: 260px;
+    padding: 10px;
+}
+
+.theme-seamstress .tab-icon {
+    /* Pincushion Style */
+    width: 40px;
+    height: 40px;
+    background: radial-gradient(circle at 30% 30%, #e57373, #d32f2f);
+    border-radius: 50%;
+    border: 2px dotted #ffcdd2;
+    display: grid;
+    place-items: center;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.4);
+    font-size: 1.2rem;
+    color: #fff;
+}
+
+.theme-seamstress .tab-title {
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.theme-seamstress .tab-progress-bg {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.theme-seamstress .tab-progress-bar {
+    background: #fff;
+    /* White fill like main UI */
+}
+
+.theme-seamstress .restore-btn {
+    /* Pink Button Style */
+    background: #ec407a;
+    color: #fff;
+    border: 2px dashed #fff;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.theme-seamstress .restore-btn:hover {
+    transform: scale(1.1) rotate(10deg);
+    background: #e91e63;
+}
+
+/* =========================================
+   PAUSE CONFIRMATION MODAL
+   ========================================= */
+
+.pause-confirmation-modal {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 20000 !important;
+    /* Above everything */
+    background: #333;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    color: #fff;
+    width: 300px;
+    text-align: center;
+    border: 2px solid #555;
+    font-family: sans-serif;
+    display: block !important;
+}
+
+.pause-confirmation-modal h3 {
+    margin-top: 0;
+    color: inherit;
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+}
+
+.pause-confirmation-modal p {
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+}
+
+.pause-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.pause-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+.pause-btn.confirm {
+    background: #4caf50;
+    color: white;
+}
+
+.pause-btn.confirm:hover {
+    background: #43a047;
+}
+
+.pause-btn.cancel {
+    background: #f44336;
+    color: white;
+}
+
+.pause-btn.cancel:hover {
+    background: #e53935;
+}
+
+
+/* --- THEME 1: TIPSY TAIL (Cocktail) --- */
+.pause-confirmation-modal.theme-cocktail {
+    background-color: #4e342e;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' fill='%233e2723'/%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.1'/%3E%3Cpath d='M0 0h100v2H0zM0 20h100v2H0zM0 40h100v2H0zM0 60h100v2H0zM0 80h100v2H0z' fill='%23281815' opacity='0.2'/%3E%3C/svg%3E");
+    border: 4px double #8d6e63;
+    color: #ffb74d;
+    font-family: 'Crimson Pro', serif;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+}
+
+.pause-confirmation-modal.theme-cocktail h3 {
+    font-family: 'Rye', serif;
+    color: #ffb74d;
+    text-shadow: 2px 2px 0 #281815;
+}
+
+.pause-confirmation-modal.theme-cocktail .pause-btn {
+    border: 1px solid #ffb300;
+    border-radius: 4px;
+    font-family: 'Rye', serif;
+}
+
+.pause-confirmation-modal.theme-cocktail .pause-btn.confirm {
+    background: #2e7d32;
+    color: #fff;
+}
+
+.pause-confirmation-modal.theme-cocktail .pause-btn.cancel {
+    background: #c62828;
+    color: #fff;
+}
+
+
+/* --- THEME 2: ANVIL (Forge) --- */
+.pause-confirmation-modal.theme-forge {
+    background-color: #212121;
+    background-image: url("data:image/svg+xml,%3Csvg width='64' height='64' viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 16c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm0 0c4.418 0 8 3.582 8 8s-3.582-8-8 8-8-3.582-8-8 3.582-8 8-8zM40 16c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm0 0c4.418 0 8 3.582 8 8s-3.582-8-8 8-8-3.582-8-8 3.582-8 8-8zM8 48c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm0 0c4.418 0 8 3.582 8 8s-3.582-8-8 8-8-3.582-8-8 3.582-8 8-8zM40 48c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm0 0c4.418 0 8 3.582 8 8s-3.582-8-8 8-8-3.582-8-8 3.582-8 8-8z' fill='%232c3e50' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E");
+    border: 2px solid #546e7a;
+    color: #cfd8dc;
+    font-family: 'Cinzel', serif;
+    clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
+}
+
+.pause-confirmation-modal.theme-forge h3 {
+    color: #ff5722;
+    text-transform: uppercase;
+}
+
+.pause-confirmation-modal.theme-forge .pause-btn {
+    border: 1px solid #546e7a;
+    font-family: 'Cinzel', serif;
+    text-transform: uppercase;
+    border-radius: 0;
+}
+
+.pause-confirmation-modal.theme-forge .pause-btn.confirm {
+    background: #3e2723;
+    color: #4caf50;
+    border-color: #4caf50;
+}
+
+.pause-confirmation-modal.theme-forge .pause-btn.cancel {
+    background: #3e2723;
+    color: #ff5722;
+    border-color: #ff5722;
+}
+
+.pause-confirmation-modal.theme-forge .pause-btn:hover {
+    background: #263238;
+}
+
+
+/* --- THEME 3: FURNACE (Smelter) --- */
+.pause-confirmation-modal.theme-smelter {
+    background: linear-gradient(155deg, #4e342e, #212121);
+    border: 4px solid #3e2723;
+    border-radius: 16px 16px 4px 4px;
+    color: #ffca28;
+    font-family: 'Lato', sans-serif;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 20px 40px #000;
+}
+
+.pause-confirmation-modal.theme-smelter h3 {
+    font-family: 'Cinzel', serif;
+    text-shadow: 0 0 5px #e65100;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.pause-confirmation-modal.theme-smelter .pause-btn {
+    border-radius: 4px;
+    font-family: 'Lato', sans-serif;
+    font-weight: bold;
+    text-transform: uppercase;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+}
+
+.pause-confirmation-modal.theme-smelter .pause-btn.confirm {
+    background: #ff6f00;
+    color: #000;
+}
+
+.pause-confirmation-modal.theme-smelter .pause-btn.cancel {
+    background: #3e2723;
+    color: #bdbdbd;
+}
+
+
+/* --- THEME 4: SEAMSTRESS (Silk) --- */
+.pause-confirmation-modal.theme-seamstress {
+    background-color: #d7ccc8;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.3) 1px, transparent 1px);
+    background-size: 10px 10px;
+
+    border: 4px dashed #8d6e63;
+    border-radius: 8px;
+    color: #4e342e;
+    font-family: 'Crimson Pro', serif;
+    box-shadow: 0 0 0 4px #fff, 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.pause-confirmation-modal.theme-seamstress h3 {
+    font-style: italic;
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.pause-confirmation-modal.theme-seamstress .pause-btn {
+    border: 1px dashed #8d6e63;
+    border-radius: 4px;
+}
+
+.pause-confirmation-modal.theme-seamstress .pause-btn.confirm {
+    background: #fff;
+    color: #2e7d32;
+}
+
+.pause-confirmation-modal.theme-seamstress .pause-btn.cancel {
+    background: #fff;
+    color: #c62828;
+}
+
+
+/* --- THEME 5: JUICER (Berry Press) --- */
+.pause-confirmation-modal.theme-juicer {
+    background-color: #8d6e63;
+    background-image: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.1) 0px, rgba(0, 0, 0, 0.1) 2px, transparent 2px, transparent 20px);
+    border: 4px solid #5d4037;
+    border-radius: 8px;
+    color: #fff;
+    font-family: 'Fredoka', sans-serif;
+}
+
+.pause-confirmation-modal.theme-juicer h3 {
+    font-family: 'MedievalSharp', cursive;
+    text-shadow: 0 2px 0 #3e2723;
+}
+
+.pause-confirmation-modal.theme-juicer .pause-btn {
+    border: 2px solid #3e2723;
+    border-radius: 20px;
+    box-shadow: 0 3px 0 #3e2723;
+}
+
+.pause-confirmation-modal.theme-juicer .pause-btn.confirm {
+    background: #7cb342;
+}
+
+.pause-confirmation-modal.theme-juicer .pause-btn.cancel {
+    background: #e53935;
+}
+
+
+/* --- THEME 6: DISTILLERY (Copper Still) --- */
+.pause-confirmation-modal.theme-distillery {
+    background-color: #a05a2c;
+    background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+    border: 4px solid #b87333;
+    border-radius: 20px 20px 8px 8px;
+    color: #fff;
+    font-family: 'Lato', sans-serif;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+.pause-confirmation-modal.theme-distillery h3 {
+    font-family: 'Cinzel', serif;
+    color: #ffe082;
+    text-shadow: 1px 1px 0 #3e2723;
+}
+
+.pause-confirmation-modal.theme-distillery .pause-btn {
+    border: 2px solid #d4af37;
+    border-radius: 4px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.pause-confirmation-modal.theme-distillery .pause-btn.confirm {
+    background: #2e7d32;
+    background: linear-gradient(to bottom, #43a047, #2e7d32);
+}
+
+.pause-confirmation-modal.theme-distillery .pause-btn.cancel {
+    background: #c62828;
+    background: linear-gradient(to bottom, #e53935, #c62828);
+}
+
+
+/* --- THEME 7: ALCHEMY (Potion Bench) --- */
+.pause-confirmation-modal.theme-alchemy {
+    background-color: #004d40;
+    /* Green marble noise from main theme */
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100' height='100' fill='%23004d40'/%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.3'/%3E%3C/svg%3E");
+    border: 2px inset #fbc02d;
+    color: #e0f2f1;
+    font-family: 'Philosopher', sans-serif;
+    border-radius: 12px;
+}
+
+.pause-confirmation-modal.theme-alchemy h3 {
+    color: #fbc02d;
+    text-shadow: 0 0 5px #fbc02d;
+}
+
+.pause-confirmation-modal.theme-alchemy .pause-btn {
+    border: 1px solid #fbc02d;
+    border-radius: 20px;
+    font-family: 'Philosopher', sans-serif;
+}
+
+.pause-confirmation-modal.theme-alchemy .pause-btn.confirm {
+    background: rgba(0, 77, 64, 0.8);
+    color: #a7ffeb;
+    box-shadow: 0 0 10px #a7ffeb;
+}
+
+.pause-confirmation-modal.theme-alchemy .pause-btn.cancel {
+    background: rgba(0, 77, 64, 0.8);
+    color: #ff8a80;
+    box-shadow: 0 0 10px #ff8a80;
+}
+
+
+/* --- THEME 8: SCRIPTORIUM (Arcane) --- */
+.pause-confirmation-modal.theme-scriptorium {
+    background-color: #0d1b2a;
+    background-image: radial-gradient(circle, #fff 1px, transparent 1px);
+    background-size: 50px 50px;
+    border: 2px solid #ffd700;
+    color: #d500f9;
+    font-family: 'Cinzel', serif;
+    box-shadow: 0 0 20px rgba(213, 0, 249, 0.3);
+}
+
+.pause-confirmation-modal.theme-scriptorium h3 {
+    color: #fff;
+    text-shadow: 0 0 10px #d500f9;
+}
+
+.pause-confirmation-modal.theme-scriptorium p {
+    color: #e1bee7;
+}
+
+.pause-confirmation-modal.theme-scriptorium .pause-btn {
+    border: 1px solid #ffd700;
+    border-radius: 0;
+    font-family: 'Cinzel', serif;
+    text-transform: uppercase;
+}
+
+.pause-confirmation-modal.theme-scriptorium .pause-btn.confirm {
+    background: #4a148c;
+    color: #fff;
+    box-shadow: 0 0 10px #d500f9;
+}
+
+.pause-confirmation-modal.theme-scriptorium .pause-btn.cancel {
+    background: #000;
+    color: #ff4081;
+}
+
+
+/* --- THEME 9: SPINNER (Weaver) --- */
+.pause-confirmation-modal.theme-spinner {
+    background-color: #efebe9;
+    /* Ash wood */
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' fill='%23efebe9'/%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.15'/%3E%3Cpath d='M0 0h100v100H0z' fill='none' stroke='%23d7ccc8' stroke-width='2' opacity='0.5'/%3E%3C/svg%3E");
+    border: 4px solid #8d6e63;
+    border-radius: 12px;
+    color: #3e2723;
+    font-family: 'Crimson Pro', serif;
+}
+
+.pause-confirmation-modal.theme-spinner h3 {
+    font-style: italic;
+    color: #5d4037;
+}
+
+.pause-confirmation-modal.theme-spinner .pause-btn {
+    border: 2px solid #a1887f;
+    border-radius: 20px;
+    font-family: 'Crimson Pro', serif;
+    font-weight: bold;
+}
+
+.pause-confirmation-modal.theme-spinner .pause-btn.confirm {
+    background: #fff;
+    color: #2e7d32;
+}
+
+.pause-confirmation-modal.theme-spinner .pause-btn.cancel {
+    background: #fff;
+    color: #c62828;
+}

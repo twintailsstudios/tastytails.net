@@ -1,0 +1,153 @@
+/* --- Blacksmith Game Container --- */
+.forge-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 150px);
+    /* Adjust for header/footer */
+    padding: 20px;
+    background-color: transparent;
+    /* Rely on body bg */
+}
+
+/* UI Layer Styling - specific to the canvas overlay */
+#game-container {
+    position: relative;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+    border: 8px solid var(--palette-wood-dark, #3e2723);
+    border-radius: 4px;
+    background-color: #1a1a1a;
+    margin-bottom: 20px;
+    image-rendering: pixelated;
+    /* Sharp pixels */
+}
+
+/* Canvas styling */
+canvas {
+    display: block;
+    cursor: crosshair;
+}
+
+/* HUD Overlay */
+#ui-layer {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    pointer-events: none;
+    width: calc(100% - 30px);
+    display: flex;
+    justify-content: space-between;
+}
+
+.hud-text {
+    font-family: 'Cinzel', serif;
+    font-size: 1.1rem;
+    font-weight: bold;
+    text-shadow: 2px 2px 0 #000;
+    padding: 5px 10px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#phase-display {
+    color: #4fc3f7;
+    /* Light Blue for Phase */
+}
+
+#quality-display {
+    color: var(--palette-gold, #ffc107);
+}
+
+/* Status Message */
+#status-message {
+    height: 30px;
+    margin-top: 10px;
+    font-family: 'Caveat Brush', cursive;
+    font-size: 1.5rem;
+    color: var(--palette-gold, #ffc107);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    text-align: center;
+}
+
+/* Controls Area */
+#controls {
+    margin-top: 20px;
+    display: flex;
+    gap: 20px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border: 1px solid var(--palette-wood-light);
+}
+
+/* Button overrides matching styling from job-demos but specific to this view */
+.forge-btn {
+    border: none;
+    padding: 10px 25px;
+    border-radius: 4px;
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-size: 1rem;
+    transition: all 0.2s;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+    color: var(--palette-parchment);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-fuel {
+    background-color: var(--palette-accent-red, #8b0000);
+}
+
+.btn-fuel:hover {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+    background-color: #a52a2a;
+}
+
+.btn-reset {
+    background-color: var(--palette-wood-light, #5d4037);
+}
+
+.btn-reset:hover {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+    background-color: #6d4c41;
+}
+
+.btn-exit {
+    background-color: #455a64;
+}
+
+.btn-exit:hover {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+    background-color: #546e7a;
+}
+
+.instruction-panel {
+    max-width: 600px;
+    margin-top: 20px;
+    background: var(--palette-parchment);
+    padding: 15px;
+    border-radius: 4px;
+    border: 1px solid var(--palette-wood-dark);
+    color: var(--palette-text-dark);
+    font-family: 'Lato', sans-serif;
+    font-size: 0.9rem;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.instruction-panel h3 {
+    margin-top: 0;
+    font-family: 'Cinzel', serif;
+    border-bottom: 1px solid var(--palette-wood-light);
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+}

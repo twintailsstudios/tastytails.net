@@ -46,7 +46,9 @@
     flex-direction: row;
     align-items: flex-end;
     gap: 0;
-    z-index: 90;
+    gap: 0;
+    z-index: 2005;
+    pointer-events: none;
     pointer-events: none;
     /* Let clicks pass through empty areas */
 }

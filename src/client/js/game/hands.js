@@ -89,6 +89,36 @@ export const actionHands = {
 
     renderItem(slot, item, labelText) {
         slot.innerHTML = '';
+
+        // Remove old listeners to prevent duplicates (though innerHTML='' clears children, events on slot need care if persistent)
+        // Here we just attach new properties which overwrites old ones
+        slot.onclick = () => this.onSlotClick(labelText === 'LEFT' ? 'left' : 'right');
+
+        // Context Menu Handler for holding items
+        slot.oncontextmenu = (e) => {
+            e.preventDefault();
+            if (item) {
+                console.log(`[Client] Right-clicked held item: ${item.uid}`);
+                // Emit standard right-click event but with heldItem identifier
+                if (this.socket) {
+                    this.socket.emit('playerRightClicked', {
+                        rightClickedList: [{
+                            Identifier: 'heldItem',
+                            uniqueId: item.uid, // This might be item_UID or just name? Check server logic.
+                            name: item.Name || 'Held Item',
+                            description: item.Description || 'An item you are holding.',
+                            // Pass slot info if needed?
+                            slot: labelText === 'LEFT' ? 'left' : 'right'
+                        }],
+                        playerIntent: 'friendly', // Context menu implies friendly/inspect
+                        pointerX: e.clientX,
+                        pointerY: e.clientY
+                    });
+                }
+            }
+            return false;
+        };
+
         if (item) {
             const div = document.createElement('div');
             div.className = 'item'; // Changed to match inventory.css

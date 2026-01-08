@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.11.2" name="alpha_objects" tilewidth="252" tileheight="511" tilecount="27" columns="0" objectalignment="bottomleft">
+<tileset version="1.10" tiledversion="1.11.2" name="alpha_objects" tilewidth="252" tileheight="511" tilecount="40" columns="0" objectalignment="bottomleft">
  <grid orientation="orthogonal" width="1" height="1"/>
  <tile id="0">
   <properties>
@@ -114,9 +114,10 @@
    <property name="bodyHeight" type="int" value="15"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="30"/>
-   <property name="texture" value="sewing_machine_01"/>
+   <property name="stationType" value="sewing_machine"/>
+   <property name="texture" value="sewing_machine"/>
   </properties>
-  <image source="sewing_machine_01.png" width="87" height="137"/>
+  <image source="sewing_machine.png" width="87" height="137"/>
  </tile>
  <tile id="14">
   <properties>
@@ -163,59 +164,151 @@
   </properties>
   <image source="Grand_Altar.png" width="252" height="387"/>
  </tile>
- <tile id="23">
+ <tile id="35">
   <properties>
    <property name="bodyHeight" type="int" value="15"/>
    <property name="bodyOffsetY" type="int" value="5"/>
-   <property name="bodyWidth" type="int" value="218"/>
-   <property name="texture" value="desk_horizontal_01"/>
+   <property name="bodyWidth" type="int" value="30"/>
+   <property name="texture" value="toilet"/>
   </properties>
-  <image source="desk_horizontal_01.png" width="218" height="101"/>
+  <image source="toilet.png" width="96" height="96"/>
  </tile>
- <tile id="25">
+ <tile id="37">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="32"/>
+   <property name="texture" value="sink"/>
+  </properties>
+  <image source="sink.png" width="96" height="96"/>
+ </tile>
+ <tile id="32">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="192"/>
+   <property name="stationType" value="furnace"/>
+   <property name="texture" value="smelter"/>
+  </properties>
+  <image source="smelter.png" width="192" height="192"/>
+ </tile>
+ <tile id="34">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="64"/>
+   <property name="stationType" value="anvil"/>
+   <property name="texture" value="anvil_01"/>
+  </properties>
+  <image source="anvil_01.png" width="128" height="96"/>
+ </tile>
+ <tile id="36">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="96"/>
+   <property name="texture" value="counter_front_small"/>
+  </properties>
+  <image source="counter_front_small.png" width="96" height="96"/>
+ </tile>
+ <tile id="46">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="96"/>
+   <property name="texture" value="counter_front_left_base"/>
+  </properties>
+  <image source="counter_front_left_base.png" width="96" height="96"/>
+ </tile>
+ <tile id="47">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="96"/>
+   <property name="texture" value="counter_front_middle_base"/>
+  </properties>
+  <image source="counter_front_middle_base.png" width="96" height="96"/>
+ </tile>
+ <tile id="48">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="96"/>
+   <property name="texture" value="counter_front_right_base"/>
+  </properties>
+  <image source="counter_front_right_base.png" width="96" height="96"/>
+ </tile>
+ <tile id="38">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="64"/>
+   <property name="texture" value="counter_corner_tl"/>
+  </properties>
+  <image source="counter_corner_tl.png" width="64" height="96"/>
+ </tile>
+ <tile id="39">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="64"/>
+   <property name="texture" value="counter_corner_tr"/>
+  </properties>
+  <image source="counter_corner_tr.png" width="64" height="96"/>
+ </tile>
+ <tile id="40">
   <properties>
    <property name="bodyHeight" type="int" value="96"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="64"/>
-   <property name="texture" value="counter_vertical"/>
+   <property name="texture" value="counter_side_noBase"/>
   </properties>
-  <image source="counter_vertical.png" width="65" height="96"/>
+  <image source="counter_side_noBase.png" width="64" height="96"/>
  </tile>
- <tile id="26">
+ <tile id="41">
   <properties>
-   <property name="bodyHeight" type="int" value="16"/>
+   <property name="bodyHeight" type="int" value="96"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="64"/>
-   <property name="texture" value="counter_tl"/>
+   <property name="texture" value="counter_side_base"/>
   </properties>
-  <image source="counter_tl.png" width="65" height="96"/>
+  <image source="counter_side_base.png" width="64" height="96"/>
  </tile>
- <tile id="28">
+ <tile id="44">
   <properties>
-   <property name="bodyHeight" type="int" value="91"/>
+   <property name="bodyHeight" type="int" value="96"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="64"/>
-   <property name="texture" value="counter_br"/>
+   <property name="texture" value="counter_corner_bl"/>
   </properties>
-  <image source="counter_br.png" width="65" height="96"/>
+  <image source="counter_corner_bl.png" width="64" height="96"/>
  </tile>
- <tile id="29">
+ <tile id="45">
   <properties>
-   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyHeight" type="int" value="96"/>
    <property name="bodyOffsetY" type="int" value="5"/>
-   <property name="bodyWidth" type="int" value="96"/>
-   <property name="texture" value="counter_horizontal_01"/>
+   <property name="bodyWidth" type="int" value="64"/>
+   <property name="texture" value="counter_corner_br"/>
   </properties>
-  <image source="counter_horizontal_01.png" width="96" height="96"/>
+  <image source="counter_corner_br.png" width="64" height="96"/>
  </tile>
- <tile id="30">
+ <tile id="42">
   <properties>
-   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyHeight" type="int" value="96"/>
    <property name="bodyOffsetY" type="int" value="5"/>
-   <property name="bodyWidth" type="int" value="96"/>
-   <property name="texture" value="counter_horizontal_02"/>
+   <property name="bodyWidth" type="int" value="64"/>
+   <property name="texture" value="counter_corner_left_noBase"/>
   </properties>
-  <image source="counter_horizontal_02.png" width="96" height="96"/>
+  <image source="counter_corner_left_noBase.png" width="64" height="96"/>
+ </tile>
+ <tile id="43">
+  <properties>
+   <property name="bodyHeight" type="int" value="96"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="64"/>
+   <property name="texture" value="counter_corner_right_noBase"/>
+  </properties>
+  <image source="counter_corner_right_noBase.png" width="64" height="96"/>
  </tile>
  <tile id="31">
   <properties>
@@ -226,22 +319,54 @@
   </properties>
   <image source="counter_horizontal_03.png" width="96" height="96"/>
  </tile>
- <tile id="32">
+ <tile id="49">
   <properties>
    <property name="bodyHeight" type="int" value="15"/>
    <property name="bodyOffsetY" type="int" value="5"/>
-   <property name="bodyWidth" type="int" value="192"/>
-   <property name="texture" value="smelter"/>
+   <property name="bodyWidth" type="int" value="96"/>
+   <property name="stationType" value="cocktail_bar"/>
+   <property name="texture" value="cocktail_bar"/>
   </properties>
-  <image source="smelter.png" width="192" height="192"/>
+  <image source="cocktail_bar.png" width="96" height="192"/>
  </tile>
- <tile id="34">
+ <tile id="50">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="96"/>
+   <property name="stationType" value="juicer"/>
+   <property name="texture" value="juicer"/>
+  </properties>
+  <image source="juicer.png" width="96" height="192"/>
+ </tile>
+ <tile id="51">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="96"/>
+   <property name="stationType" value="distillery"/>
+   <property name="texture" value="distillery"/>
+  </properties>
+  <image source="distillery.png" width="96" height="192"/>
+ </tile>
+ <tile id="52">
   <properties>
    <property name="bodyHeight" type="int" value="15"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="64"/>
-   <property name="texture" value="anvil_01"/>
+   <property name="stationType" value="spinning_wheel"/>
+   <property name="texture" value="spinning_wheel"/>
   </properties>
-  <image source="anvil_01.png" width="128" height="96"/>
+  <image source="spinning_wheel.png" width="128" height="96"/>
+ </tile>
+ <tile id="53">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="64"/>
+   <property name="stationType" value="cauldron"/>
+   <property name="texture" value="cauldron"/>
+  </properties>
+  <image source="cauldron.png" width="128" height="96"/>
  </tile>
 </tileset>
