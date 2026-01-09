@@ -1,4 +1,7 @@
 const log = require('../logger');
+const itemData = require('../data/itemData');
+const { performItemUse } = require('../utils/itemActions');
+const { resolveItemDef } = require('../utils/itemUtils');
 
 
 module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter, craftingStations) {
@@ -71,10 +74,44 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 return;
             }
 
-            // Simple distance check
-            const dx = players[socket.id].position.x - targetPlayer.position.x;
-            const dy = players[socket.id].position.y - targetPlayer.position.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            // Area of Reach Grid System (Smooth Box)
+            const playerPos = players[socket.id].position;
+            const targetPos = targetPlayer.position;
+
+            // Player Grid: 96x96 centered on Player Feet (x+30, y)
+            const pCenterX = playerPos.x + 30;
+            const pCenterY = playerPos.y;
+            const reachHalf = 48; // 1.5 tiles
+
+            const pBox = {
+                left: pCenterX - reachHalf,
+                right: pCenterX + reachHalf,
+                top: pCenterY - reachHalf,
+                bottom: pCenterY + reachHalf
+            };
+
+            // Target Box: Full Body (Approx 60x170) centered on Target Feet (x+30, y)
+            // Sprite is approx 163px high, anchored at Y (feet).
+            const tCenterX = targetPos.x + 30; // x is Left edge on server, so +30 is center
+            const tY = targetPos.y; // y is CenterY of collision box (feet approx)
+
+            const tBox = {
+                left: tCenterX - 30,
+                right: tCenterX + 30, // Full width 60
+                top: tY - 165, // Upwards (height)
+                bottom: tY + 15 // Downwards (buffer)
+            };
+
+            // AABB Intersection
+            const inReach = (
+                pBox.left < tBox.right &&
+                pBox.right > tBox.left &&
+                pBox.top < tBox.bottom &&
+                pBox.bottom > tBox.top
+            );
+
+            // Debug Helper (Optional, remove in production)
+            // log.info(`[Reach] P: ${Math.round(pCenterX)},${Math.round(pCenterY)} vs T: ${Math.round(tCenterX)},${Math.round(tY)} -> ${inReach}`);
 
             let playerIntent = data.intent || 'neutral';
             // Sanitize string
@@ -82,7 +119,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
             const targetName = targetPlayer.Username || (targetPlayer.firstName + ' ' + targetPlayer.lastName);
 
-            if (distance < 100) {
+            if (inReach) {
                 if (playerIntent == 'friendly') {
                     // --- CHECK FOR USE ITEM ON TARGET (Active Hand) ---
                     const player = players[socket.id];
@@ -92,45 +129,21 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
                     if (heldItem) {
                         // Check if item is dynamic/usable
-                        const itemData = require('../data/itemData'); // Require directly
-                        const { resolveItemDef } = require('../utils/itemUtils');
+
+
                         const def = resolveItemDef(heldItem, itemData);
 
-                        if (def.isDynamic || (heldItem.properties && heldItem.properties.isDynamic)) {
+                        if ((def.isDynamic || (heldItem.properties && heldItem.properties.isDynamic)) && def.playerUse !== false) {
                             // EXECUTE USE ITEM
                             log.info(`[Interaction] ${player.firstName} used ${heldItem.name} on ${targetName} instead of hugging.`);
 
-                            // Increment Usage
-                            // Helper to get max uses
-                            const maxUses = def.maxUses || 10;
-                            const currentUses = heldItem.timesUsed || 0;
+                            // Delegate to shared utility
+                            // isWorldItem = false, worldItems = null (since held item)
+                            const result = performItemUse(io, socket, player, heldItem, itemData, false, null, saveCharacter, def);
 
-                            if (currentUses < maxUses) {
-                                heldItem.timesUsed = currentUses + 1;
+                            if (result) {
                                 itemUsed = true;
-
-                                log.info(`[Interaction] ${player.firstName} used ${heldItem.name} on ${targetName} (Uses: ${heldItem.timesUsed}/${maxUses}).`);
-
-                                // Emit Update for player inventory/hands
-                                io.emit('playerUpdates', { [socket.id]: player });
-                                if (saveCharacter) saveCharacter(socket.id);
-                            } else {
-                                // Item is empty
-                                log.info(`[Interaction] ${player.firstName} tried to use empty ${heldItem.name} on ${targetName}.`);
-                                // Do not set itemUsed=true, so it might fall through to hug? 
-                                // User said: "default "hug" behavior should only occur ... (with) empty hand"
-                                // User said: "If you have friendly intent enabled, and a usable item... it should perform the use action"
-                                // "Once .. max number of uses .. use option should no longer be available"
-                                // If I hold an empty bottle and click properly, NOTHING should happen (no hug, no use).
-                                itemUsed = true; // Mark as handled to prevent hug
                             }
-
-                            // Emit Update for player inventory/hands (NOT itemUpdated which spawns it)
-                            // We broadcast to ensure other players see the potential visual change
-                            io.emit('playerUpdates', { [socket.id]: player });
-                            if (saveCharacter) saveCharacter(socket.id);
-
-                            itemUsed = true;
                         }
                     }
 
@@ -167,8 +180,9 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 }
             } else {
                 // Too far
-                if (playerIntent == 'grabbing') {
-                    log.info(`Player ${players[socket.id].firstName} is too far away to grab ${targetName}.`);
+                log.info(`Player ${players[socket.id].firstName} is out of reach of ${targetName}.`);
+                if (messageSystem) {
+                    messageSystem.sendSystemMessage('Interactional', `${targetName} is too far away.`, null, [], 'local', socket);
                 }
             }
         } catch (e) {
@@ -254,7 +268,6 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 socket.emit('examinedInfo', info);
             }
             else if (data.Identifier === 'heldItem') {
-                const itemData = require('../data/itemData');
                 // For held items, we might only have uniqueId, or we might have name/texture from client?
                 // Client sends: Identifier, uniqueId, name, description.
                 // We should try to lookup the static info if description is missing.

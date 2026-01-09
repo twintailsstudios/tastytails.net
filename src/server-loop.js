@@ -32,6 +32,51 @@ let lightMap = []; // New: Map for shadowcasting (lightBlock property)
 let staticSegments = []; // New: Store map wall segments for raycasting
 let staticObjects = []; // New: Store static objects for collision
 let worldItems = [];    // New: Store interactive items
+// --- Item Spatial Hash ---
+const ITEM_GRID_SIZE = 400;
+const worldItemGrid = {}; // "cx,cy" -> [item1, item2]
+
+function addItemToGrid(item) {
+  if (!item || item.x === undefined || item.y === undefined) return;
+  const k = `${Math.floor(item.x / ITEM_GRID_SIZE)},${Math.floor(item.y / ITEM_GRID_SIZE)}`;
+  if (!worldItemGrid[k]) worldItemGrid[k] = [];
+  worldItemGrid[k].push(item);
+  item._gridKey = k;
+}
+
+function removeItemFromGrid(item) {
+  if (!item) return;
+  const k = item._gridKey || `${Math.floor(item.x / ITEM_GRID_SIZE)},${Math.floor(item.y / ITEM_GRID_SIZE)}`;
+  if (worldItemGrid[k]) {
+    const idx = worldItemGrid[k].indexOf(item);
+    if (idx > -1) {
+      worldItemGrid[k].splice(idx, 1);
+      if (worldItemGrid[k].length === 0) delete worldItemGrid[k];
+    }
+  }
+}
+
+// Export for MessageSystem
+module.exports.getWorldItemsInArea = (x, y, range) => {
+  const cx = Math.floor(x / ITEM_GRID_SIZE);
+  const cy = Math.floor(y / ITEM_GRID_SIZE);
+  const items = [];
+  // Check 3x3 neighbors (sufficient for normal vision range)
+  for (let xx = cx - 1; xx <= cx + 1; xx++) {
+    for (let yy = cy - 1; yy <= cy + 1; yy++) {
+      const k = `${xx},${yy}`;
+      if (worldItemGrid[k]) {
+        for (const item of worldItemGrid[k]) {
+          const dx = item.x - x;
+          const dy = item.y - y;
+          if (dx * dx + dy * dy <= range * range) items.push(item);
+        }
+      }
+    }
+  }
+  return items;
+};
+
 let worldDoors = {};    // New: Store door objects (Key: layer_id)
 let craftingStations = {}; // New: Store crafting stations
 // --- Spatial Partitioning (Collision Optimization) ---
@@ -280,7 +325,19 @@ function initializeMap() {
               const isBlocked = combinedProps.blocked !== false; // Default true
               const lightBlock = combinedProps.lightBlock !== false; // Default true
 
-              worldDoors[doorId] = {
+              // Calculate Bounding Box for Spatial Hash
+              const doorW = obj.width;
+              // Door height for collision: user mentioned "Thin collision for door" in checkCollision logic
+              // Original check used 20px height from top of door? 
+              // "dTop = door.y - doorH" where doorH = 20.
+              // obj.y is Bottom Left? Tiled standard. 
+              // Let's use the same logic as CheckCollision had:
+              // Y is bottom. Top is Y - 20.
+
+              const doorCollisionHeight = 20;
+
+              // Construct the Door Object (Shared Reference)
+              const doorObj = {
                 id: doorId,
                 x: obj.x,
                 y: obj.y,
@@ -288,31 +345,48 @@ function initializeMap() {
                 height: obj.height,
                 rotation: obj.rotation,
                 locked: isLocked,
-                blocked: isBlocked,     // Physics State
+                blocked: isBlocked,     // Physics State (Mutable)
                 lightBlock: lightBlock, // Shadow State
                 state: 'closed',        // logical state
-                reqKey: combinedProps.reqKey || null
+                reqKey: combinedProps.reqKey || null,
+                isDoor: true,           // Flag for collision check
+                // Spatial Hash Props
+                minX: obj.x,
+                maxX: obj.x + doorW,
+                minY: obj.y - doorCollisionHeight,
+                maxY: obj.y,
+                layer: objectLayer.name
               };
 
-              // If it blocks light, we might need to add a static segment equivalent?
-              // For now, we rely on the dynamic update or static segment generation
-              // PROBLEM: If we want it to be dynamic, we shouldn't bake it into 'staticSegments'.
-              // So we will NOT add it to staticSegments here, but handle it separately.
+              worldDoors[doorId] = doorObj; // Store reference
+              staticObjects.push(doorObj);  // Add to Spatial Hash
 
-              return; // SKIP adding to staticObjects (handled separately)
+              return; // SKIP adding detailed "body" static object logic below, we handled it.
             }
 
             // --- Item System Check ---
             if (props.isItem) {
+              // Derive Item ID
+              let derivedItemId = props.itemId || props.itemID;
+              if (!derivedItemId) {
+                // Try reverse lookup by Name
+                const nameToCheck = props.name || obj.name;
+                derivedItemId = Object.keys(itemData).find(key => itemData[key].name === nameToCheck);
+              }
+              if (!derivedItemId) derivedItemId = 'unknown_item';
+
+              // Derive Texture
+              const derivedTexture = props.texture || (derivedItemId !== 'unknown_item' ? itemData[derivedItemId].texture : 'default_item');
+
               // It's an Item! Add to worldItems and Skip collision (unless isSolid)
               worldItems.push({
                 uid: `item_${obj.id}`, // Unique ID from Tiled
                 x: obj.x,
                 y: obj.y,
                 name: props.name || obj.name || 'Unknown Item',
-                itemId: props.itemId || props.itemID || 'unknown_item',
+                itemId: derivedItemId,
                 itemType: props.itemType || 'misc',
-                texture: props.texture || 'default_item',
+                texture: derivedTexture,
                 properties: props // Store all props just in case
               });
 
@@ -627,6 +701,9 @@ function checkCollision(x, y) {
 
         if (cellObjects) {
           for (const obj of cellObjects) {
+            // Check Dynamic Blocked State (For Doors)
+            if (obj.blocked === false) continue;
+
             // Standard AABB Overlap Check
             if (pLeft < obj.maxX &&
               pRight > obj.minX &&
@@ -640,46 +717,9 @@ function checkCollision(x, y) {
     }
   }
 
-  // 3. Check Doors
-  if (worldDoors) {
-    const pWidth = PLAYER_WIDTH;
-    const pHeight = PLAYER_HEIGHT;
-    const pLeft = x + 30 - pWidth / 2;
-    const pRight = x + 30 + pWidth / 2;
-    const pTop = y - pHeight / 2;
-    const pBottom = y + pHeight / 2;
+  // 3. (REMOVED) Check Doors - Now handled by Spatial Hash (Step 2)
+  // Optimization: Doors are now in objectGrid with 'isDoor' and dynamic 'blocked' checking.
 
-    for (const key in worldDoors) {
-      const door = worldDoors[key];
-      if (door.blocked) {
-        // Door is blocked (Closed)
-        // Use door bounds (bottom-left origin in Tiled, but typically x,y is top-left in Phaser depending on origin)
-        // Tiled JSON objects: x,y is Top-Left (if rectangle) or Bottom-Left (if tile/image)?
-        // "Each individual frame is 96 pixels wide and 288 pixels tall."
-        // In Tiled, Insert Tile objects have origin (0,1) i.e. Bottom Left.
-        // So obj.x is Left, obj.y is Bottom.
-
-        // Re-use logic from static objects:
-        // "Updated for Bottom Left Origin: obj.x is ALREADY the Left X"
-        // "bodyY = obj.y - bodyHeight..."
-
-        // Door collision box: use full width, maybe thin depth?
-        // "Frame 0 displays the closed door."
-        // Standard door: maybe 10px depth?
-        const doorW = door.width;
-        const doorH = 20; // Thin collision for door
-
-        const dLeft = door.x;
-        const dRight = door.x + doorW;
-        const dBottom = door.y;
-        const dTop = door.y - doorH;
-
-        if (pLeft < dRight && pRight > dLeft && pTop < dBottom && pBottom > dTop) {
-          return true;
-        }
-      }
-    }
-  }
 
   return false;
 }
@@ -851,29 +891,53 @@ function updatePlayers(delta, io) {
     player.isMoving = input.left || input.right || input.up || input.down;
 
     // --- HELD PLAYER LOGIC ---
+    // --- HELD PLAYER LOGIC ---
     if (player.isHeld && player.heldBySocketId && players[player.heldBySocketId]) {
       const holder = players[player.heldBySocketId];
-      const offset = player.grippedFirmly ? 20 : 50; // Closer if gripped firmly
+      // Gripped firmly is tighter range
+      const holdDist = player.grippedFirmly ? 20 : 64;
 
-      // rotation: 1=left, 2=right, 3=up, 4=down
-      if (holder.rotation === 1) { // Left -> Behind is Right
-        player.position.x = holder.position.x + offset;
-        player.position.y = holder.position.y;
-      } else if (holder.rotation === 2) { // Right -> Behind is Left
-        player.position.x = holder.position.x - offset;
-        player.position.y = holder.position.y;
-      } else if (holder.rotation === 3) { // Up -> Behind is Down
-        player.position.x = holder.position.x;
-        player.position.y = holder.position.y + offset;
-      } else if (holder.rotation === 4) { // Down -> Behind is Up
-        player.position.x = holder.position.x;
-        player.position.y = holder.position.y - offset;
+      // Calculate distance to holder center
+      const dx = player.position.x - holder.position.x;
+      const dy = player.position.y - holder.position.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (holder.isMoving) {
+        // If holder is moving, drag the player behind them ("Fall in line")
+        let targetX = holder.position.x;
+        let targetY = holder.position.y;
+        const behindOffset = 50; // Distance to trail behind
+
+        if (holder.rotation === 1) targetX += behindOffset; // Left -> Behind is Right
+        else if (holder.rotation === 2) targetX -= behindOffset; // Right -> Behind is Left
+        else if (holder.rotation === 3) targetY += behindOffset; // Up -> Behind is Down
+        else if (holder.rotation === 4) targetY -= behindOffset; // Down -> Behind is Up
+
+        // Move towards target position smoothly ("Leash" effect)
+        // Use a lerp factor to drag them along.
+        const lerpFactor = 0.15;
+        player.position.x += (targetX - player.position.x) * lerpFactor;
+        player.position.y += (targetY - player.position.y) * lerpFactor;
+
+        // "Fall in line" - match rotation and movement state
+        player.rotation = holder.rotation;
+        player.isMoving = true;
+
+      } else {
+        // Holder is stationary.
+        // Enforce "Leash": If outside holdDist, pull them in.
+        // If inside, leave them be (maintain relative side).
+
+        if (dist > holdDist) {
+          // Too far, pull in to max distance
+          const angle = Math.atan2(dy, dx);
+          player.position.x = holder.position.x + Math.cos(angle) * holdDist;
+          player.position.y = holder.position.y + Math.sin(angle) * holdDist;
+        }
+
+        // If stationary, held player stops moving too
+        player.isMoving = false;
       }
-
-      // Match holder's rotation or keep own? Usually following implies facing same way or facing holder?
-      // "move behind them" usually implies trailing.
-      player.rotation = holder.rotation;
-      player.isMoving = holder.isMoving;
     }
 
     // --- CONSUMED PLAYER LOGIC ---
@@ -932,6 +996,20 @@ function isPointInPolygon(x, y, vs) {
 
   if (!vs || vs.length === 0) return false;
 
+  // --- AABB OPTIMIZATION ---
+  // Fast fail if point is outside the bounding box
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < vs.length; i++) {
+    const v = vs[i];
+    if (v[0] < minX) minX = v[0];
+    if (v[0] > maxX) maxX = v[0];
+    if (v[1] < minY) minY = v[1];
+    if (v[1] > maxY) maxY = v[1];
+  }
+  // Check bounding box
+  if (x < minX || x > maxX || y < minY || y > maxY) return false;
+  // -------------------------
+
   let inside = false;
   for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
     const xi = vs[i][0], yi = vs[i][1];
@@ -968,6 +1046,21 @@ function gameLoop(io) {
 
   const connectedSocketIds = Object.keys(players);
 
+  // --- 1. Build Spatial Hash for Players ---
+  const AOI_CELL_SIZE = 400; // Size of grid cell
+  const playerGrid = {};
+
+  connectedSocketIds.forEach(pid => {
+    const p = players[pid];
+    if (p) {
+      const cx = Math.floor(p.position.x / AOI_CELL_SIZE);
+      const cy = Math.floor(p.position.y / AOI_CELL_SIZE);
+      const key = `${cx},${cy}`;
+      if (!playerGrid[key]) playerGrid[key] = [];
+      playerGrid[key].push(pid);
+    }
+  });
+
   // Iterate over each connected player ("Observer") to determine what they should see.
   connectedSocketIds.forEach(observerId => {
     const observer = players[observerId];
@@ -980,58 +1073,119 @@ function gameLoop(io) {
     // OPTIMIZATION: Send full data (including polygon) ONLY for self.
     visiblePlayers[observerId] = getUpdatePacketForSelf(observer);
 
-    // Check every other player ("Target") against this Observer
-    connectedSocketIds.forEach(targetId => {
-      if (observerId === targetId) return; // Already added self
+    // OPTIMIZATION: Send full data (including polygon) ONLY for self.
+    visiblePlayers[observerId] = getUpdatePacketForSelf(observer);
 
-      const target = players[targetId];
-      if (!target) return;
+    // --- Spatial Hash Lookup for Targets ---
+    const oX = observer.position.x;
+    const oY = observer.position.y;
+    const cellX = Math.floor(oX / AOI_CELL_SIZE);
+    const cellY = Math.floor(oY / AOI_CELL_SIZE);
 
-      // 1. Distance Check (Euclidean Distance Squared)
-      // A simple radius check. If target is too far, don't bother checking shadows.
-      // distSq is faster than Math.sqrt().
-      const dx = observer.position.x - target.position.x;
-      const dy = observer.position.y - target.position.y;
-      const distSq = dx * dx + dy * dy;
+    // Check 5x5 Grid around observer (covers ~1000px radius with 400px cells)
+    // VIEW_DISTANCE = 950. Cell Size = 400. 
+    // Range: ceil(950/400) = 3 cells. 
+    // We check -3 to +3 for safety.
 
-      if (distSq < VIEW_DISTANCE * VIEW_DISTANCE) {
-        // 2. Shadow/Visibility Check
-        // If the observer has a computed visibility polygon (from the recursive shadowcasting),
-        // we essentially check "Is the target inside the lighted area?".
-        if (observer.visibilityPolygon && observer.visibilityPolygon.length > 0) {
-          const tx = target.position.x;
-          const ty = target.position.y;
+    for (let cx = cellX - 3; cx <= cellX + 3; cx++) {
+      for (let cy = cellY - 3; cy <= cellY + 3; cy++) {
+        const cellKey = `${cx},${cy}`;
+        const cellPlayers = playerGrid[cellKey];
 
-          // Multi-Point "Fuzzy" Check
-          // Instead of checking just the center point of the target, we check a "Buffer Zone".
-          // This includes the Center, Top, Bottom, Left, and Right points offset by VISIBILITY_BUFFER.
-          // If ANY of these points are in the light, the player is considered visible.
-          // This prevents "pop-in" where a player suddenly appears only after fully stepping out of a shadow.
-          // OPTIMIZATION: Unrolled loop to avoid array allocations (e.g. [[x,y], ...])
+        if (cellPlayers) {
+          for (const targetId of cellPlayers) {
+            if (observerId === targetId) continue; // Already added self
 
-          const isVisible =
-            isPointInPolygon(tx, ty, observer.visibilityPolygon) ||
-            isPointInPolygon(tx + VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
-            isPointInPolygon(tx - VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
-            isPointInPolygon(tx, ty + VISIBILITY_BUFFER, observer.visibilityPolygon) ||
-            isPointInPolygon(tx, ty - VISIBILITY_BUFFER, observer.visibilityPolygon);
+            const target = players[targetId];
+            if (!target) continue;
 
-          if (isVisible) {
-            // OPTIMIZATION: Send stripped-down packet for others (No polygon, no internal flags)
-            visiblePlayers[targetId] = getUpdatePacketForOther(target);
+            // ... Proceed with Distance Check ...
+            // (We inline the existing logic here for the candidates)
+
+            // 1. Distance Check
+            const dx = oX - target.position.x;
+            const dy = oY - target.position.y;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < VIEW_DISTANCE * VIEW_DISTANCE) {
+              // 2. Shadow/Visibility Check
+              let isVisible = false;
+
+              // OPTIMIZATION: Proximity Short-Circuit
+              // If very close, assume visible (shadows shouldn't block view at < 150px)
+              if (distSq < 22500) { // 150 * 150
+                isVisible = true;
+              }
+              else if (observer.visibilityPolygon && observer.visibilityPolygon.length > 0) {
+                const tx = target.position.x;
+                const ty = target.position.y;
+                isVisible =
+                  isPointInPolygon(tx, ty, observer.visibilityPolygon) ||
+                  isPointInPolygon(tx + VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
+                  isPointInPolygon(tx - VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
+                  isPointInPolygon(tx, ty + VISIBILITY_BUFFER, observer.visibilityPolygon) ||
+                  isPointInPolygon(tx, ty - VISIBILITY_BUFFER, observer.visibilityPolygon);
+              } else {
+                isVisible = true; // Fallback
+              }
+
+              if (isVisible) {
+                visiblePlayers[targetId] = getUpdatePacketForOther(target);
+              }
+            }
           }
-        } else {
-          // Fallback: If no polygon is computed (e.g. infinite visibility or error),
-          // rely solely on the Distance Check.
-          visiblePlayers[targetId] = getUpdatePacketForOther(target);
         }
       }
-    });
+    }
 
     // Send the customized, filtered list of players to this specific client.
     // The client will use this list to Create, Update, or Destroy (Reconcile) player sprites.
-    if (io.sockets.sockets.get(observerId)) {
-      io.sockets.sockets.get(observerId).emit('playerUpdates', visiblePlayers);
+    const socket = io.sockets.sockets.get(observerId);
+    if (socket) {
+      if (!socket._lastPlayerStates) socket._lastPlayerStates = {};
+
+      const updatesToSend = {};
+
+      // Process Visible Players for Delta Compression
+      Object.keys(visiblePlayers).forEach(targetId => {
+        const newState = visiblePlayers[targetId];
+
+        // 1. New Entity for this Observer (Full Update)
+        if (!socket._lastPlayerStates[targetId]) {
+          updatesToSend[targetId] = newState;
+          socket._lastPlayerStates[targetId] = clonePacketForSnapshot(newState);
+        } else {
+          // 2. Existing Entity (Delta Update)
+          const lastState = socket._lastPlayerStates[targetId];
+          const delta = getPacketDelta(lastState, newState);
+
+          if (delta) {
+            // Always include ID so client knows who to update
+            delta.playerId = targetId;
+            if (targetId === observerId) delta.Identifier = newState.Identifier; // Keep self identifiers if needed
+
+            updatesToSend[targetId] = delta;
+            // Update snapshot
+            socket._lastPlayerStates[targetId] = clonePacketForSnapshot(newState);
+          } else {
+            // [FIX] Send Keep-Alive (Empty Delta)
+            // If we don't send anything, the client assumes the player is out of AOI and deletes them.
+            updatesToSend[targetId] = { playerId: targetId };
+          }
+        }
+      });
+
+      // Prune Stale States (Players no longer visible)
+      // This ensures memory doesn't leak and re-entries get full updates
+      Object.keys(socket._lastPlayerStates).forEach(storedId => {
+        if (!visiblePlayers[storedId]) {
+          delete socket._lastPlayerStates[storedId];
+        }
+      });
+
+      if (Object.keys(updatesToSend).length > 0) {
+        socket.emit('playerUpdates', updatesToSend);
+      }
     }
   });
   // io.emit('spellUpdates', spells);
@@ -1120,6 +1274,54 @@ function getUpdatePacketForSelf(player) {
 function getUpdatePacketForOther(player) {
   // Currently identical to common state, but wrapper kept for future specificity
   return getCommonPlayerState(player);
+}
+// --- Snapshot & Delta Helpers ---
+
+function clonePacketForSnapshot(p) {
+  // Create a deep copy of the mutable parts we track for changes
+  // We can use JSON parse/stringify for safety on these specific data packets 
+  // because they are relatively small data objects (filtered), not full player entities.
+  // This is faster than manual cloning for complex nested structures like equipment.
+  try {
+    return JSON.parse(JSON.stringify(p));
+  } catch (e) {
+    return { ...p }; // Fallback shallow copy
+  }
+}
+
+function getPacketDelta(oldObj, newObj) {
+  const delta = {};
+  let hasChanges = false;
+
+  // We assume newObj determines the keys
+  for (const key in newObj) {
+    const oldVal = oldObj[key];
+    const newVal = newObj[key];
+
+    // Position special check (float precision)
+    if (key === 'position' && oldVal && newVal) {
+      if (Math.abs(oldVal.x - newVal.x) > 0.01 || Math.abs(oldVal.y - newVal.y) > 0.01) {
+        delta[key] = newVal;
+        hasChanges = true;
+      }
+      continue;
+    }
+
+    // Deep compare for objects (Equipment, arrays)
+    if (typeof newVal === 'object' && newVal !== null) {
+      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        delta[key] = newVal;
+        hasChanges = true;
+      }
+    }
+    // Primitives
+    else if (oldVal !== newVal) {
+      delta[key] = newVal;
+      hasChanges = true;
+    }
+  }
+
+  return hasChanges ? delta : null;
 }
 
 // --- Main Exported Start Function ---
@@ -1320,61 +1522,80 @@ module.exports.start = (io, _messageSystem) => {
 
 
     // --- Helper to Save Character Data ---
-    const saveCharacter = async (socketId) => {
+    const SAVE_COOLDOWN = 5000; // 5 seconds
+
+    const saveCharacter = async (socketId, force = false) => {
       const p = players[socketId];
       if (!p || !p._id) return;
 
-      // Concurrency Lock: Check if already saving
+      // --- Throttling / Debounce Logic ---
+      const now = Date.now();
+      if (!p.lastSaveTime) p.lastSaveTime = 0;
+
+      if (!force && (now - p.lastSaveTime < SAVE_COOLDOWN)) {
+        // Cooldown active. Schedule a delayed save if not already scheduled.
+        if (!p.saveTimer) {
+          p.saveTimer = setTimeout(() => {
+            p.saveTimer = null;
+            saveCharacter(socketId, true); // Force save after delay
+          }, SAVE_COOLDOWN);
+        }
+        return; // Skip immediate save
+      }
+
+      // Clear timer if we are proceeding
+      if (p.saveTimer) {
+        clearTimeout(p.saveTimer);
+        p.saveTimer = null;
+      }
+
+      // --- Concurrency Lock ---
       if (p.isSaving) {
-        // Mark as needing another save after current one finishes
         p.savePending = true;
-        // log.debug(`[Persistence] Save for ${p.Username} queued (already saving).`);
         return;
       }
 
       p.isSaving = true;
+      p.lastSaveTime = Date.now();
 
       try {
-        // Perform the actual save logic
         await performSaveCharacter(p);
       } catch (err) {
         log.error(`Error saving character data for ${p.Username}:`, err);
       } finally {
         p.isSaving = false;
-        // Check if another save was requested during the lock
         if (p.savePending) {
           p.savePending = false;
-          // Trigger next save immediately
-          saveCharacter(socketId);
+          saveCharacter(socketId, false);
         }
       }
     };
 
     const performSaveCharacter = async (p) => {
-      const user = await User.findOne({ 'characters._id': p._id });
-      if (user) {
-        const character = user.characters.id(p._id);
-        if (character) {
-          // Save Position
-          character.position = {
-            x: p.position.x,
-            y: p.position.y,
-            time: new Date()
-          };
-          // Save Equipment
-          if (p.equipment) {
-            character.equipment = p.equipment;
-          }
+      // OPTIMIZED: Use Atomic updateOne instead of findOne + save
+      // This bypasses full document validation but drastically reduces IOPS and CPU.
+      const updateFields = {
+        'characters.$.position': {
+          x: p.position.x,
+          y: p.position.y,
+          time: new Date()
+        },
+        'characters.$.voreTypes': p.voreTypes || [],
+        'characters.$.consumedBy': p.consumedBy,
+        'characters.$.ratings': p.ratings || {}
+      };
 
-          // --- Save Vore & Resilience Data ---
-          if (p.voreTypes) character.voreTypes = p.voreTypes;
-          if (p.consumedBy !== undefined) character.consumedBy = p.consumedBy;
-          if (p.ratings) character.ratings = p.ratings;
+      if (p.equipment) {
+        updateFields['characters.$.equipment'] = p.equipment;
+      }
 
-          user.markModified('characters');
-          await DatabaseResilience.save(user);
-          // log.success(`Saved data (pos/equip/vore) for character ${character.firstName}`);
-        }
+      try {
+        await User.updateOne(
+          { 'characters._id': p._id },
+          { $set: updateFields }
+        );
+      } catch (e) {
+        log.error(`[DB] Atomic Save Failed for ${p.Username}`, e);
       }
     };
 
@@ -1473,13 +1694,14 @@ module.exports.start = (io, _messageSystem) => {
     // --- ITEM & INVENTORY HANDLERS ---
     // Extracted to src/sockets/inventoryHandlers.js
     const initInventoryHandlers = require('./sockets/inventoryHandlers');
-    initInventoryHandlers(io, socket, players, worldItems, saveCharacter, clothingData, itemData);
+    // Pass sync helpers to inventory handlers
+    initInventoryHandlers(io, socket, players, worldItems, saveCharacter, clothingData, itemData, addItemToGrid, removeItemFromGrid);
 
     // --- CRAFTING HANDLERS ---
     const initCraftingHandlers = require('./sockets/craftingHandlers');
     // Initialize Handlers
     // Initialize Handlers
-    initCraftingHandlers.init(io, socket, players, itemData, saveCharacter, craftingStations, worldItems, module.exports.broadcastToVisible);
+    initCraftingHandlers.init(io, socket, players, itemData, saveCharacter, craftingStations, worldItems, module.exports.broadcastToVisible, getUpdatePacketForSelf);
 
     socket.on('pickUpClicked', (clicked) => {
       try {
@@ -1530,10 +1752,32 @@ module.exports.start = (io, _messageSystem) => {
           const itemIndex = worldItems.findIndex(item => item.uid === clicked.Name);
           if (itemIndex > -1) {
             const item = worldItems[itemIndex];
-            // Check distance
-            const distance = Math.sqrt(Math.pow(player.position.x - item.x, 2) + Math.pow(player.position.y - item.y, 2));
+            // Check distance (AABB Overlap)
+            // Player Box (Center +/- 48)
+            const pCenterX = player.position.x + 30;
+            const pCenterY = player.position.y;
+            const rRadius = 48;
+            const rLeft = pCenterX - rRadius;
+            const rRight = pCenterX + rRadius;
+            const rTop = pCenterY - rRadius;
+            const rBottom = pCenterY + rRadius;
 
-            if (distance < 100) {
+            // Item Box (Assume 32x32, origin 0.5, 1.0 same as client default)
+            // This is an approximation as server doesn't know exact sprite dimensions usually.
+            const iW = 32;
+            const iH = 32;
+            const iX = item.x;
+            const iY = item.y;
+
+            const iLeft = iX - (iW * 0.5);   // x - 16
+            const iRight = iX + (iW * 0.5);  // x + 16
+            const iTop = iY - iH;            // y - 32
+            const iBottom = iY;              // y
+
+            // Intersection
+            const inReach = !(rLeft > iRight || rRight < iLeft || rTop > iBottom || rBottom < iTop);
+
+            if (inReach) {
               const activeHand = player.actionHands.activeHand;
               const activeNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
 
@@ -1543,11 +1787,12 @@ module.exports.start = (io, _messageSystem) => {
                 else player.actionHands.rightNode = item;
 
                 worldItems.splice(itemIndex, 1);
+                removeItemFromGrid(item);
                 io.emit('itemRemoved', item.uid);
               } else {
                 // Swap
                 const oldItem = activeNode;
-                // Determine drop position (player pos + jitter or offset)
+                // Determine drop position (player feet)
                 oldItem.x = player.position.x;
                 oldItem.y = player.position.y + 20;
 
@@ -1555,16 +1800,21 @@ module.exports.start = (io, _messageSystem) => {
                 if (!oldItem.uid) oldItem.uid = 'item_' + Date.now() + Math.floor(Math.random() * 1000);
 
                 worldItems.push(oldItem);
+                addItemToGrid(oldItem);
 
                 // Pickup new
                 if (activeHand === 'left') player.actionHands.leftNode = item;
                 else player.actionHands.rightNode = item;
 
                 worldItems.splice(itemIndex, 1);
-
+                removeItemFromGrid(item);
                 io.emit('itemRemoved', item.uid);
                 io.emit('itemSpawned', oldItem);
               }
+            } else {
+              // Too far
+              log.info(`Player ${player.firstName} tried to pickup item out of reach.`);
+              socket.emit('pickupFailed', { reason: 'out of reach' });
             }
           }
         }
@@ -1694,7 +1944,10 @@ module.exports.start = (io, _messageSystem) => {
                 const currentUses = heldNode.timesUsed || 0;
 
                 if (currentUses < maxUses) {
-                  actions.push('Use');
+                  // [NEW] Check if player is allowed to use it directly
+                  if (def.playerUse !== false) {
+                    actions.push('Use');
+                  }
                 }
               }
 

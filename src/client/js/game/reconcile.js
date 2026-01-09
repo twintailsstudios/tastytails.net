@@ -77,7 +77,13 @@ export function reconcile(serverPlayerState, self) {
     }
 
     // Threshold can be small (e.g. 2px) to allow for minor floating point differences
-    if (dist > 5.0) {
+    // --- BYPASS RECONCILIATION IF HELD (Target-Side Attachment) ---
+    // If we are held, we are manually attaching to the holder in update.js
+    // We do NOT want the server to snap us back, as that causes "bungee" lag.
+    // However, we MUST allow animation updates to proceed below.
+    const shouldReconcilePosition = !serverPlayerState.isHeld;
+
+    if (shouldReconcilePosition && dist > 5.0) {
         // console.log(`[RECONCILE] Divergence detected (${dist.toFixed(2)}px). Interpolating to predicted.`);
 
         // Interpolate to the PREDICTED position

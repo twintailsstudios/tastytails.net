@@ -22,10 +22,12 @@ let shadowSystem = null; // New Variable
 
 export function create() {
     const self = this;
+    window.gameScene = self; // Expose globally for UI interactions
     initDebugGraph(); // Initialize HTML debug graph
 
 
     const localPlayerInfo = window.localPlayerInfo;
+    this.playerInfo = localPlayerInfo; // Ensure it's attached to the scene so self.playerInfo works
     this.input.topOnly = false;
     self.showDebug = false;
 
@@ -50,6 +52,7 @@ export function create() {
     this.players = this.add.group();
     this.physics.add.collider(this.players);
     this.otherPlayersGroup = this.physics.add.group();
+    this.otherPlayersMap = new Map(); // Optimization: O(1) Lookup
     this.playerContainer = null;
     const charId = document.location.href.split('play/')[1];
 
@@ -63,6 +66,51 @@ export function create() {
         charId: document.location.href.split('play/')[1]
     });
 
+    // --- DOM Cache for Debugging ---
+    // Avoids querying the DOM every frame
+    this.debugUI = {
+        coords: document.getElementById('debug-coords'),
+        bandwidth: document.getElementById('debug-bandwidth'),
+        renderStats: document.getElementById('debug-render-stats'),
+        graph: document.getElementById('debug-graph'),
+        options: document.getElementById('optionsDisplay')
+    };
+
+    // --- Bandwidth Tracking ---
+    self.bandwidthStats = {
+        bytesIn: 0,
+        bytesOut: 0,
+        lastCheck: Date.now()
+    };
+
+    // Helper: Only calculate size if debug stats are actually visible
+    // accessing offsetParent is a cheap way to check if an element (or its parent) has display:none
+    // OPTIMIZATION: Do NOT check DOM (offsetParent) on every packet. It causes Reflow.
+    // Use a boolean flag controlled by the toggle listener.
+    const isDebugVisible = () => {
+        return self.showDebug; // Simple boolean check
+    };
+
+    // 1. Outgoing (Monkey-patch emit)
+    const originalEmit = this.socket.emit;
+    this.socket.emit = function (eventName, data, ...args) {
+        if (data && isDebugVisible()) {
+            // Rough estimation of payload size
+            const str = JSON.stringify(data);
+            if (str) self.bandwidthStats.bytesOut += str.length + 20; // +20 overhead
+        }
+        return originalEmit.apply(this, [eventName, data, ...args]);
+    };
+
+    // 2. Incoming (Wildcard listener)
+    this.socket.onAny((event, ...args) => {
+        if (isDebugVisible()) {
+            // args is an array of arguments.
+            const str = JSON.stringify(args);
+            if (str) self.bandwidthStats.bytesIn += str.length + 20;
+        }
+    });
+
     // Initialize Action Hands
     if (actionHands) {
         actionHands.init(this.socket);
@@ -72,6 +120,51 @@ export function create() {
     if (itemManager) {
         itemManager.init(this, this.socket);
     }
+
+    // Reset interaction flag on pointer up to prevent blocking future clicks
+    this.input.on('pointerup', (pointer) => {
+        pointer.interactionHandled = false;
+    });
+
+    // Handle Pickup Failure (e.g. Server rejected range)
+    this.socket.on('pickupFailed', (data) => {
+        console.log('[Game] Pickup Failed:', data.reason);
+        const { reason } = data;
+
+        if (reason === 'out of reach') {
+            // Debounce Feedback (limit to once every 500ms)
+            const now = Date.now();
+            if (self.lastReachFeedbackTime && now - self.lastReachFeedbackTime < 500) {
+                return;
+            }
+            self.lastReachFeedbackTime = now;
+
+            if (window.showWorldToast && self.playerContainer && self.cameras && self.cameras.main) {
+                // Convert World Position to Screen Position
+                // showWorldToast expects ClientX/Y (Screen coordinates relative to viewport)
+                const worldX = self.playerContainer.x;
+                const worldY = self.playerContainer.y - 100; // Above head
+
+                // Project to screen
+                const camera = self.cameras.main;
+                const screenX = (worldX - camera.worldView.x) * camera.zoom;
+                const screenY = (worldY - camera.worldView.y) * camera.zoom;
+
+                // Add canvas offset if any? Usually canvas is top-left 0,0 but let's assume relative to viewport.
+                // Phaser input pointer uses event.clientX which is viewport.
+                // We might need to add the canvas offset if the canvas isn't full screen 0,0.
+                // But for now, assuming full screen app or standard projection:
+
+                // Check if on screen
+                if (screenX >= 0 && screenX <= camera.width && screenY >= 0 && screenY <= camera.height) {
+                    window.showWorldToast(screenX, screenY, "Out of Reach");
+                }
+            }
+            if (window.addLocalSystemMessage) {
+                window.addLocalSystemMessage(`Item is too far away.`);
+            }
+        }
+    });
 
     // Initialize Equipment Manager
     if (equipmentManager) {
@@ -100,36 +193,35 @@ export function create() {
     playerDebugGraphics = this.add.graphics(); // Initialize player debug graphics
 
     // --- DEBUG TOGGLE LISTENER ---
+    // --- DEBUG TOGGLE LISTENER ---
     const debugToggle = document.getElementById('debugToggle');
     if (debugToggle) {
         debugToggle.addEventListener('change', function (event) {
             self.showDebug = event.target.checked;
-            const debugOverlay = document.getElementById('debug-overlay');
+            // self.showDebug is used in update.js to draw hitboxes
 
             if (self.showDebug) {
                 self.socket.emit('requestCollisionData');
-                if (debugOverlay) debugOverlay.style.display = 'block';
 
-                // Show zones layer
+                // Show zones layer transparently
                 if (self.mapLayers) {
                     self.mapLayers.forEach(layer => {
                         if (layer.layer.name.toLowerCase().includes('zones')) {
-                            layer.alpha = 0.5; // Visible but semi-transparent
+                            layer.alpha = 0.5;
                         }
                     });
                 }
             } else {
+                // Clear debug graphics
                 if (self.debugGraphics) {
                     self.debugGraphics.clear();
-                }
-                if (self.debugCoordsText) {
-                    self.debugCoordsText.destroy();
-                    self.debugCoordsText = null;
                 }
                 if (playerDebugGraphics) {
                     playerDebugGraphics.clear();
                 }
-                if (debugOverlay) debugOverlay.style.display = 'none';
+
+                // key logic change: we no longer toggle a separate 'debug-overlay' check here
+                // as the stats are permanently embedded in the options menu (visible when menu is open).
 
                 // Hide zones layer
                 if (self.mapLayers) {
@@ -179,23 +271,36 @@ export function create() {
                     shadowSystem.update(players[id]);
                 }
             } else {
-                displayOtherPlayers(self, players[id]);
+                const otherPlayer = displayOtherPlayers(self, players[id]);
+                if (otherPlayer) {
+                    self.otherPlayersMap.set(players[id].playerId, otherPlayer);
+                }
             }
         });
     });
 
     this.socket.on('newPlayer', function (playerInfo) {
         console.log('newPlayer = ', playerInfo);
-        displayOtherPlayers(self, playerInfo);
+        const otherPlayer = displayOtherPlayers(self, playerInfo);
+        if (otherPlayer) {
+            self.otherPlayersMap.set(playerInfo.playerId, otherPlayer);
+        }
     });
 
     this.socket.on('removePlayer', function (playerId) {
         console.log('removePlayer = ', playerId);
-        self.otherPlayersGroup.getChildren().forEach(function (otherPlayer) {
-            if (playerId === otherPlayer.playerId) {
-                otherPlayer.destroy();
-            }
-        });
+        const otherPlayer = self.otherPlayersMap.get(playerId);
+        if (otherPlayer) {
+            otherPlayer.destroy();
+            self.otherPlayersMap.delete(playerId);
+        } else {
+            // Fallback for safety
+            self.otherPlayersGroup.getChildren().forEach(function (otherPlayer) {
+                if (playerId === otherPlayer.playerId) {
+                    otherPlayer.destroy();
+                }
+            });
+        }
     });
 
     this.socket.on('playerUpdates', function (players) {
@@ -207,34 +312,43 @@ export function create() {
             if (players[id].playerId === self.socket.id) {
                 if (self.playerContainer) {
                     // console.log('[Client] Calling reconcile for local player');
-                    reconcile(players[id], self);
-                    // Update local playerInfo with latest server state (crucial for isCrafting flag)
+
+                    // --- DELTA COMPRESSION HANDLING ---
+                    // 1. Merge incoming delta into local authoritative state first
+                    // Object.assign is shallow, but sufficient because server sends full component objects (pos, equipment) if they change.
                     Object.assign(self.playerContainer.playerInfo, players[id]);
 
-                    if (actionHands) actionHands.update(players[id]);
-                    if (equipmentManager) equipmentManager.update(players[id]);
-                    if (inventoryUI) inventoryUI.update(players[id]);
-                    updatePlayerEquipmentVisuals(self.playerContainer, players[id].equipment);
-                    updateCraftingBar(self.playerContainer, players[id], self);
+                    // 2. Use the Fully Merged State for logic
+                    const fullState = self.playerContainer.playerInfo;
+
+                    reconcile(fullState, self);
+
+                    if (actionHands) actionHands.update(fullState);
+                    if (equipmentManager) equipmentManager.update(fullState);
+                    if (inventoryUI) inventoryUI.update(fullState);
+
+                    // For functions that took specific properties, verify they use the merged state or pass the property from fullState
+                    updatePlayerEquipmentVisuals(self.playerContainer, fullState.equipment);
+                    updateCraftingBar(self.playerContainer, fullState, self);
 
                     // Update Shadows
                     if (shadowSystem) {
-                        shadowSystem.update(players[id]);
+                        shadowSystem.update(fullState);
                     }
 
 
                     // --- Vore List Update ---
                     // Check if voreTypes have changed (e.g. contents added)
                     // Simple check: stringify comparison or just update if present
-                    if (players[id].voreTypes) {
+                    if (players[id].voreTypes) { // This is still safe to check on Delta, or check fullState
                         // We should probably optimize this to not re-render every frame if no change
                         // But for now, let's just update window.localPlayerInfo and re-render if different
                         const currentVoreTypesStr = JSON.stringify(window.localPlayerInfo.voreTypes);
-                        const newVoreTypesStr = JSON.stringify(players[id].voreTypes);
+                        const newVoreTypesStr = JSON.stringify(fullState.voreTypes);
 
                         if (currentVoreTypesStr !== newVoreTypesStr) {
-                            console.log('[Client] VoreTypes changed, updating UI:', players[id].voreTypes);
-                            window.localPlayerInfo.voreTypes = players[id].voreTypes;
+                            console.log('[Client] VoreTypes changed, updating UI:', fullState.voreTypes);
+                            window.localPlayerInfo.voreTypes = fullState.voreTypes;
                             createVoreList(window.localPlayerInfo.voreTypes, self);
                         }
                     }
@@ -244,16 +358,16 @@ export function create() {
                     // 1. We show/hide the "Struggle" button.
                     // 2. We hide the local player sprite.
                     // 3. We switch the camera to follow the predator.
-                    createStruggleButton(!!players[id].consumedBy, self.socket);
+                    createStruggleButton(!!fullState.consumedBy, self.socket);
 
-                    if (players[id].consumedBy) {
+                    if (fullState.consumedBy) {
                         // Player is consumed
                         self.playerContainer.setVisible(false);
 
                         // Find the predator
                         let predator = null;
                         self.otherPlayersGroup.getChildren().forEach(other => {
-                            if (other.playerId === players[id].consumedBy) {
+                            if (other.playerId === fullState.consumedBy) {
                                 predator = other;
                             }
                         });
@@ -274,27 +388,79 @@ export function create() {
                 }
             } else {
                 // OTHER PLAYERS
-                let otherPlayer = getPlayerSprite(players[id].playerId, self.otherPlayersGroup);
+                let otherPlayer = self.otherPlayersMap.get(players[id].playerId);
+
                 if (!otherPlayer) {
                     // New player entered AOI or connected
-                    displayOtherPlayers(self, players[id]);
-                    otherPlayer = getPlayerSprite(players[id].playerId, self.otherPlayersGroup);
+                    // [FIX] Ensure we have a FULL packet (with position AND visuals) before creating
+                    if (players[id].position && players[id].tail && players[id].body) {
+                        otherPlayer = displayOtherPlayers(self, players[id]);
+                        if (otherPlayer) {
+                            self.otherPlayersMap.set(players[id].playerId, otherPlayer);
+                        }
+                    } else {
+                        // Received delta for unknown player. Ignore it.
+                        // This happens if client cleared player but server sent delta.
+                        // We wait for the next Full Update or newPlayer event.
+                    }
                 }
 
                 if (otherPlayer) {
                     // Update position and state
-                    otherPlayer.setPosition(players[id].position.x, players[id].position.y);
-                    // Update playerInfo with latest server state
-                    Object.assign(otherPlayer.playerInfo, players[id]);
+                    // --- CLIENT SIDE PREDICTION JITTER FIX ---
+                    // If held by us/visible player, we predict the position in update.js
+                    // So we must IGNORE the server position here to prevent fighting/jitter.
+                    let isPredicted = false;
+                    if (players[id].isHeld && players[id].heldBySocketId) {
+                        const holderId = players[id].heldBySocketId;
 
-                    updatePlayerAnimations(otherPlayer, players[id]);
-                    updateStruggleBar(otherPlayer, players[id], self);
-                    updatePlayerEquipmentVisuals(otherPlayer, players[id].equipment);
-                    updateCraftingBar(otherPlayer, players[id], self);
-                    otherPlayer.depth = otherPlayer.y;
+                        // 1. Check if WE are the holder (Local Player)
+                        // holderId is a Socket ID. self.socket.id is our Socket ID.
+                        if (self.socket && self.socket.id === holderId) {
+                            isPredicted = true;
+                        }
+                        else {
+                            // 2. Check if held by another Visible Player
+                            // Here we need to check if the holder is in our otherPlayersGroup?
+                            // Actually, if we are interpolating the holder smoothly, we should also predict the held player associated with them?
+                            // Yes, update.js handles both cases.
+                            const holder = self.otherPlayersGroup.getChildren().find(p => p.playerId === holderId);
+                            if (holder) isPredicted = true;
+                        }
+                    }
+
+                    if (!isPredicted) {
+                        // --- GLOBAL INTERPOLATION ---
+                        // Instead of snapping, we set a target for update.js to interpolate towards.
+                        // Initialize target if missing (first spawn)
+                        if (typeof otherPlayer.targetX === 'undefined') {
+                            if (players[id].position) {
+                                otherPlayer.setPosition(players[id].position.x, players[id].position.y);
+                                otherPlayer.targetX = players[id].position.x;
+                                otherPlayer.targetY = players[id].position.y;
+                            }
+                        } else {
+                            // Update target
+                            if (players[id].position) {
+                                otherPlayer.targetX = players[id].position.x;
+                                otherPlayer.targetY = players[id].position.y;
+                            }
+                        }
+                    }
+                    // Update playerInfo with latest server state (Merge Delta)
+                    Object.assign(otherPlayer.playerInfo, players[id]);
+                    const fullState = otherPlayer.playerInfo;
+
+                    // Use Full State for updates
+                    updatePlayerAnimations(otherPlayer, fullState);
+                    updateStruggleBar(otherPlayer, fullState, self);
+                    updatePlayerEquipmentVisuals(otherPlayer, fullState.equipment);
+                    updateCraftingBar(otherPlayer, fullState, self);
+                    // Depth updated in update.js
+                    // otherPlayer.depth = otherPlayer.y; 
 
                     // Hide other players if they are consumed
-                    if (players[id].consumedBy) {
+                    if (fullState.consumedBy) {
                         otherPlayer.setVisible(false);
                     } else {
                         otherPlayer.setVisible(true);
@@ -304,17 +470,57 @@ export function create() {
         });
 
         // 2. Reconciliation: Remove players NOT in the received list (AOI Culling)
-        self.otherPlayersGroup.getChildren().forEach(function (otherPlayer) {
-            // Check if this player is in the received list
-            // Note: otherPlayer.playerId matches the key in 'players' (socket ID) usually, check logic.
-            // players object keys are socket IDs. otherPlayer.playerId is socket ID.
-            if (!players[otherPlayer.playerId]) {
-                // Player is no longer in our update list (out of range/view or disconnected)
-                console.log(`[AOI] Removing player ${otherPlayer.playerId} (out of view/range)`);
-                otherPlayer.destroy();
+        // Optimize: Iterate map keys instead of group children if map is accurate
+        const currentIds = new Set(receivedPlayerIds);
+
+        // We iterate our known map to find who to remove
+        for (const [id, entity] of self.otherPlayersMap) {
+            if (!currentIds.has(id)) {
+                console.log(`[AOI] Removing player ${id} (out of view/range)`);
+                entity.destroy();
+                self.otherPlayersMap.delete(id);
+            }
+        }
+    });
+
+    // [FIX] Partial updates for events (Crafting, Interactions)
+    // Same as playerUpdates but skips AOI culling. Used when server emits single-player changes.
+    this.socket.on('playerStateUpdate', function (players) {
+        Object.keys(players).forEach(function (id) {
+            if (players[id].playerId === self.socket.id) {
+                // Update Self
+                Object.assign(self.playerInfo, players[id]);
+                // Check visuals/equipment updates
+                if (players[id].equipment) {
+                    // trigger equipment update if valid
+                }
+            } else {
+                // Update Other Player
+                let otherPlayer = self.otherPlayersMap.get(players[id].playerId);
+                if (otherPlayer) {
+                    Object.assign(otherPlayer.playerInfo, players[id]);
+                    const fullState = otherPlayer.playerInfo;
+
+                    updatePlayerAnimations(otherPlayer, fullState);
+                    updateStruggleBar(otherPlayer, fullState, self);
+                    updatePlayerEquipmentVisuals(otherPlayer, fullState.equipment);
+                    updateCraftingBar(otherPlayer, fullState, self);
+
+                    if (players[id].position) {
+                        otherPlayer.targetX = players[id].position.x;
+                        otherPlayer.targetY = players[id].position.y;
+                    }
+
+                    if (fullState.consumedBy) {
+                        otherPlayer.setVisible(false);
+                    } else {
+                        otherPlayer.setVisible(true);
+                    }
+                }
             }
         });
     });
+
 
     // --- Vore Stage Update (Predator Controls) ---
     this.socket.on('voreStageUpdate', function (data) {
@@ -425,7 +631,7 @@ export function create() {
             // console.log('[Client] Typing target is SELF');
         } else {
             const others = self.otherPlayersGroup.getChildren();
-            targetContainer = others.find(p => p.playerInfo && p.playerInfo._id.toString() === data.charId);
+            targetContainer = others.find(p => p.playerInfo && p.playerInfo._id && p.playerInfo._id.toString() === data.charId);
         }
 
         if (targetContainer) {

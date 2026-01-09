@@ -16,12 +16,16 @@ export function createMap(scene) {
 
     // 1. Identify Object Layers
     // Phaser puts all layers with type="objectgroup" into the 'objects' array.
-    console.log("--- Object Layers Found ---");
+    // 1. Identify Object Layers
+    // Phaser puts all layers with type="objectgroup" into the 'objects' array.
+    // console.log("--- Object Layers Found ---");
+    /*
     if (map.objects) {
         map.objects.forEach(layerData => {
             console.log(`Name: ${layerData.name}, Object Count: ${layerData.objects.length}`);
         });
     }
+    */
 
     // 2. Identify Tilesets and Load Images Dynamically
     // developer_note:
@@ -29,7 +33,7 @@ export function createMap(scene) {
     // It attempts to finding a matching image key in Phaser's texture manager.
     // If you see a "black screen" or missing tiles, it usually means the key in preload.js
     // does not match the tileset name in Tiled.
-    console.log("--- Tilesets Found ---");
+    // console.log("--- Tilesets Found ---");
     map.tilesets.forEach(tileset => {
         const hasCustomProps = tileset.tileProperties && Object.keys(tileset.tileProperties).length > 0;
         let type = 'Single Image Tileset';
@@ -44,29 +48,50 @@ export function createMap(scene) {
             }
         }
 
-        console.log(`Name: ${tileset.name}`);
-        console.log(`- Type: ${type}`);
-        console.log(`- First GID: ${tileset.firstgid}`);
-        console.log(`- Total Tiles: ${tileset.total}`);
+        // console.log(`Name: ${tileset.name}`);
+        // console.log(`- Type: ${type}`);
+        // console.log(`- First GID: ${tileset.firstgid}`);
+        // console.log(`- Total Tiles: ${tileset.total}`);
 
         // --- Dynamic Image Binding ---
         const tilesetName = tileset.name;
+        if (tilesetName === 'AutoMap Rules') {
+            console.log(`[createMap] Skipping internal Tiled layer '${tilesetName}'`);
+            return;
+        }
+
         // We assume the image key in Phaser cache matches the tileset name from Tiled 
         // SKIPPING Collection of Images (they don't use a single master image)
         if (type === 'Collection of Images') {
-            console.log(`[createMap] Skipping addTilesetImage for '${tilesetName}' (Collection of Images)`);
+            // console.log(`[createMap] Skipping addTilesetImage for '${tilesetName}' (Collection of Images)`);
         } else if (scene.textures.exists(tilesetName)) {
-            console.log(`[createMap] Matched tileset '${tilesetName}' to image key '${tilesetName}'`);
+            // console.log(`[createMap] Matched tileset '${tilesetName}' to image key '${tilesetName}'`);
             map.addTilesetImage(tilesetName, tilesetName);
         } else {
-            console.warn(`[createMap] WARNING: Could not find image key for tileset '${tilesetName}'. Checking for fallbacks...`);
+            // Fallback: Try stripping extension (e.g., 'cloth_shelf_01.png' -> 'cloth_shelf_01')
+            const nameWithoutExt = tilesetName.includes('.') ? tilesetName.split('.').slice(0, -1).join('.') : null;
 
-            // Legacy Fallback
-            if (tilesetName === 'Demo_tileset' && scene.textures.exists('tileset')) {
-                console.log(`[createMap] ...Found legacy 'tileset' image for '${tilesetName}'`);
-                map.addTilesetImage(tilesetName, 'tileset');
+            if (nameWithoutExt && scene.textures.exists(nameWithoutExt)) {
+                // console.log(`[createMap] Matched tileset '${tilesetName}' to image key '${nameWithoutExt}' (extension stripped)`);
+                map.addTilesetImage(tilesetName, nameWithoutExt);
+            } else if (scene.textures.exists(tilesetName.toLowerCase())) {
+                // Fallback 2: Try lowercase exact match
+                // console.log(`[createMap] Matched tileset '${tilesetName}' to image key '${tilesetName.toLowerCase()}' (lowercase)`);
+                map.addTilesetImage(tilesetName, tilesetName.toLowerCase());
+            } else if (nameWithoutExt && scene.textures.exists(nameWithoutExt.toLowerCase())) {
+                // Fallback 3: Try lowercase stripped match
+                // console.log(`[createMap] Matched tileset '${tilesetName}' to image key '${nameWithoutExt.toLowerCase()}' (lowercase stripped)`);
+                map.addTilesetImage(tilesetName, nameWithoutExt.toLowerCase());
             } else {
-                console.error(`[createMap] FAILED to load image for tileset: ${tilesetName}. Rendering might be incomplete.`);
+                console.warn(`[createMap] WARNING: Could not find image key for tileset '${tilesetName}'. Checking for fallbacks...`);
+
+                // Legacy Fallback
+                if (tilesetName === 'Demo_tileset' && scene.textures.exists('tileset')) {
+                    console.log(`[createMap] ...Found legacy 'tileset' image for '${tilesetName}'`);
+                    map.addTilesetImage(tilesetName, 'tileset');
+                } else {
+                    console.error(`[createMap] FAILED to load image for tileset: ${tilesetName}. Rendering might be incomplete.`);
+                }
             }
         }
     });
@@ -104,6 +129,7 @@ export function createMap(scene) {
     //----- Creates "layers" of different map tiles to be placed on top of one another -----//
     // DYNAMIC LAYER LOADING REFACTOR
     scene.mapLayers = [];
+    scene.tableTopObjects = []; // Optimization: Cached list for Drop Mode
 
     map.layers.forEach((layerData, index) => {
         // console.log(`Creating layer: ${layerData.name}`);
@@ -156,7 +182,7 @@ function buildObjectLayer(scene, map, layerName) {
     // Skip if layer is empty or undefined
     if (!layerData || !layerData.objects) return;
 
-    console.log(`[World Builder] Building layer: ${layerName}`);
+    // console.log(`[World Builder] Building layer: ${layerName}`);
 
     // Pre-fetch raw data for all tilesets.
     // We store them as an array of ranges to perform GID-based lookups.
@@ -230,7 +256,7 @@ function buildObjectLayer(scene, map, layerName) {
             if (rawTs.tiles[trueLocalID]) {
                 tileProps = rawTs.tiles[trueLocalID].properties;
                 rawImage = rawTs.tiles[trueLocalID].image;
-                console.log(`[World Builder] Found Raw Props for GID ${obj.gid} (True ID ${trueLocalID} via ${rawTs.name}):`, tileProps);
+                // console.log(`[World Builder] Found Raw Props for GID ${obj.gid} (True ID ${trueLocalID} via ${rawTs.name}):`, tileProps);
 
                 // SKIP items (managed by server events)
                 if (tileProps.isItem) {
@@ -238,7 +264,7 @@ function buildObjectLayer(scene, map, layerName) {
                     return;
                 }
 
-                if (rawImage) console.log(`[World Builder] Found Raw Image: ${rawImage}`);
+                // if (rawImage) console.log(`[World Builder] Found Raw Image: ${rawImage}`);
             }
         } else {
             // Fallback: This usually shouldn't happen unless the object GID is very strange or outside ranges
@@ -252,7 +278,7 @@ function buildObjectLayer(scene, map, layerName) {
 
         if (tileProps && tileProps.texture) {
             textureKey = tileProps.texture;
-            console.log(`[World Builder] Using custom texture property: ${textureKey}`);
+            // console.log(`[World Builder] Using custom texture property: ${textureKey}`);
         } else if (rawImage) {
             // Extract filename without extension from path
             // Handle both forward and backslashes (Windows paths in Tiled JSON)
@@ -260,7 +286,7 @@ function buildObjectLayer(scene, map, layerName) {
             const parts = normalizedPath.split('/');
             const filename = parts[parts.length - 1];
             textureKey = filename.split('.')[0];
-            console.log(`[World Builder] Auto-detected texture: ${textureKey} from ${rawImage}`);
+            // console.log(`[World Builder] Auto-detected texture: ${textureKey} from ${rawImage}`);
         } else {
             // Priority 3: Runtime Fallback
             // If we couldn't resolve a texture from Raw Data, ask Phaser.
@@ -297,7 +323,7 @@ function buildObjectLayer(scene, map, layerName) {
             }
         }
 
-        console.log(`[World Builder] Spawning Object: ${textureKey} (GID: ${obj.gid}, LocalID: ${usedLocalID}) at ${obj.x},${obj.y}`);
+        // console.log(`[World Builder] Spawning Object: ${textureKey} (GID: ${obj.gid}, LocalID: ${usedLocalID}) at ${obj.x},${obj.y}`);
 
         // 3. Create the Sprite
         const sprite = scene.objectGroup.create(obj.x, obj.y, textureKey, frame);
@@ -426,6 +452,26 @@ function buildObjectLayer(scene, map, layerName) {
         if (clearZone) {
             sprite.clearZone = clearZone;
             // console.log(`[World Builder] Object ${sprite.objectInfo.name} assigned clearZone: ${clearZone}`);
+        }
+
+        // --- TableTop Property ---
+        // Priority: Object Property > Tile Property
+        let isTableTop = false;
+        if (obj.properties) {
+            if (Array.isArray(obj.properties)) {
+                const p = obj.properties.find(prop => prop.name === 'tableTop');
+                if (p) isTableTop = p.value === true || p.value === 'true';
+            } else {
+                if (obj.properties.tableTop) isTableTop = obj.properties.tableTop;
+            }
+        }
+        if (!isTableTop && tileProps && tileProps.tableTop) {
+            isTableTop = tileProps.tableTop === true || tileProps.tableTop === 'true';
+        }
+
+        if (isTableTop) {
+            sprite.objectInfo.tableTop = true;
+            if (scene.tableTopObjects) scene.tableTopObjects.push(sprite);
         }
 
         // --- Blocked Property (Collision) ---

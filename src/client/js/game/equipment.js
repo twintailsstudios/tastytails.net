@@ -33,7 +33,7 @@ export const equipmentManager = {
     init: function (socket) {
         this.socket = socket;
         this.renderSlots(); // Render empty slots initially
-        console.log('[EquipmentManager] Initialized');
+        // console.log('[EquipmentManager] Initialized');
     },
 
     // Initial render of HTML structure for all slots

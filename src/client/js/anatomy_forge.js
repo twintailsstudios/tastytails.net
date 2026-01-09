@@ -74,7 +74,7 @@ const AnatomyForge = (function () {
     // ==========================================
 
     function init(domContainerId, initialAnatomyData, legacyVoreList, onSave = null) {
-        console.log("AnatomyForge: Init started for container", domContainerId);
+        // console.log("AnatomyForge: Init started for container", domContainerId);
         try {
             containerId = domContainerId;
             onSaveCallback = onSave;
@@ -104,7 +104,7 @@ const AnatomyForge = (function () {
             modalCheckboxContainer = document.getElementById('af-modal-checkbox-container');
             modalCheck = document.getElementById('af-modal-confirm-check');
 
-            console.log("AnatomyForge: DOM Elements fetched. Check:", { modalCheck, btnConfirmDelete, inspector });
+            // console.log("AnatomyForge: DOM Elements fetched. Check:", { modalCheck, btnConfirmDelete, inspector });
 
             if (modalCheck) {
                 modalCheck.addEventListener('change', (e) => {
@@ -145,17 +145,17 @@ const AnatomyForge = (function () {
                     }, 0);
                     nextId = data.nextId || (maxId + 1);
 
-                    console.log("AnatomyForge: Loaded initial data", nodes.length, "nodes");
+                    // console.log("AnatomyForge: Loaded initial data", nodes.length, "nodes");
                 } catch (e) {
                     console.error("AnatomyForge: Failed to parse initial data", e);
                     setupDefaultAnatomy(legacyVoreList);
                 }
             } else {
                 if (legacyVoreList && legacyVoreList.length > 0) {
-                    console.log("AnatomyForge: Setting up from legacy list");
+                    // console.log("AnatomyForge: Setting up from legacy list");
                     setupFromLegacy(legacyVoreList);
                 } else {
-                    console.log("AnatomyForge: Setting up default anatomy");
+                    // console.log("AnatomyForge: Setting up default anatomy");
                     setupDefaultAnatomy();
                 }
             }
@@ -164,13 +164,17 @@ const AnatomyForge = (function () {
             setupViewportEvents();
             setupKeyboardEvents();
             setTimeout(() => {
-                console.log("AnatomyForge: Resetting view...");
-                resetView();
+                try {
+                    // console.log("AnatomyForge: Resetting view...");
+                    resetView();
+                } catch (err) {
+                    console.warn("AnatomyForge: View reset warning (non-critical):", err);
+                }
             }, 200);
 
             // Initial Serialization
             serializeSystem();
-            console.log("AnatomyForge: Init completed successfully.");
+            console.log("AnatomyForge: Ready.");
 
         } catch (err) {
             console.error("AnatomyForge: CRITICAL INIT ERROR", err);
@@ -355,6 +359,7 @@ const AnatomyForge = (function () {
     }
 
     function updateTransform() {
+        if (!world) return;
         world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
     }
 
@@ -945,6 +950,7 @@ const AnatomyForge = (function () {
     }
 
     function resetView() {
+        if (!world) return;
         if (nodes.length === 0) {
             view.x = 20; view.y = 20; view.scale = 1;
         } else {

@@ -1,0 +1,128 @@
+/* Options Tab Styling */
+#optionsDisplay .paper-note {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.options-group {
+    background: rgba(62, 39, 35, 0.05);
+    border: 1px solid rgba(62, 39, 35, 0.1);
+    border-radius: 6px;
+    padding: 10px;
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.setting-text {
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    color: var(--wood-dark);
+    font-size: 1rem;
+}
+
+/* Toggle Switch */
+.toggle-switch-label {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.toggle-switch-label input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 20px;
+    border: 1px solid #999;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+input:checked+.toggle-slider {
+    background-color: var(--wood-light);
+    border-color: var(--wood-dark);
+}
+
+input:checked+.toggle-slider:before {
+    transform: translateX(20px);
+    background-color: var(--gold);
+}
+
+/* Debug Section */
+.debug-section {
+    margin-top: 10px;
+    border-top: 2px dashed rgba(62, 39, 35, 0.2);
+    padding-top: 15px;
+}
+
+.debug-section h4 {
+    margin: 0 0 10px 0;
+    font-family: 'Cinzel', serif;
+    color: var(--wood-dark);
+    font-size: 1.1rem;
+    border-bottom: 1px solid rgba(62, 39, 35, 0.1);
+    padding-bottom: 5px;
+}
+
+.debug-stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Lato', monospace;
+    font-size: 0.95rem;
+    margin-bottom: 5px;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+.stat-label {
+    color: var(--wood-accent);
+    font-weight: bold;
+}
+
+.stat-value {
+    color: var(--text-dark);
+}
+
+.debug-graph-container {
+    margin-top: 10px;
+    background: #000;
+    border: 2px solid var(--wood-light);
+    border-radius: 4px;
+    overflow: hidden;
+    padding: 2px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+#debug-graph {
+    width: 100%;
+    height: auto;
+    display: block;
+}

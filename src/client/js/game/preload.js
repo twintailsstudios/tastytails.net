@@ -1,7 +1,7 @@
 export function preload() {
-    console.log('Preload Started');
-    console.log('Window Object contents:', window);
-    console.log('Map Filename from Window:', window.mapFilename);
+    console.log(`[Preload] Started. Map: ${window.mapFilename || 'Default'}`);
+    // console.log('Window Object contents:', window);
+    // console.log('Map Filename from Window:', window.mapFilename);
 
     // 1. Get Center of Canvas
     const width = this.cameras.main.width;

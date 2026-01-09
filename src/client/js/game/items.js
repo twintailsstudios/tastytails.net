@@ -25,7 +25,7 @@ export const itemManager = {
             this.spawnItem(item);
         });
 
-        console.log('[ItemManager] Initialized');
+        // console.log('[ItemManager] Initialized');
     },
 
     syncItems: function (serverItems) {
@@ -72,11 +72,73 @@ export const itemManager = {
         // Click to Pickup
         interactiveTarget.on('pointerdown', (pointer) => {
             if (pointer.leftButtonDown()) {
+                // Range Check (AABB Overlap: Reach Box vs Item Box)
+                const playerContainer = this.scene.playerContainer;
+                if (playerContainer) {
+                    // Reach Box (Centered on Player + 30)
+                    const reachRadius = 48; // half-width
+                    const pCenterX = playerContainer.x + 30;
+                    const pCenterY = playerContainer.y;
+
+                    const rLeft = pCenterX - reachRadius;
+                    const rRight = pCenterX + reachRadius;
+                    const rTop = pCenterY - reachRadius;
+                    const rBottom = pCenterY + reachRadius;
+
+                    // Item Box (Based on Sprite/Target dimensions & Origin)
+                    // Default origin is usually (0.5, 1) for items
+                    const iW = interactiveTarget.displayWidth || interactiveTarget.width || 32;
+                    const iH = interactiveTarget.displayHeight || interactiveTarget.height || 32;
+                    const oX = interactiveTarget.originX !== undefined ? interactiveTarget.originX : 0.5;
+                    const oY = interactiveTarget.originY !== undefined ? interactiveTarget.originY : 1;
+
+                    const iX = interactiveTarget.x; // Container or Sprite X (World Space if parent is scene)
+                    // Note: If inside a container, interactiveTarget might be local.
+                    // But in items.js, we attach click to either the sprite (if simple) or checking hierarchy?
+                    // interactiveTarget is usually the sprite/container added to scene or group.
+                    // items.js adds to `itemsGroup`.
+                    // If layered, interactiveTarget passed to setupItemInteraction is `interactiveSprite` which is inside container.
+                    // We need World Position.
+
+                    let worldX = iX;
+                    let worldY = interactiveTarget.y;
+
+                    // If interactTarget is child of container, transform?
+                    if (interactiveTarget.parentContainer) {
+                        worldX = interactiveTarget.parentContainer.x + iX;
+                        worldY = interactiveTarget.parentContainer.y + interactiveTarget.y;
+                    }
+
+                    const iLeft = worldX - (iW * oX);
+                    const iRight = worldX + (iW * (1 - oX));
+                    const iTop = worldY - (iH * oY);
+                    const iBottom = worldY + (iH * (1 - oY));
+
+                    // Intersection Check
+                    // ! ( rLeft > iRight || rRight < iLeft || rTop > iBottom || rBottom < iTop )
+                    const active = !(rLeft > iRight || rRight < iLeft || rTop > iBottom || rBottom < iTop);
+
+                    if (!active) {
+                        console.log(`[ItemManager] Pickup Out of Reach (AABB)`);
+                        if (window.showWorldToast) window.showWorldToast(pointer.event.clientX, pointer.event.clientY, "out of reach");
+                        if (window.addLocalSystemMessage) window.addLocalSystemMessage(`${itemData.name || 'Item'} is too far away.`);
+                        return;
+                    }
+                }
+
                 console.log('[ItemManager] Clicked item:', itemData.uid);
                 this.socket.emit('pickUpClicked', {
                     Identifier: 'item',
                     Name: itemData.uid
                 });
+
+                // Signal to Global ClickHandler (contextMenu.js) that we handled this.
+                pointer.interactionHandled = true;
+
+                // Stop propagation (DOM)
+                if (pointer.event) {
+                    pointer.event.stopPropagation();
+                }
             }
         });
     },
@@ -93,7 +155,14 @@ export const itemManager = {
         // GENERIC LAYERED RENDERING
         if (rendering.type === 'layered') {
             const container = this.scene.add.container(itemData.x, itemData.y);
-            container.setDepth(itemData.y);
+            // Height adjustment for TableTop items
+            if (itemData.onTable) {
+                // Use precise surface depth if available
+                const z = (itemData.surfaceDepth !== undefined) ? itemData.surfaceDepth + 1 : itemData.y + 100;
+                container.setDepth(z);
+            } else {
+                container.setDepth(itemData.y);
+            }
 
             const timesUsed = itemData.timesUsed || 0;
             const layers = rendering.layers || [];
@@ -156,7 +225,14 @@ export const itemManager = {
 
         // Origin: Bottom Center to match server collision logic
         sprite.setOrigin(0.5, 1);
-        sprite.setDepth(itemData.y); // Simple depth sorting
+
+        // Height adjustment for TableTop items
+        if (itemData.onTable) {
+            const z = (itemData.surfaceDepth !== undefined) ? itemData.surfaceDepth + 1 : itemData.y + 100;
+            sprite.setDepth(z);
+        } else {
+            sprite.setDepth(itemData.y);
+        }
 
         // Dynamic Frame Rendering (for simple items that are usable but not layered)
         if (itemData.timesUsed) {

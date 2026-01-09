@@ -16,7 +16,7 @@ try {
 }
 
 // Main Socket Initializer
-const init = function (io, socket, players, itemData, saveCharacter, craftingStations, worldItems, broadcastToVisible) {
+const init = function (io, socket, players, itemData, saveCharacter, craftingStations, worldItems, broadcastToVisible, getPacket) {
     const logPrefix = `[Crafting:${socket.id}]`;
     // log.info(`${ logPrefix } Initialized crafting handlers`); // verbose but useful for debug
 
@@ -120,11 +120,11 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             });
 
             // Update Player Visuals (Hands or Equipment)
-            // Use broadcastToVisible if available, else io.emit
+            const safePlayer = getPacket ? getPacket(player) : player;
             if (broadcastToVisible) {
-                broadcastToVisible(io, socket.id, 'playerUpdates', { [socket.id]: player });
+                broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
             } else {
-                io.emit('playerUpdates', { [socket.id]: player });
+                io.emit('playerStateUpdate', { [socket.id]: safePlayer });
             }
             saveCharacter(socket.id);
 
@@ -199,10 +199,11 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             });
 
             // Notify Player Update
+            const safePlayer = getPacket ? getPacket(player) : player;
             if (broadcastToVisible) {
-                broadcastToVisible(io, socket.id, 'playerUpdates', { [socket.id]: player });
+                broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
             } else {
-                io.emit('playerUpdates', { [socket.id]: player });
+                io.emit('playerStateUpdate', { [socket.id]: safePlayer });
             }
             saveCharacter(socket.id);
 
@@ -318,8 +319,28 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
 
                     if (unusedIndices.length >= ing.count) {
                         // Mark for removal
+                        // Mark for removal or update uses
                         for (let i = 0; i < ing.count; i++) {
-                            indicesToRemove.add(unusedIndices[i]); // Use the FIRST available ones
+                            const idx = unusedIndices[i];
+                            const item = station.inventory[idx];
+                            // Check for maxUses (dynamic item)
+                            // [FIX] Ensure we respect instance or definition maxUses
+                            const def = itemData[item.itemId] || {};
+                            const maxUses = item.maxUses || def.maxUses || 0;
+
+                            if (maxUses > 0) {
+                                // Decrement usage (Increment timesUsed)
+                                item.timesUsed = (item.timesUsed || 0) + 1;
+
+                                // Check if exhausted
+                                if (item.timesUsed >= maxUses) {
+                                    indicesToRemove.add(idx);
+                                }
+                                // Else: Item remains in inventory with updated timesUsed
+                            } else {
+                                // Normal item: Consume fully
+                                indicesToRemove.add(idx);
+                            }
                         }
                     } else {
                         log.warn(`${logPrefix} Missing ingredient: ${reqKey} (Req: ${ing.count}, Found: ${unusedIndices.length})`);
@@ -356,10 +377,11 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             });
 
             // Broadcast crafting state to visible players
+            const safePlayer = getPacket ? getPacket(player) : player;
             if (broadcastToVisible) {
-                broadcastToVisible(io, socket.id, 'playerUpdates', { [socket.id]: player });
+                broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
             } else {
-                io.emit('playerUpdates', { [socket.id]: player });
+                io.emit('playerStateUpdate', { [socket.id]: safePlayer });
             }
             log.info(`${logPrefix} Started crafting ${recipe.name} (${duration}ms)`);
 
@@ -380,10 +402,11 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
                         players[socket.id].craftingTimer = null; // Clear ref
 
                         // Broadcast completion state
+                        const safePlayer = getPacket ? getPacket(players[socket.id]) : players[socket.id];
                         if (broadcastToVisible) {
-                            broadcastToVisible(io, socket.id, 'playerUpdates', { [socket.id]: players[socket.id] });
+                            broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
                         } else {
-                            io.emit('playerUpdates', { [socket.id]: players[socket.id] });
+                            io.emit('playerStateUpdate', { [socket.id]: safePlayer });
                         }
                     }
 
@@ -483,10 +506,11 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
         player.currentStationId = null;
 
         // Broadcast State
+        const safePlayer = getPacket ? getPacket(player) : player;
         if (broadcastToVisible) {
-            broadcastToVisible(io, socket.id, 'playerUpdates', { [socket.id]: player });
+            broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
         } else {
-            io.emit('playerUpdates', { [socket.id]: player });
+            io.emit('playerStateUpdate', { [socket.id]: safePlayer });
         }
 
         // Explicitly notify the client to stop the UI

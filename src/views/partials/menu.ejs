@@ -87,10 +87,47 @@
         <div id="optionsDisplay" class="tabDisplay">
             <div class="paper-note">
                 <h3>System Options</h3>
-                <label class="options-label">
-                    <input type="checkbox" id="debugToggle">
-                    <span>Show Hit Areas (Debug)</span>
-                </label>
+
+                <div class="options-group">
+                    <div class="setting-row">
+                        <label class="toggle-switch-label">
+                            <input type="checkbox" id="debugToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="setting-text">Debug Mode (Hitboxes)</span>
+                    </div>
+                </div>
+
+                <!-- Debug Information Section (Hidden unless active) -->
+                <div id="debug-info-section" class="debug-section">
+                    <h4>Debug Statistics</h4>
+                    <div class="debug-stat-row">
+                        <span class="stat-label">Coordinates:</span>
+                        <span id="debug-coords" class="stat-value">X: 0, Y: 0</span>
+                    </div>
+                    <div class="debug-stat-row">
+                        <span class="stat-label">Latency (RTT):</span>
+                        <span id="debug-rtt" class="stat-value">-</span>
+                    </div>
+                    <div class="debug-stat-row">
+                        <span class="stat-label">Distance to Server:</span>
+                        <span id="debug-dist" class="stat-value">-</span>
+                    </div>
+
+                    <div class="debug-stat-row">
+                        <span class="stat-label">Bandwidth (Dn/Up):</span>
+                        <span id="debug-bandwidth" class="stat-value">- / - B/s</span>
+                    </div>
+
+                    <div class="debug-stat-row">
+                        <span class="stat-label">FPS / Entities:</span>
+                        <span id="debug-render-stats" class="stat-value">- / -</span>
+                    </div>
+
+                    <div class="debug-graph-container">
+                        <canvas id="debug-graph" width="240" height="100"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

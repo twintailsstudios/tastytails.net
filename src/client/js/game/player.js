@@ -15,6 +15,15 @@ const CRAFTING_BAR_COLOR_BORDER = 0x000000;
 export function updatePlayerEquipmentVisuals(container, equipmentData) {
     if (!equipmentData) return;
 
+    // OPTIMIZATION: Dirty Check
+    // Compare new equipment with last rendered equipment
+    // Simple stringify comparison is fast enough for small objects like equipment slots
+    const equipStr = JSON.stringify(equipmentData);
+    if (container._lastEquipStr === equipStr) {
+        return; // No change
+    }
+    container._lastEquipStr = equipStr;
+
     // Better Approach: Iterate the SLOTS defined in visuals to decide what to show
     const processedSlots = new Set();
     Object.values(EQUIPMENT_VISUALS).forEach(config => {
@@ -137,9 +146,9 @@ export function getPlayerSprite(playerId, group) {
 
 export function displayPlayers(self, playerInfo) {
     const localPlayerInfo = window.localPlayerInfo;
-    console.log('[displayPlayers] Creating player with playerInfo:', playerInfo);
-    console.log(`%c[displayPlayers] Creating player at: (${playerInfo.position.x}, ${playerInfo.position.y})`, 'color: cyan; font-weight: bold;');
-    console.log('localPlayerInfo at displayPlayers Function = ', localPlayerInfo);
+    // console.log('[displayPlayers] Creating player with playerInfo:', playerInfo);
+    // console.log(`%c[displayPlayers] Creating player at: (${playerInfo.position.x}, ${playerInfo.position.y})`, 'color: cyan; font-weight: bold;');
+    // console.log('localPlayerInfo at displayPlayers Function = ', localPlayerInfo);
 
     const playerContainer = self.add.container(playerInfo.position.x, playerInfo.position.y);
     updateStruggleBar(playerContainer, playerInfo, self);
@@ -154,7 +163,7 @@ export function displayPlayers(self, playerInfo) {
     // Render/Update Vore Progress Bar
     updateVoreProgressBar(playerContainer, playerInfo, self);
 
-    console.log('[displayPlayers] playerContainer created at:', playerContainer.x, playerContainer.y);
+    // console.log('[displayPlayers] playerContainer created at:', playerContainer.x, playerContainer.y);
     playerContainer.setSize(60, 163);
     self.physics.world.enable(playerContainer);
     playerContainer.body.setSize(60, 30); // Match server collision box size
@@ -171,7 +180,7 @@ export function displayPlayers(self, playerInfo) {
         });
     }
 
-    console.log('player coordinates are: X= ', playerInfo.position.x, 'Y= ', playerInfo.position.y);
+    // console.log('player coordinates are: X= ', playerInfo.position.x, 'Y= ', playerInfo.position.y);
 
     // Helper for color parsing
     const parseColor = (color) => {
@@ -240,7 +249,7 @@ export function displayPlayers(self, playerInfo) {
     window.avatarSelected = true;
 
     window.cam1 = self.cameras.main.setSize(windowSize().x, windowSize().y).startFollow(playerContainer).setName('Camera 1');
-    console.log('cam1 width and height = ', window.cam1.width, window.cam1.height);
+    // console.log('cam1 width and height = ', window.cam1.width, window.cam1.height);
 
     document.getElementById('phaserApp').focus();
 
@@ -254,7 +263,7 @@ export function displayPlayers(self, playerInfo) {
 }
 
 export function displayOtherPlayers(self, playerInfo) {
-    console.log("displayOtherPlayers function called");
+    // console.log("displayOtherPlayers function called");
     // Check for existing player to avoid duplicates
     const existingPlayer = getPlayerSprite(playerInfo.playerId, self.otherPlayersGroup);
     if (existingPlayer) {
@@ -354,6 +363,8 @@ export function displayOtherPlayers(self, playerInfo) {
 
     // Initialize Equipment Visuals
     updatePlayerEquipmentVisuals(otherPlayerContainer, playerInfo.equipment);
+
+    return otherPlayerContainer;
 }
 
 export function updateStruggleBar(playerContainer, playerInfo, scene) {
@@ -376,6 +387,15 @@ export function updateStruggleBar(playerContainer, playerInfo, scene) {
     // Crucially, we do NOT show it if they are consumed (!playerInfo.consumedBy).
     // Consumed players have a different UI (the "Struggle" button).
     if (playerInfo.isHeld && playerInfo.grippedFirmly && !playerInfo.consumedBy) {
+
+        // OPTIMIZATION: Dirty Check
+        const fillPercent = (playerInfo.struggleCount || 0) / 3;
+        // Check if state changed (visibility or progress)
+        if (bar.visible && bar._lastFillPercent === fillPercent &&
+            bar._lastX === playerContainer.x && bar._lastY === playerContainer.y) {
+            return; // No change
+        }
+
         bar.setVisible(true);
         bar.clear();
 
@@ -387,10 +407,18 @@ export function updateStruggleBar(playerContainer, playerInfo, scene) {
         bar.fillStyle(0x000000);
         bar.fillRect(-30, -180, 60, 10);
         bar.fillStyle(0xff0000);
-        const fillPercent = (playerInfo.struggleCount || 0) / 3;
         bar.fillRect(-30, -180, 60 * fillPercent, 10);
+
+        // Cache last values
+        bar._lastFillPercent = fillPercent;
+        bar._lastX = bar.x;
+        bar._lastY = bar.y;
+
     } else {
-        bar.setVisible(false);
+        if (bar.visible) {
+            bar.setVisible(false);
+            bar._lastFillPercent = null;
+        }
     }
 }
 
@@ -435,6 +463,15 @@ export function updateVoreProgressBar(playerContainer, playerInfo, scene) {
 
     // Show if in Stage 1 or 2
     if (playerInfo.consumedBy && playerInfo.voreStage && playerInfo.voreStage < 3) {
+
+        // OPTIMIZATION: Dirty Check
+        const fillPercent = playerInfo.voreStage / 3;
+
+        if (bar.visible && bar._lastFillPercent === fillPercent &&
+            bar._lastX === playerContainer.x && bar._lastY === playerContainer.y) {
+            return;
+        }
+
         bar.setVisible(true);
         bar.clear();
 
@@ -449,11 +486,17 @@ export function updateVoreProgressBar(playerContainer, playerInfo, scene) {
 
         // Progress (Yellow for caution/progress)
         bar.fillStyle(0xFFD700);
-        const fillPercent = playerInfo.voreStage / 3;
         bar.fillRect(-30, -200, 60 * fillPercent, 10);
 
+        bar._lastFillPercent = fillPercent;
+        bar._lastX = bar.x;
+        bar._lastY = bar.y;
+
     } else {
-        bar.setVisible(false);
+        if (bar.visible) {
+            bar.setVisible(false);
+            bar._lastFillPercent = null;
+        }
     }
 }
 
@@ -473,21 +516,30 @@ export function updateCraftingBar(playerContainer, playerInfo, scene) {
     // console.log(`[CraftingBar] Updating for ${playerInfo.name || 'Player'}: isCrafting=${playerInfo.isCrafting}`);
 
     if (playerInfo.isCrafting && playerInfo.craftingStartTime && playerInfo.craftingDuration) {
-        bar.setVisible(true);
-        bar.clear();
 
         // Calculate Progress
         const elapsed = Date.now() - playerInfo.craftingStartTime;
         let progress = elapsed / playerInfo.craftingDuration;
         progress = Math.max(0, Math.min(1, progress));
 
-        // Position: Above Head (approx -120 to -140 range? Typing is -150)
-        // Let's put it below typing, above struggle (-180?? wait. Struggle is -180, Typing -150)
-        // Struggle is highest? No, y decreases upwards.
-        // -200 is Vore (High)
-        // -180 is Struggle
-        // -150 is Typing
-        // Let's put Crafting at -165 (Between Typing and Struggle)
+        // OPTIMIZATION: Dirty Check
+        // Significant change check for progress (e.g., > 1%) 
+        // to avoid sub-pixel redrawing every frame if it's slow? 
+        // No, smooth bar needs every frame. But let's check if it moved or changed significantly.
+        // Actually, if calculating progress, it WILL change every frame.
+        // But maybe we can skip if visual change is < 1 pixel?
+        // Width is 60. 1% is 0.6px.
+        // Let's check pixel width change.
+
+        const currentPixelWidth = Math.round(CRAFTING_BAR_WIDTH * progress);
+
+        if (bar.visible && bar._lastPixelWidth === currentPixelWidth &&
+            bar._lastX === playerContainer.x && bar._lastY === playerContainer.y) {
+            return;
+        }
+
+        bar.setVisible(true);
+        bar.clear();
 
         // Position using constants
         bar.x = playerContainer.x + CRAFTING_BAR_X_OFFSET;
@@ -506,7 +558,14 @@ export function updateCraftingBar(playerContainer, playerInfo, scene) {
         bar.lineStyle(1, CRAFTING_BAR_COLOR_BORDER);
         bar.strokeRect(CRAFTING_BAR_DRAW_X, CRAFTING_BAR_Y_OFFSET, CRAFTING_BAR_WIDTH, CRAFTING_BAR_HEIGHT);
 
+        bar._lastPixelWidth = currentPixelWidth;
+        bar._lastX = bar.x;
+        bar._lastY = bar.y;
+
     } else {
-        bar.setVisible(false);
+        if (bar.visible) {
+            bar.setVisible(false);
+            bar._lastPixelWidth = null;
+        }
     }
 }

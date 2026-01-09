@@ -7,7 +7,7 @@ export const actionHands = {
     init(socket) {
         this.socket = socket;
         this.render();
-        console.log('Action Hands Initialized with socket:', this.socket);
+        // console.log('Action Hands Initialized with socket:', this.socket);
     },
 
     toggleActiveHand() {
@@ -43,9 +43,27 @@ export const actionHands = {
     },
 
     dropItem() {
-        if (this.socket) {
-            console.log('[Client] Emitting dropItemClicked');
-            this.socket.emit('dropItemClicked');
+        const scene = window.gameScene;
+        if (!scene) {
+            console.error('Game Scene not found for Drop Mode');
+            return;
+        }
+
+        // Get item to drop
+        let itemToDrop = null;
+        if (this.activeHand === 'left') itemToDrop = this.leftNode;
+        else itemToDrop = this.rightNode;
+
+        if (!itemToDrop) {
+            if (window.showToast) window.showToast("Nothing to drop!", "error");
+            return;
+        }
+
+        if (window.dropMode) {
+            window.dropMode.start(scene, itemToDrop);
+        } else {
+            console.warn('DropMode module not loaded, falling back to instant drop.');
+            if (this.socket) this.socket.emit('dropItemClicked');
         }
     },
 

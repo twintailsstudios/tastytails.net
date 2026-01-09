@@ -105,6 +105,7 @@
    <property name="bodyHeight" type="int" value="15"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="218"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="pub_table"/>
   </properties>
   <image source="pub_table.png" width="218" height="101"/>
@@ -207,6 +208,7 @@
    <property name="bodyHeight" type="int" value="15"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="96"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_front_small"/>
   </properties>
   <image source="counter_front_small.png" width="96" height="96"/>
@@ -216,6 +218,7 @@
    <property name="bodyHeight" type="int" value="15"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="96"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_front_left_base"/>
   </properties>
   <image source="counter_front_left_base.png" width="96" height="96"/>
@@ -225,6 +228,7 @@
    <property name="bodyHeight" type="int" value="15"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="96"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_front_middle_base"/>
   </properties>
   <image source="counter_front_middle_base.png" width="96" height="96"/>
@@ -234,6 +238,7 @@
    <property name="bodyHeight" type="int" value="15"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="96"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_front_right_base"/>
   </properties>
   <image source="counter_front_right_base.png" width="96" height="96"/>
@@ -243,6 +248,7 @@
    <property name="bodyHeight" type="int" value="15"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="64"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_corner_tl"/>
   </properties>
   <image source="counter_corner_tl.png" width="64" height="96"/>
@@ -252,6 +258,7 @@
    <property name="bodyHeight" type="int" value="15"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="64"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_corner_tr"/>
   </properties>
   <image source="counter_corner_tr.png" width="64" height="96"/>
@@ -261,6 +268,7 @@
    <property name="bodyHeight" type="int" value="96"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="64"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_side_noBase"/>
   </properties>
   <image source="counter_side_noBase.png" width="64" height="96"/>
@@ -270,6 +278,7 @@
    <property name="bodyHeight" type="int" value="96"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="64"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_side_base"/>
   </properties>
   <image source="counter_side_base.png" width="64" height="96"/>
@@ -279,6 +288,7 @@
    <property name="bodyHeight" type="int" value="96"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="64"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_corner_bl"/>
   </properties>
   <image source="counter_corner_bl.png" width="64" height="96"/>
@@ -288,6 +298,7 @@
    <property name="bodyHeight" type="int" value="96"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="64"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_corner_br"/>
   </properties>
   <image source="counter_corner_br.png" width="64" height="96"/>
@@ -297,6 +308,7 @@
    <property name="bodyHeight" type="int" value="96"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="64"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_corner_left_noBase"/>
   </properties>
   <image source="counter_corner_left_noBase.png" width="64" height="96"/>
@@ -306,6 +318,7 @@
    <property name="bodyHeight" type="int" value="96"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="64"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_corner_right_noBase"/>
   </properties>
   <image source="counter_corner_right_noBase.png" width="64" height="96"/>
@@ -315,6 +328,7 @@
    <property name="bodyHeight" type="int" value="15"/>
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="95"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="counter_horizontal_03"/>
   </properties>
   <image source="counter_horizontal_03.png" width="96" height="96"/>
@@ -325,6 +339,7 @@
    <property name="bodyOffsetY" type="int" value="5"/>
    <property name="bodyWidth" type="int" value="96"/>
    <property name="stationType" value="cocktail_bar"/>
+   <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="cocktail_bar"/>
   </properties>
   <image source="cocktail_bar.png" width="96" height="192"/>

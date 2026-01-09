@@ -18,8 +18,8 @@
 #chat {
     flex: 3;
     background: var(--parchment-light);
-    border: 12px solid var(--wood-dark);
-    border-radius: 8px;
+    /* border: 12px solid var(--wood-dark);
+    border-radius: 8px; */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -757,11 +757,13 @@
 }
 
 /* --- CHAT FEED FILTERING --- */
-#messages[data-view="global"] .chat-message[data-scope="local"] {
+#messages[data-view="global"] .chat-message[data-scope="local"],
+#messages[data-view="global"] .chat-message.scope-local {
     display: none !important;
 }
 
-#messages[data-view="local"] .chat-message[data-scope="global"] {
+#messages[data-view="local"] .chat-message[data-scope="global"],
+#messages[data-view="local"] .chat-message.scope-global {
     display: none !important;
 }
 

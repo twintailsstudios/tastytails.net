@@ -131,7 +131,7 @@
     "openFiles": [
     ],
     "project": "alpha_map.tiled-project",
-    "property.type": "string",
+    "property.type": "bool",
     "recentFiles": [
         "alpha_dye.tsx",
         "alpha_door.tsx",

@@ -4,8 +4,17 @@ export function initDebugGraph() {
     const maxDataPoints = 100;
 
     window.updateDebugStats = (rtt, dist) => {
-        const overlay = document.getElementById('debug-overlay');
-        if (!overlay || overlay.style.display === 'none') return;
+        // We only update if the Options tab is actually displaying the debug info
+        // Simple check: is the graph canvas present?
+        const graphCanvas = document.getElementById('debug-graph');
+        if (!graphCanvas) return;
+
+        // Optionally, check if Options tab is visible to save performance
+        const optionsDisplay = document.getElementById('optionsDisplay');
+        // Optimization: Use offsetParent to check visibility (cheap) instead of getComputedStyle (expensive)
+        if (optionsDisplay && optionsDisplay.offsetParent === null) {
+            return;
+        }
 
         // Update History
         rttHistory.push(rtt);

@@ -3,7 +3,7 @@ export function windowSize() {
         x: document.getElementById('phaserApp').clientWidth,
         y: document.getElementById('phaserApp').clientHeight
     }
-    console.log('windowSize = ', windowSize);
+    // console.log('windowSize = ', windowSize);
     return windowSize;
 }
 

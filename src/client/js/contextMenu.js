@@ -37,7 +37,7 @@ function initializeContextMenu(scene, socket) {
         if (event && contextMenu && contextMenu.contains(event.target)) {
             return;
         }
-        console.log('hiding Context Menu');
+        // console.log('hiding Context Menu');
         if (contextMenu) contextMenu.style.display = 'none';
         // contextMenu.remove();
         if (document.querySelector("#contextMenu > playermenu")) {
@@ -76,10 +76,18 @@ function initializeContextMenu(scene, socket) {
 
     function clickHandler(pointer, currentlyOver) {
         var clickedList = [];
+        if (pointer.interactionHandled) {
+            console.log('Interaction handled by item/other, skipping Context Menu logic.');
+            return;
+        }
         console.log('clickHandler called. currentlyOver length:', currentlyOver.length);
 
         // --- Loop through the currentlyOver array and check if the clicked object is a player or map object ---
-        currentlyOver.forEach(function (gameObject) {
+        // WITH TOP-ONLY INPUT, WE SHOULD ONLY PROCESS THE FIRST VALID TARGET
+        // But to be safe and support 'topOnly' logic manually if needed:
+        // const topObjects = currentlyOver.slice(0, 1); // This line is removed
+
+        currentlyOver.forEach(function (gameObject) { // Changed from topObjects.forEach
             console.log('Checking object:', gameObject.name, gameObject.type);
             if (gameObject.playerInfo) {
                 var playerClicked = {
@@ -216,6 +224,136 @@ function initializeContextMenu(scene, socket) {
         }
     });
 
+    // --- Helper for Range Check ---
+    function checkReach(targetId, targetType, event) {
+        const scene = window.gameScene;
+        if (!scene || !scene.playerContainer) return true; // Safety
+
+        // Player Reach Box: 96x96 centered on Player
+        // Player Center = x + 30, y
+        const pCenterX = scene.playerContainer.x + 30;
+        const pCenterY = scene.playerContainer.y;
+        const reachHalf = 48;
+
+        const playerBox = {
+            left: pCenterX - reachHalf,
+            right: pCenterX + reachHalf,
+            top: pCenterY - reachHalf,
+            bottom: pCenterY + reachHalf
+        };
+
+        let targetBox = null;
+        let targetName = "Target";
+        let found = false;
+
+        if (targetType === 'player') {
+            const target = scene.otherPlayersGroup.getChildren().find(p => p.playerId === targetId);
+            if (target) {
+                // Create a FULL BODY box for the target player
+                // Sprite visual height is approx 163px. Anchored at feet (y).
+                // So Y-163 is top. Y is bottom.
+                // We add a little buffer.
+                const tX = target.x + 30; // Center X
+                const tY = target.y;      // Center Y (feet)
+
+                targetBox = {
+                    left: tX - 30, // Full width (60) center-offset
+                    right: tX + 30,
+                    top: tY - 165, // Full height upwards
+                    bottom: tY + 15 // A bit below feet
+                };
+                targetName = target.playerInfo ? (target.playerInfo.Username || target.playerInfo.firstName) : 'Target';
+                found = true;
+            }
+        } else if (targetType === 'item') {
+            const target = scene.itemsGroup ? scene.itemsGroup.getChildren().find(i => i.uid === targetId || (i.objectInfo && i.objectInfo.uniqueId === targetId)) : null;
+            if (target) {
+                // Items usually originate at bottom center or similar. 
+                // Let's use a small box around their origin
+                targetBox = {
+                    left: target.x - 16,
+                    right: target.x + 16,
+                    top: target.y - 32, // Height approx
+                    bottom: target.y
+                };
+                targetName = (target.objectInfo && target.objectInfo.name) ? target.objectInfo.name : 'Item';
+                found = true;
+            }
+        } else {
+            // mapObject
+            const target = scene.objectGroup.getChildren().find(o => o.objectInfo && o.objectInfo.uniqueId === targetId);
+            if (target) {
+                // Use Physics Body if available for best accuracy
+                if (target.body) {
+                    targetBox = {
+                        left: target.body.x,
+                        right: target.body.right,
+                        top: target.body.y,
+                        bottom: target.body.bottom
+                    };
+                } else {
+                    // Fallback to Sprite dimensions (Origin is 0,1 Bottom-Left usually)
+                    // originX=0, originY=1
+                    const tX = target.x - (target.width * target.originX);
+                    const tY = target.y - (target.height * target.originY);
+
+                    targetBox = {
+                        left: tX,
+                        right: tX + target.width,
+
+
+                        top: tY,
+                        bottom: tY + target.height
+                    };
+                }
+
+                targetName = target.objectInfo.name || 'Object';
+                found = true;
+            }
+        }
+
+
+
+        if (!found) {
+            // If we can't find it visually, we assume it's OK/Server will handle, or fail?
+            // Usually if it's in the clicked list, it SHOULD be found.
+            return true;
+        }
+
+        // AABB Intersection Test
+        // Returns true if boxes overlap
+        const intersects = (
+            playerBox.left < targetBox.right &&
+            playerBox.right > targetBox.left &&
+            playerBox.top < targetBox.bottom &&
+            playerBox.bottom > targetBox.top
+        );
+
+        if (intersects) {
+            return true;
+        }
+
+        // Fail
+        // console.log(`[Reach] Out of range of ${targetName}!`);
+        // console.log('PlayerBox:', playerBox);
+        // console.log('TargetBox:', targetBox);
+
+        if (event && window.showWorldToast) {
+            window.showWorldToast(event.clientX, event.clientY, "out of reach");
+        } else if (window.showWorldToast) {
+            // Use player screen coords
+            const cam = scene.cameras.main;
+            const sx = (scene.playerContainer.x - cam.scrollX) * cam.zoom;
+            const sy = (scene.playerContainer.y - 40 - cam.scrollY) * cam.zoom;
+            // window.showWorldToast(sx, sy, "out of reach");
+        }
+
+        if (window.addLocalSystemMessage) {
+            window.addLocalSystemMessage(`${targetName} is too far away.`);
+        }
+        return false;
+    }
+
     // --- Helper Functions for DOM Creation ---
 
     function createMenuItem(label, iconClass, onClick) {
@@ -223,7 +361,7 @@ function initializeContextMenu(scene, socket) {
         li.innerHTML = `<span style="display:flex; align-items:center;"><i class="${iconClass} icon"></i> ${label}</span>`;
         li.onclick = (e) => {
             e.stopPropagation();
-            onClick();
+            onClick(e); // Pass Event
             hideContextMenu();
         };
         return li;
@@ -257,8 +395,9 @@ function initializeContextMenu(scene, socket) {
                 if (type.destination === 'Womb') icon = 'fa-solid fa-heart';
                 if (type.destination === 'Tail') icon = 'fa-solid fa-snake';
 
-                const li = createMenuItem(type.destination, icon, () => {
+                const li = createMenuItem(type.destination, icon, (e) => {
                     console.log(`Clicked Vore Type: ${type.destination}`);
+                    if (!checkReach(targetItem.playerId, 'player', e)) return;
                     socket.emit('voreAction', {
                         voreType: type,
                         targetId: targetItem.playerId
@@ -280,8 +419,8 @@ function initializeContextMenu(scene, socket) {
     // --- Handle the playerRightClickedResponse event ---
     socket.on('playerRightClickedResponse', function (data) {
         const { responseInfo, predatorInfo, pointerX, pointerY } = data;
-        console.log('info = ', responseInfo);
-        console.log(`right click triggered from server`);
+        // console.log('info = ', responseInfo);
+        // console.log(`right click triggered from server`);
 
         const contextMenu = document.getElementById('contextMenu');
         if (!contextMenu) return;
@@ -302,30 +441,50 @@ function initializeContextMenu(scene, socket) {
                     flavor: playerInfo.flavor
                 };
 
+                // ID for range check: playerId for players, uniqueId for mapObjects
+                const targetId = (currentItem.Identifier === 'player') ? currentItem.playerId : currentItem.uniqueId;
+                const targetType = (currentItem.Identifier === 'player') ? 'player' : 'object';
+
                 // 1. Create Action List for this target
                 const actionsUl = document.createElement('ul');
+                // console.log(`[ContextMenu] Building actions for target: ${targetId} (${targetType})`);
 
                 if (playerInfo.availableActions) {
                     playerInfo.availableActions.forEach(action => {
-                        if (action === 'Examine') {
-                            actionsUl.appendChild(createMenuItem('Examine', 'fa-solid fa-eye', () => socket.emit('examineClicked', currentItem)));
-                        } else if (action === 'Hold') {
-                            actionsUl.appendChild(createMenuItem('Hold', 'fa-solid fa-hand-back-fist', () => socket.emit('playerPerformAction', { targetId: currentItem.playerId, intent: 'grabbing' })));
-                        } else if (action === 'Release') {
-                            actionsUl.appendChild(createMenuItem('Release', 'fa-solid fa-hand-sparkles', () => socket.emit('releaseClicked', currentItem)));
-                        } else if (action === 'Grip Firmly') {
-                            actionsUl.appendChild(createMenuItem('Grip Firmly', 'fa-solid fa-handshake-simple', () => socket.emit('gripFirmly', currentItem)));
-                        } else if (action === 'Craft') {
-                            actionsUl.appendChild(createMenuItem('Craft', 'fa-solid fa-hammer', () => {
-                                socket.emit('openCrafting', { stationId: currentItem.uniqueId });
-                            }));
-                        } else if (action === 'Use') {
-                            const useLabel = currentItem.verb || 'Use';
-                            actionsUl.appendChild(createMenuItem(useLabel, 'fa-solid fa-hand-holding-water', () => {
-                                socket.emit('useItemClicked', { uid: currentItem.uniqueId });
-                            }));
-                        } else if (action === 'Vore') {
-                            actionsUl.appendChild(createVoreSubMenu(predatorInfo, playerInfo.name, currentItem));
+                        try {
+                            // console.log(`[ContextMenu] Processing action: ${action}`);
+                            if (action === 'Examine') {
+                                actionsUl.appendChild(createMenuItem('Examine', 'fa-solid fa-eye', (e) => socket.emit('examineClicked', currentItem)));
+                            } else if (action === 'Hold') {
+                                if (checkReach(targetId, targetType, null)) {
+                                    actionsUl.appendChild(createMenuItem('Hold', 'fa-solid fa-hand-back-fist', (e) => {
+                                        if (!checkReach(targetId, targetType, e)) return;
+                                        socket.emit('playerPerformAction', { targetId: currentItem.playerId, intent: 'grabbing' });
+                                    }));
+                                }
+                            } else if (action === 'Release') {
+                                actionsUl.appendChild(createMenuItem('Release', 'fa-solid fa-hand-sparkles', (e) => socket.emit('releaseClicked', currentItem)));
+                            } else if (action === 'Grip Firmly') {
+                                actionsUl.appendChild(createMenuItem('Grip Firmly', 'fa-solid fa-handshake-simple', (e) => {
+                                    if (!checkReach(targetId, targetType, e)) return;
+                                    socket.emit('gripFirmly', currentItem);
+                                }));
+                            } else if (action === 'Craft') {
+                                actionsUl.appendChild(createMenuItem('Craft', 'fa-solid fa-hammer', (e) => {
+                                    if (!checkReach(targetId, targetType, e)) return;
+                                    socket.emit('openCrafting', { stationId: currentItem.uniqueId });
+                                }));
+                            } else if (action === 'Use') {
+                                const useLabel = currentItem.verb || 'Use';
+                                actionsUl.appendChild(createMenuItem(useLabel, 'fa-solid fa-hand-holding-water', (e) => {
+                                    if (!checkReach(targetId, targetType, e)) return;
+                                    socket.emit('useItemClicked', { uid: currentItem.uniqueId });
+                                }));
+                            } else if (action === 'Vore') {
+                                actionsUl.appendChild(createVoreSubMenu(predatorInfo, playerInfo.name, currentItem));
+                            }
+                        } catch (err) {
+                            // console.error(`[ContextMenu] Error processing action '${action}' for ${targetId}:`, err);
                         }
                     });
                 }

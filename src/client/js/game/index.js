@@ -2,6 +2,7 @@ import { config } from './config.js';
 import { preload } from './preload.js';
 import { create } from './create.js';
 import { update } from './update.js';
+import './dropMode.js';
 
 const gameConfig = {
     ...config,

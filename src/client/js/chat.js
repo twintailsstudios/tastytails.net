@@ -295,7 +295,7 @@ function initializeChat(socket) {
         }
 
         return `
-            <div id="${msgId}" class="${messageClasses}" data-timestamp="${rawTime}" data-scope="${scope}">
+            <div id="${msgId}" class="${messageClasses} scope-${scope}" data-timestamp="${rawTime}" data-scope="${scope}">
                 <div class="msg-title-bar">
                     <div>
                         <span class="postTime">${time} </span>
@@ -310,6 +310,58 @@ function initializeChat(socket) {
             </div >
             `;
     }
+
+    // --- Helper: Add Local System Message ---
+    window.addLocalSystemMessage = function (content) {
+        const msg = {
+            message: [{ time: new Date().toISOString(), content: content }],
+            name: 'System',
+            spoiler: { status: 'none' },
+            _id: 'local-' + Date.now() + Math.random(),
+            identifier: 'system',
+            type: 'Interactional',
+            scope: 'local' // Force Local Scope
+        };
+        const html = renderMessageHTML(msg);
+        messages.insertAdjacentHTML('beforeend', html);
+        messages.scrollTop = messages.scrollHeight;
+    };
+
+    // --- Helper: Show Toast Above Click ---
+    window.showWorldToast = function (x, y, text) {
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = 'world-toast';
+        toast.innerText = text;
+
+        // Style it
+        toast.style.position = 'absolute';
+        toast.style.left = x + 'px';
+        toast.style.top = y + 'px';
+        toast.style.transform = 'translate(-50%, -100%)';
+        toast.style.background = 'rgba(0, 0, 0, 0.7)';
+        toast.style.color = '#ff6b6b';
+        toast.style.padding = '5px 10px';
+        toast.style.borderRadius = '5px';
+        toast.style.fontWeight = 'bold';
+        toast.style.pointerEvents = 'none';
+        toast.style.zIndex = '10000';
+        toast.style.transition = 'all 1s ease-out';
+        toast.style.opacity = '1';
+
+        document.body.appendChild(toast);
+
+        // Animate
+        requestAnimationFrame(() => {
+            toast.style.top = (y - 50) + 'px';
+            toast.style.opacity = '0';
+        });
+
+        // Remove
+        setTimeout(() => {
+            toast.remove();
+        }, 1000);
+    };
 
     // --- Jump to Present Logic ---
     if (jumpToPresentBtn) {
@@ -341,7 +393,7 @@ function initializeChat(socket) {
     // --- Socket Events ---
 
     if (socket !== undefined) {
-        console.log('Connected to Socket...');
+        // console.log('Connected to Socket...');
 
         socket.on('output', function (data) {
             if (data.length) {

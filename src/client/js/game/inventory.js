@@ -59,7 +59,7 @@ export const inventoryUI = {
         this.listContainer = document.getElementById('pocket-list-container');
         this.tower = document.getElementById('clothing-tower');
 
-        console.log('[InventoryUI] Initialized (Split Column Layout)');
+        // console.log('[InventoryUI] Initialized (Split Column Layout)');
     },
 
     update: function (playerInfo) {

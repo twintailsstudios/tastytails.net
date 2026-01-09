@@ -1033,6 +1033,11 @@
                          "value":218
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"pub_table"
@@ -1066,6 +1071,11 @@
                          "value":218
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"pub_table"
@@ -1097,6 +1107,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":218
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -1165,6 +1180,11 @@
                          "value":218
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"pub_table"
@@ -1229,6 +1249,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":95
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -2759,6 +2784,11 @@
                          "value":96
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_front_small"
@@ -2825,6 +2855,11 @@
                          "value":64
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_corner_tl"
@@ -2856,6 +2891,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":64
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -2891,6 +2931,11 @@
                          "value":64
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_corner_br"
@@ -2922,6 +2967,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":64
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -2957,6 +3007,11 @@
                          "value":64
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_side_noBase"
@@ -2988,6 +3043,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":64
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -3023,6 +3083,11 @@
                          "value":96
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_front_right_base"
@@ -3054,6 +3119,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":96
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -3089,6 +3159,11 @@
                          "value":96
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_front_middle_base"
@@ -3120,6 +3195,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":96
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -3155,6 +3235,11 @@
                          "value":96
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_front_right_base"
@@ -3186,6 +3271,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":96
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -3221,6 +3311,11 @@
                          "value":96
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_front_left_base"
@@ -3252,6 +3347,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":96
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -3455,6 +3555,11 @@
                          "name":"stationType",
                          "type":"string",
                          "value":"cocktail_bar"
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -7167,6 +7272,11 @@
                          "value":218
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"pub_table"
@@ -7479,6 +7589,11 @@
                          "value":96
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_front_small"
@@ -7504,6 +7619,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":96
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -7533,6 +7653,11 @@
                          "value":96
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_front_middle_base"
@@ -7558,6 +7683,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":96
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -7587,6 +7717,11 @@
                          "value":64
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_corner_tl"
@@ -7612,6 +7747,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":64
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -7641,6 +7781,11 @@
                          "value":64
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_side_noBase"
@@ -7666,6 +7811,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":64
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -7695,6 +7845,11 @@
                          "value":64
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_corner_bl"
@@ -7720,6 +7875,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":64
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -7749,6 +7909,11 @@
                          "value":64
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_corner_left_noBase"
@@ -7776,6 +7941,11 @@
                          "value":64
                         }, 
                         {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
                          "name":"texture",
                          "type":"string",
                          "value":"counter_corner_right_noBase"
@@ -7801,6 +7971,11 @@
                          "name":"bodyWidth",
                          "type":"int",
                          "value":95
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",
@@ -7833,6 +8008,11 @@
                          "name":"stationType",
                          "type":"string",
                          "value":"cocktail_bar"
+                        }, 
+                        {
+                         "name":"tableTop",
+                         "type":"bool",
+                         "value":true
                         }, 
                         {
                          "name":"texture",

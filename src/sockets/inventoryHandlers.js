@@ -1,6 +1,7 @@
 const log = require('../logger');
+const { performItemUse } = require('../utils/itemActions');
 
-module.exports = function (io, socket, players, worldItems, saveCharacter, clothingData, itemData) {
+module.exports = function (io, socket, players, worldItems, saveCharacter, clothingData, itemData, addItemToGrid, removeItemFromGrid) {
     const logPrefix = `[Inventory:${socket.id}]`;
 
     // --- Equip Item Handlers ---
@@ -64,7 +65,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             }
 
             // Force immediate update to all clients
-            io.emit('playerUpdates', { [socket.id]: player });
+            io.emit('playerStateUpdate', { [socket.id]: player });
 
             // Save changes to DB immediately
             saveCharacter(socket.id);
@@ -139,7 +140,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
 
             log.info(`[Storage] Stashed ${handItem.name} into ${clothingDef.name}'s ${pocketDef.name}.`);
 
-            io.emit('playerUpdates', { [socket.id]: player });
+            io.emit('playerStateUpdate', { [socket.id]: player });
             saveCharacter(socket.id);
         } catch (e) {
             log.error(`Error handling stashItemClicked for ${socket.id}:`, e);
@@ -177,14 +178,14 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
 
             log.info(`[Storage] Retrieved ${item.name} from ${sourcePocket}.`);
 
-            io.emit('playerUpdates', { [socket.id]: player });
+            io.emit('playerStateUpdate', { [socket.id]: player });
             saveCharacter(socket.id);
         } catch (e) {
             log.error(`Error handling retrieveItemClicked for ${socket.id}:`, e);
         }
     });
 
-    socket.on('dropItemClicked', () => {
+    socket.on('dropItemClicked', (data) => {
         try {
             const player = players[socket.id];
             if (!player) return;
@@ -201,15 +202,50 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             }
 
             if (droppedItem) {
-                // Position at feet
-                droppedItem.x = player.position.x;
-                droppedItem.y = player.position.y + 20;
+                // Default Position (Feet)
+                let targetX = player.position.x;
+                let targetY = player.position.y + 20;
+
+                // Validate requested coordinates
+                if (data && typeof data.x === 'number' && typeof data.y === 'number') {
+                    // Reach Check: 96x96 box around player center (+30 offset)
+                    // Player Center = x + 30, y
+                    // Reach Radius = 48
+                    const pCenterX = player.position.x + 30;
+                    const pCenterY = player.position.y;
+                    const REACH = 60; // Slightly larger than client 48 to allow for latency/float diffs
+
+                    const dx = Math.abs(data.x - pCenterX);
+                    const dy = Math.abs(data.y - pCenterY);
+
+                    if (dx <= REACH && dy <= REACH) {
+                        targetX = data.x;
+                        targetY = data.y;
+                    } else {
+                        log.warn(`[Inventory] Drop out of range for ${player.Username}. Dist: ${dx}, ${dy}`);
+                    }
+                }
+
+                droppedItem.x = targetX;
+                droppedItem.y = targetY;
+
+                // Handle elevation (e.g. TableTop)
+                if (data && data.onTable) {
+                    droppedItem.onTable = true;
+                    if (data.surfaceDepth !== undefined) {
+                        droppedItem.surfaceDepth = data.surfaceDepth;
+                    }
+                } else {
+                    delete droppedItem.onTable; // Ensure clean state if re-dropping
+                    delete droppedItem.surfaceDepth;
+                }
 
                 // Ensure UID
                 if (!droppedItem.uid) droppedItem.uid = 'item_' + Date.now() + Math.random().toString(36).substr(2, 5);
 
                 // Add to World Items
                 worldItems.push(droppedItem);
+                if (addItemToGrid) addItemToGrid(droppedItem);
 
                 // Notify Clients
                 io.emit('itemSpawned', droppedItem);
@@ -217,7 +253,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
                 log.info(`Player ${player.Username} dropped item: ${droppedItem.name || droppedItem.uid}`);
 
                 // Update Hand state
-                io.emit('playerUpdates', { [socket.id]: player });
+                io.emit('playerStateUpdate', { [socket.id]: player });
                 saveCharacter(socket.id);
             }
         } catch (e) {
@@ -266,19 +302,10 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             const max = def.maxUses || 10;
 
             if (item.timesUsed < max) {
-                item.timesUsed++;
-                log.info(`Player ${player.Username} used item ${item.name} (Uses: ${item.timesUsed}/${max})`);
-
-                if (isWorldItem) {
-                    // Emit Update for map object
-                    io.emit('itemUpdated', item);
-                } else {
-                    // Emit Update for player inventory/hands
-                    // We broadcast to ensure other players see the potential visual change (if held item rendered differently)
-                    io.emit('playerUpdates', { [socket.id]: player });
-                    saveCharacter(socket.id);
-                }
+                // Delegate to shared utility
+                performItemUse(io, socket, player, item, itemData, isWorldItem, worldItems, saveCharacter, def);
             } else {
+                // Should not happen theoretically if we handle it above, but safe fallback
                 log.info(`Player ${player.Username} tried to use ${item.name} but it is empty.`);
             }
 

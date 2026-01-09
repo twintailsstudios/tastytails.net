@@ -71,21 +71,95 @@ export function update(time, delta) {
 
     this.playerContainer.depth = this.playerContainer.y;
 
-    // Increment sequence number
-    this.playerContainer.inputSequenceNumber++;
-    inputPayload.sequence = this.playerContainer.inputSequenceNumber;
-    inputPayload.clientTimestamp = Date.now();
-    inputPayload.delta = delta / 1000; // Send delta in seconds
+    // --- TARGET SIDE ATTACHMENT (Fix Latency) ---
+    // If we are held, we ignore our own physics/inputs and attach to the holder's sprite.
+    if (this.playerContainer.playerInfo && this.playerContainer.playerInfo.isHeld && this.playerContainer.playerInfo.heldBySocketId) {
+        const holderId = this.playerContainer.playerInfo.heldBySocketId;
 
-    // Store input for reconciliation
-    this.playerContainer.pendingInputs.push({
-        sequence: inputPayload.sequence,
-        input: inputPayload,
-        delta: delta / 1000, // Convert ms to seconds
-        clientTimestamp: Date.now()
-    });
+        // Find holder in map (O(1)) or group
+        let holder = null;
+        if (this.otherPlayersMap) {
+            holder = this.otherPlayersMap.get(holderId);
+        } else {
+            holder = this.otherPlayersGroup.getChildren().find(p => p.playerInfo && p.playerInfo.playerId === holderId);
+        }
 
-    this.socket.emit('playerInput', inputPayload);
+        if (holder) {
+            // "Leash" Logic - Local Version
+            const holdDist = this.playerContainer.playerInfo.grippedFirmly ? 20 : 64;
+            const behindOffset = 50;
+
+            let targetX = holder.x;
+            let targetY = holder.y;
+
+            // Check if holder is moving (remote info)
+            const isMoving = holder.playerInfo ? holder.playerInfo.isMoving : false;
+
+            if (isMoving) {
+                // "Fall in line" - Drag to behind
+                let rot = holder.playerInfo ? holder.playerInfo.rotation : 0;
+
+                if (rot === 1) targetX += behindOffset; // Left -> Behind is Right
+                else if (rot === 2) targetX -= behindOffset; // Right -> Behind is Left
+                else if (rot === 3) targetY += behindOffset; // Up -> Behind is Down
+                else if (rot === 4) targetY -= behindOffset; // Down -> Behind is Up
+
+                // LERP to Target (Visual Smoothing)
+                const lerpFactor = 0.15;
+                // Note: We interpolate from OUR current position to the target
+                const currentX = this.playerContainer.x;
+                const currentY = this.playerContainer.y;
+
+                const newX = currentX + (targetX - currentX) * lerpFactor;
+                const newY = currentY + (targetY - currentY) * lerpFactor;
+
+                this.playerContainer.setPosition(newX, newY);
+            } else {
+                // Stationary Leash
+                const dx = this.playerContainer.x - holder.x;
+                const dy = this.playerContainer.y - holder.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist > holdDist) {
+                    const angle = Math.atan2(dy, dx);
+                    const newX = holder.x + Math.cos(angle) * holdDist;
+                    const newY = holder.y + Math.sin(angle) * holdDist;
+                    this.playerContainer.setPosition(newX, newY);
+                }
+            }
+
+            // Stop Physics Velocity so we don't fight
+            this.playerContainer.body.setVelocity(0);
+        }
+    }
+
+    // --- INPUT THROTTLING (30Hz Network Rate) ---
+    // We update local physics every frame (60Hz+) for smoothness.
+    // But we only send inputs to server at 30Hz to save bandwidth/CPU.
+
+    if (!this.inputAccumulator) this.inputAccumulator = 0;
+    this.inputAccumulator += delta;
+
+    // Send packet if ~33ms has passed (30Hz) or instant if critical? 
+    // Actually, simple accumulator check is fine.
+    if (this.inputAccumulator >= 33) {
+        // Increment sequence number
+        this.playerContainer.inputSequenceNumber++;
+        inputPayload.sequence = this.playerContainer.inputSequenceNumber;
+        inputPayload.clientTimestamp = Date.now();
+        inputPayload.delta = this.inputAccumulator / 1000; // Send accumulated delta in seconds
+
+        // Store input for reconciliation
+        this.playerContainer.pendingInputs.push({
+            sequence: inputPayload.sequence,
+            input: inputPayload,
+            delta: this.inputAccumulator / 1000,
+            clientTimestamp: Date.now()
+        });
+
+        this.socket.emit('playerInput', inputPayload);
+        this.inputAccumulator = 0;
+    }
 
     // --- NEW DIAGNOSTIC LOG ---
     // Log the position at the VERY END of the update loop.
@@ -143,56 +217,145 @@ export function update(time, delta) {
         if (this.debugGraphics) {
             this.debugGraphics.clear();
 
+            // Draw Area of Reach Grid (3x3 'Tiles' smoothed)
+            if (this.playerContainer) {
+                // 3x3 tiles = 96x96 pixels.
+                // Centered on player (with +30 visual offset).
+                // Left Edge = (PlayerX + 30) - 48
+                // Top Edge = PlayerY - 48
+                const size = 96;
+                const halfSize = 48;
+
+                const centerX = this.playerContainer.x + 30;
+                const centerY = this.playerContainer.y;
+
+                this.debugGraphics.lineStyle(2, 0x00ffff, 0.8); // Cyan for Reach Box
+                this.debugGraphics.strokeRect(centerX - halfSize, centerY - halfSize, size, size);
+            }
+
             // Draw Server Blocked Tiles (Orange Outlines)
             if (serverBlockedTiles && serverBlockedTiles.length > 0) {
                 this.debugGraphics.lineStyle(2, 0xffa500, 1);
+
+                // OPTIMIZATION: Only draw tiles visible to the camera
+                const camera = this.cameras.main;
+                const view = camera.worldView;
+                // Add a small buffer to prevent popping artifacts at edges
+                const buffer = 64;
+
+                // Optimization: simple bounds check
+                const viewLeft = view.x - buffer;
+                const viewRight = view.right + buffer;
+                const viewTop = view.y - buffer;
+                const viewBottom = view.bottom + buffer;
+
                 serverBlockedTiles.forEach(tile => {
-                    this.debugGraphics.strokeRect(tile.x, tile.y, 32, 32);
-                    this.debugGraphics.setDepth(20000);
+                    if (tile.x >= viewLeft && tile.x <= viewRight &&
+                        tile.y >= viewTop && tile.y <= viewBottom) {
+                        this.debugGraphics.strokeRect(tile.x, tile.y, 32, 32);
+                    }
                 });
+                this.debugGraphics.setDepth(20000);
             }
 
             // Draw Client Blocked Tiles (Transparent Orange Fill)
             if (this.mapLayers) {
-                const debugColor = new Phaser.Display.Color(255, 165, 0, 100); // Transparent Orange
+                this.debugGraphics.fillStyle(0xffa500, 0.4); // Transparent Orange (approx 100/255)
+
+                const camera = this.cameras.main;
+                const view = camera.worldView;
+                const buffer = 2; // Tile buffer to ensure edges don't pop
+
                 this.mapLayers.forEach(layer => {
-                    if (layer) {
-                        // Ensure layer debug is drawn on top
-                        layer.renderDebug(this.debugGraphics, {
-                            tileColor: null, // Non-colliding tiles
-                            collidingTileColor: debugColor, // Colliding tiles
-                            faceColor: new Phaser.Display.Color(255, 165, 0, 255) // Colliding faces
+                    if (!layer) return;
+
+                    // We need to calculate the Tile coordinates corresponding to the View
+                    // layer.worldToTileX handles the conversion based on tile size/scale
+                    const tileX = layer.worldToTileX(view.x) - buffer;
+                    const tileY = layer.worldToTileY(view.y) - buffer;
+                    const tileRight = layer.worldToTileX(view.right) + buffer;
+                    const tileBottom = layer.worldToTileY(view.bottom) + buffer;
+
+                    const width = tileRight - tileX;
+                    const height = tileBottom - tileY;
+
+                    // Get only the tiles within the current camera view
+                    const tiles = layer.getTilesWithin(tileX, tileY, width, height);
+
+                    if (tiles) {
+                        tiles.forEach(tile => {
+                            // Check for collision flag (standard Phaser Arcade Physics or Custom 'collides')
+                            if (tile && (tile.collides || (tile.properties && tile.properties.collides))) {
+                                this.debugGraphics.fillRect(tile.pixelX, tile.pixelY, tile.width, tile.height);
+                            }
                         });
                     }
                 });
                 this.debugGraphics.setDepth(30000); // Ensure it's on top of everything
             }
 
-            // Draw coordinates for local player
+            // Draw coordinates for local player (DOM Update)
             if (this.playerContainer) {
-                const x = Math.round(this.playerContainer.x);
-                const y = Math.round(this.playerContainer.y);
-                const text = `X: ${x}, Y: ${y}`;
+                // Optimization: Only update DOM if coordinates genuinely changed significantly or on a timer?
+                // For coords, every frame is fine if we use Cached DOM Element, but let's throttle slightly if possible.
+                // Actually, simple textContent set is fast enough if element is cached.
 
-                if (!this.debugCoordsText) {
-                    this.debugCoordsText = this.add.text(10, 10, text, {
-                        font: '16px Arial',
-                        fill: '#ffffff',
-                        backgroundColor: '#000000'
-                    });
-                    this.debugCoordsText.setScrollFactor(0); // Fix to camera
-                    this.debugCoordsText.setDepth(1000); // Ensure on top
-                } else {
-                    this.debugCoordsText.setText(text);
-                    this.debugCoordsText.setVisible(true);
+                // Use Cached DOM Element
+                if (this.debugUI && this.debugUI.coords) {
+                    const x = Math.round(this.playerContainer.x);
+                    const y = Math.round(this.playerContainer.y);
+                    this.debugUI.coords.textContent = `X: ${x}, Y: ${y}`;
+                }
+
+                // Remove old text if it exists (cleanup)
+                if (this.debugCoordsText) {
+                    this.debugCoordsText.destroy();
+                    this.debugCoordsText = null;
+                }
+            }
+
+            // --- Update Extra Stats (Bandwidth & Render) ---
+            // Throttled to every 500ms to be readable
+            const now = Date.now();
+            if (!this.lastStatUpdate || now - this.lastStatUpdate > 500) {
+                this.lastStatUpdate = now;
+
+                // 1. Render Stats
+                const loop = this.sys.game.loop;
+                const fps = loop.actualFps ? Math.round(loop.actualFps) : 0;
+
+                let entityCount = 0;
+                if (this.players) entityCount += this.players.getLength();
+                if (this.otherPlayersGroup) entityCount += this.otherPlayersGroup.getLength();
+                if (this.objectGroup) entityCount += this.objectGroup.getLength();
+
+                if (this.debugUI && this.debugUI.renderStats) {
+                    this.debugUI.renderStats.textContent = `${fps} FPS / ${entityCount} Ents`;
+                }
+
+                // 2. Bandwidth Stats
+                if (this.bandwidthStats) {
+                    const elapsedSec = (now - this.bandwidthStats.lastCheck) / 1000;
+                    if (elapsedSec > 0) {
+                        const downRate = Math.round(this.bandwidthStats.bytesIn / elapsedSec);
+                        const upRate = Math.round(this.bandwidthStats.bytesOut / elapsedSec);
+
+                        // Reset accumulators
+                        this.bandwidthStats.bytesIn = 0;
+                        this.bandwidthStats.bytesOut = 0;
+                        this.bandwidthStats.lastCheck = now;
+
+                        if (this.debugUI && this.debugUI.bandwidth) {
+                            this.debugUI.bandwidth.textContent = `${downRate} / ${upRate} B/s`;
+                        }
+                    }
                 }
             }
         }
     } else if (!showDebug && this.debugGraphics) {
         this.debugGraphics.clear();
-        if (this.debugCoordsText) {
-            this.debugCoordsText.setVisible(false);
-        }
+        // DOM Cleanup not strictly necessary as it's static in the menu, 
+        // but we could clear the text if desired. For now, leaving last known coords is fine.
     }
 
     // --- Shadow System Update (Client Prediction) ---
@@ -203,30 +366,145 @@ export function update(time, delta) {
     // --- Crafting Range Check ---
     if (window.craftingUI && window.craftingUI.isOpen && window.craftingUI.currentStationId) {
         // Find the station object to check distance
-        // We iterate the object group. Performance note: if object count is huge, this might be slow every frame.
-        // Optimization: We could cache the station object in craftingUI.open().
-        const stationId = window.craftingUI.currentStationId;
-        const station = this.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === stationId);
+        // OPTIMIZATION: Cache station object in craftingUI or locally
+        // We shouldn't search an array of 2000+ objects every frame.
+
+        // Strategy: We'll assume craftingUI.currentStationObject is set, or we find it ONCE.
+        if (!window.craftingUI.currentStationObject) {
+            const stationId = window.craftingUI.currentStationId;
+            window.craftingUI.currentStationObject = this.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === stationId);
+        }
+
+        const station = window.craftingUI.currentStationObject;
 
         if (station) {
-            const dist = Phaser.Math.Distance.Between(this.playerContainer.x, this.playerContainer.y, station.x, station.y);
-            if (dist > 150) {
-                // console.log(`[Range Check] Too far from station (${dist.toFixed(0)}px). Closing.`);
+            // Optimization: Use distanceSq
+            const dx = this.playerContainer.x - station.x;
+            const dy = this.playerContainer.y - station.y;
+            const distSq = dx * dx + dy * dy;
+
+            // 150 * 150 = 22500
+            if (distSq > 22500) {
+                // console.log(`[Range Check] Too far from station. Closing.`);
                 window.craftingUI.close();
                 window.craftingUI.showFloatingText("Too far away!", true);
+                window.craftingUI.currentStationObject = null; // Clear cache
             }
+        }
+    } else {
+        // Ensure cache is cleared if UI is closed
+        if (window.craftingUI && window.craftingUI.currentStationObject) {
+            window.craftingUI.currentStationObject = null;
         }
     }
 
     // --- Update Crafting Bars (Animate Progress) ---
+    // Moved inside if(this.playerContainer) check below? No, keep it here.
     if (this.playerContainer) {
         updateCraftingBar(this.playerContainer, this.playerContainer.playerInfo, this);
     }
-    if (this.otherPlayersGroup) {
-        this.otherPlayersGroup.getChildren().forEach(otherPlayer => {
+    // --- OTHER PLAYERS UPDATE (Optimized Map) ---
+    // Optimization: Pre-calculate lerp factor once per frame
+    const lerpT = 1.0 - Math.pow(0.001, delta / 1000);
+
+    if (this.otherPlayersMap) { // Use Map if valid (create.js initialized it)
+        for (const otherPlayer of this.otherPlayersMap.values()) {
             if (otherPlayer.playerInfo) {
+                // --- CLIENT SIDE PREDICTION FOR HOLDING (Fix Latency) ---
+                if (otherPlayer.playerInfo.isHeld && otherPlayer.playerInfo.heldBySocketId) {
+                    const holderId = otherPlayer.playerInfo.heldBySocketId;
+                    let holder = null;
+
+                    // 1. Check if held by Local Player
+                    if (this.socket && this.socket.id === holderId) {
+                        holder = this.playerContainer;
+                    }
+                    // 2. Check if held by another Visible Player (O(1) Lookup)
+                    else {
+                        holder = this.otherPlayersMap.get(holderId);
+                    }
+
+                    if (holder) {
+                        // Reproduce Server Logic Locally
+                        const holdDist = otherPlayer.playerInfo.grippedFirmly ? 20 : 64;
+                        const behindOffset = 50;
+
+                        // Is Holder Moving?
+                        const isMoving = (holder === this.playerContainer) ?
+                            (holder.body.velocity.length() > 5) :
+                            (holder.playerInfo.isMoving);
+
+                        if (isMoving) {
+                            // "Fall in line" Logic
+                            let targetX = holder.x;
+                            let targetY = holder.y;
+
+                            if (holder === this.playerContainer && holder.body.velocity.length() > 5) {
+                                const angle = Math.atan2(holder.body.velocity.y, holder.body.velocity.x);
+                                targetX -= Math.cos(angle) * behindOffset;
+                                targetY -= Math.sin(angle) * behindOffset;
+                            }
+                            else {
+                                let rot = holder.playerInfo ? holder.playerInfo.rotation : 0;
+
+                                if (rot === 1) targetX += behindOffset; // Left -> Behind is Right
+                                else if (rot === 2) targetX -= behindOffset; // Right -> Behind is Left
+                                else if (rot === 3) targetY += behindOffset; // Up -> Behind is Down
+                                else if (rot === 4) targetY -= behindOffset; // Down -> Behind is Up
+                            }
+
+                            // LERP to Target (Use pre-calculated t)
+                            otherPlayer.x += (targetX - otherPlayer.x) * lerpT;
+                            otherPlayer.y += (targetY - otherPlayer.y) * lerpT;
+                        } else {
+                            // Stationary Leash Logic
+                            const dx = otherPlayer.x - holder.x;
+                            const dy = otherPlayer.y - holder.y;
+                            // Sqrt is needed here for exact distance hold
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+
+                            if (dist > holdDist) {
+                                const angle = Math.atan2(dy, dx);
+                                otherPlayer.x = holder.x + Math.cos(angle) * holdDist;
+                                otherPlayer.y = holder.y + Math.sin(angle) * holdDist;
+                            }
+                        }
+                        otherPlayer.depth = otherPlayer.y;
+                    }
+                }
+                // --- GENERIC REMOTE INTERPOLATION ---
+                else if (typeof otherPlayer.targetX !== 'undefined') {
+                    // OPTIMIZATION: Snap to target if very close to stop per-frame Float updates and Depth sorting
+                    const dx = otherPlayer.targetX - otherPlayer.x;
+                    const dy = otherPlayer.targetY - otherPlayer.y;
+
+                    // If within 1 pixel (distanceSq < 1), snap
+                    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+                        if (otherPlayer.x !== otherPlayer.targetX || otherPlayer.y !== otherPlayer.targetY) {
+                            otherPlayer.x = otherPlayer.targetX;
+                            otherPlayer.y = otherPlayer.targetY;
+                            otherPlayer.depth = otherPlayer.y;
+                        }
+                    } else {
+                        // Use pre-calculated t
+                        otherPlayer.x += dx * lerpT;
+                        otherPlayer.y += dy * lerpT;
+                        otherPlayer.depth = otherPlayer.y;
+                    }
+                }
+
                 updateCraftingBar(otherPlayer, otherPlayer.playerInfo, this);
             }
+        }
+    } else if (this.otherPlayersGroup) {
+        // Fallback if Map not ready (shouldn't happen with new create.js)
+        // Keeping for safety transition
+        this.otherPlayersGroup.getChildren().forEach(otherPlayer => {
+            // ... (Legacy slow code omitted for brevity in fallback, user should restart) ...
         });
+    }
+    // --- Drop Mode Update ---
+    if (window.dropMode && window.dropMode.active) {
+        window.dropMode.update();
     }
 }

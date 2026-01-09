@@ -19,6 +19,25 @@ class MessageSystem {
     constructor(io) {
         this.io = io;
         this.lastMessageTimes = new Map(); // SocketID -> Timestamp
+        this.chatBuffer = []; // Buffer for batched inserts
+
+        // Flush buffer every 2 seconds
+        setInterval(() => this.flushChatBuffer(), 2000);
+    }
+
+    async flushChatBuffer() {
+        if (this.chatBuffer.length === 0) return;
+
+        const batch = [...this.chatBuffer];
+        this.chatBuffer = []; // Clear immediately to prevent double swipe
+
+        try {
+            // Bulk insert for performance (ordered: false allows partial success)
+            await Chats.insertMany(batch, { ordered: false });
+            // log.debug(`[ChatSystem] Flushed ${batch.length} messages.`);
+        } catch (e) {
+            log.error('[ChatSystem] Error flushing chat buffer:', e);
+        }
     }
 
     /**
@@ -318,7 +337,7 @@ class MessageSystem {
                             gameState: state
                         });
 
-                        await DatabaseResilience.save(chatMessage);
+                        this.chatBuffer.push(chatMessage); // Queue for Bulk Insert
 
                         // Acknowledge to user
                         socket.emit('output', [{
@@ -432,13 +451,15 @@ class MessageSystem {
                     : null)
             });
 
-            await DatabaseResilience.save(chatMessage);
+            // Queue for Bulk Insert (Buffered)
+            this.chatBuffer.push(chatMessage);
 
             // Debug Log for State-Augmented Dataset Verification
-            log.info(`[GameState] Captured Snapshot for message ${chatMessage._id}`);
-            // log.debug(JSON.stringify(chatMessage.gameState, null, 2)); // Uncomment for full dump
+            if (chatMessage.gameState) {
+                log.info(`[GameState] Captured Snapshot for message ${chatMessage._id}`);
+            }
 
-            // 6. Broadcast Message
+            // 6. Broadcast Message (Immediate)
             // Pass clientMsgId (if any) to broadcast so client can reconcile ghost message
             this.broadcastMessage(chatMessage, visibleTo, [], data.clientMsgId);
 
@@ -596,7 +617,8 @@ class MessageSystem {
                 excludedPlayers: excludedPlayers
             });
 
-            await DatabaseResilience.save(chatMessage);
+            // Queue for Bulk Insert (Buffered)
+            this.chatBuffer.push(chatMessage);
 
             // Delegate to broadcastMessage for consistent logic
             this.broadcastMessage(chatMessage, visibleTo, excludedPlayers);
@@ -614,63 +636,55 @@ class MessageSystem {
 
             if (!senderPlayer) return null;
 
-            // 1. Snapshot Speaker Context (Full Object)
-            // We should strip sensitive data maybe? But user asked for "entire character schema".
-            // Let's safe copy to avoid circular refs if any (usually player obj is mostly data)
-            const speakerContext = JSON.parse(JSON.stringify(senderPlayer));
+            // 1. Snapshot Speaker Context (Optimized)
+            // Use selective cloning instead of full JSON stringify
+            const speakerContext = this.getLightweightContext(senderPlayer);
 
-            // Enrich with visual tags we already built? Or is "schema" just the raw data?
-            // "insert entire character schema" implies raw data, but our previous value prop was tags.
-            // Let's Attach the visual context to the object so it's not lost.
-            speakerContext.visual_tags = SemanticMapper.getVisualContext(senderPlayer);
-
-
-            // 2. Snapshot Listener Context
+            // 2. Snapshot Listener Context (Optimized)
             let listenerContext = {};
             if (targetSocketId) {
                 const targetPlayer = players[targetSocketId];
                 if (targetPlayer) {
-                    listenerContext = JSON.parse(JSON.stringify(targetPlayer));
-                    listenerContext.visual_tags = SemanticMapper.getVisualContext(targetPlayer);
+                    listenerContext = this.getLightweightContext(targetPlayer);
                 }
             }
 
             // 3. Snapshot Location Context
             const locationContext = {
-                title: 'Demo Map', // TODO: Dynamic map name from serverGame or player.map
+                title: 'Demo Map',
                 surrounding_tiles: [],
                 nearby_objects: []
             };
 
-            // Capture Surrounding Tiles (e.g. 5x5 grid)
             const pX = senderPlayer.position.x;
             const pY = senderPlayer.position.y;
             const TILE_SIZE = 32;
-            const range = 2; // +/- 2 tiles = 5x5
+            const range = 2; // +/- 2 tiles
 
             for (let yOffset = -range; yOffset <= range; yOffset++) {
                 for (let xOffset = -range; xOffset <= range; xOffset++) {
                     const checkX = pX + (xOffset * TILE_SIZE);
                     const checkY = pY + (yOffset * TILE_SIZE);
                     const tileData = serverGame.getMapDataAt(checkX, checkY);
-                    locationContext.surrounding_tiles.push({
-                        rel_x: xOffset,
-                        rel_y: yOffset,
-                        ...tileData // zoneType, etc
-                    });
+                    if (tileData) {
+                        locationContext.surrounding_tiles.push({
+                            rel_x: xOffset,
+                            rel_y: yOffset,
+                            type: tileData.type,
+                            // Only essential fields
+                        });
+                    }
                 }
             }
 
-            // Capture Nearby Objects
-            const items = serverGame.getWorldItems();
-            const visibleItems = items.filter(item => {
-                const dx = item.x - pX;
-                const dy = item.y - pY;
-                return (dx * dx + dy * dy) < (500 * 500); // Vision range
-            });
-            // We can store raw item data + tags
+            // Capture Nearby Objects (Use Spatial Hash)
+            const visibleItems = serverGame.getWorldItemsInArea(pX, pY, 500);
+
             locationContext.nearby_objects = visibleItems.map(item => ({
-                ...item,
+                name: item.name || 'Unknown Item',
+                uid: item.uid,
+                x: item.x,
+                y: item.y,
                 semantic_tags: SemanticMapper.getNearbyObjectTags([item])[0]
             }));
 
@@ -684,6 +698,26 @@ class MessageSystem {
             log.error('Error in captureGameState:', e);
             return null;
         }
+    }
+
+    getLightweightContext(p) {
+        if (!p) return null;
+        // Construct visual tags first
+        const tags = SemanticMapper.getVisualContext(p);
+
+        return {
+            Username: p.Username,
+            firstName: p.firstName,
+            lastName: p.lastName,
+            description: p.icDescrip,
+            position: { x: p.position.x, y: p.position.y },
+            species: p.speciesName,
+            visual_tags: tags,
+            // Add stats or other AI-relevant fields if needed, but avoid massive equipment objects
+            // unless strictly necessary for the AI to "see" them. 
+            // Visual tags often cover "wearing a red shirt".
+            stats: p.stats
+        };
     }
 
     parseAndSanitize(str) {

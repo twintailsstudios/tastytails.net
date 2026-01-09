@@ -14,45 +14,36 @@
  */
 export default {
     // Basic Items
-    'apple': { size: 1, name: 'Apple' },
+    'glass_beer': { size: 1, name: 'Beer Glass', icon: 'fa-glass-whiskey', texture: 'glass_beer' },
+    'bottle_empty': { size: 1, name: 'Empty Bottle', icon: 'fa-wine-bottle', texture: 'bottle_empty', description: 'An empty glass bottle.' },
     'key': { size: 1, name: 'Key', icon: 'fa-key', texture: 'key' },
-    'wallet': { size: 2, name: 'Wallet' },
-    'phone': { size: 3, name: 'Smartphone' },
-    'water_bottle': { size: 3, name: 'Water Bottle' },
+
+    // Drink Bottles
+    'bottle_ale': { size: 1, name: 'Ale Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_ale', playerUse: true, returnOnEmpty: 'bottle_empty' },
+    'bottle_wine': { size: 1, name: 'Wine Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_wine', playerUse: true, returnOnEmpty: 'bottle_empty' },
+    'bottle_whiskey': { size: 1, name: 'Whiskey Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_whiskey', playerUse: true, returnOnEmpty: 'bottle_empty' },
+    'bottle_beer': { size: 1, name: 'Beer Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_beer', playerUse: true, returnOnEmpty: 'bottle_empty' },
 
     // Tools/Weapons
     'stick': { size: 4, name: 'Sturdy Stick' },
     'sword': { size: 10, name: 'Iron Sword' },
 
     // Crafting Items
-    'ore_iron': { size: 2, name: 'Iron Ore', icon: 'fa-gem', texture: 'ore_iron' },
-    'ingot_iron': { size: 2, name: 'Iron Ingot', icon: 'fa-cube', texture: 'ingot_iron' },
-
-    // Drinkware
-    'glass': { size: 1, name: 'Glass', icon: 'fa-glass-whiskey', texture: 'glass' },
-    'glass_ale': { size: 1, name: 'Ale Glass', icon: 'fa-glass-whiskey', texture: 'glass_ale' },
-    'glass_wine': { size: 1, name: 'Wine Glass', icon: 'fa-glass-whiskey', texture: 'glass_wine' },
-    'glass_whiskey': { size: 1, name: 'Whiskey Glass', icon: 'fa-glass-whiskey', texture: 'glass_whiskey' },
-    'glass_beer': { size: 1, name: 'Beer Glass', icon: 'fa-glass-whiskey', texture: 'glass_beer' },
-
-    // Drink Bottles
-    'bottle_ale': { size: 1, name: 'Ale Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_ale' },
-    'bottle_wine': { size: 1, name: 'Wine Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_wine' },
-    'bottle_whiskey': { size: 1, name: 'Whiskey Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_whiskey' },
-    'bottle_beer': { size: 1, name: 'Beer Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_beer' },
+    'ore_iron': { size: 2, name: 'Iron Ore', icon: 'fa-gem', texture: 'ore_iron', flavor: `Hard and metallic`, description: `A chunk of iron ore.`, verb: 'use', maxUses: 1, playerUse: false },
+    'ingot_iron': { size: 2, name: 'Iron Ingot', icon: 'fa-cube', texture: 'ingot_iron', flavor: `Hard and metallic`, description: `An ingot of iron.`, verb: 'use', maxUses: 1, playerUse: false },
 
     // Default
     'default': { size: 1, name: 'Unknown Object' },
 
     // Food
-    'food_orange': { size: 1, name: 'Orange', icon: 'fa-apple-whole', texture: 'food_orange' },
-    'food_potato': { size: 1, name: 'Potato', icon: 'fa-apple-whole', texture: 'food_potato' },
+    'food_orange': { size: 1, name: 'Orange', icon: 'fa-apple-whole', texture: 'food_orange', flavor: `Tangy and sweet`, description: `A juicy orange.`, verb: 'eat', maxUses: 1, playerUse: true, isDynamic: true },
+    'food_potato': { size: 1, name: 'Potato', icon: 'fa-apple-whole', texture: 'food_potato', flavor: `Starchy and savory`, description: `A rich potato.`, verb: 'eat', maxUses: 1, playerUse: true, isDynamic: true },
 
     // Fibers
-    'fiber_wool': { size: 1, name: 'Wool Fiber', icon: 'fa-apple-whole', texture: 'fiber_wool' },
+    'fiber_wool': { size: 1, name: 'Wool Fiber', icon: 'fa-apple-whole', texture: 'fiber_wool', flavor: `Soft and warm`, description: `A roll of wool fiber.`, verb: 'use', maxUses: 1, playerUse: false },
 
     // Dye precursors
-    'indigo': { size: 1, name: 'Indigo', icon: 'fa-apple-whole', texture: 'indigo' },
+    'indigo': { size: 1, name: 'Indigo', icon: 'fa-apple-whole', texture: 'indigo', flavor: `Pungent`, description: `A roll of indigo fiber.`, verb: 'use', maxUses: 1, playerUse: false },
 
 
     // Special
@@ -62,6 +53,8 @@ export default {
         icon: 'fa-tint',
         texture: 'alpha_bottle',
         maxUses: 9,
+        playerUse: true,
+        returnOnEmpty: 'bottle_empty',
         isDynamic: true,
         color: 0x66ccff,
         verb: 'Drink',
@@ -81,6 +74,7 @@ export default {
         icon: 'fa-tint',
         texture: 'alpha_dye',
         maxUses: 10,
+        playerUse: false,
         isDynamic: true,
         color: 0xFFC0CB,
         verb: 'use',
@@ -100,6 +94,7 @@ export default {
         icon: 'fa-tint',
         texture: 'alpha_thread',
         maxUses: 10,
+        playerUse: false,
         isDynamic: true,
         color: 0xFFFFFF,
         verb: 'unspool',
@@ -121,7 +116,8 @@ export default {
         itemType: 'clothing',
         texture: 'shirt_01',
         icon: 'fa-shirt', // Changed to fa-shirt to match context
-        maxUses: 10,
+        maxUses: 1,
+        playerUse: false,
         isDynamic: true,
         color: 0xFFFFFF,
         verb: 'wear',
