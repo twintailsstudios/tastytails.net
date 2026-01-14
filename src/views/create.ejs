@@ -1,82 +1,30 @@
 ﻿<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="/css/create.css">
 <link rel="stylesheet" href="/css/anatomy_forge.css">
+<link rel="stylesheet" href="/css/loading.css?v=<%= Date.now() %>">
 <script src="/js/anatomy_forge.js"></script>
 
-<style>
-  /* Loading Overlay Styles */
-  #loadingOverlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: #1a1a1a;
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    transition: opacity 0.5s ease-out;
-  }
 
-  #loadingOverlay.hidden {
-    opacity: 0;
-    pointer-events: none;
-  }
 
-  .loading-logo {
-    max-width: 300px;
-    margin-bottom: 2rem;
-    animation: pulse 2s infinite ease-in-out;
-  }
+<div id="loading-overlay">
+  <div id="loading-board">
+    <!-- Game Title on the Wood -->
+    <div id="loading-title">Character Creator</div>
 
-  .loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid rgba(255, 255, 255, 0.1);
-    border-top-color: #ffd700;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
+    <!-- The Pinned Parchment -->
+    <div id="loading-paper">
+      <!-- Pins/Nails holding the paper -->
+      <div class="loading-pin tl"></div>
+      <div class="loading-pin tr"></div>
 
-  .loading-text {
-    margin-top: 1rem;
-    color: #ffd700;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 1.2rem;
-    letter-spacing: 1px;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  @keyframes pulse {
-    0% {
-      transform: scale(1);
-      opacity: 0.8;
-    }
-
-    50% {
-      transform: scale(1.05);
-      opacity: 1;
-    }
-
-    100% {
-      transform: scale(1);
-      opacity: 0.8;
-    }
-  }
-</style>
-
-<div id="loadingOverlay">
-  <img src="/assets/tilemaps/tastytails_v01.png" alt="Tasty Tails" class="loading-logo"
-    onerror="this.style.display='none'">
-  <div class="loading-spinner"></div>
-  <div class="loading-text">Loading Character Creator...</div>
+      <!-- Loading Content -->
+      <div id="loading-text">Preparing the Mirror...</div>
+      <div id="loading-bar-container">
+        <div id="loading-bar-fill"></div>
+      </div>
+      <div id="loading-percent">0%</div>
+    </div>
+  </div>
 </div>
 
 <section id="characterCreator">
@@ -1565,7 +1513,7 @@
 
   function hideLoadingScreen() {
     console.log('Hiding loading screen...');
-    const overlay = document.getElementById('loadingOverlay');
+    const overlay = document.getElementById('loading-overlay');
     if (overlay) {
       overlay.classList.add('hidden');
       setTimeout(() => {
@@ -1607,6 +1555,15 @@
   console.log('localPlayerInfo before preload = ', localPlayerInfo);
 
   function preload() {
+    // Progress Bar Logic
+    this.load.on('progress', function (value) {
+      const percent = Math.floor(value * 100);
+      const bar = document.getElementById('loading-bar-fill');
+      const text = document.getElementById('loading-percent');
+      if (bar) bar.style.width = percent + '%';
+      if (text) text.innerText = percent + '%';
+    });
+
     this.spritesToAnimate = []; // Initialize the array
 
     // --- Asset Configuration ---
