@@ -25,6 +25,67 @@ export function create() {
     window.gameScene = self; // Expose globally for UI interactions
     initDebugGraph(); // Initialize HTML debug graph
 
+    // --- LOADING SCREEN HANDOVER ---
+    // FIX: Retrieve from window and attach to scene
+    // --- DOM LOADING LOGIC ---
+    // Initialize Loading State
+    this.loadingFlags = {
+        player: false,
+        items: false,
+        segments: false,
+        mapObjects: false
+    };
+
+    this.isFadingOut = false;
+
+    // Helper: Update Progress (DOM)
+    this.updateLoadingProgress = function (percent, message) {
+        const barFill = document.getElementById('loading-bar-fill');
+        const percentText = document.getElementById('loading-percent');
+        const statusText = document.getElementById('loading-text');
+
+        if (barFill) barFill.style.width = `${Math.floor(percent * 100)}%`;
+        if (percentText) percentText.innerText = `${Math.floor(percent * 100)}%`;
+        if (message && statusText) statusText.innerText = message;
+    };
+
+    // Helper: Check Completion
+    this.checkLoadingComplete = function () {
+        // console.log('[Loading] Checking flags:', self.loadingFlags);
+
+        // Need all flags to proceed
+        if (self.loadingFlags.player && self.loadingFlags.items && self.loadingFlags.segments && self.loadingFlags.mapObjects) {
+            if (!self.isFadingOut) {
+                console.log('[Loading] All flags ready. Starting Fade...');
+                self.updateLoadingProgress(1.0, "Ready!");
+                self.isFadingOut = true;
+
+                // Force a camera update
+                if (self.cameras && self.cameras.main) {
+                    self.cameras.main.dirty = true;
+                }
+
+                // 0.5s buffer to let everything settle visible behind the screen
+                self.time.delayedCall(100, () => {
+                    console.log('[Loading] Fading out overlay...');
+                    const overlay = document.getElementById('loading-overlay');
+                    if (overlay) {
+                        // Trigger CSS transition (opacity: 0)
+                        overlay.style.opacity = '0';
+
+                        // Remove from flow after transition (1.5s matches CSS)
+                        setTimeout(() => {
+                            overlay.style.display = 'none';
+                            console.log('[Client] Loading Complete. Overlay Halted.');
+                        }, 600);
+                    }
+                });
+            }
+        }
+    };
+
+    this.updateLoadingProgress(0.6, "Building Map...");
+
 
     const localPlayerInfo = window.localPlayerInfo;
     this.playerInfo = localPlayerInfo; // Ensure it's attached to the scene so self.playerInfo works
@@ -32,20 +93,7 @@ export function create() {
     self.showDebug = false;
 
     //----- Window Resize -----//
-    window.addEventListener("resize", windowResize);
-    function windowResize(e) {
-        console.log('e = ', e);
-        var phaserWindow = {
-            x: document.getElementById('phaserApp').clientWidth,
-            y: document.getElementById('phaserApp').clientHeight
-        }
-        console.log('phaserWindow = ', phaserWindow);
-        self.scale.resize(phaserWindow.x, phaserWindow.y);
 
-        if (window.cam1) {
-            window.cam1.setSize(phaserWindow.x, phaserWindow.y);
-        }
-    }
 
     var test = 'receiving on socket connection?';
 
@@ -57,6 +105,8 @@ export function create() {
     const charId = document.location.href.split('play/')[1];
 
     // Socket.io is global
+    // Socket.io is global
+    if (this.loadingScreen) this.updateLoadingProgress(0.7, "Connecting to Server...");
     this.socket = io({ query: { charId: charId } });
     window.gameSocket = this.socket; // Expose globally for UI interactions
     console.log('this.socket = ', this.socket);
@@ -236,16 +286,29 @@ export function create() {
     }
 
     // Create Map
-    this.map = createMap(this);
+    const onMapProgress = (percent) => {
+        // Map Building Phase: 50% -> 80%
+        const base = 0.50;
+        const range = 0.30;
+        const total = base + (percent * range);
+        self.updateLoadingProgress(total, `Building Map... ${Math.floor(percent * 100)}%`);
+    };
+    this.map = createMap(this, onMapProgress);
 
     // --- Initialize Shadow System ---
     this.shadowSystem = new ShadowSystem(this);
 
     // Listen for Map Segments (for client-side prediction)
+    // Listen for Map Segments (for client-side prediction)
     this.socket.on('mapSegments', (segments) => {
         if (self.shadowSystem) {
             self.shadowSystem.setSegments(segments);
         }
+
+        // [MODIFIED] Terrain/Segments Loaded
+        self.loadingFlags.segments = true;
+        self.updateLoadingProgress(0.90, "Loading Terrain...");
+        self.checkLoadingComplete();
     });
 
     // Add collision with map objects
@@ -270,6 +333,16 @@ export function create() {
                 if (shadowSystem) {
                     shadowSystem.update(players[id]);
                 }
+
+                // Force Inventory UI Update to ensure pockets are visible immediately
+                if (inventoryUI) {
+                    inventoryUI.update(players[id]);
+                }
+
+                // [MODIFIED] Player Ready Stage
+                self.loadingFlags.player = true;
+                self.updateLoadingProgress(0.85, "Loading Inventory...");
+                self.checkLoadingComplete();
             } else {
                 const otherPlayer = displayOtherPlayers(self, players[id]);
                 if (otherPlayer) {
@@ -735,8 +808,32 @@ export function create() {
         createEmoteAnimations(self, self.emoteKeys);
     }
 
-    // Force initial resize to fit container
-    setTimeout(() => {
-        windowResize();
-    }, 100);
+    // --- Window Resize Handler ---
+    function windowResize(e) {
+        // console.log('[Resize Event] Triggered', e);
+        const container = document.getElementById('phaserApp');
+        if (container) {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            // console.log('[Resize Event] Dimensions:', width, height);
+
+            self.scale.resize(width, height);
+
+            if (window.cam1) {
+                window.cam1.setSize(width, height);
+            }
+
+            if (self.cameras && self.cameras.main) {
+                self.cameras.main.setSize(width, height);
+            }
+        }
+    }
+
+    // Listen for resize events
+    window.addEventListener('resize', windowResize);
+
+    // Force initial resize to fit container immediately (avoids jump)
+    windowResize();
+
+
 }

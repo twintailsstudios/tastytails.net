@@ -8,7 +8,9 @@
   <link rel="stylesheet" type="text/css" href="/css/contextMenu.css" />
   <link rel="stylesheet" type="text/css" href="/css/inventory.css" />
   <link rel="stylesheet" type="text/css" href="/css/crafting.css" />
+
   <link rel="stylesheet" type="text/css" href="/css/options.css" />
+  <link rel="stylesheet" type="text/css" href="/css/loading.css?v=<%= Date.now() %>" />
 
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -437,6 +439,27 @@
     }
   });
 </script>
+
+<div id="loading-overlay">
+  <div id="loading-board">
+    <!-- Game Title on the Wood -->
+    <div id="loading-title">TastyTails</div>
+
+    <!-- The Pinned Parchment -->
+    <div id="loading-paper">
+      <!-- Pins/Nails holding the paper -->
+      <div class="loading-pin tl"></div>
+      <div class="loading-pin tr"></div>
+
+      <!-- Loading Content -->
+      <div id="loading-text">Waking the Innkeeper...</div>
+      <div id="loading-bar-container">
+        <div id="loading-bar-fill"></div>
+      </div>
+      <div id="loading-percent">0%</div>
+    </div>
+  </div>
+</div>
 
 <script type="module" src="/js/game/index.js"></script>
 </section>

@@ -1,5 +1,5 @@
 const log = require('../logger');
-const { performItemUse } = require('../utils/itemActions');
+const { performItemUse, getSafePlayerState } = require('../utils/itemActions');
 
 module.exports = function (io, socket, players, worldItems, saveCharacter, clothingData, itemData, addItemToGrid, removeItemFromGrid) {
     const logPrefix = `[Inventory:${socket.id}]`;
@@ -65,7 +65,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             }
 
             // Force immediate update to all clients
-            io.emit('playerStateUpdate', { [socket.id]: player });
+            io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
 
             // Save changes to DB immediately
             saveCharacter(socket.id);
@@ -140,7 +140,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
 
             log.info(`[Storage] Stashed ${handItem.name} into ${clothingDef.name}'s ${pocketDef.name}.`);
 
-            io.emit('playerStateUpdate', { [socket.id]: player });
+            io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
             saveCharacter(socket.id);
         } catch (e) {
             log.error(`Error handling stashItemClicked for ${socket.id}:`, e);
@@ -178,7 +178,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
 
             log.info(`[Storage] Retrieved ${item.name} from ${sourcePocket}.`);
 
-            io.emit('playerStateUpdate', { [socket.id]: player });
+            io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
             saveCharacter(socket.id);
         } catch (e) {
             log.error(`Error handling retrieveItemClicked for ${socket.id}:`, e);
@@ -253,7 +253,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
                 log.info(`Player ${player.Username} dropped item: ${droppedItem.name || droppedItem.uid}`);
 
                 // Update Hand state
-                io.emit('playerStateUpdate', { [socket.id]: player });
+                io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
                 saveCharacter(socket.id);
             }
         } catch (e) {

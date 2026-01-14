@@ -134,9 +134,8 @@ module.exports = function (io, socket, players, User, saveCharacter) {
                 try {
                     const parsed = JSON.parse(data.anatomyData || '{}');
                     if (parsed.nodes && Array.isArray(parsed.nodes)) {
-                        // Filter for destinations AND entrances
-                        // Entrances are needed for the menu selection (Stage 1)
-                        const relevantNodes = parsed.nodes.filter(n => n.type === 'destination' || n.type === 'entrance');
+                        // Filter for destinations ONLY (Entrances/Paths don't need vore settings/storage)
+                        const relevantNodes = parsed.nodes.filter(n => n.type === 'destination');
 
                         // Map to voreType objects
                         newVoreTypes = relevantNodes.map(node => {

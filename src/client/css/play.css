@@ -1699,3 +1699,6 @@ textarea {
     filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.8));
     z-index: 10;
 }
+
+/* === LOADING SCREEN OVERLAY === */
+/* Moved to loading.css */

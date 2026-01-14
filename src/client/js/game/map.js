@@ -1,4 +1,4 @@
-export function createMap(scene) {
+export function createMap(scene, onProgress) {
     //----- Loads the json  file and also the map tileset -----//
     const map = scene.make.tilemap({ key: 'dynamic_map' }); // Using the dynamic key
     if (!map.tilesets || map.tilesets.length === 0) {
@@ -11,7 +11,7 @@ export function createMap(scene) {
             console.error("[createMap] Cache entry for 'dynamic_map' is missing!");
         }
     } else {
-        console.log(`[createMap] Found ${map.tilesets.length} tilesets in map.`);
+        // console.log(`[createMap] Found ${map.tilesets.length} tilesets in map.`);
     }
 
     // 1. Identify Object Layers
@@ -56,7 +56,7 @@ export function createMap(scene) {
         // --- Dynamic Image Binding ---
         const tilesetName = tileset.name;
         if (tilesetName === 'AutoMap Rules') {
-            console.log(`[createMap] Skipping internal Tiled layer '${tilesetName}'`);
+            // console.log(`[createMap] Skipping internal Tiled layer '${tilesetName}'`);
             return;
         }
 
@@ -68,30 +68,16 @@ export function createMap(scene) {
             // console.log(`[createMap] Matched tileset '${tilesetName}' to image key '${tilesetName}'`);
             map.addTilesetImage(tilesetName, tilesetName);
         } else {
-            // Fallback: Try stripping extension (e.g., 'cloth_shelf_01.png' -> 'cloth_shelf_01')
-            const nameWithoutExt = tilesetName.includes('.') ? tilesetName.split('.').slice(0, -1).join('.') : null;
+            // Smart Filter: Ignore "Object-Only" Tilesets
+            // if it looks like a single image (ends in .png) OR has only 1 tile, it is likely an Object Sprite.
+            // The Object Spawner (spawnObject) handles these by stripping the extension manually.
+            const isLikelyObject = tilesetName.toLowerCase().endsWith('.png') || tileset.total === 1;
 
-            if (nameWithoutExt && scene.textures.exists(nameWithoutExt)) {
-                // console.log(`[createMap] Matched tileset '${tilesetName}' to image key '${nameWithoutExt}' (extension stripped)`);
-                map.addTilesetImage(tilesetName, nameWithoutExt);
-            } else if (scene.textures.exists(tilesetName.toLowerCase())) {
-                // Fallback 2: Try lowercase exact match
-                // console.log(`[createMap] Matched tileset '${tilesetName}' to image key '${tilesetName.toLowerCase()}' (lowercase)`);
-                map.addTilesetImage(tilesetName, tilesetName.toLowerCase());
-            } else if (nameWithoutExt && scene.textures.exists(nameWithoutExt.toLowerCase())) {
-                // Fallback 3: Try lowercase stripped match
-                // console.log(`[createMap] Matched tileset '${tilesetName}' to image key '${nameWithoutExt.toLowerCase()}' (lowercase stripped)`);
-                map.addTilesetImage(tilesetName, nameWithoutExt.toLowerCase());
+            if (isLikelyObject) {
+                // Silently skip or log at debug level
+                // console.warn(`[createMap] Info: Tileset '${tilesetName}' skipped for painting (assuming Object Sprite).`);
             } else {
-                console.warn(`[createMap] WARNING: Could not find image key for tileset '${tilesetName}'. Checking for fallbacks...`);
-
-                // Legacy Fallback
-                if (tilesetName === 'Demo_tileset' && scene.textures.exists('tileset')) {
-                    console.log(`[createMap] ...Found legacy 'tileset' image for '${tilesetName}'`);
-                    map.addTilesetImage(tilesetName, 'tileset');
-                } else {
-                    console.error(`[createMap] FAILED to load image for tileset: ${tilesetName}. Rendering might be incomplete.`);
-                }
+                console.error(`[createMap] FAILED to match tileset '${tilesetName}' to any loaded image key. Strict matching enabled.`);
             }
         }
     });
@@ -106,12 +92,8 @@ export function createMap(scene) {
     // We create a single physics group for ALL objects in the world
     scene.objectGroup = scene.physics.add.group({ immovable: true });
 
-    // Loop through every Object Layer defined in the JSON
-    if (map.objects) {
-        map.objects.forEach(layerData => {
-            buildObjectLayer(scene, map, layerData.name);
-        });
-    }
+    // Start Async Object Building (Non-blocking)
+    buildMapObjectsAsync(scene, map, onProgress);
 
     // Add collision for the player against ALL these objects at once
     if (scene.players) {
@@ -119,12 +101,6 @@ export function createMap(scene) {
     } else {
         console.warn('[createMap] scene.players not found during map creation');
     }
-
-    //----- Loads a Dynamic Tilemap Layer -----//
-    // This seems to be a debug test sprite? Leaving it for now.
-    const testTile = scene.add.sprite(3291, 4287, 'tilesetSprite', 8);
-    testTile.depth = testTile.y - 92;
-    // console.log('testTile = ', testTile);
 
     //----- Creates "layers" of different map tiles to be placed on top of one another -----//
     // DYNAMIC LAYER LOADING REFACTOR
@@ -173,20 +149,11 @@ export function createMap(scene) {
 
 
 /**
- * Automatically builds game objects from a Tiled Object Layer.
- * Determines the correct tileset, texture, and physics properties for every object.
+ * Asynchronously builds game objects from Tiled Object Layers.
+ * Uses time-slicing to prevent blocking the UI/Loading Screen.
  */
-function buildObjectLayer(scene, map, layerName) {
-    const layerData = map.getObjectLayer(layerName);
-
-    // Skip if layer is empty or undefined
-    if (!layerData || !layerData.objects) return;
-
-    // console.log(`[World Builder] Building layer: ${layerName}`);
-
-    // Pre-fetch raw data for all tilesets.
-    // We store them as an array of ranges to perform GID-based lookups.
-    // This bypasses the issue where Phaser splits "Collection of Images" into multiple tilesets, breaking name/ID matching.
+async function buildMapObjectsAsync(scene, map, onProgress) {
+    // 1. Pre-fetch raw data for all tilesets.
     const rawTilesets = [];
     const rawMapData = scene.cache.tilemap.get('dynamic_map').data;
 
@@ -202,8 +169,6 @@ function buildObjectLayer(scene, map, layerName) {
             if (rawTs.tiles) {
                 rawTs.tiles.forEach(tile => {
                     const tileData = { properties: {} };
-
-                    // Capture Properties
                     if (tile.properties) {
                         const props = {};
                         tile.properties.forEach(p => {
@@ -215,13 +180,9 @@ function buildObjectLayer(scene, map, layerName) {
                         });
                         tileData.properties = props;
                     }
-
-                    // Capture Image
                     if (tile.image) {
                         tileData.image = tile.image;
                     }
-
-                    // Index by Local ID
                     tsData.tiles[tile.id] = tileData;
                 });
             }
@@ -229,278 +190,238 @@ function buildObjectLayer(scene, map, layerName) {
         });
     }
 
-    layerData.objects.forEach(obj => {
-        let textureKey;
-        let frame = null;
-        let tileProps = {};
-        let usedLocalID = -1;
-        let rawImage = null;
-        // 1. Find Raw Tileset
-        // developer_note:
-        // We find the tileset with the highest firstgid that is <= obj.gid.
-        // This is CRITICAL for "Collection of Images" tilesets (like 'alpha_objects') because:
-        // 1. Tiled assigns IDs sparsely (e.g., skips from ID 5 to ID 30).
-        // 2. The 'tilecount' property might be smaller than the ID range (e.g., 27 items, but highest ID is 30).
-        // 3. Standard 'ranges' (firstGid to firstGid + count) fail for these sparse IDs.
-        // By finding the nearest 'start point' (firstGid) below the object's GID, we correctly identify the parent tileset.
-        const rawTs = rawTilesets
-            .slice()
-            .reverse()
-            .find(ts => obj.gid >= ts.firstgid);
+    // 2. Process Layers
+    if (map.objects) {
+        let totalObjects = 0;
+        map.objects.forEach(l => { if (l.objects) totalObjects += l.objects.length; });
+        let objectsProcessed = 0;
 
-        if (rawTs) {
-            // Calculate TRUE local ID relative to the original collection
-            const trueLocalID = obj.gid - rawTs.firstgid;
-            usedLocalID = trueLocalID;
+        for (const layerData of map.objects) {
+            const objects = layerData.objects;
+            if (!objects) continue;
 
-            if (rawTs.tiles[trueLocalID]) {
-                tileProps = rawTs.tiles[trueLocalID].properties;
-                rawImage = rawTs.tiles[trueLocalID].image;
-                // console.log(`[World Builder] Found Raw Props for GID ${obj.gid} (True ID ${trueLocalID} via ${rawTs.name}):`, tileProps);
+            // Process in chunks
+            let i = 0;
+            const chunkSize = 20;
 
-                // SKIP items (managed by server events)
-                if (tileProps.isItem) {
-                    // console.log(`[World Builder] Skipping Item (Server Managed): ${obj.gid}`);
-                    return;
+            while (i < objects.length) {
+                const end = Math.min(i + chunkSize, objects.length);
+                for (let j = i; j < end; j++) {
+                    spawnObject(scene, map, objects[j], rawTilesets, layerData.name);
+                    objectsProcessed++;
+                }
+                i += chunkSize;
+
+                // Report Progress
+                if (onProgress && totalObjects > 0) {
+                    onProgress(objectsProcessed / totalObjects);
                 }
 
-                // if (rawImage) console.log(`[World Builder] Found Raw Image: ${rawImage}`);
-            }
-        } else {
-            // Fallback: This usually shouldn't happen unless the object GID is very strange or outside ranges
-            console.warn(`[World Builder] Could not find Raw Tileset for GID ${obj.gid}`);
-        }
-
-        // 2. Determine Texture Key
-        // Priority 1: Custom 'texture' property
-        // Priority 2: Extracted filename from 'image' property (for Collection of Images)
-        // Priority 3: Fallback to Phaser's Runtime Tileset (Standard Tilesets)
-
-        if (tileProps && tileProps.texture) {
-            textureKey = tileProps.texture;
-            // console.log(`[World Builder] Using custom texture property: ${textureKey}`);
-        } else if (rawImage) {
-            // Extract filename without extension from path
-            // Handle both forward and backslashes (Windows paths in Tiled JSON)
-            const normalizedPath = rawImage.replace(/\\/g, '/');
-            const parts = normalizedPath.split('/');
-            const filename = parts[parts.length - 1];
-            textureKey = filename.split('.')[0];
-            // console.log(`[World Builder] Auto-detected texture: ${textureKey} from ${rawImage}`);
-        } else {
-            // Priority 3: Runtime Fallback
-            // If we couldn't resolve a texture from Raw Data, ask Phaser.
-            // This handles standard tilesets where 'texture' might not be explicitly defined but implies the tileset image.
-
-            const phaserTileset = map.tilesets.find(ts => obj.gid >= ts.firstgid && obj.gid < (ts.firstgid + ts.total));
-            if (phaserTileset) {
-                // For standard tilesets, determine the frame
-                const localID = obj.gid - phaserTileset.firstgid;
-                usedLocalID = localID; // Update for logging if we fell back
-
-                // If it's a known Single Image Tileset (like 'tileset' for the map), use its key
-                // We added 'Demo_tileset' as 'tileset' in createMap.
-                // But wait, obj.gid might point to 'tileset'.
-                // If the tileset source image is NOT in 'tiles', we assume it's the main image.
-
-                // Ideally, we assigned a key when loading. 
-                // Here we default to 'tilesetSprite' if we assume it's the main sheet.
-                // But 'tree_01' etc are NOT on the main sheet.
-
-                // If we are here, it means Raw Lookup failed to give us a texture or image.
-                // This is a safety net.
-                textureKey = 'tilesetSprite';
-                frame = localID;
-                console.log(`[World Builder] Fallback to tilesetSprite: frame ${frame} for GID ${obj.gid}`);
-
-                // Attempt to get properties from Phaser's runtime data
-                if (phaserTileset.tileProperties && phaserTileset.tileProperties[localID]) {
-                    tileProps = phaserTileset.tileProperties[localID];
-                }
-            } else {
-                console.warn(`[World Builder] Critical: Could not resolve tileset for GID ${obj.gid}`);
-                return; // Abort spawning this object
+                // Yield to main thread
+                await new Promise(resolve => setTimeout(resolve, 0));
             }
         }
+    }
 
-        // console.log(`[World Builder] Spawning Object: ${textureKey} (GID: ${obj.gid}, LocalID: ${usedLocalID}) at ${obj.x},${obj.y}`);
+    // 3. Signal Completion
+    if (scene.loadingFlags) {
+        scene.loadingFlags.mapObjects = true;
+        if (typeof scene.checkLoadingComplete === 'function') {
+            scene.checkLoadingComplete();
+        }
+    }
+}
 
-        // 3. Create the Sprite
-        const sprite = scene.objectGroup.create(obj.x, obj.y, textureKey, frame);
-        if (!sprite) {
-            console.error(`[World Builder] Failed to create sprite for ${textureKey}`);
+/**
+ * Spawns a single object.
+ */
+function spawnObject(scene, map, obj, rawTilesets, layerName) {
+    let textureKey;
+    let frame = null;
+    let tileProps = {};
+    let usedLocalID = -1;
+    let rawImage = null;
+
+    // 1. Find Raw Tileset
+    const rawTs = rawTilesets
+        .slice()
+        .reverse()
+        .find(ts => obj.gid >= ts.firstgid);
+
+    if (rawTs) {
+        const trueLocalID = obj.gid - rawTs.firstgid;
+        usedLocalID = trueLocalID;
+
+        if (rawTs.tiles[trueLocalID]) {
+            tileProps = rawTs.tiles[trueLocalID].properties;
+            rawImage = rawTs.tiles[trueLocalID].image;
+
+            if (tileProps.isItem) {
+                return;
+            }
+        }
+    } else {
+        console.warn(`[World Builder] Could not find Raw Tileset for GID ${obj.gid}`);
+    }
+
+    // 2. Determine Texture Key
+    if (tileProps && tileProps.texture) {
+        textureKey = tileProps.texture;
+    } else if (rawImage) {
+        const normalizedPath = rawImage.replace(/\\/g, '/');
+        const parts = normalizedPath.split('/');
+        const filename = parts[parts.length - 1];
+        textureKey = filename.split('.')[0];
+    } else {
+        const phaserTileset = map.tilesets.find(ts => obj.gid >= ts.firstgid && obj.gid < (ts.firstgid + ts.total));
+        if (phaserTileset) {
+            const localID = obj.gid - phaserTileset.firstgid;
+            usedLocalID = localID;
+            textureKey = 'tilesetSprite';
+            frame = localID;
+            // console.log(`[World Builder] Fallback to tilesetSprite: frame ${frame} for GID ${obj.gid}`);
+            if (phaserTileset.tileProperties && phaserTileset.tileProperties[localID]) {
+                tileProps = phaserTileset.tileProperties[localID];
+            }
+        } else {
+            console.warn(`[World Builder] Critical: Could not resolve tileset for GID ${obj.gid}`);
             return;
         }
+    }
 
-        // --- Door System Special Handling ---
-        if (textureKey === 'alpha_door') {
-            // Create Animations (Once)
-            if (!scene.anims.exists('door_open')) {
-                scene.anims.create({
-                    key: 'door_open',
-                    frames: scene.anims.generateFrameNumbers('alpha_door', { frames: [0, 1, 2] }),
-                    frameRate: 10,
-                    repeat: 0
-                });
-            }
-            if (!scene.anims.exists('door_close')) {
-                scene.anims.create({
-                    key: 'door_close',
-                    frames: scene.anims.generateFrameNumbers('alpha_door', { frames: [2, 1, 0] }),
-                    frameRate: 10,
-                    repeat: 0
-                });
-            }
+    // 3. Create the Sprite
+    const sprite = scene.objectGroup.create(obj.x, obj.y, textureKey, frame);
+    if (!sprite) {
+        console.error(`[World Builder] Failed to create sprite for ${textureKey}`);
+        return;
+    }
 
-            // Set Initial State (Closed)
-            // If the server sends initial state later, we'll update. 
-            // For now, assume closed.
-            sprite.setFrame(0);
-
-            // Interaction
-            sprite.setInteractive({ cursor: 'pointer' });
-            sprite.on('pointerdown', (pointer) => {
-                // Check distance to player
-                const player = scene.playerContainer;
-                if (player) {
-                    const dist = Phaser.Math.Distance.Between(player.x, player.y, sprite.x, sprite.y);
-                    if (dist < 150) {
-                        console.log(`[Door] Interacting with ${sprite.objectInfo.uniqueId}`);
-                        if (scene.socket) {
-                            scene.socket.emit('doorInteract', sprite.objectInfo.uniqueId);
-                        }
-                    } else {
-                        console.log('[Door] Too far to interact');
-                    }
-                }
+    // --- Door System Special Handling ---
+    if (textureKey === 'alpha_door') {
+        if (!scene.anims.exists('door_open')) {
+            scene.anims.create({
+                key: 'door_open',
+                frames: scene.anims.generateFrameNumbers('alpha_door', { frames: [0, 1, 2] }),
+                frameRate: 10,
+                repeat: 0
             });
         }
-
-        // 4. Apply "Smart" Configuration
-
-        // Default Origin/Depth
-        // Updated to Bottom Left (0, 1) to match Tiled default
-        sprite.setOrigin(0, 1);
-        sprite.setDepth(sprite.y);
-
-        let customCollisionApplied = false;
-
-        if (tileProps) {
-            // Apply Custom Hitbox Size
-            if (tileProps.bodyWidth && tileProps.bodyHeight) {
-                sprite.body.setSize(tileProps.bodyWidth, tileProps.bodyHeight);
-                customCollisionApplied = true;
+        if (!scene.anims.exists('door_close')) {
+            scene.anims.create({
+                key: 'door_close',
+                frames: scene.anims.generateFrameNumbers('alpha_door', { frames: [2, 1, 0] }),
+                frameRate: 10,
+                repeat: 0
+            });
+        }
+        sprite.setFrame(0);
+        sprite.setInteractive({ cursor: 'pointer' });
+        sprite.on('pointerdown', (pointer) => {
+            const player = scene.playerContainer;
+            if (player) {
+                const dist = Phaser.Math.Distance.Between(player.x, player.y, sprite.x, sprite.y);
+                if (dist < 150) {
+                    if (scene.socket) {
+                        scene.socket.emit('doorInteract', sprite.objectInfo.uniqueId);
+                    }
+                }
             }
+        });
+    }
 
-            // Apply Custom Offset (centered horizontally, specific offset from bottom)
-            if (tileProps.bodyOffsetY !== undefined) {
-                const widthDiff = sprite.width - (tileProps.bodyWidth || sprite.width);
-                const offsetX = widthDiff / 2;
-                // Phaser setOffset is from top-left.
-                // We want bodyOffsetY to be distance from BOTTOM of sprite.
-                const offsetY = sprite.height - (tileProps.bodyHeight || sprite.height) - tileProps.bodyOffsetY;
+    // 4. Apply "Smart" Configuration
+    sprite.setOrigin(0, 1);
+    sprite.setDepth(sprite.y);
 
-                sprite.body.setOffset(offsetX, offsetY);
-                customCollisionApplied = true;
-            } else if (customCollisionApplied) {
-                // Center bottom if only size was set
-                const widthDiff = sprite.width - (tileProps.bodyWidth || sprite.width);
-                const heightDiff = sprite.height - (tileProps.bodyHeight || sprite.height);
-                sprite.body.setOffset(widthDiff / 2, heightDiff);
-            }
+    let customCollisionApplied = false;
+
+    if (tileProps) {
+        if (tileProps.bodyWidth && tileProps.bodyHeight) {
+            sprite.body.setSize(tileProps.bodyWidth, tileProps.bodyHeight);
+            customCollisionApplied = true;
         }
 
-        if (!customCollisionApplied) {
-            // Default Fallback Collision (small box at feet)
-            sprite.body.setSize(sprite.width, sprite.height * 0.2);
-            sprite.body.setOffset(0, sprite.height * 0.8);
+        if (tileProps.bodyOffsetY !== undefined) {
+            const widthDiff = sprite.width - (tileProps.bodyWidth || sprite.width);
+            const offsetX = widthDiff / 2;
+            const offsetY = sprite.height - (tileProps.bodyHeight || sprite.height) - tileProps.bodyOffsetY;
+            sprite.body.setOffset(offsetX, offsetY);
+            customCollisionApplied = true;
+        } else if (customCollisionApplied) {
+            const widthDiff = sprite.width - (tileProps.bodyWidth || sprite.width);
+            const heightDiff = sprite.height - (tileProps.bodyHeight || sprite.height);
+            sprite.body.setOffset(widthDiff / 2, heightDiff);
         }
+    }
 
-        // 5. Enable Interaction & Metadata (For Context Menu)
-        sprite.setInteractive();
-        sprite.objectInfo = {
-            Identifier: 'mapObject',
-            uniqueId: `${layerName}_${obj.id}`, // specific to this instance
-            name: tileProps.name || obj.name || textureKey, // Use Tiled object name, tile property name, or texture
-            description: tileProps.description || tileProps.desc || tileProps.icDescrip || 'It is a ' + (obj.type || 'object') + '.'
-        };
+    if (!customCollisionApplied) {
+        sprite.body.setSize(sprite.width, sprite.height * 0.2);
+        sprite.body.setOffset(0, sprite.height * 0.8);
+    }
 
-        // --- Zone Transparency Prop ---
-        // Store 'clearZone' on the sprite for the zoneUpdate listener
-        // Priority: Object Property > Tile Property
-        // Note: Tiled Object properties are in 'obj.properties' (array of objects {name, value}).
-        // Depending on Phaser version/loader, obj.properties might be normalized. 
-        // Let's check obj.properties if it exists.
+    // 5. Enable Interaction & Metadata
+    sprite.setInteractive();
+    sprite.objectInfo = {
+        Identifier: 'mapObject',
+        uniqueId: `${layerName}_${obj.id}`,
+        name: tileProps.name || obj.name || textureKey,
+        description: tileProps.description || tileProps.desc || tileProps.icDescrip || 'It is a ' + (obj.type || 'object') + '.'
+    };
 
-        let clearZone = null;
-        if (obj.properties) {
-            // Check object-level custom properties
-            if (Array.isArray(obj.properties)) {
-                const p = obj.properties.find(prop => prop.name === 'clearZone');
-                if (p) clearZone = p.value;
-            } else {
-                // Format might be object if Phaser normalized it
-                if (obj.properties.clearZone) clearZone = obj.properties.clearZone;
-            }
+    // --- Zone Transparency Prop ---
+    let clearZone = null;
+    if (obj.properties) {
+        if (Array.isArray(obj.properties)) {
+            const p = obj.properties.find(prop => prop.name === 'clearZone');
+            if (p) clearZone = p.value;
+        } else {
+            if (obj.properties.clearZone) clearZone = obj.properties.clearZone;
         }
+    }
+    if (!clearZone && tileProps && tileProps.clearZone) {
+        clearZone = tileProps.clearZone;
+    }
+    if (clearZone) {
+        sprite.clearZone = clearZone;
+    }
 
-        // Fallback to Tile Property if not on Object
-        if (!clearZone && tileProps && tileProps.clearZone) {
-            clearZone = tileProps.clearZone;
+    // --- TableTop Property ---
+    let isTableTop = false;
+    if (obj.properties) {
+        if (Array.isArray(obj.properties)) {
+            const p = obj.properties.find(prop => prop.name === 'tableTop');
+            if (p) isTableTop = p.value === true || p.value === 'true';
+        } else {
+            if (obj.properties.tableTop) isTableTop = obj.properties.tableTop;
         }
+    }
+    if (!isTableTop && tileProps && tileProps.tableTop) {
+        isTableTop = tileProps.tableTop === true || tileProps.tableTop === 'true';
+    }
+    if (isTableTop) {
+        sprite.objectInfo.tableTop = true;
+        if (scene.tableTopObjects) scene.tableTopObjects.push(sprite);
+    }
 
-        if (clearZone) {
-            sprite.clearZone = clearZone;
-            // console.log(`[World Builder] Object ${sprite.objectInfo.name} assigned clearZone: ${clearZone}`);
+    // --- Blocked Property (Collision) ---
+    let isBlocked = true;
+    let blockedProp = null;
+    if (obj.properties) {
+        if (Array.isArray(obj.properties)) {
+            const p = obj.properties.find(prop => prop.name === 'blocked');
+            if (p) blockedProp = p.value;
+        } else {
+            if (obj.properties.blocked !== undefined) blockedProp = obj.properties.blocked;
         }
+    }
+    if (blockedProp === null && tileProps && tileProps.blocked !== undefined) {
+        blockedProp = tileProps.blocked;
+    }
+    if (blockedProp === false || blockedProp === 'false') {
+        isBlocked = false;
+    }
 
-        // --- TableTop Property ---
-        // Priority: Object Property > Tile Property
-        let isTableTop = false;
-        if (obj.properties) {
-            if (Array.isArray(obj.properties)) {
-                const p = obj.properties.find(prop => prop.name === 'tableTop');
-                if (p) isTableTop = p.value === true || p.value === 'true';
-            } else {
-                if (obj.properties.tableTop) isTableTop = obj.properties.tableTop;
-            }
-        }
-        if (!isTableTop && tileProps && tileProps.tableTop) {
-            isTableTop = tileProps.tableTop === true || tileProps.tableTop === 'true';
-        }
-
-        if (isTableTop) {
-            sprite.objectInfo.tableTop = true;
-            if (scene.tableTopObjects) scene.tableTopObjects.push(sprite);
-        }
-
-        // --- Blocked Property (Collision) ---
-        // Priority: Object Property > Tile Property
-        let isBlocked = true; // Default to blocked (collidable)
-
-        let blockedProp = null;
-        if (obj.properties) {
-            if (Array.isArray(obj.properties)) {
-                const p = obj.properties.find(prop => prop.name === 'blocked');
-                if (p) blockedProp = p.value;
-            } else {
-                if (obj.properties.blocked !== undefined) blockedProp = obj.properties.blocked;
-            }
-        }
-
-        // If not found on object, check tile
-        if (blockedProp === null && tileProps && tileProps.blocked !== undefined) {
-            blockedProp = tileProps.blocked;
-        }
-
-        // Interpret value (handle string "false" from Tiled sometimes)
-        if (blockedProp === false || blockedProp === 'false') {
-            isBlocked = false;
-        }
-
-        if (!isBlocked) {
-            sprite.body.enable = false;
-            // console.log(`[World Builder] Disabled collision for ${sprite.objectInfo.name}`);
-        }
-    });
+    if (!isBlocked) {
+        sprite.body.enable = false;
+    }
 }

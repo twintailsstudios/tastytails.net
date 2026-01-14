@@ -55,7 +55,7 @@ const performItemUse = (io, socket, player, item, itemData, isWorldItem, worldIt
                         if (isWorldItem) {
                             io.emit('itemUpdated', item);
                         } else {
-                            io.emit('playerStateUpdate', { [socket.id]: player });
+                            io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
                             saveCharacter(socket.id);
                         }
                     }
@@ -74,7 +74,7 @@ const performItemUse = (io, socket, player, item, itemData, isWorldItem, worldIt
                         if (player.actionHands.leftNode === item) player.actionHands.leftNode = null;
                         if (player.actionHands.rightNode === item) player.actionHands.rightNode = null;
 
-                        io.emit('playerStateUpdate', { [socket.id]: player });
+                        io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
                         saveCharacter(socket.id);
                     }
                 }
@@ -83,7 +83,7 @@ const performItemUse = (io, socket, player, item, itemData, isWorldItem, worldIt
                 if (isWorldItem) {
                     io.emit('itemUpdated', item);
                 } else {
-                    io.emit('playerStateUpdate', { [socket.id]: player });
+                    io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
                     saveCharacter(socket.id);
                 }
             }
@@ -98,4 +98,22 @@ const performItemUse = (io, socket, player, item, itemData, isWorldItem, worldIt
     }
 };
 
-module.exports = { performItemUse };
+/**
+ * Creates a safe, non-circular DTO of the player for socket emission.
+ */
+const getSafePlayerState = (player) => {
+    // 1. Shallow copy
+    const safe = { ...player };
+
+    // 2. Remove dangerous/circular fields
+    delete safe.socket; // The socket instance (huge circular structure)
+    delete safe.inputQueue; // High frequency queue
+    delete safe.saveTimer; // Timeout object
+
+    // 3. Remove server-only fields if necessary
+    // delete safe.lastSaveTime;
+
+    return safe;
+};
+
+module.exports = { performItemUse, getSafePlayerState };

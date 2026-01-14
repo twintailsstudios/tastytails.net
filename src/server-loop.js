@@ -1129,7 +1129,7 @@ function gameLoop(io) {
                 isVisible = true; // Fallback
               }
 
-              if (isVisible) {
+              if (isVisible && target.isInGame) {
                 visiblePlayers[targetId] = getUpdatePacketForOther(target);
               }
             }
@@ -1371,6 +1371,8 @@ module.exports.start = (io, _messageSystem) => {
       nickName: characterData ? characterData.nickName : "",
       Description: characterData ? characterData.icDescrip : "",
       icDescrip: characterData ? characterData.icDescrip : "",
+      // New flag to filter visibility
+      isInGame: !!characterData,
       // Semantic State Fields
       speciesName: characterData ? characterData.speciesName : "Unknown",
       pronouns: characterData ? characterData.pronouns : 0,
@@ -1513,12 +1515,25 @@ module.exports.start = (io, _messageSystem) => {
 
     // Send initial state to the new player
     // Send initial state to the new player
-    socket.emit('currentPlayers', players, spells);
     socket.emit('currentItems', worldItems); // Send World Items
+    // Send current players to the new connection
+    // FILTER: Only send players who are actually in-game
+    const visiblePlayers = {};
+    Object.keys(players).forEach(id => {
+      if (players[id].isInGame || id === socket.id) {
+        visiblePlayers[id] = players[id];
+      }
+    });
+    socket.emit('currentPlayers', visiblePlayers);
+
     // Send Map Segments (Shadows) including Doors
     socket.emit('mapSegments', getDynamicSegments());
     // Inform other players of the new player
-    socket.broadcast.emit('newPlayer', players[socket.id]);
+    // Broadcast new player to others
+    // FILTER: Only broadcast if this socket has a valid character
+    if (players[socket.id].isInGame) {
+      socket.broadcast.emit('newPlayer', players[socket.id]);
+    }
 
 
     // --- Helper to Save Character Data ---
@@ -1646,8 +1661,17 @@ module.exports.start = (io, _messageSystem) => {
         if (players[socket.id]) {
           // Merge new character data with existing player object
           players[socket.id] = { ...players[socket.id], ...pushedInfo };
+
+          // If this update provides character credentials (effectively logging in/creating), set isInGame
+          if (!players[socket.id].isInGame && pushedInfo.firstName && pushedInfo.firstName !== "Guest") {
+            players[socket.id].isInGame = true;
+          }
+
           log.info(`Character updated for ${socket.id}`);
           // Inform other players about the visual update
+          if (players[socket.id].isInGame) {
+            socket.broadcast.emit('newPlayer', players[socket.id]);
+          }
           socket.broadcast.emit('avatarSelection', players[socket.id]);
         }
       } catch (e) {

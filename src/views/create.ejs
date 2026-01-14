@@ -1016,6 +1016,7 @@
       // === ENTRANCE ===
       {
         id: 1,
+        graphNodeId: "1",
         type: "entrance",
         destination: "Maw",
         verb: "shoves",
@@ -1028,6 +1029,7 @@
       },
       {
         id: 2,
+        graphNodeId: "2",
         type: "entrance",
         destination: "Anus",
         verb: "squelches",
@@ -1042,6 +1044,7 @@
       // === PATH ===
       {
         id: 3,
+        graphNodeId: "3",
         type: "path",
         destination: "Gullet",
         x: 165,
@@ -1053,6 +1056,7 @@
       },
       {
         id: 4,
+        graphNodeId: "4",
         type: "path",
         destination: "Bowels",
         x: 165,
@@ -1066,6 +1070,7 @@
       // === DESTINATION ===
       {
         id: 5,
+        graphNodeId: "5",
         type: "destination",
         destination: "Stomach",
         digestionTimer: "120",
@@ -1083,6 +1088,7 @@
       // === EXIT ===
       {
         id: 6,
+        graphNodeId: "6",
         type: "exit",
         destination: "Anus",
         x: 445,
@@ -1096,6 +1102,7 @@
       // === ENTRANCE ===
       {
         id: 7,
+        graphNodeId: "7",
         type: "entrance",
         destination: "Cock",
         verb: "forces",
@@ -1109,6 +1116,7 @@
       // === PATH ===
       {
         id: 8,
+        graphNodeId: "8",
         type: "path",
         destination: "Shaft",
         x: 165,
@@ -1121,6 +1129,7 @@
       // === DESTINATION ===
       {
         id: 9,
+        graphNodeId: "9",
         type: "destination",
         destination: "Balls",
         verb: "presses",
@@ -1139,6 +1148,7 @@
       // === EXIT ===
       {
         id: 10,
+        graphNodeId: "10",
         type: "exit",
         destination: "Cock",
         x: 445,
@@ -1152,6 +1162,7 @@
       // === ENTRANCE ===
       {
         id: 11,
+        graphNodeId: "11",
         type: "entrance",
         destination: "Slit",
         verb: "envelops",
@@ -1165,6 +1176,7 @@
       // === PATH ===
       {
         id: 12,
+        graphNodeId: "12",
         type: "path",
         destination: "Canal",
         x: 165,
@@ -1177,6 +1189,7 @@
       // === DESTINATION ===
       {
         id: 13,
+        graphNodeId: "13",
         type: "destination",
         destination: "Womb",
         verb: "slurps",
@@ -1195,6 +1208,7 @@
       // === EXIT ===
       {
         id: 14,
+        graphNodeId: "14",
         type: "exit",
         destination: "Slit",
         x: 445,
@@ -1210,6 +1224,89 @@
     var localPlayerInfo = charList;
     var initialSetup = true;
     console.log('localPlayerInfo at start = ', localPlayerInfo);
+
+    // --- SAFETY SHIM: Ensure all nested objects exist to prevent crashes ---
+    if (!charList.ratings) charList.ratings = {};
+
+    // Head
+    if (!charList.head) charList.head = {};
+    if (!charList.head.sprite) charList.head.sprite = 'head_01';
+    if (!charList.head.color) charList.head.color = '0xe0e0e0';
+    if (!charList.head.secondarySprite) charList.head.secondarySprite = 'empty';
+    if (!charList.head.secondaryColor) charList.head.secondaryColor = '0xffffff';
+    if (!charList.head.accentSprite) charList.head.accentSprite = 'empty';
+    if (!charList.head.accentColor) charList.head.accentColor = '0x636363';
+
+    // Body Shape
+    if (!charList.bodyShape) charList.bodyShape = {};
+    if (!charList.bodyShape.sprite) charList.bodyShape.sprite = 'F-';
+
+    // Body
+    if (!charList.body) charList.body = {};
+    if (!charList.body.sprite) charList.body.sprite = 'body_01';
+    if (!charList.body.color) charList.body.color = '0xe0e0e0';
+    if (!charList.body.secondarySprite) charList.body.secondarySprite = 'body_01-empty';
+    if (!charList.body.secondaryColor) charList.body.secondaryColor = '0xffffff';
+    if (!charList.body.accentSprite) charList.body.accentSprite = 'body_01-empty';
+    if (!charList.body.accentColor) charList.body.accentColor = '0x636363';
+
+    // Hands
+    if (!charList.hands) charList.hands = {};
+    if (!charList.hands.sprite) charList.hands.sprite = 'body_01-empty';
+    if (!charList.hands.color) charList.hands.color = '0xe0e0e0';
+
+    // Feet
+    if (!charList.feet) charList.feet = {};
+    if (!charList.feet.sprite) charList.feet.sprite = 'body_01-empty';
+    if (!charList.feet.color) charList.feet.color = '0xe0e0e0';
+
+    // Tail
+    if (!charList.tail) charList.tail = {};
+    if (!charList.tail.sprite) charList.tail.sprite = 'tail_01';
+    if (!charList.tail.color) charList.tail.color = '0xe0e0e0';
+    if (!charList.tail.secondarySprite) charList.tail.secondarySprite = 'empty';
+    if (!charList.tail.secondaryColor) charList.tail.secondaryColor = '0xffffff';
+    if (!charList.tail.accentSprite) charList.tail.accentSprite = 'empty';
+    if (!charList.tail.accentColor) charList.tail.accentColor = '0x636363';
+
+    // Eyes
+    if (!charList.eyes) charList.eyes = {};
+    if (!charList.eyes.outer) charList.eyes.outer = 'eyes_02';
+    if (!charList.eyes.iris) charList.eyes.iris = 'eyes_01';
+    if (!charList.eyes.color) charList.eyes.color = '0xfcf2f2';
+
+    // Hair
+    if (!charList.hair) charList.hair = {};
+    if (!charList.hair.sprite) charList.hair.sprite = 'empty';
+    if (!charList.hair.color) charList.hair.color = '0x636363';
+
+    // Head Accessories
+    if (!charList.headAccessories) charList.headAccessories = {};
+    if (!charList.headAccessories.sprite) charList.headAccessories.sprite = 'empty';
+    if (!charList.headAccessories.color) charList.headAccessories.color = '0xffffff';
+
+    // Ear
+    if (!charList.ear) charList.ear = {};
+    if (!charList.ear.outerSprite) charList.ear.outerSprite = 'ears_01-outer';
+    if (!charList.ear.innerSprite) charList.ear.innerSprite = 'ears_01-inner';
+    if (!charList.ear.outerColor) charList.ear.outerColor = '0xe0e0e0';
+    if (!charList.ear.innerColor) charList.ear.innerColor = '0x636363';
+
+    // Beak
+    if (!charList.beak) charList.beak = {};
+    if (!charList.beak.sprite) charList.beak.sprite = 'empty';
+    if (!charList.beak.color) charList.beak.color = '0xffffff';
+
+    // Genitles (Genitals)
+    if (!charList.genitles) charList.genitles = {};
+    if (!charList.genitles.sprite) charList.genitles.sprite = 'empty';
+    if (!charList.genitles.secondarySprite) charList.genitles.secondarySprite = 'empty';
+
+    // Vore Types
+    if (!charList.voreTypes) charList.voreTypes = [];
+
+    // --- End Safety Shim ---
+
     if (charList.firstName == 'undefined' || charList.firstName == null) {
       charList.firstName = '';
     } else {

@@ -1,0 +1,158 @@
+/* === LOADING SCREEN STYLES === */
+/* Royal Fantasy Theme - Pinned Parchment */
+
+#loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #1a1512;
+    background-image:
+        linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+        url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+    z-index: 100000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    transition: opacity 0.5s ease-out;
+    backdrop-filter: blur(5px);
+}
+
+#loading-board {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: var(--wood-dark, #3e2723);
+    background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+    padding: 40px 60px 60px;
+    /* More padding at bottom for balance */
+    border: 8px solid var(--wood-light, #5d4037);
+    border-radius: 12px;
+    box-shadow:
+        inset 0 0 80px rgba(0, 0, 0, 0.9),
+        0 0 0 2px rgba(62, 39, 35, 0.8),
+        0 30px 60px rgba(0, 0, 0, 1);
+    min-width: 550px;
+    position: relative;
+    transform: rotate(0deg);
+}
+
+#loading-title {
+    font-family: 'Cinzel', serif;
+    font-size: 4rem;
+    color: var(--gold, #ffc107);
+    /* text-shadow removed to prevent stacking issues with background-clip: text */
+    margin-bottom: 30px;
+    letter-spacing: 6px;
+    font-weight: 700;
+    text-transform: uppercase;
+    /* Embossed effect on wood */
+    background: linear-gradient(180deg, #ffd700 0%, #c5a059 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 0 #000) drop-shadow(0 0 20px rgba(255, 193, 7, 0.4));
+}
+
+#loading-paper {
+    position: relative;
+    background-color: var(--parchment, #f3e5ab);
+    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    padding: 30px 50px;
+    width: 90%;
+    box-shadow:
+        0 10px 20px rgba(0, 0, 0, 0.5),
+        /* Drop shadow */
+        inset 0 0 60px rgba(161, 136, 127, 0.3);
+    /* Inner aging */
+    transform: rotate(-1.5deg);
+    /* Pinning tilt */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    /* Jagged edges via clip-path or border-image would be cool, but keeping simple for now */
+}
+
+/* Pins */
+.loading-pin {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: radial-gradient(circle at 35% 35%, #90a4ae, #37474f);
+    /* Metallic head */
+    border-radius: 50%;
+    box-shadow: 2px 4px 6px rgba(0, 0, 0, 0.6);
+    z-index: 10;
+}
+
+.loading-pin.tl {
+    top: 10px;
+    left: 10px;
+}
+
+.loading-pin.tr {
+    top: 10px;
+    right: 10px;
+}
+
+#loading-text {
+    font-family: 'Caveat Brush', cursive;
+    /* Handwritten feel */
+    font-size: 1.8rem;
+    color: var(--wood-dark, #3e2723);
+    margin-bottom: 25px;
+    min-height: 1.5em;
+    text-align: center;
+}
+
+#loading-bar-container {
+    width: 100%;
+    height: 20px;
+    background: #4e342e;
+    /* Dark wood slot */
+    border-radius: 10px;
+    border: 2px inset rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.6);
+}
+
+#loading-bar-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #d32f2f, #b71c1c);
+    /* Red wax or potion liquid */
+    /* Alternatively Gold: linear-gradient(90deg, #c5a059, #ffd700); */
+    background: linear-gradient(90deg, #ff8f00, #ff6f00);
+    /* Amber/Honey liquid */
+    box-shadow: 0 0 10px rgba(255, 111, 0, 0.6);
+    transition: width 0.3s ease-out;
+    position: relative;
+}
+
+/* Bubbles/Liquid effect overlay */
+#loading-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image:
+        radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px),
+        radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px);
+    background-size: 10px 10px;
+    background-position: 0 0, 5px 5px;
+    opacity: 0.3;
+}
+
+#loading-percent {
+    font-family: 'Cinzel', serif;
+    color: var(--wood-dark, #3e2723);
+    margin-top: 10px;
+    font-size: 1rem;
+    font-weight: bold;
+    opacity: 0.8;
+}

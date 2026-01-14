@@ -34,6 +34,14 @@ export const itemManager = {
         Object.keys(this.items).forEach(uid => this.removeItem(uid));
 
         serverItems.forEach(item => this.spawnItem(item));
+
+        // [MODIFIED] Update Loading Progress
+        if (this.scene && this.scene.updateLoadingProgress) {
+            console.log('[ItemManager] Setting Items Flag. count:', serverItems.length);
+            this.scene.loadingFlags.items = true;
+            this.scene.updateLoadingProgress(0.95, "Placing Items...");
+            this.scene.checkLoadingComplete();
+        }
     },
 
     setupItemInteraction: function (interactiveTarget, itemData, staticDef, tintTargets = []) {

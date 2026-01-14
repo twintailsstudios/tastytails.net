@@ -140,8 +140,43 @@ router.post('/createcharacter', async (req, res) => {
     // log('ratings = ', ratings);
 
     var voreTypes = [];
-    // log('req.body = ', req.body);
-    if (req.body.destination && Array.isArray(req.body.destination)) {
+
+    // NEW: Priority - Parse from anatomyData if available (Preserves graphNodeId)
+    if (req.body.anatomyData && req.body.anatomyData.length > 2) {
+      try {
+        const graph = JSON.parse(req.body.anatomyData);
+        if (graph.nodes) {
+          voreTypes = graph.nodes
+            .filter(node => node.type === 'destination')
+            .map(node => ({
+              id: node.id,
+              // CRITICAL: This allows server to match nodes by string ID
+              graphNodeId: String(node.id),
+              destination: node.properties.name || 'Unknown',
+              verb: node.properties.verb || 'eats',
+              type: node.type,
+              digestionTimer: node.properties.digestionTimer,
+              destinationDescrip: node.properties.destinationDescrip,
+              examineMsgDescrip: node.properties.examineMsgDescrip,
+              struggleInsideMsgDescrip: node.properties.struggleInsideMsgDescrip,
+              struggleOutsideMsgDescrip: node.properties.struggleOutsideMsgDescrip,
+              digestionInsideMsgDescrip: node.properties.digestionInsideMsgDescrip,
+              digestionOutsideMsgDescrip: node.properties.digestionOutsideMsgDescrip,
+              audioEntry: node.properties.enterSound || 'none',
+              audioAmbient: node.properties.ambientSound || 'none',
+              audioStruggle: node.properties.struggleSound || 'none',
+              audioExit: node.properties.exitSound || 'none',
+              contents: []
+            }));
+          // log.debug(`[Auth] Parsed ${voreTypes.length} vore types from anatomyData`);
+        }
+      } catch (e) {
+        log.warn("Failed to parse anatomyData during char create");
+      }
+    }
+
+    // Fallback / Legacy Support
+    if (voreTypes.length === 0 && req.body.destination && Array.isArray(req.body.destination)) {
       for (i = 0; i < req.body.destination.length; i++) {
         //log('req.body.destination[i] = ', req.body.destination[i]);
         var voreType = {
@@ -336,8 +371,41 @@ router.post('/editcharacter', async (req, res) => {
     // log('ratings = ', ratings);
 
     var voreTypes = [];
-    //log('req.body = ', req.body);
-    if (req.body.destination && Array.isArray(req.body.destination)) {
+
+    // NEW: Priority - Parse from anatomyData if available (Preserves graphNodeId)
+    if (req.body.anatomyData && req.body.anatomyData.length > 2) {
+      try {
+        const graph = JSON.parse(req.body.anatomyData);
+        if (graph.nodes) {
+          voreTypes = graph.nodes
+            .filter(node => node.type === 'destination')
+            .map(node => ({
+              id: node.id,
+              graphNodeId: String(node.id),
+              destination: node.properties.name || 'Unknown',
+              verb: node.properties.verb || 'eats',
+              type: node.type,
+              digestionTimer: node.properties.digestionTimer,
+              destinationDescrip: node.properties.destinationDescrip,
+              examineMsgDescrip: node.properties.examineMsgDescrip,
+              struggleInsideMsgDescrip: node.properties.struggleInsideMsgDescrip,
+              struggleOutsideMsgDescrip: node.properties.struggleOutsideMsgDescrip,
+              digestionInsideMsgDescrip: node.properties.digestionInsideMsgDescrip,
+              digestionOutsideMsgDescrip: node.properties.digestionOutsideMsgDescrip,
+              audioEntry: node.properties.enterSound || 'none',
+              audioAmbient: node.properties.ambientSound || 'none',
+              audioStruggle: node.properties.struggleSound || 'none',
+              audioExit: node.properties.exitSound || 'none',
+              contents: []
+            }));
+        }
+      } catch (e) {
+        log.warn("Failed to parse anatomyData during char edit");
+      }
+    }
+
+    // Fallback / Legacy Support
+    if (voreTypes.length === 0 && req.body.destination && Array.isArray(req.body.destination)) {
       for (i = 0; i < req.body.destination.length; i++) {
         //log('req.body.destination[i] = ', req.body.destination[i]);
         var voreType = {

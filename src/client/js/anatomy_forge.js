@@ -248,37 +248,144 @@ const AnatomyForge = (function () {
         connections = [];
         nextId = 1;
 
-        // 1. ORAL VORE CHAIN
-        const mouth = createNode('entrance', 100, 50, { name: 'Mouth', icon: 'tooth' }, false);
-        const throat = createNode('path', 300, 50, { name: 'Throat', icon: 'waves' }, false);
-        const stomach = createNode('destination', 500, 50, {
-            name: 'Stomach',
-            icon: 'spiral',
-            verb: 'shoves',
-            desc: 'The walls feel hot and slimy as they constrict around you.',
-            digestionTimer: '120',
-            examineMsg: "<pred>'s belly looks as though something inside is moving...",
-            struggleIn: "Pressing against the walls gets no reaction.",
-            struggleOut: "<pred>'s belly bulges with your struggle.",
-            digestIn: "You melt away...",
-            digestOut: "A soft belch escapes <pred>.",
-            audioEnter: 'swallow',
-            audioAmbience: 'gurgle_loud',
-            audioStruggle: 'squish',
-            audioExit: 'belch',
-            releaseMsg: "With a heave, <pred> spits you back out."
+        // --- 1. ORAL VORE CHAIN ---
+        // Mouth (1) -> Throat (2) -> Stomach (3) -> Bowels (4) -> Anus (5)
+        const mouth = createNode('entrance', 100, 50, {
+            id: 1,
+            name: 'Mouth',
+            icon: 'tooth',
+            verb: 'swallows',
+            mode: 'Hold'
         }, false);
 
-        const bowels = createNode('path', 700, 50, { name: 'Bowels', icon: 'waves' }, false);
-        const anusExit = createNode('exit', 900, 50, { name: 'Anus', icon: 'door' }, false);
+        const throat = createNode('path', 300, 50, {
+            id: 2,
+            name: 'Throat',
+            icon: 'waves'
+        }, false);
 
-        // Connections
-        connections.push({ from: mouth.id, to: throat.id });
-        connections.push({ from: throat.id, to: stomach.id });
-        connections.push({ from: stomach.id, to: bowels.id });
-        connections.push({ from: bowels.id, to: anusExit.id });
+        const stomach = createNode('destination', 500, 50, {
+            id: 3,
+            name: 'Stomach',
+            icon: 'spiral',
+            verb: 'digests',
+            digestionTimer: '120',
+            mode: 'Stomach',
+            destinationDescrip: "You slide into the hot, churning stomach.",
+            examineMsgDescrip: "<pred>'s belly looks as though something inside is moving...",
+            struggleInsideMsgDescrip: "You push against the slimy walls of the stomach.",
+            struggleOutsideMsgDescrip: "<pred>'s gut bulges as you struggle.",
+            digestionInsideMsgDescrip: "You feel your body softening in the acids...",
+            digestionOutsideMsgDescrip: "<pred> lets out a satisfied belch.",
+            audioEntry: 'swallow',
+            audioAmbient: 'gurgle_loud',
+            audioStruggle: 'squish',
+            audioExit: 'belch'
+        }, false);
 
-        nextId = 100; // Jump ID to avoid conflict
+        // --- 2. ANAL VORE CHAIN ---
+        // Anus (5) -> Bowels (4) -> Stomach (3) [Reverse flow?] 
+        // OR Separate: Anus (Exit/Entrance) -> Bowels (Destination/Path)
+        // User requested: "destinations for that path". 
+        // Standard setup: Anus -> Bowels (Destination).
+
+        const bowels = createNode('destination', 700, 50, {
+            id: 4,
+            name: 'Bowels',
+            icon: 'waves',
+            verb: 'clenchant',
+            mode: 'Bowels',
+            digestionTimer: '180',
+            destinationDescrip: "You are squeezed into the tight, winding bowels.",
+            struggleOutsideMsgDescrip: "<pred>'s rear shifts as you struggle."
+        }, false);
+
+        const anus = createNode('entrance', 900, 50, {
+            id: 5,
+            name: 'Anus',
+            icon: 'door',
+            verb: 'inserts',
+            mode: 'Hold'
+        }, false);
+        // Note: Anus can be Entrance AND Exit types? 
+        // Current logic splits types. Let's keep it 'entrance' for vore entry.
+        // It can also serves as exit for Digestion if linked from Bowels?
+        // For simplicity: Anus is Entrance -> Bowels. 
+
+        // --- 3. UNBIRTH CHAIN ---
+        // Slit (6) -> Vaginal Canal (7) -> Womb (8)
+        const slit = createNode('entrance', 100, 250, {
+            id: 6,
+            name: 'Slit',
+            icon: 'droplet',
+            verb: 'absorbs',
+            mode: 'Hold'
+        }, false);
+
+        const vcanal = createNode('path', 300, 250, {
+            id: 7,
+            name: 'Vaginal Canal',
+            icon: 'waves'
+        }, false);
+
+        const womb = createNode('destination', 500, 250, {
+            id: 8,
+            name: 'Womb',
+            icon: 'heart',
+            verb: 'birthing', // or unbirthing
+            mode: 'Womb',
+            digestionTimer: '0', // Womb usually safe?
+            destinationDescrip: "You are pushed into the warm, pulsing womb.",
+            struggleOutsideMsgDescrip: "<pred>'s womb kicks with life."
+        }, false);
+
+        // --- 4. COCK VORE CHAIN ---
+        // Cock (9) -> Urethra (10) -> Balls (11)
+        const cock = createNode('entrance', 100, 450, {
+            id: 9,
+            name: 'Cock',
+            icon: 'tail', // close enough shape?
+            verb: 'sounds',
+            mode: 'Hold'
+        }, false);
+
+        const urethra = createNode('path', 300, 450, {
+            id: 10,
+            name: 'Urethra',
+            icon: 'waves'
+        }, false);
+
+        const balls = createNode('destination', 500, 450, {
+            id: 11,
+            name: 'Balls',
+            icon: 'droplet',
+            verb: 'stores',
+            mode: 'Balls',
+            digestionTimer: '60', // Cum transfo?
+            destinationDescrip: "You splash down into the sticky balls.",
+            struggleOutsideMsgDescrip: "<pred>'s balls churn around you."
+        }, false);
+
+
+        // --- CONNECTIONS ---
+        // Oral
+        connections.push({ from: 1, to: 2 }); // Mouth -> Throat
+        connections.push({ from: 2, to: 3 }); // Throat -> Stomach
+        connections.push({ from: 3, to: 4 }); // Stomach -> Bowels (Digestion path)
+
+        // Anal
+        connections.push({ from: 5, to: 4 }); // Anus -> Bowels
+
+        // Unbirth
+        connections.push({ from: 6, to: 7 }); // Slit -> Canal
+        connections.push({ from: 7, to: 8 }); // Canal -> Womb
+
+        // Cock
+        connections.push({ from: 9, to: 10 }); // Cock -> Urethra
+        connections.push({ from: 10, to: 11 }); // Urethra -> Balls
+
+        nextId = 100; // Jump ID to avoid conflict with manual additions
+
         rebuildWorld();
     }
 
@@ -526,6 +633,8 @@ const AnatomyForge = (function () {
 
         const nodeData = {
             id: id,
+            // Ensure graphNodeId is always present as a string for server compatibility
+            graphNodeId: String(id),
             type: type,
             x: x,
             y: y,
