@@ -11,6 +11,7 @@
 
   <link rel="stylesheet" type="text/css" href="/css/options.css" />
   <link rel="stylesheet" type="text/css" href="/css/loading.css?v=<%= Date.now() %>" />
+  <link rel="stylesheet" type="text/css" href="/css/stats.css?v=<%= Date.now() %>" />
 
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -157,6 +158,29 @@
 
   <div id="phaserApp" tabindex="0" oncontextmenu="return showContextMenu(event);">
     <%- include('partials/gameOverlay') %>
+
+      <!-- Player Stats HUD -->
+      <div id="stats-hud">
+        <!-- Health -->
+        <div class="stat-bar-container">
+          <div class="stat-icon"><i class="fa-solid fa-heart" style="color: #ff4c4c;"></i></div>
+          <div id="health-bar-fill" class="stat-bar-fill" style="width: 100%;"></div>
+          <span id="health-text" class="stat-text">100 / 100</span>
+        </div>
+        <!-- Stamina -->
+        <div class="stat-bar-container">
+          <div class="stat-icon"><i class="fa-solid fa-bolt" style="color: #ffd700;"></i></div>
+          <div id="stamina-bar-fill" class="stat-bar-fill" style="width: 100%;"></div>
+          <span id="stamina-text" class="stat-text">100 / 100</span>
+        </div>
+        <!-- Mana -->
+        <div class="stat-bar-container">
+          <div class="stat-icon"><i class="fa-solid fa-star" style="color: #4169e1;"></i></div>
+          <div id="mana-bar-fill" class="stat-bar-fill" style="width: 100%;"></div>
+          <span id="mana-text" class="stat-text">100 / 100</span>
+        </div>
+      </div>
+
       <div id="dashboard-cluster">
         <!-- Vertical Column: Hands HUD + Inventory Drawer -->
         <div id="dashboard-main-col">

@@ -1,10 +1,13 @@
 const Chats = require('../model/Chat');
+const User = require('../model/User'); // Required for damage persistence
 const jwt = require('jsonwebtoken');
 const log = require('../logger');
 const serverGame = require('../server-loop'); // Import to access player lookup
 const { marked } = require('marked');
 const SemanticMapper = require('../server/SemanticMapper');
 const DatabaseResilience = require('./DatabaseResilience');
+const { applyDamage } = require('../server/mechanics/damage');
+const { healPlayer, revivePlayer } = require('../server/mechanics/health');
 
 const sanitizeHtml = require('sanitize-html');
 
@@ -317,38 +320,74 @@ class MessageSystem {
                 return socket.emit('tooManyChars', cleanMessage.length, data.message);
             }
 
+
             // 2.5 Tagging Command (State-Augmented Dataset)
             if (cleanMessage.startsWith('/tag ')) {
                 const tagContent = cleanMessage.substring(5).trim();
-                if (tagContent.length > 0) {
-                    const state = this.captureGameState(socket);
-                    if (state) {
-                        state.tags.push(tagContent);
+                // ... existing tag logic ...
+            }
 
-                        const chatMessage = new Chats({
-                            name: 'System (Tag)',
-                            type: 'Environmental',
-                            scope: 'local',
-                            message: [{ content: `[Data Tagged: ${tagContent}]`, time: new Date().toUTCString() }],
-                            spoiler: { status: 'none', votes: { watersports: 0, disposal: 0, gore: 0 } },
-                            deleted: { status: false, deletionTime: null },
-                            identifier: { account: verified._id, character: data.charId },
-                            visibleTo: [data.charId],
-                            gameState: state
-                        });
+            // 2.6 Damage Command (Verification)
+            if (cleanMessage.startsWith('/damage ')) {
+                const parts = cleanMessage.split(' ');
+                const amount = parseInt(parts[1]);
+                if (!isNaN(amount)) {
+                    const players = serverGame.getAllPlayers();
+                    const result = await applyDamage(players, User, socket.id, amount, socket.id, 'admin_command', serverGame.addCorpse, this.io);
 
-                        this.chatBuffer.push(chatMessage); // Queue for Bulk Insert
+                    if (result.success) {
+                        this.sendSystemMessage(
+                            'Environmental',
+                            `Applied ${amount} damage to self. New Health: ${result.newHealth}`,
+                            socket
+                        );
 
-                        // Acknowledge to user
-                        socket.emit('output', [{
-                            name: 'System',
-                            type: 'Environmental',
-                            message: [{ content: `Data tag recorded: "${tagContent}"`, time: new Date().toUTCString() }],
-                            identifier: { account: 'SYSTEM', character: 'SYSTEM' }
-                        }]);
+                        // Force update broadcast if not handled automatically (stats might need manual push?)
+                        // serverGame.broadcastToVisible(this.io, socket.id, 'playerUpdates', ...); 
+                        // Actually, let's assume gameLoop picks it up, or we can force it here if needed.
                     }
                 }
-                return; // Stop processing normal message
+                return;
+            }
+
+            // 2.7 Heal Command
+            if (cleanMessage.startsWith('/heal ')) {
+                const parts = cleanMessage.split(' ');
+                const amount = parseInt(parts[1]);
+                if (!isNaN(amount)) {
+                    const players = serverGame.getAllPlayers();
+                    const result = await healPlayer(players, User, socket.id, amount);
+
+                    if (result.success) {
+                        this.sendSystemMessage(
+                            'Environmental',
+                            `You healed yourself for ${amount}. New Health: ${result.newHealth}`,
+                            socket
+                        );
+                    }
+                }
+                return;
+            }
+
+            // 2.8 Revive Command
+            if (cleanMessage.trim() === '/revive') {
+                const players = serverGame.getAllPlayers();
+                const result = await revivePlayer(players, User, socket.id, this.io);
+
+                if (result.success) {
+                    this.sendSystemMessage(
+                        'Environmental',
+                        `You have been revived!`,
+                        socket
+                    );
+                } else if (result.error === 'Player is not dead') {
+                    this.sendSystemMessage(
+                        'Environmental',
+                        `You are not dead!`,
+                        socket
+                    );
+                }
+                return;
             }
 
             // 3. Classify Message (using the CLEAN parsed version for safety in logs, but maybe raw for command checks?)

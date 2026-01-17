@@ -21,9 +21,11 @@ const { resolveItemDef } = require('./utils/itemUtils');
 const DatabaseResilience = require('./classes/DatabaseResilience');
 
 const VisibilityPolygon = require('visibility-polygon'); // New: For shadowcasting
+const { processDigestion } = require('./server/mechanics/digestion'); // New: Digestion System
 
 // --- Game State Variables ---
 const players = {};
+const corpses = {}; // New: Store dead bodies
 const spells = [];
 let collisionMap = [];
 let hillHomeMap = [];
@@ -1027,6 +1029,7 @@ function isPointInPolygon(x, y, vs) {
 //  * @param { SocketIO.Server } io - The main socket.io instance.
 //  */
 let lastUpdateTime = Date.now();
+let lastDigestionTime = Date.now();
 const VIEW_DISTANCE = 950; // Increased to 950 per user request
 const VISIBILITY_BUFFER = 30; // Reduced to 30 to prevent early pop-in from shadows
 
@@ -1036,6 +1039,17 @@ function gameLoop(io) {
   lastUpdateTime = now;
 
   updatePlayers(delta, io);
+
+  // --- DIGESTION SYSTEM ---
+  // Run once per second (approx)
+  if (now - lastDigestionTime > 1000) {
+    processDigestion(players, User, io, (corpseData) => {
+      const id = 'corpse_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      corpses[id] = { ...corpseData, id };
+      return id;
+    }, messageSystem);
+    lastDigestionTime = now;
+  }
 
   // --- AREA OF INTEREST (AOI) SYSTEM ---
   // The AOI system is a network optimization technique.
@@ -1130,7 +1144,18 @@ function gameLoop(io) {
               }
 
               if (isVisible && target.isInGame) {
-                visiblePlayers[targetId] = getUpdatePacketForOther(target);
+                // VISIBILITY FILTER FOR SPIRITS
+                // 1. If Observer is Alive: Cannot see Dead players (Spirits)
+                // 2. If Observer is Dead: Can see everyone (Alive + Spirits)
+                const observerIsDead = observer.isDead;
+                const targetIsDead = target.isDead;
+
+                if (!observerIsDead && targetIsDead) {
+                  // Alive observer cannot see Spirit target
+                  // Skip
+                } else {
+                  visiblePlayers[targetId] = getUpdatePacketForOther(target);
+                }
               }
             }
           }
@@ -1184,6 +1209,10 @@ function gameLoop(io) {
       });
 
       if (Object.keys(updatesToSend).length > 0) {
+        // DEBUG: Check for stats
+        if (updatesToSend[observerId] && updatesToSend[observerId].stats) {
+          console.log(`[Server] Emitting stats delta to ${observerId}:`, updatesToSend[observerId].stats);
+        }
         socket.emit('playerUpdates', updatesToSend);
       }
     }
@@ -1237,6 +1266,10 @@ function getCommonPlayerState(player) {
     consumedBy: player.consumedBy,
     action: player.action,
 
+    // Death & Spirit
+    isDead: player.isDead,
+    spiritSprite: player.spiritSprite,
+
     // Struggle / Vore States
     grippedFirmly: player.grippedFirmly,
     struggleCount: player.struggleCount,
@@ -1249,7 +1282,10 @@ function getCommonPlayerState(player) {
     // Crafting State
     isCrafting: player.isCrafting,
     craftingStartTime: player.craftingStartTime,
-    craftingDuration: player.craftingDuration
+    craftingDuration: player.craftingDuration,
+
+    // Stats (Health, Stamina, Mana)
+    stats: player.stats
   };
 }
 
@@ -1376,9 +1412,12 @@ module.exports.start = (io, _messageSystem) => {
       // Semantic State Fields
       speciesName: characterData ? characterData.speciesName : "Unknown",
       pronouns: characterData ? characterData.pronouns : 0,
-      stats: characterData ? characterData.ratings : {},
+      stats: characterData ? (characterData.stats || characterData.ratings || { health: 100, maxHealth: 100, stamina: 100, maxStamina: 100, mana: 100, maxMana: 100 }) : { health: 100, maxHealth: 100, stamina: 100, maxStamina: 100, mana: 100, maxMana: 100 },
 
       voreTypes: characterData ? characterData.voreTypes : [],
+
+      isDead: characterData ? (characterData.isDead || false) : false,
+      spiritSprite: characterData ? (characterData.spiritSprite || {}) : {},
 
       equipment: loadedEquipment ? loadedEquipment : {
         hair: null,
@@ -1516,6 +1555,7 @@ module.exports.start = (io, _messageSystem) => {
     // Send initial state to the new player
     // Send initial state to the new player
     socket.emit('currentItems', worldItems); // Send World Items
+    socket.emit('currentCorpses', corpses); // Send Corpses
     // Send current players to the new connection
     // FILTER: Only send players who are actually in-game
     const visiblePlayers = {};
@@ -1597,7 +1637,11 @@ module.exports.start = (io, _messageSystem) => {
         },
         'characters.$.voreTypes': p.voreTypes || [],
         'characters.$.consumedBy': p.consumedBy,
-        'characters.$.ratings': p.ratings || {}
+        'characters.$.voreTypes': p.voreTypes || [],
+        'characters.$.consumedBy': p.consumedBy,
+        'characters.$.ratings': p.ratings || {},
+        'characters.$.isDead': p.isDead || false,
+        'characters.$.spiritSprite': p.spiritSprite || {}
       };
 
       if (p.equipment) {
@@ -2008,6 +2052,7 @@ module.exports.start = (io, _messageSystem) => {
                   id: e.id,
                   graphNodeId: String(e.id),
                   isEntrance: true,
+                  verb: e.properties.verb
                   // We don't send the full graph here, just the entry points
                 }));
               }
@@ -2125,6 +2170,15 @@ module.exports.start = (io, _messageSystem) => {
   }, 1000 / TICK_RATE);
 
   log.success('Server game loop started.');
+
+  // --- Digestion Loop (Every 5 Seconds) ---
+  setInterval(async () => {
+    try {
+      await processDigestion(players, User, io, module.exports.addCorpse, messageSystem);
+    } catch (e) {
+      log.error('Error in Digestion Loop:', e);
+    }
+  }, 5000);
 };
 
 module.exports.findPlayerByName = (name) => {
@@ -2248,6 +2302,16 @@ module.exports.getMapDataAt = (x, y) => {
 
 module.exports.getAllPlayers = () => players;
 module.exports.getWorldItems = () => worldItems;
+module.exports.getCorpses = () => corpses;
+module.exports.addCorpse = (corpseData) => {
+  const corpseId = `corpse_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  corpses[corpseId] = {
+    ...corpseData,
+    id: corpseId,
+    timestamp: Date.now()
+  };
+  return corpseId;
+};
 module.exports.updateDynamicSegments = updateDynamicSegments; // Export if needed
 
 /**

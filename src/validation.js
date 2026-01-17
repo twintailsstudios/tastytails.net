@@ -56,7 +56,7 @@ const charCreateValidation = (data) => {
     iaoStar: Joi.number(),
     destination: Joi.array(),
     verb: Joi.array(),
-    digestionTimer: Joi.array(),
+    digestivePower: Joi.array(),
     animation: Joi.array(),
     destinationDescrip: Joi.array(),
     examineMsgDescrip: Joi.array(),
@@ -74,7 +74,7 @@ const voreTypeValidation = (data) => {
   const schema = Joi.object({
     destination: Joi.string(),
     verb: Joi.string(),
-    digestionTimer: Joi.number(),
+    digestivePower: Joi.string(),
     animation: Joi.number(),
     destinationDescrip: Joi.string(),
     examineMsgDescrip: Joi.string(),

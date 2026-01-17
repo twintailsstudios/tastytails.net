@@ -146,12 +146,25 @@ export function getPlayerSprite(playerId, group) {
 
 export function displayPlayers(self, playerInfo) {
     const localPlayerInfo = window.localPlayerInfo;
-    // console.log('[displayPlayers] Creating player with playerInfo:', playerInfo);
-    // console.log(`%c[displayPlayers] Creating player at: (${playerInfo.position.x}, ${playerInfo.position.y})`, 'color: cyan; font-weight: bold;');
-    // console.log('localPlayerInfo at displayPlayers Function = ', localPlayerInfo);
+
+    // --- SPIRIT/DEATH LOGIC START ---
+    // If dead, use spiritSprite for visuals
+    let visualData = playerInfo;
+    const isDead = playerInfo.isDead && playerInfo.spiritSprite;
+
+    if (isDead) {
+        // Overlay spirit visual parts onto the base player info for rendering purposes
+        visualData = { ...playerInfo, ...playerInfo.spiritSprite };
+    }
+    // --- SPIRIT/DEATH LOGIC END ---
 
     const playerContainer = self.add.container(playerInfo.position.x, playerInfo.position.y);
     updateStruggleBar(playerContainer, playerInfo, self);
+
+    // If dead, set ghost transparency
+    if (isDead) {
+        playerContainer.setAlpha(0.8);
+    }
 
     // If the player is consumed, we hide their sprite entirely.
     // They are technically still there (for camera following), but invisible.
@@ -191,30 +204,30 @@ export function displayPlayers(self, playerInfo) {
     };
 
     //----- the 30, -87 defines the placement of the sprite in the container -----//
-    const playerContainerTail = self.add.sprite(30, -81.5, playerInfo.tail.sprite).setTint(parseColor(playerInfo.tail.color)).setName('tail');
-    const playerContainersecondaryTail = self.add.sprite(30, -81.5, playerInfo.tail.secondarySprite).setTint(parseColor(playerInfo.tail.secondaryColor)).setName('secondaryTail');
-    const playerContaineraccentTail = self.add.sprite(30, -81.5, playerInfo.tail.accentSprite).setTint(parseColor(playerInfo.tail.accentColor)).setName('accentTail');
+    const playerContainerTail = self.add.sprite(30, -81.5, visualData.tail.sprite).setTint(parseColor(visualData.tail.color)).setName('tail');
+    const playerContainersecondaryTail = self.add.sprite(30, -81.5, visualData.tail.secondarySprite).setTint(parseColor(visualData.tail.secondaryColor)).setName('secondaryTail');
+    const playerContaineraccentTail = self.add.sprite(30, -81.5, visualData.tail.accentSprite).setTint(parseColor(visualData.tail.accentColor)).setName('accentTail');
 
-    const playerContainerbody = self.add.sprite(30, -81.5, playerInfo.body.sprite).setTint(parseColor(playerInfo.body.color)).setName('body');
-    const playerContainersecondaryBody = self.add.sprite(30, -81.5, playerInfo.body.secondarySprite).setTint(parseColor(playerInfo.body.secondaryColor)).setName('secondaryBody');
-    const playerContaineraccentBody = self.add.sprite(30, -81.5, playerInfo.body.accentSprite).setTint(parseColor(playerInfo.body.accentColor)).setName('accentBody');
-    const playerContainergenitles = self.add.sprite(30, -81.5, playerInfo.genitles.sprite).setName('genitles');
-    const playerContainerHands = self.add.sprite(30, -81.5, playerInfo.hands.sprite).setTint(parseColor(playerInfo.hands.color)).setName('hands');
-    const playerContainerFeet = self.add.sprite(30, -81.5, playerInfo.feet.sprite).setTint(parseColor(playerInfo.feet.color)).setName('feet');
+    const playerContainerbody = self.add.sprite(30, -81.5, visualData.body.sprite).setTint(parseColor(visualData.body.color)).setName('body');
+    const playerContainersecondaryBody = self.add.sprite(30, -81.5, visualData.body.secondarySprite).setTint(parseColor(visualData.body.secondaryColor)).setName('secondaryBody');
+    const playerContaineraccentBody = self.add.sprite(30, -81.5, visualData.body.accentSprite).setTint(parseColor(visualData.body.accentColor)).setName('accentBody');
+    const playerContainergenitles = self.add.sprite(30, -81.5, visualData.genitles.sprite).setName('genitles');
+    const playerContainerHands = self.add.sprite(30, -81.5, visualData.hands.sprite).setTint(parseColor(visualData.hands.color)).setName('hands');
+    const playerContainerFeet = self.add.sprite(30, -81.5, visualData.feet.sprite).setTint(parseColor(visualData.feet.color)).setName('feet');
 
-    const playerContainerhead = self.add.sprite(30, -81.5, playerInfo.head.sprite).setTint(parseColor(playerInfo.head.color)).setName('head');
-    const playerContainersecondaryHead = self.add.sprite(30, -81.5, playerInfo.head.secondarySprite).setTint(parseColor(playerInfo.head.secondaryColor)).setName('secondaryHead');
-    const playerContaineraccentHead = self.add.sprite(30, -81.5, playerInfo.head.accentSprite).setTint(parseColor(playerInfo.head.accentColor)).setName('accentHead');
+    const playerContainerhead = self.add.sprite(30, -81.5, visualData.head.sprite).setTint(parseColor(visualData.head.color)).setName('head');
+    const playerContainersecondaryHead = self.add.sprite(30, -81.5, visualData.head.secondarySprite).setTint(parseColor(visualData.head.secondaryColor)).setName('secondaryHead');
+    const playerContaineraccentHead = self.add.sprite(30, -81.5, visualData.head.accentSprite).setTint(parseColor(visualData.head.accentColor)).setName('accentHead');
 
-    const playerContainerBeak = self.add.sprite(30, -81.5, playerInfo.beak.sprite).setTint(parseColor(playerInfo.beak.color)).setName('beak');
+    const playerContainerBeak = self.add.sprite(30, -81.5, visualData.beak.sprite).setTint(parseColor(visualData.beak.color)).setName('beak');
 
-    const playerContainerouterEar = self.add.sprite(30, -81.5, playerInfo.ear.outerSprite).setTint(parseColor(playerInfo.ear.outerColor)).setName('outerEar');
-    const playerContainerinnerEar = self.add.sprite(30, -81.5, playerInfo.ear.innerSprite).setTint(parseColor(playerInfo.ear.innerColor)).setName('innerEar');
+    const playerContainerouterEar = self.add.sprite(30, -81.5, visualData.ear.outerSprite).setTint(parseColor(visualData.ear.outerColor)).setName('outerEar');
+    const playerContainerinnerEar = self.add.sprite(30, -81.5, visualData.ear.innerSprite).setTint(parseColor(visualData.ear.innerColor)).setName('innerEar');
 
-    const playerContainereyes = self.add.sprite(30, -81.5, playerInfo.eyes.outer).setName('eyes');
-    const playerContaineriris = self.add.sprite(30, -81.5, playerInfo.eyes.iris).setTint(parseColor(playerInfo.eyes.color)).setName('iris');
-    const playerContainerhair = self.add.sprite(30, -81.5, playerInfo.hair.sprite).setTint(parseColor(playerInfo.hair.color)).setName('hair');
-    const playerContainerheadAccessories = self.add.sprite(30, -81.5, playerInfo.headAccessories.sprite).setTint(parseColor(playerInfo.headAccessories.color)).setName('headAccessories');
+    const playerContainereyes = self.add.sprite(30, -81.5, visualData.eyes.outer).setName('eyes');
+    const playerContaineriris = self.add.sprite(30, -81.5, visualData.eyes.iris).setTint(parseColor(visualData.eyes.color)).setName('iris');
+    const playerContainerhair = self.add.sprite(30, -81.5, visualData.hair.sprite).setTint(parseColor(visualData.hair.color)).setName('hair');
+    const playerContainerheadAccessories = self.add.sprite(30, -81.5, visualData.headAccessories.sprite).setTint(parseColor(visualData.headAccessories.color)).setName('headAccessories');
 
     playerContainer.add([
         playerContainerTail,
@@ -271,11 +284,24 @@ export function displayOtherPlayers(self, playerInfo) {
         existingPlayer.destroy();
     }
 
+    // --- SPIRIT/DEATH LOGIC START ---
+    let visualData = playerInfo;
+    const isDead = playerInfo.isDead && playerInfo.spiritSprite;
+
+    if (isDead) {
+        visualData = { ...playerInfo, ...playerInfo.spiritSprite };
+    }
+    // --- SPIRIT/DEATH LOGIC END ---
+
     const otherPlayerContainer = self.add.container(playerInfo.position.x, playerInfo.position.y);
     otherPlayerContainer.setSize(60, 163);
     self.physics.world.enable(otherPlayerContainer);
     otherPlayerContainer.setInteractive(new Phaser.Geom.Rectangle(30, -81.5, 60, 163), Phaser.Geom.Rectangle.Contains);
     otherPlayerContainer.body.setOffset(30, -81.5);
+
+    if (isDead) {
+        otherPlayerContainer.setAlpha(0.8);
+    }
 
     // If the player is consumed, we hide their sprite.
     // If the player is consumed, we hide their sprite ONLY if fully consumed (Stage 3)
@@ -294,42 +320,42 @@ export function displayOtherPlayers(self, playerInfo) {
         return color;
     };
 
-    const playerContainertail = self.add.sprite(30, -81.5, playerInfo.tail.sprite).setName('tail');
-    playerContainertail.setTint(parseColor(playerInfo.tail.color));
-    const playerContainersecondaryTail = self.add.sprite(30, -81.5, playerInfo.tail.secondarySprite).setName('secondaryTail');
-    playerContainersecondaryTail.setTint(parseColor(playerInfo.tail.secondaryColor));
-    const playerContaineraccentTail = self.add.sprite(30, -81.5, playerInfo.tail.accentSprite).setName('accentTail');
-    playerContaineraccentTail.setTint(parseColor(playerInfo.tail.accentColor));
-    const playerContainerbody = self.add.sprite(30, -81.5, playerInfo.body.sprite).setName('body');
-    playerContainerbody.setTint(parseColor(playerInfo.body.color));
-    const playerContainersecondaryBody = self.add.sprite(30, -81.5, playerInfo.body.secondarySprite).setName('secondaryBody');
-    playerContainersecondaryBody.setTint(parseColor(playerInfo.body.secondaryColor));
-    const playerContaineraccentBody = self.add.sprite(30, -81.5, playerInfo.body.accentSprite).setName('accentBody');
-    playerContaineraccentBody.setTint(parseColor(playerInfo.body.accentColor));
-    const playerContainergenitles = self.add.sprite(30, -81.5, playerInfo.genitles.sprite).setName('genitles');
-    const playerContainerHands = self.add.sprite(30, -81.5, playerInfo.hands.sprite).setName('hands');
-    playerContainerHands.setTint(parseColor(playerInfo.hands.color));
-    const playerContainerFeet = self.add.sprite(30, -81.5, playerInfo.feet.sprite).setName('feet');
-    playerContainerFeet.setTint(parseColor(playerInfo.feet.color));
-    const playerContainerhead = self.add.sprite(30, -81.5, playerInfo.head.sprite).setName('head');
-    playerContainerhead.setTint(parseColor(playerInfo.head.color));
-    const playerContainersecondaryHead = self.add.sprite(30, -81.5, playerInfo.head.secondarySprite).setName('secondaryHead');
-    playerContainersecondaryHead.setTint(parseColor(playerInfo.head.secondaryColor));
-    const playerContaineraccentHead = self.add.sprite(30, -81.5, playerInfo.head.accentSprite).setName('accentHead');
-    playerContaineraccentHead.setTint(parseColor(playerInfo.head.accentColor));
-    const playerContainerhair = self.add.sprite(30, -81.5, playerInfo.hair.sprite).setName('hair');
-    playerContainerhair.setTint(parseColor(playerInfo.hair.color));
-    const playerContainerouterEar = self.add.sprite(30, -81.5, playerInfo.ear.outerSprite).setName('outerEar');
-    playerContainerouterEar.setTint(parseColor(playerInfo.ear.outerColor));
-    const playerContainerinnerEar = self.add.sprite(30, -81.5, playerInfo.ear.innerSprite).setName('innerEar');
-    playerContainerinnerEar.setTint(parseColor(playerInfo.ear.innerColor));
-    const playerContainereyes = self.add.sprite(30, -81.5, playerInfo.eyes.outer).setName('eyes');
-    const playerContaineriris = self.add.sprite(30, -81.5, playerInfo.eyes.iris).setName('iris');
-    playerContaineriris.setTint(parseColor(playerInfo.eyes.color));
-    const playerContainerBeak = self.add.sprite(30, -81.5, playerInfo.beak.sprite).setName('beak');
-    playerContainerBeak.setTint(parseColor(playerInfo.beak.color));
-    const playerContainerheadAccessories = self.add.sprite(30, -81.5, playerInfo.headAccessories.sprite).setName('headAccessories');
-    playerContainerheadAccessories.setTint(parseColor(playerInfo.headAccessories.color));
+    const playerContainertail = self.add.sprite(30, -81.5, visualData.tail.sprite).setName('tail');
+    playerContainertail.setTint(parseColor(visualData.tail.color));
+    const playerContainersecondaryTail = self.add.sprite(30, -81.5, visualData.tail.secondarySprite).setName('secondaryTail');
+    playerContainersecondaryTail.setTint(parseColor(visualData.tail.secondaryColor));
+    const playerContaineraccentTail = self.add.sprite(30, -81.5, visualData.tail.accentSprite).setName('accentTail');
+    playerContaineraccentTail.setTint(parseColor(visualData.tail.accentColor));
+    const playerContainerbody = self.add.sprite(30, -81.5, visualData.body.sprite).setName('body');
+    playerContainerbody.setTint(parseColor(visualData.body.color));
+    const playerContainersecondaryBody = self.add.sprite(30, -81.5, visualData.body.secondarySprite).setName('secondaryBody');
+    playerContainersecondaryBody.setTint(parseColor(visualData.body.secondaryColor));
+    const playerContaineraccentBody = self.add.sprite(30, -81.5, visualData.body.accentSprite).setName('accentBody');
+    playerContaineraccentBody.setTint(parseColor(visualData.body.accentColor));
+    const playerContainergenitles = self.add.sprite(30, -81.5, visualData.genitles.sprite).setName('genitles');
+    const playerContainerHands = self.add.sprite(30, -81.5, visualData.hands.sprite).setName('hands');
+    playerContainerHands.setTint(parseColor(visualData.hands.color));
+    const playerContainerFeet = self.add.sprite(30, -81.5, visualData.feet.sprite).setName('feet');
+    playerContainerFeet.setTint(parseColor(visualData.feet.color));
+    const playerContainerhead = self.add.sprite(30, -81.5, visualData.head.sprite).setName('head');
+    playerContainerhead.setTint(parseColor(visualData.head.color));
+    const playerContainersecondaryHead = self.add.sprite(30, -81.5, visualData.head.secondarySprite).setName('secondaryHead');
+    playerContainersecondaryHead.setTint(parseColor(visualData.head.secondaryColor));
+    const playerContaineraccentHead = self.add.sprite(30, -81.5, visualData.head.accentSprite).setName('accentHead');
+    playerContaineraccentHead.setTint(parseColor(visualData.head.accentColor));
+    const playerContainerhair = self.add.sprite(30, -81.5, visualData.hair.sprite).setName('hair');
+    playerContainerhair.setTint(parseColor(visualData.hair.color));
+    const playerContainerouterEar = self.add.sprite(30, -81.5, visualData.ear.outerSprite).setName('outerEar');
+    playerContainerouterEar.setTint(parseColor(visualData.ear.outerColor));
+    const playerContainerinnerEar = self.add.sprite(30, -81.5, visualData.ear.innerSprite).setName('innerEar');
+    playerContainerinnerEar.setTint(parseColor(visualData.ear.innerColor));
+    const playerContainereyes = self.add.sprite(30, -81.5, visualData.eyes.outer).setName('eyes');
+    const playerContaineriris = self.add.sprite(30, -81.5, visualData.eyes.iris).setName('iris');
+    playerContaineriris.setTint(parseColor(visualData.eyes.color));
+    const playerContainerBeak = self.add.sprite(30, -81.5, visualData.beak.sprite).setName('beak');
+    playerContainerBeak.setTint(parseColor(visualData.beak.color));
+    const playerContainerheadAccessories = self.add.sprite(30, -81.5, visualData.headAccessories.sprite).setName('headAccessories');
+    playerContainerheadAccessories.setTint(parseColor(visualData.headAccessories.color));
 
     otherPlayerContainer.add([
         playerContainertail,

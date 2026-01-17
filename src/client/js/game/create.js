@@ -14,6 +14,7 @@ import { itemManager } from './items.js';
 import { equipmentManager } from './equipment.js';
 import { inventoryUI } from './inventory.js';
 import { CraftingUI } from './crafting.js'; // NEW
+import { initCorpses } from './corpses.js';
 
 let debugGraphics;
 let playerDebugGraphics;
@@ -298,6 +299,9 @@ export function create() {
     // --- Initialize Shadow System ---
     this.shadowSystem = new ShadowSystem(this);
 
+    // --- Initialize Corpse System ---
+    initCorpses(this, this.socket);
+
     // Listen for Map Segments (for client-side prediction)
     // Listen for Map Segments (for client-side prediction)
     this.socket.on('mapSegments', (segments) => {
@@ -386,13 +390,31 @@ export function create() {
                 if (self.playerContainer) {
                     // console.log('[Client] Calling reconcile for local player');
 
-                    // --- DELTA COMPRESSION HANDLING ---
                     // 1. Merge incoming delta into local authoritative state first
                     // Object.assign is shallow, but sufficient because server sends full component objects (pos, equipment) if they change.
+                    if (players[id].stats) {
+                        console.log('[Client] Received stats update:', players[id].stats);
+                    }
+
+                    // CHECK FOR DEATH STATE CHANGE (Before merge? No, merge is fine, just check key presence)
+                    const deathStateChanged = players[id].hasOwnProperty('isDead');
+
                     Object.assign(self.playerContainer.playerInfo, players[id]);
 
                     // 2. Use the Fully Merged State for logic
                     const fullState = self.playerContainer.playerInfo;
+
+                    // [FIX] Re-render if death state changed (Alive <-> Spirit)
+                    if (deathStateChanged) {
+                        console.log('[Client] Death state changed for self. Re-rendering.');
+                        if (self.playerContainer) self.playerContainer.destroy();
+                        displayPlayers(self, fullState);
+                        // Important: Updates below (equipment, animations) are initialized by displayPlayers,
+                        // but we might want to let them run to ensure latest state (like active inputs) is applied?
+                        // displayPlayers resets inputSequenceNumber etc. This might be jarring.
+                        // But dying is a major event.
+                        return;
+                    }
 
                     reconcile(fullState, self);
 
@@ -452,6 +474,9 @@ export function create() {
                         }
                     } else {
                         // Player is NOT consumed (or released)
+                        // Only set visible if NOT dead (spirits are treated separately in displayPlayers, 
+                        // but actually spirits SHOULD be visible, just translucent).
+                        // displayPlayers sets opacity 0.8. setVisible(true) respects opacity.
                         self.playerContainer.setVisible(true);
 
                         // Ensure camera follows self
@@ -479,6 +504,18 @@ export function create() {
                 }
 
                 if (otherPlayer) {
+                    // CHECK FOR DEATH STATE CHANGE (Other Player)
+                    if (players[id].hasOwnProperty('isDead')) {
+                        console.log(`[Client] Death state changed for ${players[id].playerId}. Re-rendering.`);
+                        // Update info first so displayOtherPlayers has latest isDead status
+                        Object.assign(otherPlayer.playerInfo, players[id]);
+                        const fullState = otherPlayer.playerInfo;
+
+                        const newSprite = displayOtherPlayers(self, fullState);
+                        self.otherPlayersMap.set(players[id].playerId, newSprite);
+                        return; // Sprite recreated, skip update logic
+                    }
+
                     // Update position and state
                     // --- CLIENT SIDE PREDICTION JITTER FIX ---
                     // If held by us/visible player, we predict the position in update.js
@@ -536,6 +573,7 @@ export function create() {
                     if (fullState.consumedBy) {
                         otherPlayer.setVisible(false);
                     } else {
+                        // Force visible if not consumed (handles reappear / spirit opacity is baked in container)
                         otherPlayer.setVisible(true);
                     }
                 }

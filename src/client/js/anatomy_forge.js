@@ -38,6 +38,14 @@ const AnatomyForge = (function () {
         { label: 'Belch', value: 'belch' }
     ];
 
+    const DIGESTIVE_POWER_OPTIONS = [
+        { label: 'Very Low', value: 'Very Low' },
+        { label: 'Low', value: 'Low' },
+        { label: 'Normal', value: 'Normal' },
+        { label: 'High', value: 'High' },
+        { label: 'Very High', value: 'Very High' }
+    ];
+
     let historyStack = [];
     let redoStack = [];
     const MAX_HISTORY = 50;
@@ -138,6 +146,44 @@ const AnatomyForge = (function () {
                     nodes = data.nodes || [];
                     connections = data.links || [];
 
+                    // --- HYDRATION STEP (Optimization) ---
+                    // Merge runtime properties (voreTypes) back into the visual nodes
+                    if (legacyVoreList && Array.isArray(legacyVoreList)) {
+                        nodes.forEach(node => {
+                            // Find matching runtime data by ID (preferred) or Name
+                            const runtimeData = legacyVoreList.find(v =>
+                                String(v.graphNodeId) === String(node.id) ||
+                                v.destination === (node.properties ? node.properties.name : '')
+                            );
+
+                            if (runtimeData) {
+                                // Ensure properties object exists
+                                if (!node.properties) node.properties = {};
+
+                                // Restore name/icon if missing (minimal visual data)
+                                node.properties.name = runtimeData.destination;
+                                // icon might differ if user changed it in editor vs what server stored, 
+                                // but server doesn't store icon in voreTypes usually? 
+                                // actually User.js schema doesn't have icon in voreTypes. 
+                                // So Icon MUST persist in anatomyData.
+                                // But gameplay props (verb, desc) come from runtimeData.
+                                node.properties.verb = runtimeData.verb;
+                                node.properties.digestivePower = runtimeData.digestivePower;
+                                node.properties.mode = runtimeData.mode;
+                                node.properties.destinationDescrip = runtimeData.destinationDescrip;
+                                node.properties.examineMsgDescrip = runtimeData.examineMsgDescrip;
+                                node.properties.struggleInsideMsgDescrip = runtimeData.struggleInsideMsgDescrip;
+                                node.properties.struggleOutsideMsgDescrip = runtimeData.struggleOutsideMsgDescrip;
+                                node.properties.digestionInsideMsgDescrip = runtimeData.digestionInsideMsgDescrip;
+                                node.properties.digestionOutsideMsgDescrip = runtimeData.digestionOutsideMsgDescrip;
+                                node.properties.enterSound = runtimeData.audioEntry;
+                                node.properties.ambientSound = runtimeData.audioAmbient;
+                                node.properties.struggleSound = runtimeData.audioStruggle;
+                                node.properties.exitSound = runtimeData.audioExit;
+                            }
+                        });
+                    }
+
                     // Safely calculate nextId, ignoring non-numeric IDs (like default string IDs)
                     const maxId = nodes.reduce((max, n) => {
                         const val = parseInt(n.id);
@@ -145,12 +191,15 @@ const AnatomyForge = (function () {
                     }, 0);
                     nextId = data.nextId || (maxId + 1);
 
-                    // console.log("AnatomyForge: Loaded initial data", nodes.length, "nodes");
+                    // console.log("AnatomyForge: Loaded & Hydrated initial data", nodes.length, "nodes");
                 } catch (e) {
                     console.error("AnatomyForge: Failed to parse initial data", e);
-                    setupDefaultAnatomy(legacyVoreList);
+                    setupDefaultAnatomy(); // Fallback to default if parse fails
                 }
             } else {
+                // No anatomyData found. Check if we have voreTypes to rebuild from?
+                // If we have voreTypes but no anatomyData, it's a legacy migration case (rare if we just deleted anatomyData).
+                // Or a fresh character.
                 if (legacyVoreList && legacyVoreList.length > 0) {
                     // console.log("AnatomyForge: Setting up from legacy list");
                     setupFromLegacy(legacyVoreList);
@@ -183,7 +232,61 @@ const AnatomyForge = (function () {
 
     function triggerSave() {
         if (typeof onSaveCallback === 'function') {
-            onSaveCallback();
+            // --- COMPRESSION STEP (Optimization) ---
+            // 1. Create Lightweight Visual Graph (anatomyData)
+            const compressedNodes = nodes.map(n => {
+                // Keep only visual/structural properties
+                return {
+                    id: n.id,
+                    type: n.type,
+                    x: Math.round(n.x), // Int coords are fine
+                    y: Math.round(n.y),
+                    properties: {
+                        name: n.properties.name,
+                        icon: n.properties.icon
+                        // STRIPPED: verb, descriptions, sounds, power, mode
+                    }
+                };
+            });
+
+            const compressedData = JSON.stringify({
+                nodes: compressedNodes,
+                links: connections,
+                nextId: nextId
+            });
+
+            // 2. Create Rich Runtime List (voreTypes)
+            // This contains ALL the gameplay data we stripped from anatomyData
+            const fullVoreTypes = nodes.map(n => {
+                return {
+                    // id: n.id, // ID is handled by index or _id on server usually, but we pass graphNodeId
+                    graphNodeId: String(n.id),
+                    destination: n.properties.name || 'Unknown',
+                    type: n.type, // Important for UI filtering
+                    verb: n.properties.verb || 'eats',
+                    digestivePower: n.properties.digestivePower || 'Normal',
+                    mode: n.properties.mode || 'Hold',
+                    destinationDescrip: n.properties.destinationDescrip || '',
+                    examineMsgDescrip: n.properties.examineMsgDescrip || '',
+                    struggleInsideMsgDescrip: n.properties.struggleInsideMsgDescrip || '',
+                    struggleOutsideMsgDescrip: n.properties.struggleOutsideMsgDescrip || '',
+                    digestionInsideMsgDescrip: n.properties.digestionInsideMsgDescrip || '',
+                    digestionOutsideMsgDescrip: n.properties.digestionOutsideMsgDescrip || '',
+                    audioEntry: n.properties.enterSound || 'none',
+                    audioAmbient: n.properties.ambientSound || 'none',
+                    audioStruggle: n.properties.struggleSound || 'none',
+                    audioExit: n.properties.exitSound || 'none',
+                    // contents: [] // Contents are preserved by server, not sent by client usually
+                };
+            });
+
+            // console.log("AnatomyForge: Saving Compressed Data", { 
+            //     nodes: compressedNodes.length, 
+            //     jsonSize: compressedData.length,
+            //     voreTypes: fullVoreTypes.length 
+            // });
+
+            onSaveCallback(compressedData, fullVoreTypes);
         }
     }
 
@@ -269,7 +372,7 @@ const AnatomyForge = (function () {
             name: 'Stomach',
             icon: 'spiral',
             verb: 'digests',
-            digestionTimer: '120',
+            digestivePower: 'Normal',
             mode: 'Stomach',
             destinationDescrip: "You slide into the hot, churning stomach.",
             examineMsgDescrip: "<pred>'s belly looks as though something inside is moving...",
@@ -295,7 +398,7 @@ const AnatomyForge = (function () {
             icon: 'waves',
             verb: 'clenchant',
             mode: 'Bowels',
-            digestionTimer: '180',
+            digestivePower: 'Normal',
             destinationDescrip: "You are squeezed into the tight, winding bowels.",
             struggleOutsideMsgDescrip: "<pred>'s rear shifts as you struggle."
         }, false);
@@ -334,7 +437,7 @@ const AnatomyForge = (function () {
             icon: 'heart',
             verb: 'birthing', // or unbirthing
             mode: 'Womb',
-            digestionTimer: '0', // Womb usually safe?
+            digestivePower: 'Normal', // Womb usually safe?
             destinationDescrip: "You are pushed into the warm, pulsing womb.",
             struggleOutsideMsgDescrip: "<pred>'s womb kicks with life."
         }, false);
@@ -361,7 +464,7 @@ const AnatomyForge = (function () {
             icon: 'droplet',
             verb: 'stores',
             mode: 'Balls',
-            digestionTimer: '60', // Cum transfo?
+            digestivePower: 'Normal', // Cum transfo?
             destinationDescrip: "You splash down into the sticky balls.",
             struggleOutsideMsgDescrip: "<pred>'s balls churn around you."
         }, false);
@@ -631,6 +734,16 @@ const AnatomyForge = (function () {
         if (type === 'path') { defaultName = "Esophagus"; defaultIcon = "waves"; }
         if (type === 'exit') { defaultName = "Anus"; defaultIcon = "door"; }
 
+        const props = {
+            name: initialData.name || defaultName,
+            icon: initialData.icon || defaultIcon,
+            ...initialData
+        };
+
+        if (type === 'destination' && !props.digestivePower) {
+            props.digestivePower = 'Normal';
+        }
+
         const nodeData = {
             id: id,
             // Ensure graphNodeId is always present as a string for server compatibility
@@ -638,11 +751,7 @@ const AnatomyForge = (function () {
             type: type,
             x: x,
             y: y,
-            properties: {
-                name: initialData.name || defaultName,
-                icon: initialData.icon || defaultIcon,
-                ...initialData
-            }
+            properties: props
         };
 
         nodes.push(nodeData);
@@ -908,7 +1017,7 @@ const AnatomyForge = (function () {
         }
 
         if (node.type === 'destination') {
-            addInputField(node, 'digestionTimer', 'Timer (Sec)', 'number');
+            addSelectField(node, 'digestivePower', 'Digestive Power', DIGESTIVE_POWER_OPTIONS);
 
             addSectionHeader('Audio Atmosphere');
             addSelectField(node, 'enterSound', 'Enter Sound', AUDIO_OPTIONS);
@@ -1206,7 +1315,7 @@ const AnatomyForge = (function () {
             const p = node.properties;
             createHiddenField(shim, 'destination[]', p.name || 'Stomach'); // Changed to match demo logic where name is destination
             createHiddenField(shim, 'verb[]', p.verb || 'eats');
-            createHiddenField(shim, 'digestionTimer[]', p.digestionTimer || 120);
+            createHiddenField(shim, 'digestivePower[]', p.digestivePower || 'Normal');
             createHiddenField(shim, 'animation[]', 1); // Defaulting animation as it's not in the new inspector yet
 
             createHiddenField(shim, 'destinationDescrip[]', p.destinationDescrip || '');

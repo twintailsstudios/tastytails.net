@@ -1,0 +1,83 @@
+/* Stats HUD Container */
+#stats-hud {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+    pointer-events: none;
+    /* Let clicks pass through to game */
+}
+
+/* Individual Stat Bar Container */
+.stat-bar-container {
+    position: relative;
+    width: 250px;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.7);
+    border: 3px solid #4a3e2a;
+    /* Dark wood/gold border */
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Common Bar Styling */
+.stat-bar-fill {
+    height: 100%;
+    width: 100%;
+    /* Default to full, JS updates this */
+    transition: width 0.3s ease-out;
+    position: relative;
+}
+
+/* Health Bar Specifics */
+#health-bar-fill {
+    background: linear-gradient(90deg, #8b0000, #ff4c4c);
+    /* Dark red to bright red */
+}
+
+/* Stamina Bar Specifics */
+#stamina-bar-fill {
+    background: linear-gradient(90deg, #b8860b, #ffd700);
+    /* Dark gold to bright gold/yellow */
+}
+
+/* Mana Bar Specifics */
+#mana-bar-fill {
+    background: linear-gradient(90deg, #00008b, #4169e1);
+    /* Dark blue to royal blue */
+}
+
+/* Text Overlay */
+.stat-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+    white-space: nowrap;
+    z-index: 2;
+}
+
+/* Optional: Icons next to bars */
+.stat-icon {
+    position: absolute;
+    left: -25px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 16px;
+    text-shadow: 0 0 3px #000;
+}

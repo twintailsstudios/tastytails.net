@@ -13,7 +13,22 @@ export function createVoreList(voreTypes, self) {
     // 1. Render the Accordion List
     voreTypes.forEach((vore, index) => {
         // Filter out nodes that are NOT destinations (e.g. Entrances)
-        if (vore.isEntrance) return;
+        // CHANGED: We now strict check for 'destination' type because voreTypes now contains ALL nodes
+        // Parse anatomyData for robust type checking (handles legacy data missing types in voreTypes)
+        let nodeType = vore.type;
+        if (!nodeType && window.localPlayerInfo && window.localPlayerInfo.anatomyData) {
+            try {
+                const graph = JSON.parse(window.localPlayerInfo.anatomyData);
+                if (graph.nodes) {
+                    const node = graph.nodes.find(n => String(n.id) === vore.graphNodeId);
+                    if (node) nodeType = node.type;
+                }
+            } catch (e) { /* ignore parse error */ }
+        }
+
+        // Default to 'destination' if we still don't know (Legacy Safety), 
+        // BUT strict filter if we DO know it's not a destination.
+        if (nodeType && nodeType !== 'destination') return;
 
         // Create Card
         const card = document.createElement("div");
@@ -245,12 +260,23 @@ function openSettings(voreData, self) {
         }, 50);
     }
 
-    if (voreData) {
-        console.log("Opening Forge for specific destination:", voreData._id);
-        // TODO: In future, tell AnatomyForge to focus/select this node
-        // e.g. AnatomyForge.selectNode(voreData._id);
-    } else {
-        console.log("Opening Forge (General)");
+    if (window.AnatomyForge) {
+        if (!window.AnatomyForgeInitialized) {
+            // Initialize with current data
+            const anatomyData = window.localPlayerInfo.anatomyData || "";
+            const voreTypes = window.localPlayerInfo.voreTypes || [];
+
+            window.AnatomyForge.init("anatomyForgeContainer", anatomyData, voreTypes, (newAnatomyData, newVoreTypes) => {
+                console.log("Saving from Anatomy Forge...", { voreTypesCount: newVoreTypes ? newVoreTypes.length : 0 });
+                // Note: The second arg 'newVoreTypes' is the RICH array from the compressed save logic.
+                // We send it to the server so it doesn't have to re-parse the now-stripped anatomyData.
+                self.socket.emit('updateVoreSettings', {
+                    anatomyData: newAnatomyData,
+                    voreTypes: newVoreTypes // Explicit pass
+                });
+            });
+            window.AnatomyForgeInitialized = true;
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 import { updateCraftingBar } from './player.js';
+import { updateStatsUI } from './stats.js';
 
 export function update(time, delta) {
     const chatFocused = window.chatFocused;
@@ -6,6 +7,11 @@ export function update(time, delta) {
     const playerDebugGraphics = this.playerDebugGraphics;
     const debugGraphics = this.debugGraphics;
     const serverBlockedTiles = window.serverBlockedTiles;
+
+    // Always update UI even if chat is focused
+    if (this.playerContainer && this.playerContainer.playerInfo) {
+        updateStatsUI(this.playerContainer.playerInfo);
+    }
 
     if (!this.playerContainer || !this.cursors || chatFocused) {
         return;
@@ -402,6 +408,7 @@ export function update(time, delta) {
     // Moved inside if(this.playerContainer) check below? No, keep it here.
     if (this.playerContainer) {
         updateCraftingBar(this.playerContainer, this.playerContainer.playerInfo, this);
+        updateStatsUI(this.playerContainer.playerInfo);
     }
     // --- OTHER PLAYERS UPDATE (Optimized Map) ---
     // Optimization: Pre-calculate lerp factor once per frame

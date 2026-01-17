@@ -147,7 +147,7 @@ router.post('/createcharacter', async (req, res) => {
         const graph = JSON.parse(req.body.anatomyData);
         if (graph.nodes) {
           voreTypes = graph.nodes
-            .filter(node => node.type === 'destination')
+            // .filter(node => node.type === 'destination') // CHANGED: Include all nodes
             .map(node => ({
               id: node.id,
               // CRITICAL: This allows server to match nodes by string ID
@@ -155,7 +155,7 @@ router.post('/createcharacter', async (req, res) => {
               destination: node.properties.name || 'Unknown',
               verb: node.properties.verb || 'eats',
               type: node.type,
-              digestionTimer: node.properties.digestionTimer,
+              digestivePower: node.properties.digestivePower || 'Normal',
               destinationDescrip: node.properties.destinationDescrip,
               examineMsgDescrip: node.properties.examineMsgDescrip,
               struggleInsideMsgDescrip: node.properties.struggleInsideMsgDescrip,
@@ -183,7 +183,7 @@ router.post('/createcharacter', async (req, res) => {
           id: i,
           destination: req.body.destination[i],
           verb: req.body.verb[i],
-          digestionTimer: req.body.digestionTimer[i],
+          digestivePower: req.body.digestivePower[i],
           animation: req.body.animation[i],
           destinationDescrip: req.body.destinationDescrip[i],
           examineMsgDescrip: req.body.examineMsgDescrip[i],
@@ -282,6 +282,62 @@ router.post('/createcharacter', async (req, res) => {
     }
     // log('beak = ', beak);
 
+    // --- SPIRIT SPRITE GENERATION LOGIC ---
+    // 1. INPUT: Convert the Hex String to Numbers (RGB)
+    const hexToRgb = (hex) => {
+      // Regex looks for the # symbol followed by pairs of hex digits (supports '0x' prefix too if handled)
+      // Our hex inputs often come as '0x...' or '#...' or just '...'.
+      // Standardize input to string
+      let safeHex = String(hex).replace('0x', '#');
+      if (!safeHex.startsWith('#')) safeHex = '#' + safeHex;
+
+      let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(safeHex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 255, g: 255, b: 255 }; // Default white if fail
+    };
+
+    // 2. MODIFY: Additive Light
+    const calculateMagicColor = (originalRGB, magicColor, intensity) => {
+      const rCalc = Math.min(255, Math.round(originalRGB.r + (magicColor.r * intensity)));
+      const gCalc = Math.min(255, Math.round(originalRGB.g + (magicColor.g * intensity)));
+      const bCalc = Math.min(255, Math.round(originalRGB.b + (magicColor.b * intensity)));
+      return { r: rCalc, g: gCalc, b: bCalc };
+    };
+
+    // 3. OUTPUT: Convert Number to 0x String (Server format)
+    const rgbToHex = (r, g, b) => {
+      return "0x" + [r, g, b].map(x => {
+        const hex = x.toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      }).join('');
+    };
+
+    const generateSpiritColor = (originalHex) => {
+      if (!originalHex) return '0xffffff';
+      const originalRGB = hexToRgb(originalHex);
+      const spectralBlue = { r: 60, g: 220, b: 255 };
+      const intensity = 0.5;
+      const newRGB = calculateMagicColor(originalRGB, spectralBlue, intensity);
+      return rgbToHex(newRGB.r, newRGB.g, newRGB.b);
+    };
+
+    var spiritSprite = {
+      head: { ...head, color: generateSpiritColor(head.color), secondaryColor: generateSpiritColor(head.secondaryColor), accentColor: generateSpiritColor(head.accentColor) },
+      body: { ...body, color: generateSpiritColor(body.color), secondaryColor: generateSpiritColor(body.secondaryColor), accentColor: generateSpiritColor(body.accentColor) },
+      hands: { ...hands, color: generateSpiritColor(hands.color) },
+      feet: { ...feet, color: generateSpiritColor(feet.color) },
+      tail: { ...tail, color: generateSpiritColor(tail.color), secondaryColor: generateSpiritColor(tail.secondaryColor), accentColor: generateSpiritColor(tail.accentColor) },
+      eyes: { ...eyes, color: generateSpiritColor(eyes.color) },
+      hair: { ...hair, color: generateSpiritColor(hair.color) },
+      ear: { ...ear, outerColor: generateSpiritColor(ear.outerColor), innerColor: generateSpiritColor(ear.innerColor) },
+      genitles: { ...genitles, color: generateSpiritColor(genitles.color), secondaryColor: generateSpiritColor(genitles.secondaryColor) },
+      beak: { ...beak, color: generateSpiritColor(beak.color) },
+      headAccessories: { ...headAccessories, color: generateSpiritColor(headAccessories.color) }
+    };
+
     const { error2 } = charCreateValidation(req.body);
     if (error2) return res.status(405).send(error2.details[0].message);
 
@@ -320,6 +376,8 @@ router.post('/createcharacter', async (req, res) => {
           "hands": hands,
           "feet": feet,
           "beak": beak,
+          "spiritSprite": spiritSprite,
+          "isDead": false,
           "position": position,
           "consumedBy": null,
           "rotation": 0,
@@ -328,6 +386,14 @@ router.post('/createcharacter', async (req, res) => {
           "itentifier": "player",
 
           "deleted": false,
+          "stats": {
+            "health": 100,
+            "maxHealth": 100,
+            "stamina": 100,
+            "maxStamina": 100,
+            "mana": 100,
+            "maxMana": 100
+          },
           "anatomyData": req.body.anatomyData || ""
         }
       }
@@ -378,14 +444,14 @@ router.post('/editcharacter', async (req, res) => {
         const graph = JSON.parse(req.body.anatomyData);
         if (graph.nodes) {
           voreTypes = graph.nodes
-            .filter(node => node.type === 'destination')
+            // .filter(node => node.type === 'destination') // CHANGED: Include all nodes
             .map(node => ({
               id: node.id,
               graphNodeId: String(node.id),
               destination: node.properties.name || 'Unknown',
               verb: node.properties.verb || 'eats',
               type: node.type,
-              digestionTimer: node.properties.digestionTimer,
+              digestivePower: node.properties.digestivePower || 'Normal',
               destinationDescrip: node.properties.destinationDescrip,
               examineMsgDescrip: node.properties.examineMsgDescrip,
               struggleInsideMsgDescrip: node.properties.struggleInsideMsgDescrip,
@@ -494,6 +560,58 @@ router.post('/editcharacter', async (req, res) => {
       color: req.body.beakHex
     }
 
+    // --- SPIRIT SPRITE GENERATION LOGIC ---
+    // 1. INPUT: Convert the Hex String to Numbers (RGB)
+    const hexToRgb = (hex) => {
+      let safeHex = String(hex).replace('0x', '#');
+      if (!safeHex.startsWith('#')) safeHex = '#' + safeHex;
+      let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(safeHex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 255, g: 255, b: 255 };
+    };
+
+    // 2. MODIFY: Additive Light
+    const calculateMagicColor = (originalRGB, magicColor, intensity) => {
+      const rCalc = Math.min(255, Math.round(originalRGB.r + (magicColor.r * intensity)));
+      const gCalc = Math.min(255, Math.round(originalRGB.g + (magicColor.g * intensity)));
+      const bCalc = Math.min(255, Math.round(originalRGB.b + (magicColor.b * intensity)));
+      return { r: rCalc, g: gCalc, b: bCalc };
+    };
+
+    // 3. OUTPUT: Convert Number to 0x String
+    const rgbToHex = (r, g, b) => {
+      return "0x" + [r, g, b].map(x => {
+        const hex = x.toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      }).join('');
+    };
+
+    const generateSpiritColor = (originalHex) => {
+      if (!originalHex) return '0xffffff';
+      const originalRGB = hexToRgb(originalHex);
+      const spectralBlue = { r: 60, g: 220, b: 255 };
+      const intensity = 0.5;
+      const newRGB = calculateMagicColor(originalRGB, spectralBlue, intensity);
+      return rgbToHex(newRGB.r, newRGB.g, newRGB.b);
+    };
+
+    var spiritSprite = {
+      head: { ...head, color: generateSpiritColor(head.color), secondaryColor: generateSpiritColor(head.secondaryColor), accentColor: generateSpiritColor(head.accentColor) },
+      body: { ...body, color: generateSpiritColor(body.color), secondaryColor: generateSpiritColor(body.secondaryColor), accentColor: generateSpiritColor(body.accentColor) },
+      hands: { ...hands, color: generateSpiritColor(hands.color) },
+      feet: { ...feet, color: generateSpiritColor(feet.color) },
+      tail: { ...tail, color: generateSpiritColor(tail.color), secondaryColor: generateSpiritColor(tail.secondaryColor), accentColor: generateSpiritColor(tail.accentColor) },
+      eyes: { ...eyes, color: generateSpiritColor(eyes.color) },
+      hair: { ...hair, color: generateSpiritColor(hair.color) },
+      ear: { ...ear, outerColor: generateSpiritColor(ear.outerColor), innerColor: generateSpiritColor(ear.innerColor) },
+      genitles: { ...genitles, color: generateSpiritColor(genitles.color), secondaryColor: generateSpiritColor(genitles.secondaryColor) },
+      beak: { ...beak, color: generateSpiritColor(beak.color) },
+      headAccessories: { ...headAccessories, color: generateSpiritColor(headAccessories.color) }
+    };
+
     const { error2 } = charCreateValidation(req.body);
     if (error2) return res.status(405).send(error2.details[0].message);
 
@@ -549,6 +667,7 @@ router.post('/editcharacter', async (req, res) => {
         "characters.$.feet": feet,
         "characters.$.feet": feet,
         "characters.$.beak": beak,
+        "characters.$.spiritSprite": spiritSprite,
         "characters.$.anatomyData": req.body.anatomyData || ""
       }
     },

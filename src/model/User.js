@@ -257,14 +257,18 @@ const userSchema = new mongoose.Schema({
 
       voreTypes: {
         type: [{
+          type: {
+            type: String
+          },
           destination: {
             type: String
           },
           verb: {
             type: String
           },
-          digestionTimer: {
-            type: Number
+          digestivePower: {
+            type: String,
+            default: 'Normal'
           },
           animation: {
             type: Number
@@ -388,6 +392,98 @@ const userSchema = new mongoose.Schema({
 
       deleted: {
         type: Boolean
+      },
+
+      stats: {
+        health: {
+          type: Number,
+          default: 100
+        },
+        maxHealth: {
+          type: Number,
+          default: 100
+        },
+        stamina: {
+          type: Number,
+          default: 100
+        },
+        maxStamina: {
+          type: Number,
+          default: 100
+        },
+        mana: {
+          type: Number,
+          default: 100
+        },
+        maxMana: {
+          type: Number,
+          default: 100
+        }
+      },
+
+      isDead: {
+        type: Boolean,
+        default: false
+      },
+
+      spiritSprite: {
+        head: {
+          sprite: { type: String },
+          color: { type: String },
+          secondarySprite: { type: String },
+          secondaryColor: { type: String },
+          accentSprite: { type: String },
+          accentColor: { type: String }
+        },
+        body: {
+          sprite: { type: String },
+          color: { type: String },
+          secondarySprite: { type: String },
+          secondaryColor: { type: String },
+          accentSprite: { type: String },
+          accentColor: { type: String }
+        },
+        hands: {
+          sprite: { type: String },
+          color: { type: String }
+        },
+        feet: {
+          sprite: { type: String },
+          color: { type: String }
+        },
+        tail: {
+          sprite: { type: String },
+          color: { type: String },
+          secondarySprite: { type: String },
+          secondaryColor: { type: String },
+          accentSprite: { type: String },
+          accentColor: { type: String }
+        },
+        eyes: {
+          outer: { type: String },
+          iris: { type: String },
+          color: { type: String }
+        },
+        hair: {
+          sprite: { type: String },
+          color: { type: String }
+        },
+        ear: {
+          outerSprite: { type: String },
+          outerColor: { type: String },
+          innerSprite: { type: String },
+          innerColor: { type: String }
+        },
+        genitles: {
+          sprite: { type: String },
+          color: { type: String },
+          secondarySprite: { type: String },
+          secondaryColor: { type: String }
+        },
+        beak: {
+          sprite: { type: String },
+          color: { type: String }
+        }
       }
     }]
   }

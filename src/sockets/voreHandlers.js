@@ -10,12 +10,18 @@ module.exports = function (io, socket, players, User, saveCharacter) {
             const player = players[socket.id];
             if (player && player._id) {
                 const playerName = player.Username || (player.firstName + ' ' + player.lastName) || 'Unknown Player';
-                log.info(`${playerName} edited the settings for ${data.destination}.`);
+                // log.info(`${playerName} edited the settings for ${data.destination || 'a node'}.`);
 
                 // Update in-memory
                 const voreIndex = player.voreTypes.findIndex(v => v._id.toString() === data.id);
                 if (voreIndex > -1) {
-                    player.voreTypes[voreIndex] = { ...player.voreTypes[voreIndex], ...data };
+                    // Safe Partial Update in-memory (Avoid spreading Mongoose docs)
+                    const current = player.voreTypes[voreIndex];
+                    Object.keys(data).forEach(key => {
+                        if (key !== 'id' && data[key] !== undefined) {
+                            current[key] = data[key];
+                        }
+                    });
                 }
 
                 // Update Database
@@ -26,21 +32,22 @@ module.exports = function (io, socket, players, User, saveCharacter) {
                         if (character) {
                             const voreType = character.voreTypes.id(data.id);
                             if (voreType) {
-                                voreType.destination = data.destination;
-                                voreType.verb = data.verb;
-                                voreType.digestionTimer = data.digestionTimer;
-                                voreType.animation = data.animation;
-                                voreType.mode = data.mode;
-                                voreType.destinationDescrip = data.destinationDescrip;
-                                voreType.examineMsgDescrip = data.examineMsgDescrip;
-                                voreType.struggleInsideMsgDescrip = data.struggleInsideMsgDescrip;
-                                voreType.struggleOutsideMsgDescrip = data.struggleOutsideMsgDescrip;
-                                voreType.digestionInsideMsgDescrip = data.digestionInsideMsgDescrip;
-                                voreType.digestionOutsideMsgDescrip = data.digestionOutsideMsgDescrip;
-                                voreType.audioEntry = data.audioEntry;
-                                voreType.audioAmbient = data.audioAmbient;
-                                voreType.audioStruggle = data.audioStruggle;
-                                voreType.audioExit = data.audioExit;
+                                // Conditional updates ONLY
+                                if (data.destination !== undefined) voreType.destination = data.destination;
+                                if (data.verb !== undefined) voreType.verb = data.verb;
+                                if (data.digestivePower !== undefined) voreType.digestivePower = data.digestivePower;
+                                if (data.animation !== undefined) voreType.animation = data.animation;
+                                if (data.mode !== undefined) voreType.mode = data.mode;
+                                if (data.destinationDescrip !== undefined) voreType.destinationDescrip = data.destinationDescrip;
+                                if (data.examineMsgDescrip !== undefined) voreType.examineMsgDescrip = data.examineMsgDescrip;
+                                if (data.struggleInsideMsgDescrip !== undefined) voreType.struggleInsideMsgDescrip = data.struggleInsideMsgDescrip;
+                                if (data.struggleOutsideMsgDescrip !== undefined) voreType.struggleOutsideMsgDescrip = data.struggleOutsideMsgDescrip;
+                                if (data.digestionInsideMsgDescrip !== undefined) voreType.digestionInsideMsgDescrip = data.digestionInsideMsgDescrip;
+                                if (data.digestionOutsideMsgDescrip !== undefined) voreType.digestionOutsideMsgDescrip = data.digestionOutsideMsgDescrip;
+                                if (data.audioEntry !== undefined) voreType.audioEntry = data.audioEntry;
+                                if (data.audioAmbient !== undefined) voreType.audioAmbient = data.audioAmbient;
+                                if (data.audioStruggle !== undefined) voreType.audioStruggle = data.audioStruggle;
+                                if (data.audioExit !== undefined) voreType.audioExit = data.audioExit;
 
                                 // Use DatabaseResilience to ensure it saves/queues
                                 await DatabaseResilience.save(user);
@@ -78,7 +85,7 @@ module.exports = function (io, socket, players, User, saveCharacter) {
                             const newVore = {
                                 destination: data.destination,
                                 verb: data.verb,
-                                digestionTimer: data.digestionTimer,
+                                digestivePower: data.digestivePower,
                                 animation: data.animation,
                                 mode: data.mode,
                                 destinationDescrip: data.destinationDescrip,
@@ -90,7 +97,9 @@ module.exports = function (io, socket, players, User, saveCharacter) {
                                 audioEntry: data.audioEntry,
                                 audioAmbient: data.audioAmbient,
                                 audioStruggle: data.audioStruggle,
-                                audioExit: data.audioExit
+                                audioExit: data.audioExit,
+                                type: 'destination', // Default type for singular add
+                                graphNodeId: 'node_' + Date.now() // provisional ID
                             };
 
                             character.voreTypes.push(newVore);
@@ -127,49 +136,82 @@ module.exports = function (io, socket, players, User, saveCharacter) {
                     player.anatomyData = data.anatomyData;
                 }
 
-                // --- NEW LOGIC: Sync voreTypes from Anatomy Data ---
-                let newVoreTypes = [];
-                let syncSuccess = false;
+                // --- NEW LOGIC: Sync voreTypes ---
+                // 1. Trust Client (Optimized/Separate Payload)
+                if (data.voreTypes && Array.isArray(data.voreTypes)) {
+                    // Client sent authoritative rich list. Use it, but preserve specific server-side fields (occupants)
+                    newVoreTypes = data.voreTypes.map(incoming => {
+                        // Find existing to preserve occupants
+                        const existing = player.voreTypes.find(v => String(v.graphNodeId) === String(incoming.graphNodeId));
+                        return {
+                            ...incoming,
+                            contents: existing ? existing.contents : [], // Preserve contents
+                            _id: existing ? existing._id : undefined // Persist ID
+                        };
+                    });
+                    syncSuccess = true;
+                }
+                // 2. Fallback: Regenerate from AnatomyData (Legacy/Single Payload)
+                // This will only run if client DIDN'T send voreTypes (old client)
+                else {
+                    try {
+                        const parsed = JSON.parse(data.anatomyData || '{}');
+                        if (parsed.nodes && Array.isArray(parsed.nodes)) {
+                            // Filter: NOW we include ALL relevant nodes (Destinations, Entrances, Paths, Exits)
+                            // This allows the server to know about "Mouth" (Entrance) messages/verbs.
+                            const relevantNodes = parsed.nodes; // No longer .filter(n => n.type === 'destination')
 
-                try {
-                    const parsed = JSON.parse(data.anatomyData || '{}');
-                    if (parsed.nodes && Array.isArray(parsed.nodes)) {
-                        // Filter for destinations ONLY (Entrances/Paths don't need vore settings/storage)
-                        const relevantNodes = parsed.nodes.filter(n => n.type === 'destination');
+                            // Map to voreType objects
+                            newVoreTypes = relevantNodes.map(node => {
+                                const props = node.properties || {};
 
-                        // Map to voreType objects
-                        newVoreTypes = relevantNodes.map(node => {
-                            const props = node.properties || {};
-                            // Try to find existing voreType to preserve state (contents, _id)
-                            // We match by graphNodeId if available, else name (legacy fallback)
-                            const existing = player.voreTypes.find(v => v.graphNodeId === String(node.id) || v.destination === props.name);
+                                // Robust Matching:
+                                // 1. Try match by ID (Best)
+                                // 2. Try match by Name (Legacy/Fallback)
+                                let existing = player.voreTypes.find(v => v.graphNodeId === String(node.id));
 
-                            return {
-                                _id: existing ? existing._id : undefined, // Let Mongoose generate if new
-                                destination: props.name || 'Unknown',
-                                verb: props.verb || 'eats',
-                                digestionTimer: parseInt(props.digestionTimer) || 0,
-                                animation: existing ? existing.animation : 0,
-                                mode: existing ? existing.mode : (props.mode || 'Hold'),
-                                destinationDescrip: props.destinationDescrip || '',
-                                examineMsgDescrip: props.examineMsgDescrip || '',
-                                struggleInsideMsgDescrip: props.struggleInsideMsgDescrip || '',
-                                struggleOutsideMsgDescrip: props.struggleOutsideMsgDescrip || '',
-                                digestionInsideMsgDescrip: props.digestionInsideMsgDescrip || '',
-                                digestionOutsideMsgDescrip: props.digestionOutsideMsgDescrip || '',
-                                audioEntry: props.enterSound || 'none',
-                                audioAmbient: props.ambientSound || 'none',
-                                audioStruggle: props.struggleSound || 'none',
-                                audioExit: props.exitSound || 'none',
-                                contents: existing ? existing.contents : [],
-                                isEntrance: node.type === 'entrance',
-                                graphNodeId: String(node.id)
-                            };
-                        });
-                        syncSuccess = true;
+                                if (!existing) {
+                                    const searchName = props.name || 'Unknown';
+                                    existing = player.voreTypes.find(v => v.destination === searchName);
+
+                                    // Self-Healing: If matched by name but ID was missing/different, allow it and update ID
+                                    if (existing) {
+                                        // console.log(`[VoreSync] Matched legacy node "${searchName}" to ID ${node.id}`);
+                                    }
+                                }
+
+                                // Safeguard Name: Use new name > existing name > default
+                                // This fixes the "undefined" destination bug if props.name is missing
+                                const destName = props.name || (existing ? existing.destination : 'Unknown');
+
+                                return {
+                                    _id: existing ? existing._id : undefined, // Let Mongoose generate if new
+                                    destination: destName,
+                                    verb: props.verb || 'eats',
+                                    digestivePower: props.digestivePower || 'Normal',
+                                    animation: existing ? existing.animation : 0,
+                                    mode: existing ? existing.mode : (props.mode || 'Hold'),
+                                    destinationDescrip: props.destinationDescrip || '',
+                                    examineMsgDescrip: props.examineMsgDescrip || '',
+                                    struggleInsideMsgDescrip: props.struggleInsideMsgDescrip || '',
+                                    struggleOutsideMsgDescrip: props.struggleOutsideMsgDescrip || '',
+                                    digestionInsideMsgDescrip: props.digestionInsideMsgDescrip || '',
+                                    digestionOutsideMsgDescrip: props.digestionOutsideMsgDescrip || '',
+                                    audioEntry: props.enterSound || 'none',
+                                    audioAmbient: props.ambientSound || 'none',
+                                    audioStruggle: props.struggleSound || 'none',
+                                    audioExit: props.exitSound || 'none',
+                                    contents: existing ? existing.contents : [], // CRITICAL: Preserve occupants
+                                    isEntrance: node.type === 'entrance',
+                                    type: node.type, // Map type so client filter works
+                                    graphNodeId: String(node.id) // Ensure ID is saved
+                                };
+                            });
+                            syncSuccess = true;
+                        }
+                    } catch (parseErr) {
+                        log.error(`Failed to parse anatomyData for ${playerName}:`, parseErr);
                     }
-                } catch (parseErr) {
-                    log.error(`Failed to parse anatomyData for ${playerName}:`, parseErr);
                 }
 
                 // Update Database
