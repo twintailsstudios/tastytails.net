@@ -13,7 +13,7 @@ export function update(time, delta) {
         updateStatsUI(this.playerContainer.playerInfo);
     }
 
-    if (!this.playerContainer || !this.cursors || chatFocused) {
+    if (!this.playerContainer || !this.cursors) {
         return;
     }
     // DEBUG: Check for multiple containers
@@ -39,7 +39,7 @@ export function update(time, delta) {
     // This prevents them from moving their invisible sprite around while inside someone.
     // If the player is consumed, we ignore their keyboard input for movement.
     // This prevents them from moving their invisible sprite around while inside someone.
-    if (!this.playerContainer.playerInfo.consumedBy) {
+    if (!this.playerContainer.playerInfo.consumedBy && !chatFocused) {
         if (!this.playerContainer.playerInfo.isCrafting) {
             // Normal Movement
             inputPayload = {

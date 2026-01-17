@@ -12,5 +12,6 @@ export const config = {
         arcade: {
             debug: true
         }
-    }
+    },
+    disableVisibilityChange: true
 };
