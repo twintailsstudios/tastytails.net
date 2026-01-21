@@ -482,6 +482,17 @@ function initializeContextMenu(scene, socket) {
                                 }));
                             } else if (action === 'Vore') {
                                 actionsUl.appendChild(createVoreSubMenu(predatorInfo, playerInfo.name, currentItem));
+                            } else if (action === 'Haunt') {
+                                actionsUl.appendChild(createMenuItem('Haunt', 'fa-solid fa-ghost', (e) => {
+                                    /* Range check might be irrelevant for ghosts, or same range? 
+                                       Let's assume ghosts have infinite reach or standard reach. 
+                                       For now, standard reach check is safer, or explicit no check.
+                                       Plan says "right click on players or objects", implies standard interaction range usually.
+                                       But ghosts move through walls. Let's enforce range for logic consistency. 
+                                    */
+                                    if (!checkReach(targetId, targetType, e)) return;
+                                    socket.emit('hauntClicked', currentItem);
+                                }));
                             }
                         } catch (err) {
                             // console.error(`[ContextMenu] Error processing action '${action}' for ${targetId}:`, err);

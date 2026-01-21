@@ -16,7 +16,7 @@
 
 /* === CHAT COMPONENT CONTAINER === */
 #chat {
-    flex: 3;
+    flex: 2;
     background: var(--parchment-light);
     /* border: 12px solid var(--wood-dark);
     border-radius: 8px; */
@@ -843,11 +843,12 @@
     align-items: center;
     gap: 8px;
 }
+
 /* --- SETTINGS MENU --- */
 .dropdown-menu.information-grid {
     background: var(--parchment);
     border: 2px solid var(--wood-dark);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
     padding: 15px;
     min-width: 250px;
     bottom: 110%;

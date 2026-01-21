@@ -325,7 +325,7 @@ export function createPredatorVoreControls(data, socket) {
     const container = document.createElement('div');
     container.id = 'predator-controls';
     container.style.position = 'absolute';
-    container.style.bottom = '150px';
+    container.style.bottom = '20vh'; // Responsive positioning
     container.style.left = '50%';
     container.style.transform = 'translateX(-50%)';
     container.style.display = 'flex';
@@ -399,7 +399,7 @@ export function createStruggleButton(isConsumed, socket) {
             struggleBtn.id = 'struggle-btn';
             struggleBtn.innerText = 'Struggle';
             struggleBtn.style.position = 'absolute';
-            struggleBtn.style.bottom = '150px'; // Above chat/input
+            struggleBtn.style.bottom = '30vh'; // Stacks above predator controls
             struggleBtn.style.left = '50%';
             struggleBtn.style.transform = 'translateX(-50%)';
             struggleBtn.style.padding = '15px 30px';

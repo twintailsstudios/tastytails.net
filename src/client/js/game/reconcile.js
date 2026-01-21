@@ -46,7 +46,7 @@ export function reconcile(serverPlayerState, self) {
         if (input.right) proposedX += speed * delta;
 
         // Check X Collision
-        if (!checkPredictionCollision(self, proposedX, predictedY)) {
+        if (serverPlayerState.isDead || !checkPredictionCollision(self, proposedX, predictedY)) {
             predictedX = proposedX;
         }
 
@@ -55,7 +55,7 @@ export function reconcile(serverPlayerState, self) {
         if (input.down) proposedY += speed * delta;
 
         // Check Y Collision
-        if (!checkPredictionCollision(self, predictedX, proposedY)) {
+        if (serverPlayerState.isDead || !checkPredictionCollision(self, predictedX, proposedY)) {
             predictedY = proposedY;
         }
     });

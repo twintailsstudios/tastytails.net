@@ -15,6 +15,7 @@
 .stat-bar-container {
     position: relative;
     width: 250px;
+    max-width: 30vw;
     height: 24px;
     background: rgba(0, 0, 0, 0.7);
     border: 3px solid #4a3e2a;

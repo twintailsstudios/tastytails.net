@@ -17,6 +17,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
                 log.debug(`${logPrefix} Player has no equipment object`);
                 return;
             }
+            if (player.isDead) return;
 
             const activeHand = player.actionHands.activeHand;
             // Get item in active hand
@@ -82,6 +83,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             const { targetSlot, targetPocket } = data;
             const player = players[socket.id];
             if (!player) return;
+            if (player.isDead) return;
 
             const activeHand = player.actionHands.activeHand;
             const handItem = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
@@ -153,6 +155,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             const { sourceSlot, sourcePocket, itemUid } = data;
             const player = players[socket.id];
             if (!player) return;
+            if (player.isDead) return;
 
             const activeHand = player.actionHands.activeHand;
             const clothingItem = player.equipment[sourceSlot];
@@ -189,6 +192,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
         try {
             const player = players[socket.id];
             if (!player) return;
+            if (player.isDead) return;
 
             const activeHand = player.actionHands.activeHand;
             let droppedItem = null;
@@ -266,6 +270,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             const { uid } = data;
             const player = players[socket.id];
             if (!player) return;
+            if (player.isDead) return;
 
             let item = null;
             let isWorldItem = false;

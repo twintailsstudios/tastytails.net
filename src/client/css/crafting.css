@@ -64,6 +64,9 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    padding-bottom: 20vh;
+    /* Offset center to avoid bottom UI overlap */
+    box-sizing: border-box;
     pointer-events: none;
     /* Let clicks pass through to game */
     opacity: 0;
@@ -81,7 +84,8 @@
     /* Allow JS to switch to absolute */
 
     width: 800px;
-    min-height: 550px;
+    max-width: 98vw;
+    min-height: 500px;
     height: auto;
 
     display: flex;

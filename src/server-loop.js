@@ -783,7 +783,7 @@ function updatePlayers(delta, io) {
       }
 
       // Check X collision
-      if (!checkCollision(proposedX, player.position.y)) {
+      if (player.isDead || !checkCollision(proposedX, player.position.y)) {
         newX = proposedX;
       }
 
@@ -797,7 +797,7 @@ function updatePlayers(delta, io) {
       }
 
       // Check Y collision
-      if (!checkCollision(newX, proposedY)) {
+      if (player.isDead || !checkCollision(newX, proposedY)) {
         newY = proposedY;
       }
 
@@ -1776,6 +1776,9 @@ module.exports.start = (io, _messageSystem) => {
         const player = players[socket.id];
         if (!player) return;
 
+        // [RESTRICTION] Dead players cannot pick up items
+        if (player.isDead) return;
+
         let handled = false;
 
         // 1. Check Legacy Spells (Priority)
@@ -1926,7 +1929,10 @@ module.exports.start = (io, _messageSystem) => {
             // --- Determine available actions based on distance and held status ---
             const availableActions = ['Examine'];
 
-            if (targetPlayer !== players[socket.id]) {
+            if (requestingPlayer.isDead) {
+              // Dead players can only examine... AND HAUNT
+              availableActions.push('Haunt');
+            } else if (targetPlayer !== players[socket.id]) {
               if (targetPlayer.grippedBy === socket.id) {
                 availableActions.push('Release');
                 availableActions.push('Vore');
@@ -1950,7 +1956,13 @@ module.exports.start = (io, _messageSystem) => {
             const actions = ['Examine'];
             // Check if it's a known crafting station
             if (craftingStations[clickedItem.uniqueId]) {
-              actions.push('Craft');
+              if (!requestingPlayer.isDead) {
+                actions.push('Craft');
+              }
+            }
+            // Dead players can Haunt objects
+            if (requestingPlayer.isDead) {
+              actions.push('Haunt');
             }
 
             // --- Check for Dynamic Item (World Item) ---
@@ -2013,7 +2025,7 @@ module.exports.start = (io, _messageSystem) => {
 
                 if (currentUses < maxUses) {
                   // [NEW] Check if player is allowed to use it directly
-                  if (def.playerUse !== false) {
+                  if (def.playerUse !== false && !requestingPlayer.isDead) {
                     actions.push('Use');
                   }
                 }

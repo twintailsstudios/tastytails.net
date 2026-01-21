@@ -230,67 +230,12 @@ body.resizing-v iframe {
 }
 
 /* Overlay Controls (Intent) - Animated Sigils */
-#intentContainer {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    right: auto;
-    /* Override right */
-    bottom: auto;
-    /* Override bottom */
-    background: rgba(0, 0, 0, 0.5);
-    padding: 5px;
-    border-radius: 30px;
-    z-index: 10;
-    display: flex;
-    gap: 10px;
-    border: 2px solid var(--wood-light);
-    backdrop-filter: blur(2px);
-    transition: transform 0.2s;
-}
-
-#intentContainer:hover {
-    transform: scale(1.02);
-}
-
-#intentContainer input {
-    display: none;
-}
-
-#intentContainer label {
-    width: 45px;
-    height: 45px;
-    background: var(--wood-dark);
-    color: var(--parchment);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border: 2px solid var(--gold);
-    font-size: 1.4rem;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    /* Bouncy transition */
-}
-
-#intentContainer label:hover {
-    transform: translateY(-3px) scale(1.1);
-    color: var(--gold);
-}
-
-#intentContainer input:checked+label {
-    background: var(--gold);
-    color: var(--wood-dark);
-    transform: scale(1.15);
-    box-shadow: 0 0 15px var(--gold);
-    animation: popIn 0.3s ease-out;
-}
+/* #intentContainer removed (Dead Code) */
 
 /* Item Bar (Floating Shelf) */
 #itemBar {
     position: absolute;
-    bottom: 20px;
+    bottom: 3vh;
     left: 50%;
     transform: translateX(-50%);
     background: var(--wood-dark);
@@ -625,34 +570,8 @@ h3 {
 }
 
 /* --- RESPONSIVE --- */
-@media (max-width: 1024px) {
-    #game-wrapper {
-        flex-direction: column;
-        overflow-y: auto;
-        height: auto;
-    }
+/* @media (max-width: 1024px) removed to enforce constant layout */
 
-    #phaserApp {
-        height: 60vh;
-        width: 100%;
-        border-right: none;
-        border-bottom: 8px solid var(--wood-dark);
-    }
-
-    #sidePanel {
-        width: 100%;
-        height: 60vh;
-        border-left: none;
-    }
-
-    .resize-handler {
-        display: none;
-    }
-
-    .resize-handler-v {
-        display: none;
-    }
-}
 
 
 
@@ -678,8 +597,8 @@ h3 {
 
 /* === EXTRACTED INLINE STYLES === */
 .menu-container {
-    flex: 2;
-    /* Increased to 2 to make menu taller than chat */
+    flex: 1;
+    /* Adjusted to 1 for 33/67 split with chat (flex: 2) */
     display: flex;
     flex-direction: column;
     overflow: hidden;

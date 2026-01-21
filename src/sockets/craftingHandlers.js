@@ -23,6 +23,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
     // 1. Open Crafting UI Request
     socket.on('openCrafting', (data) => {
         try {
+            if (players[socket.id] && players[socket.id].isDead) return;
             const { stationId } = data;
             const station = craftingStations[stationId];
 
@@ -60,6 +61,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             const station = craftingStations[stationId];
 
             if (!player || !station) return;
+            if (player.isDead) return;
 
             // [NEW] Check if station is busy (someone else is crafting)
             if (station.activeCrafterId && station.activeCrafterId !== socket.id) {
@@ -143,6 +145,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             const station = craftingStations[stationId];
 
             if (!player || !station) return;
+            if (player.isDead) return;
 
             // [NEW] Check if station is busy (someone else is crafting)
             if (station.activeCrafterId && station.activeCrafterId !== socket.id) {
@@ -221,6 +224,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             const station = craftingStations[stationId];
             const player = players[socket.id];
             if (!station || !player) return;
+            if (player.isDead) return;
 
             // [NEW] Station Busy Check
             if (station.activeCrafterId && station.activeCrafterId !== socket.id) {

@@ -182,6 +182,10 @@ export function displayPlayers(self, playerInfo) {
     playerContainer.body.setSize(60, 30); // Match server collision box size
     playerContainer.body.setOffset(30, 66.5); // Match server collision box position (centered on y, x aligned)
     playerContainer.body.setCollideWorldBounds(false); // Prevent going off-map
+
+    if (isDead) {
+        playerContainer.body.checkCollision.none = true;
+    }
     playerContainer.setInteractive(new Phaser.Geom.Rectangle(30, -81.5, 60, 163), Phaser.Geom.Rectangle.Contains);
 
     // Add colliders for all map layers that have blocked tiles
@@ -299,8 +303,12 @@ export function displayOtherPlayers(self, playerInfo) {
     otherPlayerContainer.setInteractive(new Phaser.Geom.Rectangle(30, -81.5, 60, 163), Phaser.Geom.Rectangle.Contains);
     otherPlayerContainer.body.setOffset(30, -81.5);
 
+
     if (isDead) {
+        otherPlayerContainer.body.checkCollision.none = true;
         otherPlayerContainer.setAlpha(0.8);
+    } else {
+        // otherPlayerContainer.setAlpha(0.8); // Original logic was here, but let's keep it safe
     }
 
     // If the player is consumed, we hide their sprite.

@@ -165,9 +165,11 @@
     gap: 0;
     overflow-x: auto;
     align-items: stretch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--wood-light) var(--parchment);
 }
 
-/* Custom Scrollbar for Drawer */
+/* Custom Scrollbar for Drawer (Webkit) */
 .pocket-list::-webkit-scrollbar {
     height: 6px;
 }

@@ -86,6 +86,56 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
     // =========================================================================
 
     /**
+     * Handles the 'Haunt' action from dead players.
+     */
+    socket.on('hauntClicked', (target) => {
+        try {
+            const player = players[socket.id];
+
+            if (!player || !player.isDead) return;
+
+            // Determine Target Name
+            let targetName = "Unknown";
+            if (target.Identifier === 'player' && players[target.playerId]) {
+                const p = players[target.playerId];
+                targetName = p.Username || (p.firstName + " " + p.lastName);
+            } else if (target.name) {
+                targetName = target.name;
+            }
+
+            // 1. Private Message to Haunter
+            const privateMsg = `You haunt ${targetName}`;
+            if (messageSystem) {
+                // type, content, targetSocket, excluded, scope
+                messageSystem.sendSystemMessage('Interactional', privateMsg, socket, [], 'local');
+            }
+
+            // 2. Public Message to Nearby Players (excluding haunter)
+            const publicMsg = `spooky actions on ${targetName}`;
+
+            const range = 800; // Large visible range
+
+            Object.values(players).forEach(other => {
+                if (other.playerId === socket.id) return; // Skip self
+
+                // Distance Check
+                const dist = Math.sqrt(Math.pow(player.position.x - other.position.x, 2) + Math.pow(player.position.y - other.position.y, 2));
+
+                if (dist <= range) {
+                    const otherSocket = io.sockets.sockets.get(other.playerId);
+                    if (otherSocket && messageSystem) {
+                        // type, content, targetSocket, excluded, scope
+                        messageSystem.sendSystemMessage('Interactional', publicMsg, otherSocket, [], 'local');
+                    }
+                }
+            });
+
+        } catch (e) {
+            log.error(`${logPrefix} Error handling hauntClicked:`, e);
+        }
+    });
+
+    /**
      * Main handler for clicking on another player/target.
      * Evaluates reach, intent (Friendly, Grabbing, Hostile), and triggers effects.
      */
@@ -99,6 +149,8 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 log.warn(`${logPrefix} Action failed: Player or Target not found.`);
                 return;
             }
+
+            if (player.isDead) return;
 
             // 1. Check Reach (AABB Collision)
             if (!checkReach(player, targetPlayer)) {
@@ -130,6 +182,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
             const targetPlayer = players[playerId];
 
             if (!player || !targetPlayer) return;
+            if (player.isDead) return;
 
             // Only allow if actually holding them
             if (targetPlayer.heldBySocketId === socket.id) {
@@ -206,6 +259,8 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
             const predSocket = socket;
             const preySocket = io.sockets.sockets.get(preySocketId);
+
+            if (predator.isDead) return;
 
             const predName = getFullName(predator);
             const preyName = getFullName(prey);
