@@ -13,7 +13,8 @@ const { resolveItemDef } = require('../utils/itemUtils');
  * 
  * Reorganized for readability.
  */
-module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter, craftingStations) {
+module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter, craftingStations, getPlayersInRange) {
+    const { trackVictim, untrackVictim } = require('../server/mechanics/digestion');
     const logPrefix = `[Inter:${socket.id}]`;
 
     // =========================================================================
@@ -115,10 +116,19 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
             const range = 800; // Large visible range
 
-            Object.values(players).forEach(other => {
+            // OPTIMIZED: Use Spatial Hash if available
+            let nearbyPlayers = [];
+            if (getPlayersInRange) {
+                nearbyPlayers = getPlayersInRange(player.position.x, player.position.y, range);
+            } else {
+                // Fallback to O(N) if not provided
+                nearbyPlayers = Object.values(players);
+            }
+
+            nearbyPlayers.forEach(other => {
                 if (other.playerId === socket.id) return; // Skip self
 
-                // Distance Check
+                // Double check distance (Circle vs Square/Grid accuracy)
                 const dist = Math.sqrt(Math.pow(player.position.x - other.position.x, 2) + Math.pow(player.position.y - other.position.y, 2));
 
                 if (dist <= range) {
@@ -350,7 +360,16 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
             }
 
             // Log to Global Vore Log (History) - Keeps original 3rd person
-            io.emit('voreLog', externalMsg);
+            // OPTIMIZED: Spatial Broadcast for Vore Log (1000px range)
+            if (getPlayersInRange) {
+                const observers = getPlayersInRange(predator.position.x, predator.position.y, 1000);
+                observers.forEach(obs => {
+                    const obsSocket = io.sockets.sockets.get(obs.playerId);
+                    if (obsSocket) obsSocket.emit('voreLog', externalMsg);
+                });
+            } else {
+                io.emit('voreLog', externalMsg);
+            }
 
             // STATE UPDATES
 
@@ -361,6 +380,8 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 prey.consumedBy = predator.playerId;
                 resetGrappleState(prey);
 
+                trackVictim(prey.playerId); // Track for digestion
+
                 broadcastVoreStageUpdate(io, prey, predator, 1, voreType.destination);
                 saveState(saveCharacter, socket.id, prey.socketId);
             } else {
@@ -370,6 +391,8 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 prey.currentVoreNodeId = voreType.graphNodeId;
                 prey.position = { ...predator.position };
                 resetGrappleState(prey);
+
+                trackVictim(prey.playerId); // Track for digestion
 
                 addPlayerToVoreContents(predator, destinationName, preyName, voreType.graphNodeId);
 
@@ -473,6 +496,8 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 prey.voreStage = nextStage;
                 prey.currentVoreNodeId = String(nextNode.id);
 
+                trackVictim(prey.playerId); // Ensure tracked (idempotent set add)
+
                 // PROCESS TAGS HELPER (Inlined)
                 const nodeName = nextNode.properties.name;
                 const processTags = (text, isPrey, isPred) => {
@@ -517,7 +542,17 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 if (messageSystem && externalMsg) {
                     const excluded = [String(prey._id), String(predator._id)];
                     messageSystem.sendSystemMessage('Interactional', externalMsg, null, excluded, 'local', predSocket);
-                    io.emit('voreLog', externalMsg);
+
+                    // OPTIMIZED: Spatial Broadcast for Vore Log
+                    if (getPlayersInRange) {
+                        const observers = getPlayersInRange(predator.position.x, predator.position.y, 1000);
+                        observers.forEach(obs => {
+                            const obsSocket = io.sockets.sockets.get(obs.playerId);
+                            if (obsSocket) obsSocket.emit('voreLog', externalMsg);
+                        });
+                    } else {
+                        io.emit('voreLog', externalMsg);
+                    }
                 }
 
                 broadcastVoreStageUpdate(io, prey, predator, nextStage, nextNode.properties.name);
@@ -611,7 +646,17 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
             if (messageSystem && externalMsg) {
                 const excluded = [String(prey._id), String(predator._id)];
                 messageSystem.sendSystemMessage('Interactional', externalMsg, null, excluded, 'local', predSocket);
-                io.emit('voreLog', externalMsg);
+
+                // OPTIMIZED: Spatial Broadcast for Vore Log
+                if (getPlayersInRange) {
+                    const observers = getPlayersInRange(predator.position.x, predator.position.y, 1000);
+                    observers.forEach(obs => {
+                        const obsSocket = io.sockets.sockets.get(obs.playerId);
+                        if (obsSocket) obsSocket.emit('voreLog', externalMsg);
+                    });
+                } else {
+                    io.emit('voreLog', externalMsg);
+                }
             }
 
         } catch (e) {
@@ -748,12 +793,23 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
             const prey = Object.values(players).find(p => getFullName(p) === targetName);
 
             if (prey) {
+                untrackVictim(prey.playerId); // Stop digestion
                 resetVoreState(prey);
                 if (predator.holding === prey.socketId) predator.holding = null;
 
                 const msg = `${getFullName(predator)} released ${targetName} from their ${voreTypeEntry ? voreTypeEntry.destination : 'body'}.`;
                 log.info(msg);
-                io.emit('voreLog', msg);
+
+                // OPTIMIZED: Spatial Broadcast for Vore Log
+                if (getPlayersInRange) {
+                    const observers = getPlayersInRange(predator.position.x, predator.position.y, 1000);
+                    observers.forEach(obs => {
+                        const obsSocket = io.sockets.sockets.get(obs.playerId);
+                        if (obsSocket) obsSocket.emit('voreLog', msg);
+                    });
+                } else {
+                    io.emit('voreLog', msg);
+                }
                 sendSystemMsg(socket, messageSystem, msg);
 
                 saveState(saveCharacter, socket.id, prey.socketId);
@@ -849,6 +905,7 @@ function handleRelease(io, socket, players, messageSystem, saveCharacter, data) 
 
     if (isHolder || isPredator) {
         resetGrappleState(targetPlayer);
+        untrackVictim(targetPlayer.playerId);
         resetVoreState(targetPlayer);
 
         if (player.holding === targetPlayer.socketId) player.holding = null;

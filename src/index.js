@@ -15,6 +15,7 @@ const ObjectId = require('mongodb').ObjectID;
 const log = require('./logger');
 const Chats = require('./model/Chat');
 const User = require('./model/User');
+const monitoring = require('./server/monitoring');
 
 // NEW: Import our lightweight game loop!
 const serverGame = require('./server-loop');
@@ -119,6 +120,11 @@ app.use('/api/dbInterface', dbInterfaceRoute);
 app.use('/', indexRoute);
 app.use('/edit', editRoute);
 app.use('/play', playRoute);
+
+// --- Monitoring Endpoint ---
+app.get('/stats', (req, res) => {
+  res.json(monitoring.getStats());
+});
 
 // --- Global Middleware Error Handler ---
 app.use((err, req, res, next) => {

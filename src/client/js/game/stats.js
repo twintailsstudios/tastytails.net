@@ -12,11 +12,8 @@ export function updateStatsUI(player) {
     if (!player) return;
 
     // Default values if stats are missing (backward compatibility)
-    const stats = player.stats || {
-        health: 100, maxHealth: 100,
-        stamina: 100, maxStamina: 100,
-        mana: 100, maxMana: 100
-    };
+    // Handle both nested .stats (legacy/full player object) and flat stats object
+    const stats = (player && player.stats) ? player.stats : player;
 
     const { health = 100, maxHealth = 100, stamina = 100, maxStamina = 100, mana = 100, maxMana = 100 } = stats;
 

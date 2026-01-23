@@ -6,6 +6,7 @@
  */
 
 const log = require('../../logger');
+const DatabaseResilience = require('../../classes/DatabaseResilience');
 
 /**
  * Applies damage to a player.
@@ -92,9 +93,10 @@ async function applyDamage(players, User, targetId, amount, sourceId = null, dam
 
     // Persist to Database immediately for critical state change (Health)
     // We use a specific update to avoid overwriting other concurrent save operations if possible,
-    // but User.updateOne is safe.
+    // [RESILIENCE] Queue Update instead of Direct Write
     try {
-        await User.updateOne(
+        await DatabaseResilience.queueUpdate(
+            User,
             { 'characters._id': target._id },
             {
                 $set: {

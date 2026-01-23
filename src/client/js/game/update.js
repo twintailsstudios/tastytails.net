@@ -10,7 +10,33 @@ export function update(time, delta) {
 
     // Always update UI even if chat is focused
     if (this.playerContainer && this.playerContainer.playerInfo) {
-        updateStatsUI(this.playerContainer.playerInfo);
+        // --- STATE CACHE (DIRTY FLAG) ---
+        // Only touch the DOM if values have mathematically changed.
+        const statsRef = this.playerContainer.playerInfo;
+        const stats = statsRef.stats || statsRef; // Handle potential nested stats
+
+        const lastStats = this.playerContainer.lastStats || {};
+
+        const hasChanged =
+            stats.health !== lastStats.health ||
+            stats.maxHealth !== lastStats.maxHealth ||
+            stats.mana !== lastStats.mana ||
+            stats.maxMana !== lastStats.maxMana ||
+            stats.stamina !== lastStats.stamina ||
+            stats.maxStamina !== lastStats.maxStamina;
+
+        if (hasChanged) {
+            updateStatsUI(stats);
+            // Update Cache
+            this.playerContainer.lastStats = {
+                health: stats.health,
+                maxHealth: stats.maxHealth,
+                mana: stats.mana,
+                maxMana: stats.maxMana,
+                stamina: stats.stamina,
+                maxStamina: stats.maxStamina
+            };
+        }
     }
 
     if (!this.playerContainer || !this.cursors) {
@@ -37,8 +63,6 @@ export function update(time, delta) {
     // Disable movement if consumed OR crafting
     // If the player is consumed, we ignore their keyboard input for movement.
     // This prevents them from moving their invisible sprite around while inside someone.
-    // If the player is consumed, we ignore their keyboard input for movement.
-    // This prevents them from moving their invisible sprite around while inside someone.
     if (!this.playerContainer.playerInfo.consumedBy && !chatFocused) {
         if (!this.playerContainer.playerInfo.isCrafting) {
             // Normal Movement
@@ -53,9 +77,13 @@ export function update(time, delta) {
             if (this.cursors.left.isDown || this.cursors.right.isDown ||
                 this.cursors.up.isDown || this.cursors.down.isDown) {
 
-                if (window.craftingUI && typeof window.craftingUI.showPauseConfirmation === 'function') {
-                    // Throttle logic handled by UI check `if (document.querySelector...)`
-                    window.craftingUI.showPauseConfirmation();
+                // Throttle: Only check every 200ms to allow "holding" keys without spams
+                const now = Date.now();
+                if (!this.lastPauseCheck || now - this.lastPauseCheck > 200) {
+                    this.lastPauseCheck = now;
+                    if (window.craftingUI && typeof window.craftingUI.showPauseConfirmation === 'function') {
+                        window.craftingUI.showPauseConfirmation();
+                    }
                 }
             }
         }
@@ -408,7 +436,7 @@ export function update(time, delta) {
     // Moved inside if(this.playerContainer) check below? No, keep it here.
     if (this.playerContainer) {
         updateCraftingBar(this.playerContainer, this.playerContainer.playerInfo, this);
-        updateStatsUI(this.playerContainer.playerInfo);
+        // Stats UI update handled by Dirty Flag check at top of function
     }
     // --- OTHER PLAYERS UPDATE (Optimized Map) ---
     // Optimization: Pre-calculate lerp factor once per frame

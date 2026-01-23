@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #222;
+            color: #eee;
+            padding: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: #333;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            text-transform: uppercase;
+            color: #aaa;
+        }
+
+        .value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .good {
+            color: #4caf50;
+        }
+
+        .warn {
+            color: #ff9800;
+        }
+
+        .bad {
+            color: #f44336;
+        }
+
+        #json-dump {
+            font-family: monospace;
+            font-size: 12px;
+            background: #111;
+            padding: 10px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Server Health Dashboard</h1>
+
+    <div class="grid">
+        <div class="card">
+            <h3>Tick Rate (Target: 30)</h3>
+            <div id="tickRate" class="value">--</div>
+        </div>
+        <div class="card">
+            <h3>Tick Duration (Avg)</h3>
+            <div id="tickDuration" class="value">--</div>
+        </div>
+        <div class="card">
+            <h3>Event Loop Lag</h3>
+            <div id="eventLag" class="value">--</div>
+        </div>
+        <div class="card">
+            <h3>Active Connections</h3>
+            <div id="connections" class="value">--</div>
+        </div>
+        <div class="card">
+            <h3>Memory (RSS)</h3>
+            <div id="memory" class="value">--</div>
+        </div>
+        <div class="card">
+            <h3>Uptime</h3>
+            <div id="uptime" class="value">--</div>
+        </div>
+    </div>
+
+    <div id="json-dump">Loading...</div>
+
+    <script>
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatTime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${h}h ${m}m ${s}s`;
+        }
+
+        function getColor(value, type) {
+            if (type === 'tickRate') return value > 25 ? 'good' : (value > 15 ? 'warn' : 'bad');
+            if (type === 'duration') return value < 10 ? 'good' : (value < 25 ? 'warn' : 'bad');
+            if (type === 'lag') return value < 20 ? 'good' : (value < 100 ? 'warn' : 'bad');
+            return '';
+        }
+
+        async function updateStats() {
+            try {
+                const res = await fetch('/stats');
+                const data = await res.json();
+
+                // Raw Dump
+                document.getElementById('json-dump').textContent = JSON.stringify(data, null, 2);
+
+                // Update UI
+                const tr = document.getElementById('tickRate');
+                tr.textContent = data.tickRate;
+                tr.className = `value ${getColor(data.tickRate, 'tickRate')}`;
+
+                const td = document.getElementById('tickDuration');
+                td.textContent = (data.avgTickDuration || 0).toFixed(2) + ' ms';
+                td.className = `value ${getColor(data.avgTickDuration, 'duration')}`;
+
+                const el = document.getElementById('eventLag');
+                el.textContent = (data.eventLoopLag || 0).toFixed(2) + ' ms';
+                el.className = `value ${getColor(data.eventLoopLag, 'lag')}`;
+
+                document.getElementById('connections').textContent = data.activeConnections;
+                document.getElementById('memory').textContent = formatBytes(data.memoryUsage.rss);
+                document.getElementById('uptime').textContent = formatTime(data.uptime);
+
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        setInterval(updateStats, 1000);
+        updateStats();
+    </script>
+</body>
+
+</html>

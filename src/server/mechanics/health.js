@@ -5,6 +5,7 @@
  */
 
 const log = require('../../logger');
+const DatabaseResilience = require('../../classes/DatabaseResilience');
 
 /**
  * Heals a player by a specified amount.
@@ -46,7 +47,8 @@ async function healPlayer(players, User, targetId, amount) {
 
     // Persist to Database
     try {
-        await User.updateOne(
+        await DatabaseResilience.queueUpdate(
+            User,
             { 'characters._id': target._id },
             {
                 $set: {
@@ -96,18 +98,12 @@ async function revivePlayer(players, User, targetId, io) {
     // The requirement says "return them to 1 health point... replacing the spiritSprite properties with the normal player character sprite".
     // Client-side, 'isDead: false' triggers the normal sprite rendering.
 
-    // We might need to notify clients explicitly if simple state/delta updates aren't enough, 
-    // but server-loop delta compression should pick up 'isDead' change.
-
-    // If we want to remove the corpse, we'd need to know the corpse ID.
-    // Currently corpses are just spawned fire-and-forget in damage.js.
-    // Ideally, we'd delete the corpse near the player, but for now we'll focus on the player state.
-
     log.info(`[Revive] ${target.firstName} has been revived.`);
 
     // Persist to Database
     try {
-        await User.updateOne(
+        await DatabaseResilience.queueUpdate(
+            User,
             { 'characters._id': target._id },
             {
                 $set: {
@@ -121,10 +117,8 @@ async function revivePlayer(players, User, targetId, io) {
     }
 
     // Force a full update or specific event if needed, but standard loop should handle it.
-    // If 'io' is passed, we could emit a special effect event.
     if (io) {
         io.emit('playerRevived', { playerId: targetId });
-        // Client can listen to this to play a sound or particle effect if implemented.
     }
 
     return { success: true };

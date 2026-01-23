@@ -1,171 +1,231 @@
+// --- RECONCILIATION HELPER ---
+function getVoreNodeType(vore, localPlayerInfo) {
+    let nodeType = vore.type;
+    if (!nodeType && localPlayerInfo && localPlayerInfo.anatomyData) {
+        try {
+            const graph = JSON.parse(localPlayerInfo.anatomyData);
+            if (graph.nodes) {
+                const node = graph.nodes.find(n => String(n.id) === vore.graphNodeId);
+                if (node) nodeType = node.type;
+            }
+        } catch (e) { /* ignore parse error */ }
+    }
+    return nodeType;
+}
+
 export function createVoreList(voreTypes, self) {
     const container = document.getElementById("voreListContainer");
     if (!container) return;
 
-    // Capture currently open accordions
-    const openIds = new Set();
-    container.querySelectorAll('.accordion.is-open').forEach(btn => {
-        if (btn.dataset.id) openIds.add(btn.dataset.id);
+    // --- PHASE 1: INDEX EXISTING ELEMENTS ---
+    const existingCards = new Map();
+    container.querySelectorAll('.anatomy-card').forEach(card => {
+        // Use the button's dataset ID as the key
+        const btn = card.querySelector('.accordion');
+        if (btn && btn.dataset.id) {
+            existingCards.set(btn.dataset.id, card);
+        }
     });
 
-    container.innerHTML = ""; // Clear existing
+    const activeIds = new Set();
 
-    // 1. Render the Accordion List
+    // --- PHASE 2: UPDATE OR CREATE ---
     voreTypes.forEach((vore, index) => {
-        // Filter out nodes that are NOT destinations (e.g. Entrances)
-        // CHANGED: We now strict check for 'destination' type because voreTypes now contains ALL nodes
-        // Parse anatomyData for robust type checking (handles legacy data missing types in voreTypes)
-        let nodeType = vore.type;
-        if (!nodeType && window.localPlayerInfo && window.localPlayerInfo.anatomyData) {
-            try {
-                const graph = JSON.parse(window.localPlayerInfo.anatomyData);
-                if (graph.nodes) {
-                    const node = graph.nodes.find(n => String(n.id) === vore.graphNodeId);
-                    if (node) nodeType = node.type;
-                }
-            } catch (e) { /* ignore parse error */ }
-        }
+        // Filter Logic
+        let nodeType = getVoreNodeType(vore, window.localPlayerInfo);
 
         // Default to 'destination' if we still don't know (Legacy Safety), 
         // BUT strict filter if we DO know it's not a destination.
         if (nodeType && nodeType !== 'destination') return;
 
-        // Create Card
-        const card = document.createElement("div");
-        card.className = "anatomy-card";
+        activeIds.add(vore._id);
+        const mode = vore.mode || 'Hold';
 
-        // Header (Accordion Button)
-        const btn = document.createElement("button");
-        btn.className = "accordion";
-        btn.dataset.id = vore._id; // Store ID for persistence
-        btn.innerHTML = `
-            <span><i class="fa-solid fa-caret-right arrow"></i> ${vore.destination}</span>
-            <span class="mode-badge">${vore.mode || 'Hold'}</span>
-        `;
+        let card = existingCards.get(vore._id);
 
-        // Content Panel
-        const panel = document.createElement("div");
-        panel.className = "accordion-content";
+        if (card) {
+            // [UPDATE] Existing Card
+            const btn = card.querySelector('.accordion');
+            const panel = card.querySelector('.accordion-content');
 
-        const content = document.createElement("div");
-        content.className = "panel-content";
-
-        // Mode Selector (Stamps)
-        const modeSelector = document.createElement("div");
-        modeSelector.className = "mode-selector";
-        ['Hold', 'Digest', 'Absorb'].forEach(m => {
-            const label = document.createElement("div");
-            label.className = `mode-label ${m === (vore.mode || 'Hold') ? 'selected' : ''}`;
-            label.innerText = m;
-            label.onclick = (e) => {
-                e.stopPropagation();
-                updateVoreMode(vore._id, m, self);
-            };
-            modeSelector.appendChild(label);
-        });
-
-        // Contents Roster
-        const roster = document.createElement("div");
-        roster.className = "contents-roster";
-        const rosterList = document.createElement("ul");
-        rosterList.className = "roster-list";
-
-        if (vore.contents && vore.contents.length > 0) {
-            vore.contents.forEach(name => {
-                const li = document.createElement("li");
-                li.style.display = "flex";
-                li.style.justifyContent = "space-between";
-                li.style.alignItems = "center";
-
-                const nameSpan = document.createElement("span");
-                nameSpan.innerText = name;
-
-                // Release Button
-                // This button allows the predator to manually release a consumed player.
-                // It emits the 'releaseVoreTarget' event to the server.
-                const releaseBtn = document.createElement("button");
-                releaseBtn.innerHTML = '<i class="fa-solid fa-eject"></i>';
-                releaseBtn.title = "Release";
-                releaseBtn.className = "release-btn"; // Add styling later if needed
-                releaseBtn.style.marginLeft = "10px";
-                releaseBtn.style.padding = "2px 5px";
-                releaseBtn.style.background = "#d9534f";
-                releaseBtn.style.color = "white";
-                releaseBtn.style.border = "none";
-                releaseBtn.style.borderRadius = "3px";
-                releaseBtn.style.cursor = "pointer";
-
-                releaseBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    console.log(`[UI] Releasing ${name} from ${vore.destination}`);
-                    self.socket.emit('releaseVoreTarget', { voreTypeId: vore._id, targetName: name });
-                };
-
-                li.appendChild(nameSpan);
-                li.appendChild(releaseBtn);
-                rosterList.appendChild(li);
-            });
-        } else {
-            const li = document.createElement("li");
-            li.innerText = "Empty";
-            li.style.opacity = "0.5";
-            rosterList.appendChild(li);
-        }
-        roster.appendChild(rosterList);
-
-        // Edit Button
-        const editBtn = document.createElement("button");
-        editBtn.className = "edit-btn";
-        editBtn.innerHTML = '<i class="fa-solid fa-gear"></i> Modify Settings';
-        editBtn.onclick = () => openSettings(vore, self);
-
-        // Assemble
-        content.appendChild(modeSelector);
-        content.appendChild(roster);
-        content.appendChild(editBtn);
-        panel.appendChild(content);
-
-        card.appendChild(btn);
-        card.appendChild(panel);
-        container.appendChild(card);
-
-        // Accordion Logic
-        btn.onclick = () => {
-            btn.classList.toggle("is-open");
-            if (panel.style.maxHeight) {
-                panel.style.maxHeight = null;
-            } else {
-                panel.style.maxHeight = panel.scrollHeight + "px";
+            // 1. Update Header Info
+            // We want to preserve the arrow icon, so only update text nodes if needed
+            // Actually, simpler to just update the specific spans
+            const nameSpan = btn.querySelector('span:nth-child(1)'); // "Arrow + Name"
+            if (nameSpan) {
+                // Ensure arrow exists
+                if (!nameSpan.querySelector('.arrow')) {
+                    nameSpan.innerHTML = `<i class="fa-solid fa-caret-right arrow"></i> ${vore.destination}`;
+                } else {
+                    // Just update standard text if it somehow changed (unlikely for same ID)
+                    // nameSpan.lastChild.textContent = " " + vore.destination; 
+                }
             }
-        };
 
-        // Restore State
-        // Restore State check
-        if (openIds.has(vore._id)) {
-            btn.classList.add("is-open");
-            // Disable transition temporarily to snap open
-            panel.style.transition = 'none';
-            panel.style.maxHeight = 'none'; // Allow it to expand fully to calculate height naturally if needed, or just keep it open?
-            // Actually, accordions usually need specific height for transition to close. 
-            // But for opening INSTANTLY, we can just set it. 
-            // We need to read scrollHeight to set the specific pixel value so it can close later with animation.
+            const badge = btn.querySelector('.mode-badge');
+            if (badge && badge.innerText !== mode) {
+                badge.innerText = mode;
+                // Add flash effect?
+            }
 
-            // Force a reflow to ensure scrollHeight is ready? 
-            // It's already appended.
-            const height = panel.scrollHeight;
-            panel.style.maxHeight = height + "px";
+            // 2. Update Mode Selectors
+            const modeSelector = card.querySelector('.mode-selector');
+            if (modeSelector) {
+                ['Hold', 'Digest', 'Absorb'].forEach(m => {
+                    // Find the label for this mode
+                    // We can't easily query by text without class, but we know order or can look
+                    // Let's assume they are simple divs.
+                    const labels = Array.from(modeSelector.querySelectorAll('.mode-label'));
+                    const label = labels.find(l => l.innerText === m);
+                    if (label) {
+                        const shouldBeSelected = (m === mode);
+                        if (label.classList.contains('selected') !== shouldBeSelected) {
+                            if (shouldBeSelected) label.classList.add('selected');
+                            else label.classList.remove('selected');
+                        }
+                    }
+                });
+            }
 
-            // Re-enable transition after a microtask to ensure the 'none' applied for the initial paint
-            setTimeout(() => {
-                panel.style.transition = '';
-            }, 10);
+            // 3. Update Roster (Rebuild UL contents)
+            const rosterList = card.querySelector('.roster-list');
+            if (rosterList) {
+                updateRosterList(rosterList, vore.contents, vore, self);
+            }
+
+        } else {
+            // [CREATE] New Card
+            card = document.createElement("div");
+            card.className = "anatomy-card";
+
+            // Header (Accordion Button)
+            const btn = document.createElement("button");
+            btn.className = "accordion";
+            btn.dataset.id = vore._id; // Store ID for persistence
+            btn.innerHTML = `
+                <span><i class="fa-solid fa-caret-right arrow"></i> ${vore.destination}</span>
+                <span class="mode-badge">${mode}</span>
+            `;
+
+            // Content Panel
+            const panel = document.createElement("div");
+            panel.className = "accordion-content";
+
+            const content = document.createElement("div");
+            content.className = "panel-content";
+
+            // Mode Selector (Stamps)
+            const modeSelector = document.createElement("div");
+            modeSelector.className = "mode-selector";
+            ['Hold', 'Digest', 'Absorb'].forEach(m => {
+                const label = document.createElement("div");
+                label.className = `mode-label ${m === mode ? 'selected' : ''}`;
+                label.innerText = m;
+                label.onclick = (e) => {
+                    e.stopPropagation();
+                    updateVoreMode(vore._id, m, self);
+                };
+                modeSelector.appendChild(label);
+            });
+
+            // Contents Roster
+            const roster = document.createElement("div");
+            roster.className = "contents-roster";
+            const rosterList = document.createElement("ul");
+            rosterList.className = "roster-list";
+
+            updateRosterList(rosterList, vore.contents, vore, self);
+
+            roster.appendChild(rosterList);
+
+            // Edit Button
+            const editBtn = document.createElement("button");
+            editBtn.className = "edit-btn";
+            editBtn.innerHTML = '<i class="fa-solid fa-gear"></i> Modify Settings';
+            editBtn.onclick = () => openSettings(vore, self);
+
+            // Assemble
+            content.appendChild(modeSelector);
+            content.appendChild(roster);
+            content.appendChild(editBtn);
+            panel.appendChild(content);
+
+            card.appendChild(btn);
+            card.appendChild(panel);
+            container.appendChild(card);
+
+            // Accordion Logic
+            btn.onclick = () => {
+                btn.classList.toggle("is-open");
+                if (panel.style.maxHeight) {
+                    panel.style.maxHeight = null;
+                } else {
+                    panel.style.maxHeight = panel.scrollHeight + "px";
+                }
+            };
         }
     });
 
-
+    // --- PHASE 3: CLEANUP OBSOLETE ---
+    existingCards.forEach((card, id) => {
+        if (!activeIds.has(id)) {
+            card.remove();
+        }
+    });
 
     // 3. Setup Modal Logic (Global listeners, run once)
     setupModalListeners(self);
+}
+
+// Helper to rebuild roster list efficiently
+function updateRosterList(ul, contents, vore, self) {
+    // Optimization: If contents haven't changed string-wise, don't rebuild.
+    // We can store the previous contents hash or string on the UL dataset.
+    const newContentStr = JSON.stringify(contents);
+    if (ul.dataset.lastContent === newContentStr) return;
+
+    ul.innerHTML = ""; // Clear
+    ul.dataset.lastContent = newContentStr;
+
+    if (contents && contents.length > 0) {
+        contents.forEach(name => {
+            const li = document.createElement("li");
+            li.style.display = "flex";
+            li.style.justifyContent = "space-between";
+            li.style.alignItems = "center";
+
+            const nameSpan = document.createElement("span");
+            nameSpan.innerText = name;
+
+            // Release Button
+            const releaseBtn = document.createElement("button");
+            releaseBtn.innerHTML = '<i class="fa-solid fa-eject"></i>';
+            releaseBtn.title = "Release";
+            releaseBtn.className = "release-btn";
+            releaseBtn.style.marginLeft = "10px";
+            releaseBtn.style.padding = "2px 5px";
+            releaseBtn.style.background = "#d9534f";
+            releaseBtn.style.color = "white";
+            releaseBtn.style.border = "none";
+            releaseBtn.style.borderRadius = "3px";
+            releaseBtn.style.cursor = "pointer";
+
+            releaseBtn.onclick = (e) => {
+                e.stopPropagation();
+                console.log(`[UI] Releasing ${name} from ${vore.destination}`);
+                self.socket.emit('releaseVoreTarget', { voreTypeId: vore._id, targetName: name });
+            };
+
+            li.appendChild(nameSpan);
+            li.appendChild(releaseBtn);
+            ul.appendChild(li);
+        });
+    } else {
+        const li = document.createElement("li");
+        li.innerText = "Empty";
+        li.style.opacity = "0.5";
+        ul.appendChild(li);
+    }
 }
 
 function updateVoreMode(id, mode, self) {

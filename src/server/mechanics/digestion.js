@@ -32,17 +32,68 @@ const DAMAGE_CHANCE = {
  * @param {Object} User - The Mongoose User model.
  * @param {Object} io - The Socket.io instance for emitting events.
  */
-async function processDigestion(players, User, io, addCorpse, messageSystem) {
-    // log.debug('[Digestion] Running digestion cycle...');
+const activeDigestions = new Set();
+const digestionTimers = new Map(); // Stores next eligible process time for each victim
 
-    const victimIds = Object.keys(players);
 
-    for (const victimId of victimIds) {
+/**
+ * Adds a player to the active digestion list.
+ * @param {string} victimSocketId 
+ */
+function trackVictim(victimSocketId) {
+    if (victimSocketId) {
+        activeDigestions.add(victimSocketId);
+        // Initialize timer for 5 seconds from now (standard tick rate)
+        digestionTimers.set(victimSocketId, Date.now() + 5000);
+        // log.debug(`[Digestion] Tracking ${victimSocketId}. Total: ${activeDigestions.size}`);
+    }
+}
+
+/**
+ * Removes a player from the active digestion list.
+ * @param {string} victimSocketId 
+ */
+function untrackVictim(victimSocketId) {
+    if (victimSocketId) {
+        activeDigestions.delete(victimSocketId);
+        digestionTimers.delete(victimSocketId);
+        // log.debug(`[Digestion] Untracked ${victimSocketId}. Total: ${activeDigestions.size}`);
+    }
+}
+
+/**
+ * Iterates through all players and applies digestion damage if applicable.
+ * 
+ * @param {Object} players - The global players object.
+ * @param {Object} User - The Mongoose User model.
+ * @param {Object} io - The Socket.io instance for emitting events.
+ * @param {Function} addCorpse - Function to add a corpse.
+ * @param {Object} messageSystem - The message system.
+ * @param {number} delta - Time since last update (in seconds).
+ */
+async function processDigestion(players, User, io, addCorpse, messageSystem, delta) {
+    // log.debug(`[Digestion] Running digestion cycle (O(K)). Active: ${activeDigestions.size}, Delta: ${delta}`);
+
+    const victimsToRemove = [];
+    const now = Date.now();
+
+    for (const victimId of activeDigestions) {
+        // Check Timer
+        const nextCheck = digestionTimers.get(victimId) || 0;
+        if (now < nextCheck) {
+            continue; // Not yet time for this victim
+        }
+
         const victim = players[victimId];
 
-        // Check if victim is consumed
-        if (!victim.consumedBy) continue;
-        if (!victim.isInGame) continue; // Skip guests/character creator
+        // Validation: If player disconnected or is no longer consumed
+        if (!victim || !victim.consumedBy || !victim.isInGame) {
+            victimsToRemove.push(victimId);
+            continue;
+        }
+
+        // Update Timer irrespective of outcome (probabilistic check should happen every 5s)
+        digestionTimers.set(victimId, now + 5000);
 
         // Find the Predator
         // consumedBy stores the predator's 'playerId' (string), NOT socketId.
@@ -50,21 +101,16 @@ async function processDigestion(players, User, io, addCorpse, messageSystem) {
         const predator = players[predatorSocketId];
 
         if (!predator) {
-            // Predator disconnected or invalid?
-            // Existing logic handles release on disconnect elsewhere.
+            // Predator disconnected? Release victim?
+            // For now, just stop digesting. Cleanup handled elsewhere.
+            victimsToRemove.push(victimId);
             continue;
         }
 
         // Check Anatomy / Vore Mode
-        // We need to know WHICH node the victim is in.
         const currentNodeId = victim.currentVoreNodeId;
-        // log.debug(`[DigestionDebug] Checking ${victim.firstName}. ConsumedBy: ${predator.firstName}. NodeId: ${currentNodeId}`);
 
         if (!currentNodeId) {
-            // Legacy fallback or Stage 1? 
-            // Digestion usually only happens in Stage 3 (Destination).
-            // If we don't know the node, we can't determine mode/power.
-            // log.debug(`[DigestionDebug] Skipping ${victim.firstName} - No currentNodeId`);
             continue;
         }
 
@@ -75,16 +121,10 @@ async function processDigestion(players, User, io, addCorpse, messageSystem) {
         let externalOutcome = null;
 
         // OPTIMIZATION: Rely ONLY on voreTypes (Runtime Array)
-        // We no longer parse anatomyData here because:
-        // 1. It is slow (JSON.parse on every tick/check).
-        // 2. anatomyData is now compressed and lacks semantic props (verbs/power).
         if (predator.voreTypes) {
-            // log.debug(`[DigestionDebug] Pred has ${predator.voreTypes.length} voreTypes.`);
-            // Try to find matching voreType by graphNodeId (preferred) or ID
             const vt = predator.voreTypes.find(v => String(v.graphNodeId) === String(currentNodeId) || String(v.id) === String(currentNodeId));
 
             if (vt) {
-                // log.debug(`[DigestionDebug] Found VT: ${vt.destination} Type:${vt.type} Mode:${vt.mode}`);
                 // Check if it's a destination that digests
                 if (vt.type === 'destination' && vt.mode === 'Digest') {
                     shouldDigest = true;
@@ -92,15 +132,8 @@ async function processDigestion(players, User, io, addCorpse, messageSystem) {
                     nodeName = vt.destination;
                     if (vt.digestionInsideMsgDescrip) internalFate = vt.digestionInsideMsgDescrip;
                     if (vt.digestionOutsideMsgDescrip) externalOutcome = vt.digestionOutsideMsgDescrip;
-                } else {
-                    // log.debug(`[DigestionDebug] VT matched but Mode is ${vt.mode} (Expected 'Digest') or Type is ${vt.type}`);
                 }
-            } else {
-                // log.debug(`[DigestionDebug] No matching VT found for NodeId ${currentNodeId} in Pred's list.`);
-                // predator.voreTypes.forEach(v => log.debug(`   - Available: ${v.graphNodeId} / ${v.id} (${v.destination})`));
             }
-        } else {
-            // log.debug(`[DigestionDebug] Predator has NO voreTypes array.`);
         }
 
         if (shouldDigest) {
@@ -115,7 +148,6 @@ async function processDigestion(players, User, io, addCorpse, messageSystem) {
                 const wasDead = victim.isDead;
 
                 // Apply Damage
-                // Pass NULL for addCorpse to suppress standard corpse spawning (victim is inside predator)
                 const result = await applyDamage(players, User, victimId, damageAmount, predatorSocketId, 'acid', null, io);
 
                 if (result.success) {
@@ -125,6 +157,9 @@ async function processDigestion(players, User, io, addCorpse, messageSystem) {
                     // Check for Death Transition
                     if (!wasDead && result.dead) {
                         log.info(`[Digestion] ${victim.firstName} has been digested by ${predator.firstName}. Processing death release...`);
+
+                        // Stop tracking this victim as they are dead/processed
+                        victimsToRemove.push(victimId);
 
                         // --- 1. Release Spirit to Map ---
                         // Position ghost at predator's location
@@ -184,7 +219,7 @@ async function processDigestion(players, User, io, addCorpse, messageSystem) {
                                     processed = processed.replace(nameRegex, 'You');
                                     processed = processed.replace(/\btheir\b/gi, 'your');
                                     processed = processed.replace(/\btheirs\b/gi, 'yours');
-                                    processed = processed.replace(/\bYou's\b/gi, 'Your'); // Catch <pred>'s -> You's
+                                    processed = processed.replace(/\bYou's\b/gi, 'Your');
                                 }
                                 if (isPrey) {
                                     const nameRegex = new RegExp(`\\b${preyName}\\b`, 'gi');
@@ -194,7 +229,6 @@ async function processDigestion(players, User, io, addCorpse, messageSystem) {
                             };
 
                             const preyMsg = processTags(internalFate, true, false);
-                            // Ensure we use external outcome description for predator/external, adapted
                             const rawPredMsg = externalOutcome || `<pred>'s ${nodeName} churns as <prey> is fully digested.`;
                             const predMsg = processTags(rawPredMsg, false, true);
                             const externalMsg = processTags(rawPredMsg, false, false);
@@ -213,7 +247,6 @@ async function processDigestion(players, User, io, addCorpse, messageSystem) {
                             }
 
                             // 3. External (Observers)
-                            // Crucial: Exclude using _id (Character ID)
                             const excludedIds = [];
                             if (victim._id) excludedIds.push(String(victim._id));
                             if (predator._id) excludedIds.push(String(predator._id));
@@ -223,17 +256,17 @@ async function processDigestion(players, User, io, addCorpse, messageSystem) {
                                 io.emit('voreLog', externalMsg);
                             }
                         }
-
-                        // Save State
-                        // Just rely on server loop saves or eventual consistency, 
-                        // but updating 'dead' status is critical, which applyDamage handled via DB update.
                     }
                 }
-            } else {
-                // log.debug(`[Digestion] ${predator.firstName}'s ${nodeName} failed to digest (Roll: ${roll.toFixed(2)} vs Chance: ${chance})`);
             }
         }
     }
+
+    // Cleanup Stale Entries
+    victimsToRemove.forEach(id => {
+        activeDigestions.delete(id);
+        digestionTimers.delete(id);
+    });
 }
 
-module.exports = { processDigestion };
+module.exports = { processDigestion, trackVictim, untrackVictim };
