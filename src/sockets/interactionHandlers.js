@@ -2,6 +2,7 @@ const log = require('../logger');
 const itemData = require('../data/itemData');
 const { performItemUse } = require('../utils/itemActions');
 const { resolveItemDef } = require('../utils/itemUtils');
+const { trackVictim, untrackVictim } = require('../server/mechanics/digestion');
 
 /**
  * Interaction Handlers
@@ -14,7 +15,6 @@ const { resolveItemDef } = require('../utils/itemUtils');
  * Reorganized for readability.
  */
 module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter, craftingStations, getPlayersInRange) {
-    const { trackVictim, untrackVictim } = require('../server/mechanics/digestion');
     const logPrefix = `[Inter:${socket.id}]`;
 
     // =========================================================================
@@ -150,6 +150,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
      * Evaluates reach, intent (Friendly, Grabbing, Hostile), and triggers effects.
      */
     socket.on('playerPerformAction', (data) => {
+        log.info(`${logPrefix} Received playerPerformAction from ${socket.id} with intent: ${data.intent}`);
         try {
             const { targetId, intent } = data;
             const player = players[socket.id];
@@ -276,7 +277,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
             const preyName = getFullName(prey);
 
             // Fetch Anatomy Node to get the correct verb
-            const anatomy = safeParse(predator.anatomyData);
+            const anatomy = getParsedAnatomy(predator);
             let verb = voreType.verb || 'eats';
             if (anatomy && anatomy.nodes) {
                 const node = anatomy.nodes.find(n => String(n.id) === String(voreType.graphNodeId));
@@ -396,6 +397,14 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
                 addPlayerToVoreContents(predator, destinationName, preyName, voreType.graphNodeId);
 
+                // [FIX] Broadcast Immediate Update for Predator's Vore List (UI)
+                io.emit('playerStateUpdate', {
+                    [predator.playerId]: {
+                        playerId: predator.playerId,
+                        voreTypes: predator.voreTypes
+                    }
+                });
+
                 broadcastVoreStageUpdate(io, prey, predator, 3, destinationName);
                 saveState(saveCharacter, socket.id, prey.socketId);
             }
@@ -425,7 +434,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
             const currentStage = prey.voreStage || 1;
             const currentNodeId = prey.currentVoreNodeId;
-            const anatomy = safeParse(predator.anatomyData);
+            const anatomy = getParsedAnatomy(predator);
 
             if (!anatomy.nodes) return;
 
@@ -524,6 +533,13 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 // Stage 3 Content Update
                 if (nextStage === 3) {
                     addPlayerToVoreContents(predator, nextNode.properties.name, getFullName(prey), String(nextNode.id));
+                    // [FIX] Broadcast Immediate Update
+                    io.emit('playerStateUpdate', {
+                        [predator.playerId]: {
+                            playerId: predator.playerId,
+                            voreTypes: predator.voreTypes
+                        }
+                    });
                 }
 
                 // Delivery
@@ -584,7 +600,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
             const preyName = getFullName(prey);
 
             // Fetch Anatomy Node to get descriptions
-            const anatomy = safeParse(predator.anatomyData);
+            const anatomy = getParsedAnatomy(predator);
             let insideDesc = '';
             let outsideDesc = '';
             let nodeName = 'Stomach';
@@ -692,7 +708,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
             let rawOut = `${pName}'s ${nodeName} shifts as ${tName} struggles.`;
 
             if (prey.currentVoreNodeId && predator.anatomyData) {
-                const graph = safeParse(predator.anatomyData);
+                const graph = getParsedAnatomy(predator);
                 const node = graph.nodes ? graph.nodes.find(n => String(n.id) === prey.currentVoreNodeId) : null;
 
                 if (node) {
@@ -812,6 +828,14 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 }
                 sendSystemMsg(socket, messageSystem, msg);
 
+                // [FIX] Broadcast Immediate Update (removed from contents)
+                io.emit('playerStateUpdate', {
+                    [predator.playerId]: {
+                        playerId: predator.playerId,
+                        voreTypes: predator.voreTypes
+                    }
+                });
+
                 saveState(saveCharacter, socket.id, prey.socketId);
             }
 
@@ -927,6 +951,15 @@ function handleRelease(io, socket, players, messageSystem, saveCharacter, data) 
 
         // Update UI
         broadcastVoreStageUpdate(io, targetPlayer, player, 0, null);
+
+        // [FIX] Broadcast Immediate Update (removed from contents)
+        io.emit('playerStateUpdate', {
+            [player.playerId]: {
+                playerId: player.playerId,
+                voreTypes: player.voreTypes
+            }
+        });
+
         saveState(saveCharacter, socket.id, targetPlayer.socketId);
     }
 }
@@ -1069,9 +1102,20 @@ function saveState(saveFunc, predSocketId, preySocketId) {
     }
 }
 
-function safeParse(jsonStr) {
+function getParsedAnatomy(player) {
+    if (!player.anatomyData) return {};
+
+    // Check Cache
+    if (player._anatomyCache && player._anatomyCacheString === player.anatomyData) {
+        return player._anatomyCache;
+    }
+
+    // Parse & Cache
     try {
-        return JSON.parse(jsonStr || '{}');
+        const parsed = JSON.parse(player.anatomyData);
+        player._anatomyCache = parsed;
+        player._anatomyCacheString = player.anatomyData; // Store source string to detect changes
+        return parsed;
     } catch {
         return {};
     }

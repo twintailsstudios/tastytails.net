@@ -603,3 +603,128 @@ export function updateCraftingBar(playerContainer, playerInfo, scene) {
         }
     }
 }
+
+/**
+ * Updates the visual cosmetics (tint/texture) of a player container based on the provided playerInfo.
+ * This is crucial for applying updates when the server sends authoritative data (like after DB load).
+ */
+export function updatePlayerCosmetics(container, playerInfo) {
+    if (!container || !container.active) return;
+
+    // Helper for color parsing
+    const parseColor = (color) => {
+        if (typeof color === 'string') {
+            return Number(color);
+        }
+        return color;
+    };
+
+    // List of cosmetic parts and their sub-sprites
+    // Structure: { partName: 'head', sprites: ['sprite', 'secondarySprite', 'accentSprite'], names: ['head', 'secondaryHead', 'accentHead'] }
+    // Or we can map strictly.
+
+    const cosmeticConfig = [
+        {
+            key: 'tail', parts: [
+                { prop: 'sprite', name: 'tail' },
+                { prop: 'secondarySprite', name: 'secondaryTail' },
+                { prop: 'accentSprite', name: 'accentTail' }
+            ]
+        },
+        {
+            key: 'body', parts: [
+                { prop: 'sprite', name: 'body' },
+                { prop: 'secondarySprite', name: 'secondaryBody' },
+                { prop: 'accentSprite', name: 'accentBody' }
+            ]
+        },
+        {
+            key: 'head', parts: [
+                { prop: 'sprite', name: 'head' },
+                { prop: 'secondarySprite', name: 'secondaryHead' },
+                { prop: 'accentSprite', name: 'accentHead' }
+            ]
+        },
+        {
+            key: 'ear', parts: [
+                { prop: 'outerSprite', name: 'outerEar', colorProp: 'outerColor' },
+                { prop: 'innerSprite', name: 'innerEar', colorProp: 'innerColor' }
+            ]
+        },
+        {
+            key: 'hands', parts: [
+                { prop: 'sprite', name: 'hands' }
+            ]
+        },
+        {
+            key: 'feet', parts: [
+                { prop: 'sprite', name: 'feet' }
+            ]
+        },
+        {
+            key: 'genitles', parts: [
+                { prop: 'sprite', name: 'genitles' }
+            ]
+        },
+        {
+            key: 'beak', parts: [
+                { prop: 'sprite', name: 'beak' }
+            ]
+        },
+        {
+            key: 'eyes', parts: [
+                { prop: 'outer', name: 'eyes', noTint: true }, // Eyes often don't have tint, or have specific logic
+                { prop: 'iris', name: 'iris' }
+            ]
+        },
+        {
+            key: 'hair', parts: [
+                { prop: 'sprite', name: 'hair' }
+            ]
+        },
+        {
+            key: 'headAccessories', parts: [
+                { prop: 'sprite', name: 'headAccessories' }
+            ]
+        }
+    ];
+
+    cosmeticConfig.forEach(config => {
+        const data = playerInfo[config.key];
+        if (!data) return;
+
+        config.parts.forEach(part => {
+            const sprite = container.getByName(part.name);
+            if (sprite) {
+                // Update Texture if changed and valid
+                const textureKey = data[part.prop];
+                if (textureKey && textureKey !== 'empty' && sprite.texture.key !== textureKey) {
+                    sprite.setTexture(textureKey);
+                }
+
+                // Update Tint if supported
+                if (!part.noTint) {
+                    // Determine which color property to use
+                    // Default to 'color', 'secondaryColor', 'accentColor' based on standard pattern
+                    // Or use specific 'colorProp' override
+                    let colorKey = 'color';
+                    if (part.colorProp) {
+                        colorKey = part.colorProp;
+                    } else if (part.name.toLowerCase().includes('secondary')) {
+                        colorKey = 'secondaryColor';
+                    } else if (part.name.toLowerCase().includes('accent')) {
+                        colorKey = 'accentColor';
+                    }
+
+                    const newColor = parseColor(data[colorKey]);
+                    // Only update if valid number
+                    if (newColor !== undefined && !isNaN(newColor)) {
+                        sprite.setTint(newColor);
+                    } else {
+                        sprite.clearTint();
+                    }
+                }
+            }
+        });
+    });
+}

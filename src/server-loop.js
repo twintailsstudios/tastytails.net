@@ -18,6 +18,7 @@ const clothingData = require('./data/clothingData');
 
 const itemData = require('./data/itemData');
 const { resolveItemDef } = require('./utils/itemUtils');
+const { getSafePlayerState } = require('./utils/itemActions');
 const DatabaseResilience = require('./classes/DatabaseResilience');
 
 const VisibilityPolygon = require('visibility-polygon'); // New: For shadowcasting
@@ -258,6 +259,10 @@ function initializeMap() {
 
         tilemapData.layers.forEach(layer => {
             if (layer.type === 'tilelayer' && layer.data) {
+                // [MODIFIED] Do NOT skip 'zones' layer entirely.
+                // Instead, we mark it so we don't add collision/light from it.
+                const isZoneLayer = layer.name && layer.name.toLowerCase().includes('zones');
+
                 let layerIsHillHome = false;
                 if (layer.properties) {
                     const prop = layer.properties.find(p => p.name === 'hillHome');
@@ -270,41 +275,28 @@ function initializeMap() {
                     if (gid === 0) return; // Empty tile
 
                     // Global ID Lookup (Correct for multiple tilesets)
+                    const x = index % mapWidth;
+                    const y = Math.floor(index / mapWidth);
+                    if (y >= mapHeight || x >= mapWidth) return; // Safety bounds
 
-                    // Collision Map
-                    if (blockedGids.has(gid)) {
-                        const x = index % mapWidth;
-                        const y = Math.floor(index / mapWidth);
-                        if (y < mapHeight && x < mapWidth) {
-                            collisionMap[y][x] = 1;
-                        }
+                    // Collision Map - Exclude Zone Layer
+                    if (!isZoneLayer && blockedGids.has(gid)) {
+                        collisionMap[y][x] = 1;
                     }
 
-                    // HillHome Map
-                    if (hillHomeGids.has(gid) || layerIsHillHome) {
-                        const x = index % mapWidth;
-                        const y = Math.floor(index / mapWidth);
-                        if (y < mapHeight && x < mapWidth) {
-                            hillHomeMap[y][x] = 1;
-                        }
+                    // HillHome Map - Exclude Zone Layer (Safety)
+                    if (!isZoneLayer && (hillHomeGids.has(gid) || layerIsHillHome)) {
+                        hillHomeMap[y][x] = 1;
                     }
 
-                    // Light Map (Shadows)
-                    if (lightBlockGids.has(gid)) {
-                        const x = index % mapWidth;
-                        const y = Math.floor(index / mapWidth);
-                        if (y < mapHeight && x < mapWidth) {
-                            lightMap[y][x] = 1;
-                        }
+                    // Light Map (Shadows) - Exclude Zone Layer
+                    if (!isZoneLayer && lightBlockGids.has(gid)) {
+                        lightMap[y][x] = 1;
                     }
 
-                    // Zone Map
+                    // Zone Map - INCLUDE Zone Layer (and others if they have zone props)
                     if (zoneGids[gid]) {
-                        const x = index % mapWidth;
-                        const y = Math.floor(index / mapWidth);
-                        if (y < mapHeight && x < mapWidth) {
-                            zoneMap[y][x] = zoneGids[gid];
-                        }
+                        zoneMap[y][x] = zoneGids[gid];
                     }
                 });
             }
@@ -691,6 +683,76 @@ function convertMapToSegments() {
 
     staticSegments = segments;
     log.success(`Generated ${segments.length} wall segments for raycasting.`);
+
+    // --- 6. Populate Segment Grid ---
+    populateSegmentGrid(segments);
+}
+
+// --- Segment Spatial Partitioning ---
+const SEGMENT_GRID_SIZE = 400; // Match AOI size for convenience
+let segmentGrid = {}; // "cx,cy" -> [segment1, segment2]
+
+function populateSegmentGrid(segments) {
+    segmentGrid = {};
+    let count = 0;
+
+    segments.forEach(seg => {
+        const p1 = seg[0];
+        const p2 = seg[1];
+
+        // Determine bounding box of the segment
+        const minX = Math.min(p1[0], p2[0]);
+        const maxX = Math.max(p1[0], p2[0]);
+        const minY = Math.min(p1[1], p2[1]);
+        const maxY = Math.max(p1[1], p2[1]);
+
+        // Determine grid cells
+        const startX = Math.floor(minX / SEGMENT_GRID_SIZE);
+        const endX = Math.floor(maxX / SEGMENT_GRID_SIZE);
+        const startY = Math.floor(minY / SEGMENT_GRID_SIZE);
+        const endY = Math.floor(maxY / SEGMENT_GRID_SIZE);
+
+        for (let y = startY; y <= endY; y++) {
+            for (let x = startX; x <= endX; x++) {
+                const key = `${x},${y}`;
+                if (!segmentGrid[key]) segmentGrid[key] = [];
+                segmentGrid[key].push(seg);
+                count++;
+            }
+        }
+    });
+    log.success(`Populated Segment Grid. Indexed ${segments.length} segments into spatial hash.`);
+}
+
+/**
+ * Retrieves segments relevant to the given position and range.
+ * This is the core optimization for limiting raycasting scope.
+ */
+function getSegmentsInRange(x, y, range) {
+    const cx = Math.floor(x / SEGMENT_GRID_SIZE);
+    const cy = Math.floor(y / SEGMENT_GRID_SIZE);
+    const rangeInCells = Math.ceil(range / SEGMENT_GRID_SIZE); // e.g. 600 / 400 = 2
+
+    const segments = new Set(); // Use Set to avoid duplicates if segment spans multiple checked cells
+
+    for (let xx = cx - rangeInCells; xx <= cx + rangeInCells; xx++) {
+        for (let yy = cy - rangeInCells; yy <= cy + rangeInCells; yy++) {
+            const key = `${xx},${yy}`;
+            if (segmentGrid[key]) {
+                const cellSegs = segmentGrid[key];
+                for (let i = 0; i < cellSegs.length; i++) {
+                    segments.add(cellSegs[i]);
+                }
+            }
+        }
+    }
+
+    // Add World Bounds specifically if near edges? 
+    // staticSegments includes bounds. They are large, so they will overlap many cells.
+    // They should be picked up by the grid automatically.
+
+    // Convert Set back to Array (VisibilityPolygon needs array)
+    return Array.from(segments);
 }
 
 function initializeSpells() {
@@ -740,11 +802,13 @@ function checkCollision(x, y) {
         // Check all overlapped tiles
         for (let ty = minTileY; ty <= maxTileY; ty++) {
             for (let tx = minTileX; tx <= maxTileX; tx++) {
-                // Check bounds
-                if (ty >= 0 && ty < collisionMap.length && tx >= 0 && tx < collisionMap[0].length) {
-                    if (collisionMap[ty][tx] === 1) {
-                        return true;
-                    }
+                // Check bounds - If out of bounds, treat as solid wall
+                if (ty < 0 || ty >= collisionMap.length || tx < 0 || tx >= collisionMap[0].length) {
+                    return true;
+                }
+
+                if (collisionMap[ty][tx] === 1) {
+                    return true;
                 }
             }
         }
@@ -841,6 +905,7 @@ function updatePlayers(delta, io) {
         // Process all pending inputs in the queue
         while (player.inputQueue && player.inputQueue.length > 0) {
             const input = player.inputQueue.shift();
+
             const inputDelta = input.delta || 0.016; // Default to ~60fps if missing
 
             let newX = player.position.x;
@@ -855,6 +920,7 @@ function updatePlayers(delta, io) {
                 proposedX += speed * inputDelta;
             }
 
+            // Check X collision
             // Check X collision
             if (player.isDead || !checkCollision(proposedX, player.position.y)) {
                 newX = proposedX;
@@ -1037,15 +1103,35 @@ function updatePlayers(delta, io) {
             // Simple Manhattan distance check is sufficient and faster
             const dist = Math.abs(player.position.x - lastPos.x) + Math.abs(player.position.y - lastPos.y);
 
-            if (dist > 1.0) {
+            // OPTIMIZATION: Increased threshold from 1.0 to 16.0 (half tile)
+            // Recalculating raycast shadows every pixel is overkill.
+            if (dist > 16.0) {
                 const pos = [player.position.x, player.position.y];
 
                 // Compute visibility
                 // VisibilityPolygon.compute(position, segments)
                 // segments: array of [[x1,y1],[x2,y2]]
                 // Returns: [[x1,y1], [x2,y2], ...]
-                const polygon = VisibilityPolygon.compute(pos, staticSegments);
+
+                // [OPTIMIZED] Use Spatial Partitioning to get only relevant segments
+                const relevantSegments = getSegmentsInRange(player.position.x, player.position.y, VIEW_DISTANCE);
+
+                // [FIX] Add Dynamic Bounding Box Limit
+                // Prevents infinite rays / jagged edges at view limit
+                const boxSize = VIEW_DISTANCE; // e.g. 600
+                const px = player.position.x;
+                const py = player.position.y;
+
+                relevantSegments.push(
+                    [[px - boxSize, py - boxSize], [px + boxSize, py - boxSize]], // Top
+                    [[px + boxSize, py - boxSize], [px + boxSize, py + boxSize]], // Right
+                    [[px + boxSize, py + boxSize], [px - boxSize, py + boxSize]], // Bottom
+                    [[px - boxSize, py + boxSize], [px - boxSize, py - boxSize]]  // Left
+                );
+
+                const polygon = VisibilityPolygon.compute(pos, relevantSegments);
                 player.visibilityPolygon = polygon;
+                // player.visibilityPolygon = []; // Empty polygon (See everyone / no shadows)
                 player.lastShadowCalcPosition = { x: player.position.x, y: player.position.y };
             }
         }
@@ -1106,15 +1192,19 @@ function isPointInPolygon(x, y, vs) {
 //  */
 let lastUpdateTime = Date.now();
 let lastDigestionTime = Date.now();
-const VIEW_DISTANCE = 950; // Increased to 950 per user request
+let serverTickCount = 0; // [OPTIMIZED] For temporal staggering
+const VIEW_DISTANCE = 600; // [OPTIMIZED] Reduced from 950 to 600 (Bandwidth/CPU Tradeoff)
 const VISIBILITY_BUFFER = 30; // Reduced to 30 to prevent early pop-in from shadows
 
 function gameLoop(io) {
+    const tStart = performance.now();
+    let tLogic = 0;
+    let tPhysics = 0;
+    let packetsSent = 0;
+
     const now = Date.now();
     const delta = (now - lastUpdateTime) / 1000; // Delta in seconds
     lastUpdateTime = now;
-
-    updatePlayers(delta, io);
 
     // --- DIGESTION SYSTEM ---
     // Run once per second (approx)
@@ -1127,6 +1217,56 @@ function gameLoop(io) {
         lastDigestionTime = now;
     }
 
+    // --- PHYSICS & MOVEMENT ---
+    tLogic = performance.now() - tStart;
+    const tPhysicsStart = performance.now();
+
+    // [FIX] Ensure players move before we calculate visibility
+    updatePlayers(delta, io);
+    tPhysics = performance.now() - tPhysicsStart;
+
+    // --- GLOBAL PACKET CACHING (O(N) Optimization) ---
+    // Pre-calculate the "Public" packet and "Public Delta" for every player ONCE.
+    // This allows us to reuse the same object for all 500+ observers, avoiding O(N^2) object creation.
+
+    const connectedSocketIds = Object.keys(players);
+
+    connectedSocketIds.forEach(pid => {
+        const p = players[pid];
+        if (!p) return;
+
+        // 1. Generate Current Public State
+        // This is what ANY observer sees (excluding private data like visibilityPolygon for self)
+        const currentPublicState = getUpdatePacketForOther(p);
+
+        // 2. Compare with Last Tick's Public State to generate a "Global Delta"
+        let globalDelta = null;
+        if (p._lastPublicState) {
+            globalDelta = getPacketDelta(p._lastPublicState, currentPublicState);
+        } else {
+            // No previous state, so no delta (first tick or just reset)
+            // But for caching purposes, the "delta" vs "full" logic is handled by the observer's knowledge
+        }
+
+        if (globalDelta) {
+            // Ensure ID is present for client routing
+            globalDelta.playerId = pid;
+        }
+
+        // 3. Cache it on the player object
+        p._cache = {
+            publicState: currentPublicState, // Full Object from THIS tick
+            publicDelta: globalDelta         // Diff from LAST tick
+        };
+
+        // 4. Update History for NEXT tick
+        // We clone it because currentPublicState might be referenced/modified (unlikely but safe)
+        // Actually, getUpdatePacketForOther creates a new object structure (shallow helpers), 
+        // but we need to ensure we don't mutate `_lastPublicState` later.
+        // Since we are replacing `_lastPublicState` entirely, it's fine.
+        p._lastPublicState = currentPublicState;
+    });
+
     // --- AREA OF INTEREST (AOI) SYSTEM ---
     // The AOI system is a network optimization technique.
     // Instead of broadcasting every player's position to every other player (O(N^2)),
@@ -1134,7 +1274,7 @@ function gameLoop(io) {
     // This significantly reduces bandwidth usage and prevents clients from "knowing" about
     // hidden players (anti-cheat).
 
-    const connectedSocketIds = Object.keys(players);
+    // const connectedSocketIds = Object.keys(players); // Already declared above for Global Caching
 
     // --- 1. Build Spatial Hash for Players ---
     const AOI_CELL_SIZE = 400; // Size of grid cell
@@ -1148,152 +1288,225 @@ function gameLoop(io) {
             const key = `${cx},${cy}`;
             if (!playerGrid[key]) playerGrid[key] = [];
             playerGrid[key].push(pid);
+
+            // DEBUG AOI
+            if (p.firstName === 'Tester' || p.firstName === 'Remote') {
+                // console.log(`[AOI DEBUG] ${p.firstName} (${pid}) GridKey: ${key} Pos: ${p.position.x.toFixed(1)}, ${p.position.y.toFixed(1)}`);
+            }
         }
     });
 
     // Iterate over each connected player ("Observer") to determine what they should see.
-    connectedSocketIds.forEach(observerId => {
+    connectedSocketIds.forEach((observerId, index) => {
         const observer = players[observerId];
         if (!observer) return;
 
-        // Filter players for this observer
-        const visiblePlayers = {};
+        // [OPTIMIZATION] Temporal Staggering (Tick Skipping)
+        // Only Re-Calculate Visibility for 1/3rd of players per tick.
+        // For the others, we reuse the cached visibility set from the last calculation.
+        // This keeps the O(N^2) complexity manageable (effectively 10Hz updates for vis changes).
+        const shouldRecalculate = (index % 3 === serverTickCount % 3);
 
-        // Always include self so the client can reconcile its own prediction with authoritative server state.
-        // OPTIMIZATION: Send full data (including polygon) ONLY for self.
-        visiblePlayers[observerId] = getUpdatePacketForSelf(observer);
+        // Ensure we have a set to work with
+        if (!observer._visibleSet) {
+            observer._visibleSet = new Set();
+            observer._visibleSet.add(observerId); // Always see self
+        }
 
-        // OPTIMIZATION: Send full data (including polygon) ONLY for self.
-        visiblePlayers[observerId] = getUpdatePacketForSelf(observer);
+        if (shouldRecalculate) {
+            const newVisibleSet = new Set();
+            newVisibleSet.add(observerId); // Always include self
 
-        // --- Spatial Hash Lookup for Targets ---
-        const oX = observer.position.x;
-        const oY = observer.position.y;
-        const cellX = Math.floor(oX / AOI_CELL_SIZE);
-        const cellY = Math.floor(oY / AOI_CELL_SIZE);
+            // --- Spatial Hash Lookup for Targets ---
+            const oX = observer.position.x;
+            const oY = observer.position.y;
+            const cellX = Math.floor(oX / AOI_CELL_SIZE);
+            const cellY = Math.floor(oY / AOI_CELL_SIZE);
 
-        // Check 5x5 Grid around observer (covers ~1000px radius with 400px cells)
-        // VIEW_DISTANCE = 950. Cell Size = 400. 
-        // Range: ceil(950/400) = 3 cells. 
-        // We check -3 to +3 for safety.
+            // Check 5x5 Grid around observer (covers ~1000px radius with 400px cells)
+            for (let cx = cellX - 3; cx <= cellX + 3; cx++) {
+                for (let cy = cellY - 3; cy <= cellY + 3; cy++) {
+                    const cellKey = `${cx},${cy}`;
+                    const cellPlayers = playerGrid[cellKey];
 
-        for (let cx = cellX - 3; cx <= cellX + 3; cx++) {
-            for (let cy = cellY - 3; cy <= cellY + 3; cy++) {
-                const cellKey = `${cx},${cy}`;
-                const cellPlayers = playerGrid[cellKey];
+                    if (cellPlayers) {
+                        for (const targetId of cellPlayers) {
+                            if (observerId === targetId) continue; // Already added self
 
-                if (cellPlayers) {
-                    for (const targetId of cellPlayers) {
-                        if (observerId === targetId) continue; // Already added self
+                            const target = players[targetId];
+                            if (!target) continue;
 
-                        const target = players[targetId];
-                        if (!target) continue;
+                            // 1. Distance Check
+                            const dx = oX - target.position.x;
+                            const dy = oY - target.position.y;
+                            const distSq = dx * dx + dy * dy;
 
-                        // ... Proceed with Distance Check ...
-                        // (We inline the existing logic here for the candidates)
+                            if (distSq < VIEW_DISTANCE * VIEW_DISTANCE) {
+                                // 2. Shadow/Visibility Check
+                                let isVisible = false;
 
-                        // 1. Distance Check
-                        const dx = oX - target.position.x;
-                        const dy = oY - target.position.y;
-                        const distSq = dx * dx + dy * dy;
+                                // OPTIMIZATION: Proximity Short-Circuit
+                                if (distSq < 22500) { // 150 * 150
+                                    isVisible = true;
+                                } else if (observer.visibilityPolygon && observer.visibilityPolygon.length > 0) {
+                                    // [OPTIMIZED] Center First Raycast
+                                    const tx = target.position.x;
+                                    const ty = target.position.y;
 
-                        if (distSq < VIEW_DISTANCE * VIEW_DISTANCE) {
-                            // 2. Shadow/Visibility Check
-                            let isVisible = false;
-
-                            // OPTIMIZATION: Proximity Short-Circuit
-                            // If very close, assume visible (shadows shouldn't block view at < 150px)
-                            if (distSq < 22500) { // 150 * 150
-                                isVisible = true;
-                            }
-                            else if (observer.visibilityPolygon && observer.visibilityPolygon.length > 0) {
-                                const tx = target.position.x;
-                                const ty = target.position.y;
-                                isVisible =
-                                    isPointInPolygon(tx, ty, observer.visibilityPolygon) ||
-                                    isPointInPolygon(tx + VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
-                                    isPointInPolygon(tx - VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
-                                    isPointInPolygon(tx, ty + VISIBILITY_BUFFER, observer.visibilityPolygon) ||
-                                    isPointInPolygon(tx, ty - VISIBILITY_BUFFER, observer.visibilityPolygon);
-                            } else {
-                                isVisible = true; // Fallback
-                            }
-
-                            if (isVisible && target.isInGame) {
-                                // VISIBILITY FILTER FOR SPIRITS
-                                // 1. If Observer is Alive: Cannot see Dead players (Spirits)
-                                // 2. If Observer is Dead: Can see everyone (Alive + Spirits)
-                                const observerIsDead = observer.isDead;
-                                const targetIsDead = target.isDead;
-
-                                if (!observerIsDead && targetIsDead) {
-                                    // Alive observer cannot see Spirit target
-                                    // Skip
+                                    if (isPointInPolygon(tx, ty, observer.visibilityPolygon)) {
+                                        isVisible = true;
+                                    } else {
+                                        // Check edges only if center is blocked
+                                        isVisible =
+                                            isPointInPolygon(tx + VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
+                                            isPointInPolygon(tx - VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
+                                            isPointInPolygon(tx, ty + VISIBILITY_BUFFER, observer.visibilityPolygon) ||
+                                            isPointInPolygon(tx, ty - VISIBILITY_BUFFER, observer.visibilityPolygon);
+                                    }
                                 } else {
-                                    visiblePlayers[targetId] = getUpdatePacketForOther(target);
+                                    isVisible = true; // Fallback
+                                }
+
+                                if (isVisible && target.isInGame) {
+                                    // VISIBILITY FILTER FOR SPIRITS
+                                    const observerIsDead = observer.isDead;
+                                    const targetIsDead = target.isDead;
+
+                                    if (!observerIsDead && targetIsDead) {
+                                        // Alive observer cannot see Spirit target
+                                    } else {
+                                        newVisibleSet.add(targetId);
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+            // Update Cache
+            observer._visibleSet = newVisibleSet;
         }
 
+        // --- SEND UPDATES (Every Tick) ---
         // Send the customized, filtered list of players to this specific client.
-        // The client will use this list to Create, Update, or Destroy (Reconcile) player sprites.
         const socket = io.sockets.sockets.get(observerId);
         if (socket) {
-            if (!socket._lastPlayerStates) socket._lastPlayerStates = {};
-
+            if (!socket._knownPlayers) socket._knownPlayers = new Set();
+            const currentVisibleIds = new Set();
             const updatesToSend = {};
 
-            // Process Visible Players for Delta Compression
-            Object.keys(visiblePlayers).forEach(targetId => {
-                const newState = visiblePlayers[targetId];
-
-                // 1. New Entity for this Observer (Full Update)
-                if (!socket._lastPlayerStates[targetId]) {
-                    updatesToSend[targetId] = newState;
-                    socket._lastPlayerStates[targetId] = clonePacketForSnapshot(newState);
-                } else {
-                    // 2. Existing Entity (Delta Update)
-                    const lastState = socket._lastPlayerStates[targetId];
-                    const delta = getPacketDelta(lastState, newState);
-
-                    if (delta) {
-                        // Always include ID so client knows who to update
-                        delta.playerId = targetId;
-                        if (targetId === observerId) delta.Identifier = newState.Identifier; // Keep self identifiers if needed
-
-                        updatesToSend[targetId] = delta;
-                        // Update snapshot
-                        socket._lastPlayerStates[targetId] = clonePacketForSnapshot(newState);
+            // Iterate the (potentially cached) set of visible players
+            observer._visibleSet.forEach(targetId => {
+                // 1. Self Update (Always Full Rate)
+                if (targetId === observerId) {
+                    const selfState = getUpdatePacketForSelf(observer);
+                    let selfDelta = null;
+                    if (socket._lastSelfState) {
+                        selfDelta = getPacketDelta(socket._lastSelfState, selfState);
                     } else {
-                        // [FIX] Send Keep-Alive (Empty Delta)
-                        // If we don't send anything, the client assumes the player is out of AOI and deletes them.
-                        updatesToSend[targetId] = { playerId: targetId };
+                        selfDelta = selfState;
+                    }
+                    socket._lastSelfState = selfState;
+
+                    if (selfDelta) {
+                        selfDelta.playerId = observerId;
+                        updatesToSend[observerId] = selfDelta;
+                    }
+                    currentVisibleIds.add(observerId);
+                    return;
+                }
+
+                // 2. Others Update
+                const target = players[targetId];
+                if (!target || !target._cache) return; // Should not happen
+
+                // [LOD OPTIMIZATION] Distance-Based Throttling
+                // Calculate distance to determine update frequency
+                // We use Manhattan distance for speed, it's roughly accurate enough for LOD classification
+                const distX = Math.abs(observer.position.x - target.position.x);
+                const distY = Math.abs(observer.position.y - target.position.y);
+                const isFar = (distX + distY) > 400; // Approx 300px Euclidean
+
+                // If Far, only update every 3rd tick (10Hz)
+                // Use targetID char code sum or specific char for deterministic hashing
+                // We use the last char code to distribute load evenly across ticks
+                if (isFar) {
+                    const idHash = targetId.charCodeAt(targetId.length - 1);
+
+                    // [LOD PRIORITY] Force update if critical state changed (Animation/Rotation fix)
+                    let forceUpdate = false;
+                    if (target._cache && target._cache.publicDelta) {
+                        const d = target._cache.publicDelta;
+                        // Check for visual state changes that need immediate feedback
+                        if (d.rotation !== undefined || d.action !== undefined || d.isMoving !== undefined || d.isDead !== undefined) {
+                            forceUpdate = true;
+                        }
+                    }
+
+                    if (!forceUpdate && (serverTickCount + idHash) % 3 !== 0) {
+                        // SKIP UPDATE this tick
+                        // We still mark as visible so they aren't pruned (from _knownPlayers)
+                        currentVisibleIds.add(targetId);
+                        // [OPTIMIZATION] Send NOTHING. Client will persist the player until explicit removal.
+                        return;
                     }
                 }
-            });
 
-            // Prune Stale States (Players no longer visible)
-            // This ensures memory doesn't leak and re-entries get full updates
-            Object.keys(socket._lastPlayerStates).forEach(storedId => {
-                if (!visiblePlayers[storedId]) {
-                    delete socket._lastPlayerStates[storedId];
+                currentVisibleIds.add(targetId);
+
+                if (socket._knownPlayers.has(targetId)) {
+                    // Send Global Delta (if any)
+                    if (target._cache.publicDelta) {
+                        updatesToSend[targetId] = target._cache.publicDelta;
+                    } else {
+                        // Keep-Alive
+                        updatesToSend[targetId] = { playerId: targetId };
+                    }
+                } else {
+                    // Send Full State
+                    updatesToSend[targetId] = target._cache.publicState;
+                    socket._knownPlayers.add(targetId);
                 }
             });
 
-            if (Object.keys(updatesToSend).length > 0) {
-                // DEBUG: Check for stats
-                if (updatesToSend[observerId] && updatesToSend[observerId].stats) {
-                    console.log(`[Server] Emitting stats delta to ${observerId}:`, updatesToSend[observerId].stats);
+            // 3. Prune Stale Players (Explicit Removal)
+            const removedIds = [];
+            socket._knownPlayers.forEach(knownId => {
+                if (!currentVisibleIds.has(knownId)) {
+                    socket._knownPlayers.delete(knownId);
+                    removedIds.push(knownId);
                 }
-                socket.emit('playerUpdates', updatesToSend);
+            });
+
+            // Emit if there is ANY data (Update OR Removal)
+            if (Object.keys(updatesToSend).length > 0 || removedIds.length > 0) {
+                // Send updates map AND removed list
+                socket.emit('playerUpdates', updatesToSend, removedIds);
+                packetsSent++;
             }
         }
     });
     // io.emit('spellUpdates', spells);
+
+    const tEnd = performance.now();
+    serverTickCount++; // [FIX] Increment tick for temporal staggering
+
+    return {
+        breakdown: {
+            logic: tLogic,
+            physics: tPhysics,
+            serialize: tEnd - tStart - tLogic - tPhysics
+        },
+        entities: {
+            clients: Object.keys(players).length,
+            items: worldItems.length,
+            corpses: Object.keys(corpses).length
+        },
+        network: {
+            packets: packetsSent,
+            bytes: 0
+        }
+    };
 }
 
 
@@ -1308,7 +1521,8 @@ function getCommonPlayerState(player) {
         Identifier: player.Identifier,
         playerId: player.playerId,
         socketId: player.socketId,
-        position: player.position,
+        // [FIX] Clone position to prevent reference mutation breaking delta compression
+        position: { x: player.position.x, y: player.position.y },
         rotation: player.rotation,
         isMoving: player.isMoving,
 
@@ -1321,8 +1535,8 @@ function getCommonPlayerState(player) {
         face: player.face,
 
         // Visual Gear
-        clothing: player.clothing,
-        equipment: player.equipment,
+        clothing: { ...player.clothing },
+        equipment: { ...player.equipment },
 
         // Detailed Visuals
         head: player.head,
@@ -1353,7 +1567,7 @@ function getCommonPlayerState(player) {
         voreTypes: player.voreTypes,
 
         // Interactive State
-        actionHands: player.actionHands,
+        actionHands: { ...player.actionHands },
 
         // Crafting State
         isCrafting: player.isCrafting,
@@ -1361,7 +1575,7 @@ function getCommonPlayerState(player) {
         craftingDuration: player.craftingDuration,
 
         // Stats (Health, Stamina, Mana)
-        stats: player.stats
+        stats: { ...player.stats }
     };
 }
 
@@ -1390,44 +1604,77 @@ function getUpdatePacketForOther(player) {
 // --- Snapshot & Delta Helpers ---
 
 function clonePacketForSnapshot(p) {
-    // Create a deep copy of the mutable parts we track for changes
-    // We can use JSON parse/stringify for safety on these specific data packets 
-    // because they are relatively small data objects (filtered), not full player entities.
-    // This is faster than manual cloning for complex nested structures like equipment.
-    try {
-        return JSON.parse(JSON.stringify(p));
-    } catch (e) {
-        return { ...p }; // Fallback shallow copy
-    }
+    // OPTIMIZATION: Manual Shallow Clone + One-Level Deep for Mutable Props
+    // Much faster than JSON.parse(JSON.stringify)
+    const clone = { ...p };
+
+    // Clone known mutable nested objects to prevent reference sharing
+    if (p.position) clone.position = { ...p.position };
+    if (p.stats) clone.stats = { ...p.stats };
+    if (p.input) clone.input = { ...p.input };
+    if (p.actionHands) clone.actionHands = { ...p.actionHands };
+
+    // These might differ, but often standard arrays/objects. 
+    // JSON parse/stringify is still safest/easiest for deep structures like equipment 
+    // without writing a full deepClone function, but we only do it for specific fields.
+    if (p.equipment) clone.equipment = { ...p.equipment };
+    // Note: If Equipment has nested objects, Spread is shallow. 
+    // But currently equipment is mostly flat key-val (head: 'sprite', etc).
+
+    if (p.voreTypes) clone.voreTypes = [...p.voreTypes]; // Array shallow copy
+
+    return clone;
 }
 
 function getPacketDelta(oldObj, newObj) {
     const delta = {};
     let hasChanges = false;
 
-    // We assume newObj determines the keys
+    // Iterate over new keys
     for (const key in newObj) {
         const oldVal = oldObj[key];
         const newVal = newObj[key];
 
-        // Position special check (float precision)
-        if (key === 'position' && oldVal && newVal) {
-            if (Math.abs(oldVal.x - newVal.x) > 0.01 || Math.abs(oldVal.y - newVal.y) > 0.01) {
+        // 1. Position Special Check (Float Precision & Ignore minor jitters)
+        if (key === 'position') {
+            if (!oldVal || !newVal || Math.abs(oldVal.x - newVal.x) > 0.01 || Math.abs(oldVal.y - newVal.y) > 0.01) {
                 delta[key] = newVal;
                 hasChanges = true;
             }
             continue;
         }
 
-        // Deep compare for objects (Equipment, arrays)
-        if (typeof newVal === 'object' && newVal !== null) {
-            if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        // 2. Strict Reference Check (Fastest)
+        if (oldVal === newVal) continue;
+
+        // 3. Known Nested Objects (Manual Optimization)
+        // Avoid generic JSON.stringify for everything.
+        if (key === 'input' || key === 'action' || key === 'actionHands') {
+            // Shallow compare 1-level deep
+            if (hasShallowChanged(oldVal, newVal)) {
                 delta[key] = newVal;
                 hasChanges = true;
             }
         }
-        // Primitives
-        else if (oldVal !== newVal) {
+        else if (key === 'stats' || key === 'equipment' || key === 'clothing' || key === 'voreTypes') {
+            // These change rarely (relative to position) or are complex. 
+            // If reference mismatch, perform check.
+            // Using JSON here is acceptable as these updates are rare compared to position.
+            const oldStr = JSON.stringify(oldVal);
+            const newStr = JSON.stringify(newVal);
+            if (oldStr !== newStr) {
+                if (key === 'stats') {
+                    // log.debug(`[StatsDiff] Old: ${oldStr} | New: ${newStr}`);
+                    // Temporary log to console to inspect
+                    console.log(`[StatsDiff] Old: ${oldStr}`);
+                    console.log(`[StatsDiff] New: ${newStr}`);
+                }
+                delta[key] = newVal;
+                hasChanges = true;
+            }
+        }
+        else {
+            // Primitives or Arrays treating as atomic replacement
             delta[key] = newVal;
             hasChanges = true;
         }
@@ -1436,13 +1683,29 @@ function getPacketDelta(oldObj, newObj) {
     return hasChanges ? delta : null;
 }
 
+// Helper for fast shallow comparison
+function hasShallowChanged(a, b) {
+    if (a === b) return false;
+    if (!a || !b) return true;
+
+    // Check keys
+    for (const key in b) {
+        if (a[key] !== b[key]) return true;
+    }
+    // Check if 'a' had keys 'b' lacks (deletion) - rare for stats but possible
+    for (const key in a) {
+        if (b[key] === undefined) return true;
+    }
+    return false;
+}
+
 // --- Main Exported Start Function ---
 
 module.exports.start = (io, _messageSystem) => {
     messageSystem = _messageSystem;
     initializeGame(io);
 
-    io.on('connection', async (socket) => {
+    io.on('connection', (socket) => {
         log.info(`Player connected with socket ID: ${socket.id}`);
 
         // Send map segments to client for local shadow prediction
@@ -1458,180 +1721,237 @@ module.exports.start = (io, _messageSystem) => {
         });
 
         const charId = socket.handshake.query.charId;
-        let characterData = null;
-        let loadedEquipment = null;
 
-        if (charId) {
-            try {
-                const user = await User.findOne({ 'characters._id': charId });
-                if (user) {
-                    const character = user.characters.id(charId);
-                    if (character) {
-                        characterData = character.toObject();
-                        if (character.equipment) {
-                            loadedEquipment = JSON.parse(JSON.stringify(character.equipment));
-                            // log.debug(`[PersistenceDebug] Loaded Equipment into Variable:`, loadedEquipment);
-                        }
-                        log.success(`Loaded character ${character.firstName} ${character.lastName} for socket ${socket.id}`);
-                    }
-                }
-            } catch (err) {
-                log.error(`Error loading character for socket ${socket.id}:`, err);
-            }
-        }
-
+        // [SYNC INIT] Initialize minimal player object immediately so listeners don't fail
         players[socket.id] = {
-            Identifier: "player",
-            playerId: socket.id,
-            _id: characterData ? characterData._id : null,
-            Username: characterData ? (characterData.firstName + ' ' + characterData.lastName) : "Guest",
-            firstName: characterData ? characterData.firstName : "Guest",
-            lastName: characterData ? characterData.lastName : "",
-            nickName: characterData ? characterData.nickName : "",
-            Description: characterData ? characterData.icDescrip : "",
-            icDescrip: characterData ? characterData.icDescrip : "",
-            // New flag to filter visibility
-            isInGame: !!characterData || (socket.handshake.query.isBot === 'true'),
-            // Semantic State Fields
-            speciesName: characterData ? characterData.speciesName : "Unknown",
-            pronouns: characterData ? characterData.pronouns : 0,
-            stats: characterData ? (characterData.stats || characterData.ratings || { health: 100, maxHealth: 100, stamina: 100, maxStamina: 100, mana: 100, maxMana: 100 }) : { health: 100, maxHealth: 100, stamina: 100, maxStamina: 100, mana: 100, maxMana: 100 },
-
-            voreTypes: characterData ? characterData.voreTypes : [],
-
-            isDead: characterData ? (characterData.isDead || false) : false,
-            spiritSprite: characterData ? (characterData.spiritSprite || {}) : {},
-
-            equipment: loadedEquipment ? loadedEquipment : {
-                hair: null,
-                leftEar: null,
-                rightEar: null,
-                head: null,
-                neck: null,
-                back: null,
-                torsoOuter: null,
-                torsoInner: null,
-                leftWrist: null,
-                rightWrist: null,
-                leftHand: null,
-                rightHand: null,
-                belt: null,
-                legs: null,
-                underwear: null,
-                feet: null,
-                tailBase: null,
-                tailTip: null
-            },
-            head: characterData ? characterData.head : {
-                sprite: 'head_01',
-                color: '0xe0e0e0',
-                secondarySprite: 'empty',
-                secondaryColor: '0xffffff',
-                accentSprite: 'empty',
-                accentColor: '0x636363'
-            },
-            body: characterData ? characterData.body : {
-                sprite: 'body_01',
-                color: '0xe0e0e0',
-                secondarySprite: 'empty',
-                secondaryColor: '0xffffff',
-                accentSprite: 'empty',
-                accentColor: '0x636363'
-            },
-            hands: characterData ? characterData.hands : {
-                sprite: 'empty',
-                color: '0xe0e0e0',
-            },
-            feet: characterData ? characterData.feet : {
-                sprite: 'empty',
-                color: '0xe0e0e0',
-            },
-            tail: characterData ? characterData.tail : {
-                sprite: 'tail_01',
-                color: '0xe0e0e0',
-                secondarySprite: 'empty',
-                secondaryColor: '0xffffff',
-                accentSprite: 'empty',
-                accentColor: '0x636363'
-            },
-            eyes: characterData ? characterData.eyes : {
-                outer: 'eyes_01',
-                iris: 'eyes_02',
-                color: '0xfcf2f2'
-            },
-            hair: characterData ? characterData.hair : {
-                sprite: 'empty',
-                color: '0x636363'
-            },
-            ear: characterData ? characterData.ear : {
-                outerSprite: 'empty',
-                innerSprite: 'empty',
-                outerColor: '0xe0e0e0',
-                innerColor: '0x636363'
-            },
-            genitles: characterData ? characterData.genitles : {
-                sprite: 'empty',
-                secondarySprite: 'empty'
-            },
-            beak: characterData ? characterData.beak : {
-                sprite: 'empty',
-                color: '0xe0e0e0'
-            },
-            headAccessories: characterData ? characterData.headAccessories : {
-                sprite: 'empty',
-                color: '0xe0e0e0'
-            },
-
-            voreTypes: characterData ? characterData.voreTypes : [],
-            anatomyData: characterData ? characterData.anatomyData : "",
-
-            actionHands: {
-                leftNode: null,
-                rightNode: null,
-                activeHand: 'right'
-            },
-
-            consumedBy: null,
-            position: characterData && characterData.position ? characterData.position : {
-                x: 3291,
-                y: 4287,
-                time: null
-            },
-            enteredBuilding: false,
-            input: {
-                left: false,
-                right: false,
-                up: false,
-                down: false
-            },
-            rotation: characterData ? characterData.rotation : 0,
-            isMoving: false,
-            locationHistory: [],
-            debug: {
-                x: null,
-                y: null,
-                width: null,
-                height: null
-            },
-            collisionBox: {
-                width: PLAYER_WIDTH,
-                height: PLAYER_HEIGHT
-            },
-            collisionBox: {
-                width: PLAYER_WIDTH,
-                height: PLAYER_HEIGHT
-            },
-            lastProcessedInputSequence: 0,
-            lastClientTimestamp: 0,
-            lastInputTime: 0,
-            inputQueue: [] // Initialize input queue
+            socketId: socket.id,
+            playerId: socket.id, // [CRITICAL] Added for client identity check during sync
+            inputQueue: [],
+            actionHands: { activeHand: 'right', leftNode: null, rightNode: null },
+            equipment: {},
+            headers: {},
+            isDead: false,
+            isCrafting: false,
+            isInGame: false,
+            // [CRITICAL] Initialize position to avoid crash in gameLoop before DB load check
+            position: { x: 3291, y: 4287 },
+            // [CRITICAL] Initialize cosmetic structure to prevent client crash during sync gap
+            head: { sprite: 'head_01', color: '0xe0e0e0', secondarySprite: 'empty', secondaryColor: '0xffffff', accentSprite: 'empty', accentColor: '0x636363' },
+            body: { sprite: 'body_01', color: '0xe0e0e0', secondarySprite: 'empty', secondaryColor: '0xffffff', accentSprite: 'empty', accentColor: '0x636363' },
+            hands: { sprite: 'empty', color: '0xe0e0e0' },
+            feet: { sprite: 'empty', color: '0xe0e0e0' },
+            tail: { sprite: 'tail_01', color: '0xe0e0e0', secondarySprite: 'empty', secondaryColor: '0xffffff', accentSprite: 'empty', accentColor: '0x636363' },
+            eyes: { outer: 'eyes_01', iris: 'eyes_02', color: '0xfcf2f2' },
+            hair: { sprite: 'empty', color: '0x636363' },
+            ear: { outerSprite: 'empty', innerSprite: 'empty', outerColor: '0xe0e0e0', innerColor: '0x636363' },
+            genitles: { sprite: 'empty', secondarySprite: 'empty' },
+            beak: { sprite: 'empty', color: '0xe0e0e0' },
+            headAccessories: { sprite: 'empty', color: '0xe0e0e0' },
+            spiritSprite: {},
+            voreTypes: []
         };
 
-        if (players[socket.id].equipment) {
-            // log.debug(`[PersistenceDebug] Initialized player.equipment:`, players[socket.id].equipment);
-        } else {
-            // log.warn(`[PersistenceDebug] Initialized player.equipment is MISSING/NULL`);
-        }
+        // Perform async loading without blocking listener registration
+        (async () => {
+            let characterData = null;
+            let loadedEquipment = null;
+
+            if (charId) {
+                try {
+                    const user = await User.findOne({ 'characters._id': charId });
+                    if (user) {
+                        const character = user.characters.id(charId);
+                        if (character) {
+                            characterData = character.toObject();
+                            if (character.equipment) {
+                                loadedEquipment = JSON.parse(JSON.stringify(character.equipment));
+                                // log.debug(`[PersistenceDebug] Loaded Equipment into Variable:`, loadedEquipment);
+                            }
+                            log.success(`Loaded character ${character.firstName} ${character.lastName} for socket ${socket.id}`);
+                        }
+                    }
+                } catch (err) {
+                    log.error(`Error loading character for socket ${socket.id}:`, err);
+                }
+            }
+
+            const dbData = {
+                Identifier: "player",
+                playerId: socket.id,
+                _id: characterData ? characterData._id : null,
+                Username: characterData ? (characterData.firstName + ' ' + characterData.lastName) : "Guest",
+                firstName: characterData ? characterData.firstName : "Guest",
+                lastName: characterData ? characterData.lastName : "",
+                nickName: characterData ? characterData.nickName : "",
+                Description: characterData ? characterData.icDescrip : "",
+                icDescrip: characterData ? characterData.icDescrip : "",
+                // New flag to filter visibility
+                isInGame: !!characterData || (socket.handshake.query.isBot === 'true'),
+                // Semantic State Fields
+                speciesName: characterData ? characterData.speciesName : "Unknown",
+                pronouns: characterData ? characterData.pronouns : 0,
+                stats: characterData ? (characterData.stats || characterData.ratings || { health: 100, maxHealth: 100, stamina: 100, maxStamina: 100, mana: 100, maxMana: 100 }) : { health: 100, maxHealth: 100, stamina: 100, maxStamina: 100, mana: 100, maxMana: 100 },
+
+                voreTypes: characterData ? characterData.voreTypes : [],
+
+                isDead: characterData ? (characterData.isDead || false) : false,
+                spiritSprite: characterData ? (characterData.spiritSprite || {}) : {},
+
+                equipment: loadedEquipment ? loadedEquipment : {
+                    hair: null,
+                    leftEar: null,
+                    rightEar: null,
+                    head: null,
+                    neck: null,
+                    back: null,
+                    torsoOuter: null,
+                    torsoInner: null,
+                    leftWrist: null,
+                    rightWrist: null,
+                    leftHand: null,
+                    rightHand: null,
+                    belt: null,
+                    legs: null,
+                    underwear: null,
+                    feet: null,
+                    tailBase: null,
+                    tailTip: null
+                },
+                head: characterData ? characterData.head : {
+                    sprite: 'head_01',
+                    color: '0xe0e0e0',
+                    secondarySprite: 'empty',
+                    secondaryColor: '0xffffff',
+                    accentSprite: 'empty',
+                    accentColor: '0x636363'
+                },
+                body: characterData ? characterData.body : {
+                    sprite: 'body_01',
+                    color: '0xe0e0e0',
+                    secondarySprite: 'empty',
+                    secondaryColor: '0xffffff',
+                    accentSprite: 'empty',
+                    accentColor: '0x636363'
+                },
+                hands: characterData ? characterData.hands : {
+                    sprite: 'empty',
+                    color: '0xe0e0e0',
+                },
+                feet: characterData ? characterData.feet : {
+                    sprite: 'empty',
+                    color: '0xe0e0e0',
+                },
+                tail: characterData ? characterData.tail : {
+                    sprite: 'tail_01',
+                    color: '0xe0e0e0',
+                    secondarySprite: 'empty',
+                    secondaryColor: '0xffffff',
+                    accentSprite: 'empty',
+                    accentColor: '0x636363'
+                },
+                eyes: characterData ? characterData.eyes : {
+                    outer: 'eyes_01',
+                    iris: 'eyes_02',
+                    color: '0xfcf2f2'
+                },
+                hair: characterData ? characterData.hair : {
+                    sprite: 'empty',
+                    color: '0x636363'
+                },
+                ear: characterData ? characterData.ear : {
+                    outerSprite: 'empty',
+                    innerSprite: 'empty',
+                    outerColor: '0xe0e0e0',
+                    innerColor: '0x636363'
+                },
+                genitles: characterData ? characterData.genitles : {
+                    sprite: 'empty',
+                    secondarySprite: 'empty'
+                },
+                beak: characterData ? characterData.beak : {
+                    sprite: 'empty',
+                    color: '0xe0e0e0'
+                },
+                headAccessories: characterData ? characterData.headAccessories : {
+                    sprite: 'empty',
+                    color: '0xe0e0e0'
+                },
+
+                voreTypes: characterData ? characterData.voreTypes : [],
+                anatomyData: characterData ? characterData.anatomyData : "",
+
+                actionHands: {
+                    leftNode: null,
+                    rightNode: null,
+                    activeHand: 'right'
+                },
+
+                consumedBy: null,
+                position: characterData && characterData.position ? characterData.position : {
+                    x: 3291,
+                    y: 4287,
+                    time: null
+                },
+                enteredBuilding: false,
+                input: {
+                    left: false,
+                    right: false,
+                    up: false,
+                    down: false
+                },
+                rotation: characterData ? characterData.rotation : 0,
+                isMoving: false,
+                locationHistory: [],
+                debug: {
+                    x: null,
+                    y: null,
+                    width: null,
+                    height: null
+                },
+                collisionBox: {
+                    width: PLAYER_WIDTH,
+                    height: PLAYER_HEIGHT
+                },
+                collisionBox: {
+                    width: PLAYER_WIDTH,
+                    height: PLAYER_HEIGHT
+                },
+                lastProcessedInputSequence: 0,
+                lastClientTimestamp: 0,
+                lastInputTime: 0,
+                inputQueue: [] // Initialize input queue
+            }; // End of dbData
+
+            // Merge DB data into the existing player object
+            // Use assign to preserve the object reference if possible, 
+            // OR specifically, to preserve any updates (like x,y) that happened during the wait?
+            // Actually, Object.assign(target, source) overwrites target properties with source.
+            // Be careful not to overwrite x,y if source doesn't have them.
+            // dbData does NOT have x,y (it uses head, body, etc). 
+            // So this merge is safe for position.
+            // [FIX] Preserve client-side cosmetic updates if they arrived before DB load finished
+            const clientUpdated = players[socket.id] && players[socket.id].clientUpdated;
+            const clientSnapshot = clientUpdated ? { ...players[socket.id] } : null;
+
+            Object.assign(players[socket.id], dbData);
+
+            if (clientUpdated && clientSnapshot) {
+                // Restore cosmetic fields from client snapshot
+                const cosmeticFields = ['head', 'body', 'hands', 'feet', 'tail', 'eyes', 'hair', 'ear', 'genitles', 'beak', 'headAccessories'];
+                cosmeticFields.forEach(field => {
+                    if (clientSnapshot[field]) {
+                        players[socket.id][field] = clientSnapshot[field];
+                    }
+                });
+                // Preserve 'clientUpdated' flag? Not strictly necessary unless further updates need it.
+            }
+
+            // Re-assert isInGame logic based on DB data
+            if (dbData.isInGame) players[socket.id].isInGame = true;
+
+        })(); // End of Async Block
+        // log.debug(`[PersistenceDebug] Initialized player.equipment:`, players[socket.id].equipment);
+
 
         // --- Socket Event Handlers for THIS player ---
 
@@ -1639,6 +1959,28 @@ module.exports.start = (io, _messageSystem) => {
         // Send initial state to the new player
         socket.emit('currentItems', worldItems); // Send World Items
         socket.emit('currentCorpses', corpses); // Send Corpses
+
+        // [FIX] Send Door States (Only non-closed doors to save bandwidth)
+        const activeDoors = [];
+        if (worldDoors) {
+            for (const key in worldDoors) {
+                const d = worldDoors[key];
+                // If door is NOT in default state (Closed), send it.
+                // Default: state='closed', blocked=true, lightBlock=true
+                if (d.state !== 'closed') {
+                    activeDoors.push({
+                        id: key,
+                        state: d.state,
+                        blocked: d.blocked,
+                        lightBlock: d.lightBlock
+                    });
+                }
+            }
+        }
+        if (activeDoors.length > 0) {
+            socket.emit('doorStates', activeDoors);
+        }
+
         // Send current players to the new connection
         // FILTER: Only send players who are actually in-game
         const visiblePlayers = {};
@@ -1788,10 +2130,20 @@ module.exports.start = (io, _messageSystem) => {
 
         // Handle character updates from creation screen
         socket.on('characterUpdate', (pushedInfo) => {
+            log.info(`[Server] Received characterUpdate for ${socket.id} with pos: ${pushedInfo.x},${pushedInfo.y}`);
             try {
                 if (players[socket.id]) {
                     // Merge new character data with existing player object
                     players[socket.id] = { ...players[socket.id], ...pushedInfo };
+                    // [FIX] Flag that client has sent authoritative visual data (to prevent DB overwrite during race condition)
+                    players[socket.id].clientUpdated = true;
+
+                    // [FIX] Ensure nested position object is updated from flat x,y in pushedInfo
+                    if (pushedInfo.x !== undefined && pushedInfo.y !== undefined) {
+                        if (!players[socket.id].position) players[socket.id].position = {};
+                        players[socket.id].position.x = pushedInfo.x;
+                        players[socket.id].position.y = pushedInfo.y;
+                    }
 
                     // If this update provides character credentials (effectively logging in/creating), set isInGame
                     if (!players[socket.id].isInGame && pushedInfo.firstName && pushedInfo.firstName !== "Guest") {
@@ -1945,12 +2297,24 @@ module.exports.start = (io, _messageSystem) => {
 
                             if (!activeNode) {
                                 // Pickup
+
+                                // [FIX] Hydrate item with definition properties (icon, name, etc) if missing
+                                const def = resolveItemDef(item, itemData);
+                                if (def) {
+                                    if (!item.icon && def.icon) item.icon = def.icon;
+                                    if (!item.name && def.name) item.name = def.name;
+                                }
+
                                 if (activeHand === 'left') player.actionHands.leftNode = item;
                                 else player.actionHands.rightNode = item;
 
                                 worldItems.splice(itemIndex, 1);
                                 removeItemFromGrid(item);
                                 io.emit('itemRemoved', item.uid);
+
+                                // Sync Player State (Hands)
+                                io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+                                saveCharacter(socket.id);
                             } else {
                                 // Swap
                                 const oldItem = activeNode;
@@ -1965,6 +2329,13 @@ module.exports.start = (io, _messageSystem) => {
                                 addItemToGrid(oldItem);
 
                                 // Pickup new
+                                // [FIX] Hydrate item with definition properties (icon, name, etc) if missing
+                                const def = resolveItemDef(item, itemData);
+                                if (def) {
+                                    if (!item.icon && def.icon) item.icon = def.icon;
+                                    if (!item.name && def.name) item.name = def.name;
+                                }
+
                                 if (activeHand === 'left') player.actionHands.leftNode = item;
                                 else player.actionHands.rightNode = item;
 
@@ -1972,6 +2343,10 @@ module.exports.start = (io, _messageSystem) => {
                                 removeItemFromGrid(item);
                                 io.emit('itemRemoved', item.uid);
                                 io.emit('itemSpawned', oldItem);
+
+                                // Sync Player State (Hands)
+                                io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+                                saveCharacter(socket.id);
                             }
                         } else {
                             // Too far
@@ -2268,9 +2643,22 @@ module.exports.start = (io, _messageSystem) => {
     setInterval(() => {
         try {
             const start = performance.now();
-            gameLoop(io);
+            const stats = gameLoop(io);
             const end = performance.now();
-            monitoring.recordTick(end - start);
+
+            // Get Queue Size safely
+            let queueSize = 0;
+            if (DatabaseResilience.isOnline) {
+                queueSize = DatabaseResilience.writeBuffer ? DatabaseResilience.writeBuffer.size : 0;
+            } else {
+                queueSize = DatabaseResilience.offlineQueue ? DatabaseResilience.offlineQueue.length : 0;
+            }
+
+            if (stats) {
+                monitoring.recordTick(end - start, stats.breakdown, stats.entities, stats.network, queueSize);
+            } else {
+                monitoring.recordTick(end - start, {}, {}, {}, queueSize);
+            }
         } catch (e) {
             log.error('CRITICAL ERROR in Game Loop Tick:', e);
         }
@@ -2336,8 +2724,13 @@ module.exports.checkVisibility = (observerSocketId, targetSocketId) => {
             const ty = target.position.y;
 
             // Multi-Point "Fuzzy" Check (Center, Top, Bottom, Left, Right)
+            // [OPTIMIZED] Check Center First
+            if (isPointInPolygon(tx, ty, observer.visibilityPolygon)) {
+                return true;
+            }
+
+            // Only check edges if center is obscured
             const isVisible =
-                isPointInPolygon(tx, ty, observer.visibilityPolygon) ||
                 isPointInPolygon(tx + VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
                 isPointInPolygon(tx - VISIBILITY_BUFFER, ty, observer.visibilityPolygon) ||
                 isPointInPolygon(tx, ty + VISIBILITY_BUFFER, observer.visibilityPolygon) ||

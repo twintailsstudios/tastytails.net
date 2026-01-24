@@ -1,6 +1,6 @@
 import { windowSize, drawDebug } from './utils.js';
 import { createAnimations, updatePlayerAnimations, createEmoteAnimations } from './animations.js';
-import { displayPlayers, displayOtherPlayers, getPlayerSprite, updateStruggleBar, updatePlayerEquipmentVisuals, updateTypingIndicator, updateCraftingBar } from './player.js';
+import { displayPlayers, displayOtherPlayers, getPlayerSprite, updateStruggleBar, updatePlayerEquipmentVisuals, updateTypingIndicator, updateCraftingBar, updatePlayerCosmetics } from './player.js';
 import { reconcile } from './reconcile.js';
 import { createMap } from './map.js';
 import { initializeTabs } from './tabs.js';
@@ -37,6 +37,9 @@ export function create() {
         mapObjects: false
     };
 
+    // [FIX] Store initial door states to handle race condition (Packet vs Map Build)
+    this.startDoorStates = null;
+
     this.isFadingOut = false;
 
     // Helper: Update Progress (DOM)
@@ -56,6 +59,25 @@ export function create() {
 
         // Need all flags to proceed
         if (self.loadingFlags.player && self.loadingFlags.items && self.loadingFlags.segments && self.loadingFlags.mapObjects) {
+
+            // [FIX] Apply cached door states now that map objects are built
+            if (self.startDoorStates && self.objectGroup) {
+                console.log('[Client] Applying cached door states after map build.');
+                self.startDoorStates.forEach(d => {
+                    const doorSprite = self.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === d.id);
+                    if (doorSprite) {
+                        if (d.state === 'open') {
+                            doorSprite.play('door_open');
+                            doorSprite.body.enable = false;
+                        } else {
+                            doorSprite.play('door_close');
+                            doorSprite.body.enable = true;
+                        }
+                        doorSprite.objectInfo.state = d.state;
+                    }
+                });
+            }
+
             if (!self.isFadingOut) {
                 console.log('[Loading] All flags ready. Starting Fade...');
                 self.updateLoadingProgress(1.0, "Ready!");
@@ -380,7 +402,7 @@ export function create() {
         }
     });
 
-    this.socket.on('playerUpdates', function (players) {
+    this.socket.on('playerUpdates', function (players, removedIds) {
         // console.log('[Client] Received playerUpdates', Object.keys(players).length);
         const receivedPlayerIds = Object.keys(players);
 
@@ -396,8 +418,8 @@ export function create() {
                         console.log('[Client] Received stats update:', players[id].stats);
                     }
 
-                    // CHECK FOR DEATH STATE CHANGE (Before merge? No, merge is fine, just check key presence)
-                    const deathStateChanged = players[id].hasOwnProperty('isDead');
+                    // CHECK FOR DEATH STATE CHANGE (Compare with current state)
+                    const deathStateChanged = players[id].hasOwnProperty('isDead') && players[id].isDead !== self.playerContainer.playerInfo.isDead;
 
                     Object.assign(self.playerContainer.playerInfo, players[id]);
 
@@ -409,10 +431,6 @@ export function create() {
                         console.log('[Client] Death state changed for self. Re-rendering.');
                         if (self.playerContainer) self.playerContainer.destroy();
                         displayPlayers(self, fullState);
-                        // Important: Updates below (equipment, animations) are initialized by displayPlayers,
-                        // but we might want to let them run to ensure latest state (like active inputs) is applied?
-                        // displayPlayers resets inputSequenceNumber etc. This might be jarring.
-                        // But dying is a major event.
                         return;
                     }
 
@@ -431,13 +449,12 @@ export function create() {
                         shadowSystem.update(fullState);
                     }
 
+                    // [FIX] Update Cosmetics (Tints/Textures)
+                    updatePlayerCosmetics(self.playerContainer, fullState);
+
 
                     // --- Vore List Update ---
-                    // Check if voreTypes have changed (e.g. contents added)
-                    // Simple check: stringify comparison or just update if present
-                    if (players[id].voreTypes) { // This is still safe to check on Delta, or check fullState
-                        // We should probably optimize this to not re-render every frame if no change
-                        // But for now, let's just update window.localPlayerInfo and re-render if different
+                    if (players[id].voreTypes) {
                         const currentVoreTypesStr = JSON.stringify(window.localPlayerInfo.voreTypes);
                         const newVoreTypesStr = JSON.stringify(fullState.voreTypes);
 
@@ -449,10 +466,6 @@ export function create() {
                     }
 
                     // --- Consumed State & Camera Logic ---
-                    // This block handles the client-side effects of being consumed.
-                    // 1. We show/hide the "Struggle" button.
-                    // 2. We hide the local player sprite.
-                    // 3. We switch the camera to follow the predator.
                     createStruggleButton(!!fullState.consumedBy, self.socket);
 
                     if (fullState.consumedBy) {
@@ -473,13 +486,7 @@ export function create() {
                             if (window.cam1) window.cam1.startFollow(predator);
                         }
                     } else {
-                        // Player is NOT consumed (or released)
-                        // Only set visible if NOT dead (spirits are treated separately in displayPlayers, 
-                        // but actually spirits SHOULD be visible, just translucent).
-                        // displayPlayers sets opacity 0.8. setVisible(true) respects opacity.
                         self.playerContainer.setVisible(true);
-
-                        // Ensure camera follows self
                         self.cameras.main.startFollow(self.playerContainer);
                         if (window.cam1) window.cam1.startFollow(self.playerContainer);
                     }
@@ -498,18 +505,20 @@ export function create() {
                         }
                     } else {
                         // Received delta for unknown player. Ignore it.
-                        // This happens if client cleared player but server sent delta.
-                        // We wait for the next Full Update or newPlayer event.
                     }
                 }
 
                 if (otherPlayer) {
                     // CHECK FOR DEATH STATE CHANGE (Other Player)
-                    if (players[id].hasOwnProperty('isDead')) {
+                    if (players[id].hasOwnProperty('isDead') && players[id].isDead !== otherPlayer.playerInfo.isDead) { // [FIX] Only re-render if CHANGED
                         console.log(`[Client] Death state changed for ${players[id].playerId}. Re-rendering.`);
+
                         // Update info first so displayOtherPlayers has latest isDead status
                         Object.assign(otherPlayer.playerInfo, players[id]);
                         const fullState = otherPlayer.playerInfo;
+
+                        // [FIX] Destroy old sprite explicitely
+                        if (otherPlayer.destroy) otherPlayer.destroy();
 
                         const newSprite = displayOtherPlayers(self, fullState);
                         self.otherPlayersMap.set(players[id].playerId, newSprite);
@@ -517,23 +526,13 @@ export function create() {
                     }
 
                     // Update position and state
-                    // --- CLIENT SIDE PREDICTION JITTER FIX ---
-                    // If held by us/visible player, we predict the position in update.js
-                    // So we must IGNORE the server position here to prevent fighting/jitter.
                     let isPredicted = false;
                     if (players[id].isHeld && players[id].heldBySocketId) {
                         const holderId = players[id].heldBySocketId;
-
-                        // 1. Check if WE are the holder (Local Player)
-                        // holderId is a Socket ID. self.socket.id is our Socket ID.
                         if (self.socket && self.socket.id === holderId) {
                             isPredicted = true;
                         }
                         else {
-                            // 2. Check if held by another Visible Player
-                            // Here we need to check if the holder is in our otherPlayersGroup?
-                            // Actually, if we are interpolating the holder smoothly, we should also predict the held player associated with them?
-                            // Yes, update.js handles both cases.
                             const holder = self.otherPlayersGroup.getChildren().find(p => p.playerId === holderId);
                             if (holder) isPredicted = true;
                         }
@@ -541,8 +540,6 @@ export function create() {
 
                     if (!isPredicted) {
                         // --- GLOBAL INTERPOLATION ---
-                        // Instead of snapping, we set a target for update.js to interpolate towards.
-                        // Initialize target if missing (first spawn)
                         if (typeof otherPlayer.targetX === 'undefined') {
                             if (players[id].position) {
                                 otherPlayer.setPosition(players[id].position.x, players[id].position.y);
@@ -550,7 +547,6 @@ export function create() {
                                 otherPlayer.targetY = players[id].position.y;
                             }
                         } else {
-                            // Update target
                             if (players[id].position) {
                                 otherPlayer.targetX = players[id].position.x;
                                 otherPlayer.targetY = players[id].position.y;
@@ -566,31 +562,30 @@ export function create() {
                     updateStruggleBar(otherPlayer, fullState, self);
                     updatePlayerEquipmentVisuals(otherPlayer, fullState.equipment);
                     updateCraftingBar(otherPlayer, fullState, self);
-                    // Depth updated in update.js
-                    // otherPlayer.depth = otherPlayer.y; 
+                    // [FIX] Update Cosmetics
+                    updatePlayerCosmetics(otherPlayer, fullState);
 
                     // Hide other players if they are consumed
                     if (fullState.consumedBy) {
                         otherPlayer.setVisible(false);
                     } else {
-                        // Force visible if not consumed (handles reappear / spirit opacity is baked in container)
                         otherPlayer.setVisible(true);
                     }
                 }
             }
         });
 
-        // 2. Reconciliation: Remove players NOT in the received list (AOI Culling)
-        // Optimize: Iterate map keys instead of group children if map is accurate
-        const currentIds = new Set(receivedPlayerIds);
-
-        // We iterate our known map to find who to remove
-        for (const [id, entity] of self.otherPlayersMap) {
-            if (!currentIds.has(id)) {
-                console.log(`[AOI] Removing player ${id} (out of view/range)`);
-                entity.destroy();
-                self.otherPlayersMap.delete(id);
-            }
+        // 2. Reconciliation: Explicit Removal via 'removedIds' list
+        // We NO LONGER auto-remove missing players. We only remove if server says so.
+        if (removedIds && Array.isArray(removedIds)) {
+            removedIds.forEach(id => {
+                const entity = self.otherPlayersMap.get(id);
+                if (entity) {
+                    console.log(`[AOI] Explicitly removing player ${id}`);
+                    entity.destroy();
+                    self.otherPlayersMap.delete(id);
+                }
+            });
         }
     });
 
@@ -601,6 +596,21 @@ export function create() {
             if (players[id].playerId === self.socket.id) {
                 // Update Self
                 Object.assign(self.playerInfo, players[id]);
+
+                // [FIX] Trigger UI updates so the HUD reflects the new state immediately
+                if (actionHands) actionHands.update(self.playerInfo);
+                if (inventoryUI) inventoryUI.update(self.playerInfo);
+                if (equipmentManager) equipmentManager.update(self.playerInfo);
+
+                // [FIX] Update Cosmetics for Self
+                updatePlayerCosmetics(self.playerContainer, self.playerInfo);
+
+                // [FIX] Update Vore UI
+                if (players[id].voreTypes) {
+                    window.localPlayerInfo.voreTypes = players[id].voreTypes;
+                    createVoreList(window.localPlayerInfo.voreTypes, self);
+                }
+
                 // Check visuals/equipment updates
                 if (players[id].equipment) {
                     // trigger equipment update if valid
@@ -616,6 +626,8 @@ export function create() {
                     updateStruggleBar(otherPlayer, fullState, self);
                     updatePlayerEquipmentVisuals(otherPlayer, fullState.equipment);
                     updateCraftingBar(otherPlayer, fullState, self);
+                    // [FIX] Update Cosmetics
+                    updatePlayerCosmetics(otherPlayer, fullState);
 
                     if (players[id].position) {
                         otherPlayer.targetX = players[id].position.x;
@@ -737,7 +749,7 @@ export function create() {
     this.socket.on('typing', (data) => {
         // console.log('[Client] Received typing event:', data);
         let targetContainer = null;
-        if (self.playerContainer && self.playerContainer.playerInfo && self.playerContainer.playerInfo._id.toString() === data.charId) {
+        if (self.playerContainer && self.playerContainer.playerInfo && self.playerContainer.playerInfo._id && self.playerContainer.playerInfo._id.toString() === data.charId) {
             targetContainer = self.playerContainer;
             // console.log('[Client] Typing target is SELF');
         } else {
@@ -772,7 +784,30 @@ export function create() {
 
                 // Update Metadata if needed
                 doorSprite.objectInfo.state = data.state;
+                // Collision is handled by body.enable above
             }
+        }
+    });
+
+    // [FIX] Initial Door States (Bulk Update on Connect)
+    this.socket.on('doorStates', (doors) => {
+        // console.log('[Client] Received initial door states:', doors.length);
+        self.startDoorStates = doors; // Cache for race condition
+
+        if (self.objectGroup) {
+            doors.forEach(d => {
+                const doorSprite = self.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === d.id);
+                if (doorSprite) {
+                    if (d.state === 'open') {
+                        doorSprite.play('door_open');
+                        doorSprite.body.enable = false;
+                    } else {
+                        doorSprite.play('door_close');
+                        doorSprite.body.enable = true;
+                    }
+                    doorSprite.objectInfo.state = d.state;
+                }
+            });
         }
     });
 

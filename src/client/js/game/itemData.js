@@ -17,6 +17,7 @@ export default {
     'glass_beer': { size: 1, name: 'Beer Glass', icon: 'fa-glass-whiskey', texture: 'glass_beer' },
     'bottle_empty': { size: 1, name: 'Empty Bottle', icon: 'fa-wine-bottle', texture: 'bottle_empty', description: 'An empty glass bottle.' },
     'key': { size: 1, name: 'Key', icon: 'fa-key', texture: 'key' },
+    'scroll_01': { size: 1, name: 'Test Scroll', icon: 'fa-scroll', texture: 'scroll2', description: 'A testing scroll.' },
 
     // Drink Bottles
     'bottle_ale': { size: 1, name: 'Ale Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_ale', playerUse: true, returnOnEmpty: 'bottle_empty' },

@@ -144,13 +144,17 @@ export const actionHands = {
             // We can use a font awesome icon or sprite if available
             // server-loop.js: spells.push({ Identifier: "spell", Name: "Spell #0", Icon: "scroll2", ... })
             // We can try to match icon name to an image path if we have assets
-            if (item.Icon) {
+
+            // [FIX] Check for 'icon' (standard) or 'Icon' (legacy)
+            const iconClass = item.icon || item.Icon;
+
+            if (iconClass) {
                 // display simple text for now or icon name
                 // If the icon string looks like a FA class (e.g. 'fa-scroll'), use it
-                if (item.Icon.startsWith('fa-')) {
-                    div.innerHTML = `<i class="fa-solid ${item.Icon}"></i>`;
+                if (iconClass.startsWith('fa-')) {
+                    div.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
                 } else {
-                    div.innerText = item.Icon;
+                    div.innerText = iconClass;
                 }
             } else {
                 div.innerText = item.Name || 'Item';

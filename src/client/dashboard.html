@@ -50,6 +50,12 @@
             color: #f44336;
         }
 
+        .sub-value {
+            font-size: 14px;
+            color: #ccc;
+            margin-top: 5px;
+        }
+
         #json-dump {
             font-family: monospace;
             font-size: 12px;
@@ -74,6 +80,12 @@
             <div id="tickDuration" class="value">--</div>
         </div>
         <div class="card">
+            <h3>Tick Breakdown (ms)</h3>
+            <div id="breakdown" class="value" style="font-size: 18px;">--</div>
+            <div class="sub-value">Phys | Logic | Serialize</div>
+        </div>
+
+        <div class="card">
             <h3>Event Loop Lag</h3>
             <div id="eventLag" class="value">--</div>
         </div>
@@ -81,6 +93,23 @@
             <h3>Active Connections</h3>
             <div id="connections" class="value">--</div>
         </div>
+
+        <div class="card">
+            <h3>Entities</h3>
+            <div id="entities" class="value" style="font-size: 20px;">--</div>
+            <div class="sub-value">Clients | Items | Corpses</div>
+        </div>
+
+        <div class="card">
+            <h3>Network (Out)</h3>
+            <div id="network" class="value">--</div>
+        </div>
+
+        <div class="card">
+            <h3>DB Write Queue</h3>
+            <div id="dbQueue" class="value">--</div>
+        </div>
+
         <div class="card">
             <h3>Memory (RSS)</h3>
             <div id="memory" class="value">--</div>
@@ -140,6 +169,26 @@
                 document.getElementById('connections').textContent = data.activeConnections;
                 document.getElementById('memory').textContent = formatBytes(data.memoryUsage.rss);
                 document.getElementById('uptime').textContent = formatTime(data.uptime);
+
+                // --- NEW STATISTICS ---
+                if (data.tickBreakdown) {
+                    const bd = data.tickBreakdown;
+                    document.getElementById('breakdown').textContent =
+                        `${bd.physics.toFixed(2)} | ${bd.logic.toFixed(2)} | ${bd.serialize.toFixed(2)}`;
+                }
+
+                if (data.entities) {
+                    document.getElementById('entities').textContent =
+                        `${data.entities.clients} | ${data.entities.items} | ${data.entities.corpses}`;
+                }
+
+                if (data.network) {
+                    document.getElementById('network').textContent =
+                        `${data.network.packetsSent} pkts/s`;
+                }
+
+                document.getElementById('dbQueue').textContent = data.resilienceQueue || 0;
+
 
             } catch (e) {
                 console.error(e);

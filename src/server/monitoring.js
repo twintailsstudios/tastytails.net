@@ -8,7 +8,15 @@ const monitoring = {
         tickCount: 0,
         memoryUsage: {},
         activeConnections: 0,
-        eventLoopLag: 0
+        eventLoopLag: 0,
+        // Detailed Profiling
+        tickBreakdown: { physics: 0, logic: 0, serialize: 0 },
+        // Entity Counts
+        entities: { clients: 0, items: 0, corpses: 0 },
+        // Network
+        network: { packetsSent: 0, bytesSent: 0 },
+        // Queue
+        resilienceQueue: 0
     },
 
     // Config
@@ -17,6 +25,9 @@ const monitoring = {
 
     ticksInCurrentSample: 0,
     accumulatedDuration: 0,
+    accumulatedBreakdown: { physics: 0, logic: 0, serialize: 0 },
+    accumulatedPackets: 0,
+    accumulatedBytes: 0,
 
     init(io) {
         this.io = io;
@@ -30,20 +41,47 @@ const monitoring = {
         }, 100);
     },
 
-    recordTick(duration) {
+    recordTick(duration, breakdown = {}, entities = {}, network = {}, queueSize = 0) {
         const now = performance.now();
         this.ticksInCurrentSample++;
         this.accumulatedDuration += duration;
         this.metrics.tickDuration = duration; // Instantaneous
+
+        // Accumulate Breakdown
+        if (breakdown.physics) this.accumulatedBreakdown.physics += breakdown.physics;
+        if (breakdown.logic) this.accumulatedBreakdown.logic += breakdown.logic;
+        if (breakdown.serialize) this.accumulatedBreakdown.serialize += breakdown.serialize;
+
+        // Accumulate Network
+        if (network.packets) this.accumulatedPackets += network.packets;
+        if (network.bytes) this.accumulatedBytes += network.bytes;
+
+        // Instantaneous Entity/Queue Snapshot
+        this.metrics.entities = entities;
+        this.metrics.resilienceQueue = queueSize;
 
         if (now - this.lastSampleTime >= this.sampleInterval) {
             // Update Aggregates
             this.metrics.tickRate = this.ticksInCurrentSample;
             this.metrics.avgTickDuration = this.accumulatedDuration / this.ticksInCurrentSample;
 
+            this.metrics.tickBreakdown = {
+                physics: this.accumulatedBreakdown.physics / this.ticksInCurrentSample,
+                logic: this.accumulatedBreakdown.logic / this.ticksInCurrentSample,
+                serialize: this.accumulatedBreakdown.serialize / this.ticksInCurrentSample
+            };
+
+            this.metrics.network = {
+                packetsSent: this.accumulatedPackets, // Per second (approx)
+                bytesSent: this.accumulatedBytes
+            };
+
             // Reset
             this.ticksInCurrentSample = 0;
             this.accumulatedDuration = 0;
+            this.accumulatedBreakdown = { physics: 0, logic: 0, serialize: 0 };
+            this.accumulatedPackets = 0;
+            this.accumulatedBytes = 0;
             this.lastSampleTime = now;
 
             // Gather Resource Usage

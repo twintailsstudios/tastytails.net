@@ -5,7 +5,13 @@
   "main": "src/",
   "scripts": {
     "start": "node scripts/sync-items.js && node src/index.js",
-    "test": "mocha"
+    "test": "mocha",
+    "test:sanity": "node scripts/sanity.js",
+    "test:load": "node scripts/load_test.js",
+    "test:auto": "node scripts/automated_test.js",
+    "stop:load": "powershell -Command \"Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*load_test.js*' } | Stop-Process -Force\"",
+    "stop:server": "powershell -Command \"Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*src/index.js*' } | Stop-Process -Force\"",
+    "stop:all": "powershell -Command \"Stop-Process -Name node -Force\""
   },
   "keywords": [
     "game"

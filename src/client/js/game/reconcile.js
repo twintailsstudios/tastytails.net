@@ -188,10 +188,13 @@ function checkPredictionCollision(scene, x, y) {
         for (const layer of scene.mapLayers) {
             if (!layer) continue;
 
+            // Match Server Logic: Skip 'zones' layer
+            if (layer.layer.name.toLowerCase().includes('zones')) continue;
+
             for (let ty = tileYStart; ty <= tileYEnd; ty++) {
                 for (let tx = tileXStart; tx <= tileXEnd; tx++) {
                     const tile = layer.getTileAt(tx, ty);
-                    if (tile && tile.properties && tile.properties.Blocked === 'True') {
+                    if (tile && tile.properties && (tile.properties.blocked === true || tile.properties.blocked === 'true' || tile.properties.Blocked === 'True')) {
                         return true;
                     }
                 }

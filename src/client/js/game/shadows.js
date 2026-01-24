@@ -8,6 +8,10 @@ export class ShadowSystem {
         this.polygonGraphics = null;
         this.segments = []; // Store map segments from server
 
+        this.segments = []; // Store map segments from server
+        this.segmentGrid = {}; // Client-side spatial hash
+        this.SEGMENT_GRID_SIZE = 400; // Match Server
+
         this.init();
     }
 
@@ -34,6 +38,57 @@ export class ShadowSystem {
     setSegments(segments) {
         // console.log(`[ShadowSystem] setSegments called with ${segments ? segments.length : 'null'} segments`);
         this.segments = segments;
+        this.populateSegmentGrid(segments);
+    }
+
+    populateSegmentGrid(segments) {
+        this.segmentGrid = {};
+        if (!segments) return;
+
+        segments.forEach(seg => {
+            const p1 = seg[0];
+            const p2 = seg[1];
+
+            const minX = Math.min(p1[0], p2[0]);
+            const maxX = Math.max(p1[0], p2[0]);
+            const minY = Math.min(p1[1], p2[1]);
+            const maxY = Math.max(p1[1], p2[1]);
+
+            const startX = Math.floor(minX / this.SEGMENT_GRID_SIZE);
+            const endX = Math.floor(maxX / this.SEGMENT_GRID_SIZE);
+            const startY = Math.floor(minY / this.SEGMENT_GRID_SIZE);
+            const endY = Math.floor(maxY / this.SEGMENT_GRID_SIZE);
+
+            for (let y = startY; y <= endY; y++) {
+                for (let x = startX; x <= endX; x++) {
+                    const key = `${x},${y}`;
+                    if (!this.segmentGrid[key]) this.segmentGrid[key] = [];
+                    this.segmentGrid[key].push(seg);
+                }
+            }
+        });
+        // console.log(`[ShadowSystem] Client-side Segment Grid populated.`);
+    }
+
+    getSegmentsInRange(x, y, range) {
+        const cx = Math.floor(x / this.SEGMENT_GRID_SIZE);
+        const cy = Math.floor(y / this.SEGMENT_GRID_SIZE);
+        const rangeInCells = Math.ceil(range / this.SEGMENT_GRID_SIZE);
+
+        const segments = new Set();
+
+        for (let xx = cx - rangeInCells; xx <= cx + rangeInCells; xx++) {
+            for (let yy = cy - rangeInCells; yy <= cy + rangeInCells; yy++) {
+                const key = `${xx},${yy}`;
+                if (this.segmentGrid[key]) {
+                    const cellSegs = this.segmentGrid[key];
+                    for (let i = 0; i < cellSegs.length; i++) {
+                        segments.add(cellSegs[i]);
+                    }
+                }
+            }
+        }
+        return Array.from(segments);
     }
 
     onResize(gameSize) {
@@ -99,7 +154,26 @@ export class ShadowSystem {
         const pos = [this.lastShadowPos.x, this.lastShadowPos.y];
 
         // Compute visibility locally
-        const points = compute(pos, this.segments);
+        // [OPTIMIZED] Use Spatial Partitioning
+        // View Distance matches Server (600) or arguably screen size (1920/2 = 1000)
+        // Let's use 1000 to be safe for rendering (visuals matter more than strict anti-cheat here)
+        const viewDist = 1000;
+        const relevantSegments = this.getSegmentsInRange(pos[0], pos[1], viewDist);
+
+        // [FIX] Add Dynamic Bounding Box Limit
+        // Prevents infinite rays vs culled segments
+        const boxSize = viewDist;
+        const px = pos[0];
+        const py = pos[1];
+
+        relevantSegments.push(
+            [[px - boxSize, py - boxSize], [px + boxSize, py - boxSize]], // Top
+            [[px + boxSize, py - boxSize], [px + boxSize, py + boxSize]], // Right
+            [[px + boxSize, py + boxSize], [px - boxSize, py + boxSize]], // Bottom
+            [[px - boxSize, py + boxSize], [px - boxSize, py - boxSize]]  // Left
+        );
+
+        const points = compute(pos, relevantSegments);
         // console.log(`[ShadowSystem] Computed ${points.length} points`);
 
         const camera = this.scene.cameras.main;
