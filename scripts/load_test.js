@@ -8,6 +8,12 @@ const RAMP_UP_MS = 100; // Delay between connections to prevent hammering
 const TICK_RATE_MS = 33; // ~30Hz (33.33ms)
 const PING_INTERVAL_MS = 2000; // Check latency every 2s
 
+// Map Dimensions (From mapConfig/alpha_map.json)
+const MAP_WIDTH_TILES = 240;
+const MAP_HEIGHT_TILES = 240;
+const TILE_SIZE = 32;
+
+
 console.log(`[LoadTest] Starting... Target: ${CLIENT_COUNT} clients at ${Math.round(1000 / TICK_RATE_MS)}Hz inputs.`);
 
 let connectedCount = 0;
@@ -28,11 +34,24 @@ class BotClient {
         // Generate a hex ID similar to MongoDB
         this.charId = index.toString(16).padStart(24, '0');
 
+        // Generate Random Start Position
+        const margin = 200;
+        const mapW = MAP_WIDTH_TILES * TILE_SIZE;
+        const mapH = MAP_HEIGHT_TILES * TILE_SIZE;
+        const startX = Math.floor(Math.random() * (mapW - margin * 2)) + margin;
+        const startY = Math.floor(Math.random() * (mapH - margin * 2)) + margin;
+
         this.socket = io(SERVER_URL, {
-            query: { charId: this.charId, isBot: true },
+            query: {
+                charId: this.charId,
+                isBot: true,
+                startX: startX,
+                startY: startY
+            },
             reconnection: false,
             transports: ['websocket'],
         });
+
 
         this.updateInterval = null;
         this.pingInterval = null;
@@ -42,6 +61,13 @@ class BotClient {
         this.state = 'IDLE'; // IDLE, MOVING
         this.stateTimer = 0;
         this.currentInput = { up: false, down: false, left: false, right: false };
+
+        // Navigation State
+        this.targetX = null;
+        this.targetY = null;
+
+        // Chat State
+        this.chatInterval = null;
 
         // Setup Socket
         this.socket.on('connect', () => this.onConnect());
@@ -79,6 +105,14 @@ class BotClient {
         this.pingInterval = setInterval(() => {
             this.checkLatency();
         }, PING_INTERVAL_MS + Math.random() * 1000);
+
+        // 3. Chat Loop (Very infrequent to avoid flooding logs, but present)
+        this.chatInterval = setInterval(() => {
+            if (Math.random() < 0.1) { // 10% chance every 10s = ~1 msg per 100s per bot
+                this.sendChat();
+            }
+        }, 10000);
+
     }
 
     stopLoop() {
@@ -87,18 +121,19 @@ class BotClient {
     }
 
     updateBehavior() {
-        // Simple State Machine
         this.stateTimer -= TICK_RATE_MS;
 
         if (this.stateTimer <= 0) {
             // Pick new state
-            if (Math.random() < 0.3) {
+            if (Math.random() < 0.2) {
+                // IDLE
                 this.state = 'IDLE';
-                this.stateTimer = 1000 + Math.random() * 2000; // Rest for 1-3s
+                this.stateTimer = 1000 + Math.random() * 3000; // Rest for 1-4s
                 this.currentInput = { up: false, down: false, left: false, right: false };
             } else {
+                // MOVING (Longer duration for "Travel")
                 this.state = 'MOVING';
-                this.stateTimer = 500 + Math.random() * 1500; // Move for 0.5-2s
+                this.stateTimer = 2000 + Math.random() * 6000; // Move for 2-8s
 
                 // Pick random direction(s)
                 const dir = Math.floor(Math.random() * 8);
@@ -111,6 +146,17 @@ class BotClient {
             }
         }
     }
+
+    sendChat() {
+        if (!this.socket.connected) return;
+        const messages = [
+            "Hello world!", "Anyone want to trade?", "Lag?", "Where is the quest?",
+            "Nice outfit!", "LFG", "Selling wood", "brb", "lol", ":)"
+        ];
+        const msg = messages[Math.floor(Math.random() * messages.length)];
+        this.socket.emit('chatMessage', msg);
+    }
+
 
     sendInput() {
         if (!this.socket.connected) return;

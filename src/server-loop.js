@@ -1734,7 +1734,11 @@ module.exports.start = (io, _messageSystem) => {
             isCrafting: false,
             isInGame: false,
             // [CRITICAL] Initialize position to avoid crash in gameLoop before DB load check
-            position: { x: 3291, y: 4287 },
+            // Use query params if provided (for bots/load tests), otherwise default
+            position: {
+                x: socket.handshake.query.startX ? parseInt(socket.handshake.query.startX) : 3291,
+                y: socket.handshake.query.startY ? parseInt(socket.handshake.query.startY) : 4287
+            },
             // [CRITICAL] Initialize cosmetic structure to prevent client crash during sync gap
             head: { sprite: 'head_01', color: '0xe0e0e0', secondarySprite: 'empty', secondaryColor: '0xffffff', accentSprite: 'empty', accentColor: '0x636363' },
             body: { sprite: 'body_01', color: '0xe0e0e0', secondarySprite: 'empty', secondaryColor: '0xffffff', accentSprite: 'empty', accentColor: '0x636363' },
@@ -1930,6 +1934,9 @@ module.exports.start = (io, _messageSystem) => {
             // dbData does NOT have x,y (it uses head, body, etc). 
             // So this merge is safe for position.
             // [FIX] Preserve client-side cosmetic updates if they arrived before DB load finished
+            // [FIX] Check if player still exists (might have disconnected during await)
+            if (!players[socket.id]) return;
+
             const clientUpdated = players[socket.id] && players[socket.id].clientUpdated;
             const clientSnapshot = clientUpdated ? { ...players[socket.id] } : null;
 
@@ -1986,7 +1993,7 @@ module.exports.start = (io, _messageSystem) => {
         const visiblePlayers = {};
         Object.keys(players).forEach(id => {
             if (players[id].isInGame || id === socket.id) {
-                visiblePlayers[id] = players[id];
+                visiblePlayers[id] = getUpdatePacketForOther(players[id]);
             }
         });
         socket.emit('currentPlayers', visiblePlayers);
@@ -1997,7 +2004,7 @@ module.exports.start = (io, _messageSystem) => {
         // Broadcast new player to others
         // FILTER: Only broadcast if this socket has a valid character
         if (players[socket.id].isInGame) {
-            socket.broadcast.emit('newPlayer', players[socket.id]);
+            socket.broadcast.emit('newPlayer', getUpdatePacketForOther(players[socket.id]));
         }
 
 
@@ -2157,9 +2164,9 @@ module.exports.start = (io, _messageSystem) => {
                     log.info(`Character updated for ${socket.id}`);
                     // Inform other players about the visual update
                     if (players[socket.id].isInGame) {
-                        socket.broadcast.emit('newPlayer', players[socket.id]);
+                        socket.broadcast.emit('newPlayer', getUpdatePacketForOther(players[socket.id]));
                     }
-                    socket.broadcast.emit('avatarSelection', players[socket.id]);
+                    socket.broadcast.emit('avatarSelection', getUpdatePacketForOther(players[socket.id]));
                 }
             } catch (e) {
                 log.error(`Error handling characterUpdate for ${socket.id}:`, e);
