@@ -1,0 +1,138 @@
+<div class="container main-content">
+    <div class="archive-header">
+        <h2><i class="fa-solid fa-box-archive"></i> Chat Archives</h2>
+        <p>Browse and save your historical roleplay logs.</p>
+    </div>
+
+    <div class="archive-layout">
+        <!-- Sidebar Filters -->
+        <aside class="filters-panel">
+            <div class="filter-group">
+                <label for="charSelect">Select Character:</label>
+                <select id="charSelect" class="input-base">
+                    <option value="" disabled selected>Loading characters...</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="searchInput">Content Search:</label>
+                <input type="text" id="searchInput" placeholder='e.g. "baking cookies"' class="input-base">
+            </div>
+
+            <div class="filter-group">
+                <label for="partnerInput">Include Partner:</label>
+                <input type="text" id="partnerInput" placeholder="Sender Name..." class="input-base" list="partnerList"
+                    disabled title="Search first to populate partners">
+                <datalist id="partnerList"></datalist>
+                <div id="partnerTags" class="tags-container"></div>
+            </div>
+
+            <div class="filter-group">
+                <label for="excludePartnerInput">Exclude Partner:</label>
+                <input type="text" id="excludePartnerInput" placeholder="Sender Name..." class="input-base"
+                    list="excludePartnerList" disabled title="Search first to populate partners">
+                <datalist id="excludePartnerList"></datalist>
+                <div id="excludePartnerTags" class="tags-container"></div>
+            </div>
+
+            <div class="filter-group">
+                <label for="locationInput">Location:</label>
+                <select id="locationInput" class="input-base">
+                    <option value="">Any Location</option>
+                    <option value="Demo Map">Demo Map</option>
+                    <option value="Pub">Pub</option>
+                    <option value="Blacksmith">Blacksmith</option>
+                    <option value="Outdoors">Outdoors</option>
+                </select>
+            </div>
+
+            <div class="filter-group dates">
+                <div>
+                    <label for="startDate">Start Date:</label>
+                    <input type="date" id="startDate" class="input-base">
+                </div>
+                <div>
+                    <label for="endDate">End Date:</label>
+                    <input type="date" id="endDate" class="input-base">
+                </div>
+            </div>
+
+            <!-- Advanced Filters Accordion -->
+            <details>
+                <summary>Advanced Filters (Vore/Tags)</summary>
+                <div class="advanced-filters">
+                    <div class="filter-group">
+                        <label>Vore Type:</label>
+                        <select id="voreTypeInput" class="input-base">
+                            <option value="">Any</option>
+                            <option value="Anal Vore">Anal Vore</option>
+                            <option value="Oral Vore">Oral Vore</option>
+                            <option value="Cock Vore">Cock Vore</option>
+                            <option value="Unbirth">Unbirth</option>
+                            <option value="Breast Vore">Breast Vore</option>
+                            <option value="Tail Vore">Tail Vore</option>
+                            <option value="Pouch Vore">Pouch Vore</option>
+                            <option value="Udder Vore">Udder Vore</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Size:</label>
+                        <select id="sizeInput" class="input-base">
+                            <option value="">Any</option>
+                            <option value="Micro">Micro</option>
+                            <option value="Macro">Macro</option>
+                            <option value="Normal">Normal</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Spell/Trans:</label>
+                        <input type="text" id="spellInput" placeholder="Transformation..." class="input-base">
+                    </div>
+                </div>
+            </details>
+
+            <div class="filter-group">
+                <label for="sortOrder">Sort Order:</label>
+                <select id="sortOrder" class="input-base">
+                    <option value="desc">Newest First</option>
+                    <option value="asc">Oldest First</option>
+                </select>
+            </div>
+
+            <button id="searchBtn" class="btn-primary" disabled><i class="fa-solid fa-magnifying-glass"></i>
+                Search</button>
+            <div id="statusMsg"></div>
+        </aside>
+
+        <!-- Results Area -->
+        <section class="results-panel">
+            <div class="results-header">
+                <h3>Chat Logs</h3>
+                <div class="actions">
+                    <button id="rangeModeBtn" class="btn-secondary"
+                        title="Select a start and end message across pages"><i
+                            class="fa-solid fa-arrows-left-right-to-line"></i> Range Mode</button>
+                    <button id="selectAllBtn" class="btn-secondary" title="Select all on this page"><i
+                            class="fa-solid fa-check-double"></i> Select All</button>
+                    <button id="saveBtn" class="btn-secondary" disabled title="Save selected messages"><i
+                            class="fa-solid fa-floppy-disk"></i> Save Selected</button>
+                </div>
+            </div>
+
+            <div id="chatResults" class="chat-container">
+                <div class="placeholder-msg">Select a character and click Search to view logs.</div>
+            </div>
+
+            <div class="pagination-controls" style="display:none;">
+                <button id="prevPage">Previous</button>
+                <span id="pageInfo">Page 1</span>
+                <button id="nextPage">Next</button>
+            </div>
+        </section>
+    </div>
+</div>
+
+<link rel="stylesheet" href="/css/chat.css"> <!-- Reusing existing chat styles -->
+<link rel="stylesheet" href="/css/chat-archives.css">
+<script src="/js/chat-archives.js"></script>

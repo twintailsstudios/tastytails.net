@@ -120,6 +120,7 @@ app.use('/api/dbInterface', dbInterfaceRoute);
 app.use('/', indexRoute);
 app.use('/edit', editRoute);
 app.use('/play', playRoute);
+app.use('/api/chat-archives', require('./routes/chatArchives'));
 
 // --- Monitoring Endpoint ---
 app.get('/stats', (req, res) => {

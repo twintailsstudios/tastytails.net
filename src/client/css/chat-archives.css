@@ -1,0 +1,268 @@
+.main-content {
+    padding-top: 100px;
+    /* Account for fixed header */
+    padding-bottom: 50px;
+}
+
+.archive-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.archive-layout {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+}
+
+/* Sidebar Filters */
+.filters-panel {
+    width: 300px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+
+.filter-group {
+    margin-bottom: 15px;
+}
+
+.filter-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.input-base {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.dates {
+    display: flex;
+    gap: 10px;
+}
+
+.dates div {
+    flex: 1;
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 10px;
+    background: #6a0dad;
+    /* Match theme roughly */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.btn-primary:hover {
+    background: #580b92;
+}
+
+.btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    padding: 5px 15px;
+    background: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Results Area */
+.results-panel {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.8);
+    min-height: 500px;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.chat-container {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 700px;
+    background: transparent;
+    /* Use parent bg */
+    padding: 10px;
+}
+
+.placeholder-msg {
+    text-align: center;
+    color: #777;
+    margin-top: 50px;
+    font-style: italic;
+}
+
+/* Message Item Extensions */
+.chat-message-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    padding: 5px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.select-checkbox {
+    margin-top: 5px;
+}
+
+.msg-content-wrapper {
+    flex: 1;
+}
+
+#statusMsg {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: #666;
+    text-align: center;
+}
+
+/* Pagination */
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 15px;
+    align-items: center;
+}
+
+@media (max-width: 800px) {
+    .archive-layout {
+        flex-direction: column;
+    }
+
+    .filters-panel {
+        width: 100%;
+    }
+}
+
+/* Partner Tags */
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.partner-tag {
+    background-color: var(--accent-color, #4a90e2);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.partner-tag .remove-tag {
+    cursor: pointer;
+    font-weight: bold;
+    opacity: 0.8;
+}
+
+.partner-tag .remove-tag:hover {
+    opacity: 1;
+}
+
+/* Range Mode Styles */
+.range-mode-active {
+    background-color: #27ae60 !important;
+    /* Green to show active */
+    color: white;
+}
+
+.chat-message-row {
+    cursor: pointer;
+    /* Indicate clickable in range mode */
+    transition: background-color 0.2s;
+}
+
+.chat-message-row.range-start {
+    border: 2px solid #27ae60;
+    background-color: rgba(39, 174, 96, 0.1);
+}
+
+.chat-message-row.range-end {
+    border: 2px solid #c0392b;
+    background-color: rgba(192, 57, 43, 0.1);
+}
+
+.chat-message-row.in-range {
+    background-color: rgba(39, 174, 96, 0.05);
+    /* Very light green */
+    border-left: 4px solid #27ae60;
+}
+
+.chat-message-row.flash-highlight {
+    animation: flash-highlight 2s ease-out;
+}
+
+@keyframes flash-highlight {
+    0% {
+        background-color: rgba(241, 196, 15, 0.5);
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1em;
+    color: #666;
+    padding: 2px 5px;
+    transition: color 0.2s;
+}
+
+.btn-icon:hover {
+    color: #333;
+}
+
+.msg-header-actions {
+    float: right;
+    display: flex;
+    gap: 5px;
+}

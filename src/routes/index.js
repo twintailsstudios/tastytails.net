@@ -161,6 +161,27 @@ router.get('/character-bank', verify, async (req, res) => {
   }
 })
 
+router.get('/chat-archives', verify, async (req, res) => {
+  const token = req.cookies.TastyTails;
+  if (!token) return res.render('index', { token: null, loginForm: 0 });
+
+  try {
+    const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+    req.user = verified;
+    res.render('chat-archives', {
+      token: token,
+      loginForm: 0
+    });
+  } catch (err) {
+    res.status(400).render('error', {
+      token: null,
+      loginForm: 0,
+      error: 'Invalid Token',
+      errDescrip: "Try logging out and logging back in."
+    });
+  }
+})
+
 router.get('/job-demos', verify, (req, res) => {
   const token = req.cookies.TastyTails;
   res.render('job-demos', {

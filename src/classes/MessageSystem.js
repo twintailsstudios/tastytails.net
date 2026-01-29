@@ -727,6 +727,12 @@ class MessageSystem {
                 semantic_tags: SemanticMapper.getNearbyObjectTags([item])[0]
             }));
 
+
+
+            // Re-assign to match structure if I broke it in variable usage above
+            // Actually, let's just add the property to the object we created.
+            locationContext.zone = serverGame.getZoneAt(pX, pY) || 'Unknown';
+
             return {
                 speaker_context: speakerContext,
                 intendedListener_context: listenerContext,

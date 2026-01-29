@@ -42,6 +42,7 @@ const chatSchema = new mongoose.Schema({
     intendedListener_context: { type: Object, default: {} },
     location_context: {
       title: { type: String, default: 'Unknown' },
+      zone: { type: String, default: null },
       surrounding_tiles: { type: Array, default: [] }, // Or Object/Mixed if complex
       nearby_objects: { type: Array, default: [] }
     }

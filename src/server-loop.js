@@ -240,7 +240,7 @@ function initializeMap() {
                             }
                         }
                     });
-                    log.info(`Tileset '${tileset.name}' parsed. Found ${Object.keys(zoneGids).length} zone tiles total.`);
+                    log.info(`Tileset '${tileset.name}' parsed. Found ${Object.keys(zoneGids).length} zone tiles total. Zones: ${Object.values(zoneGids).join(', ')}`);
                 }
             });
         }
@@ -2807,6 +2807,39 @@ module.exports.getMapDataAt = (x, y) => {
     return data;
 };
 
+/**
+ * Returns the zone string at the given pixel coordinates.
+ */
+function getZoneAt(x, y) {
+    if (!zoneMap || zoneMap.length === 0) return null;
+    const tx = Math.floor(x / TILE_SIZE);
+    const ty = Math.floor(y / TILE_SIZE);
+
+    if (ty < 0 || ty >= zoneMap.length || tx < 0 || tx >= zoneMap[0].length) {
+        return null;
+    }
+    return zoneMap[ty][tx];
+}
+
+/**
+ * Returns a list of all unique zones found in the map.
+ */
+function getAvailableZones() {
+    const zones = new Set();
+    if (!zoneMap) return [];
+
+    for (let y = 0; y < zoneMap.length; y++) {
+        for (let x = 0; x < zoneMap[y].length; x++) {
+            if (zoneMap[y][x]) {
+                zones.add(zoneMap[y][x]);
+            }
+        }
+    }
+    const list = Array.from(zones).sort();
+    log.debug(`[Server] getAvailableZones found: ${list.join(', ')}`);
+    return list;
+}
+
 module.exports.getAllPlayers = () => players;
 module.exports.getWorldItems = () => worldItems;
 module.exports.getCorpses = () => corpses;
@@ -2867,3 +2900,6 @@ function updateDynamicSegments(io) {
     }
 }
 
+
+module.exports.getZoneAt = getZoneAt;
+module.exports.getAvailableZones = getAvailableZones;

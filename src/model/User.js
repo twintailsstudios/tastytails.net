@@ -485,7 +485,28 @@ const userSchema = new mongoose.Schema({
           color: { type: String }
         }
       }
-    }]
+    }],
+    savedLogs: {
+      type: [{
+        title: {
+          type: String,
+          required: true
+        },
+        savedAt: {
+          type: Date,
+          default: Date.now
+        },
+        characterId: {
+          type: String,
+          required: true
+        },
+        messageIds: {
+          type: [String],
+          default: []
+        }
+      }],
+      default: []
+    }
   }
 });
 
