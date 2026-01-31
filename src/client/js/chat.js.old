@@ -4,7 +4,7 @@ function initializeChat(socket) {
     const textarea = element('textarea');
     const spoilerLabel = element('spoiler-label');
     const jumpToPresentBtn = element('jump-to-present');
-    let newMessagesCount = 0;
+    const unreadCounts = { global: 0, local: 0 };
     let editingMessageId = null; // Track which message is being edited
     let originalDraft = ''; // Store draft when switching to edit mode
     let isLoadingOlder = false; // Track if we are currently fetching older messages
@@ -111,91 +111,47 @@ function initializeChat(socket) {
     const tabGlobal = element('tab-global');
     const tabLocal = element('tab-local');
     const tabStates = {
-        global: { anchorId: null, offset: 0 },
-        local: { anchorId: null, offset: 0 }
+        global: { atBottom: true, scrollTop: 0, hasBeenVisited: false },
+        local: { atBottom: true, scrollTop: 0, hasBeenVisited: false }
     };
 
     function saveTabState(scope) {
-        const visibleBottom = messages.scrollTop + messages.clientHeight;
-        const children = Array.from(messages.querySelectorAll('.chat-message'));
-        let anchor = null;
+        // Simple Check: Were we at the bottom?
+        const atBottom = messages.scrollHeight - messages.clientHeight <= messages.scrollTop + 150;
 
-        // Iterate backwards / find bottom-most visible message for this scope
-        for (let i = children.length - 1; i >= 0; i--) {
-            const el = children[i];
-            // Check if matches scope and is roughly visible (top is above bottom of viewport)
-            if (el.dataset.scope === scope && el.getBoundingClientRect().height > 0) {
-                // Note: 'display:none' elements have 0 height/dimensions usually, 
-                // but checking dataset directly is safer as we are ABOUT to change views.
-                // Actually, saveTabState is called BEFORE view change, so CSS check works.
-                if (el.offsetTop < visibleBottom) {
-                    anchor = el;
-                    break;
-                }
-            }
-        }
-
-        if (anchor) {
-            tabStates[scope] = {
-                anchorId: anchor.id,
-                offset: visibleBottom - (anchor.offsetTop + anchor.offsetHeight)
-            };
-        } else {
-            // If no messages or scrolled to top etc.
-            tabStates[scope] = { anchorId: null, offset: 0 };
-        }
+        tabStates[scope] = {
+            atBottom: atBottom,
+            scrollTop: messages.scrollTop, // Fallback
+            hasBeenVisited: true // Explicitly mark as visited on save
+        };
     }
 
     function restoreTabState(scope) {
-        const state = tabStates[scope];
-        let restored = false;
+        const state = tabStates[scope] || { atBottom: true, scrollTop: 0, hasBeenVisited: false };
 
-        if (state && state.anchorId) {
-            const anchor = document.getElementById(state.anchorId);
-            if (anchor) {
-                const targetBottom = anchor.offsetTop + anchor.offsetHeight + state.offset;
-                messages.scrollTop = targetBottom - messages.clientHeight;
-                restored = true;
+        // Force-scroll if:
+        // 1. Not initialized (App Load)
+        // 2. Not visited (Tab First Load)
+        // 3. At Bottom AND No Unread (Returning to synchronized tab)
+        if (!messages.dataset.initialized || !state.hasBeenVisited || (state.atBottom && unreadCounts[scope] === 0)) {
+            messages.scrollTop = messages.scrollHeight; // Attempt synchronous scroll first
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    messages.scrollTop = messages.scrollHeight;
+                });
+            });
+            // Clear unread
+            unreadCounts[scope] = 0;
+            state.hasBeenVisited = true; // Mark as visited in memory
+            if (jumpToPresentBtn) jumpToPresentBtn.classList.add('hidden');
+        } else {
+            // Restore previous position (approximate)
+            messages.scrollTop = state.scrollTop;
 
-                // Calculate New Messages (Unread)
-                let unreadCount = 0;
-                let sibling = anchor.nextElementSibling;
-                while (sibling) {
-                    if (sibling.classList.contains('chat-message') && sibling.dataset.scope === scope) {
-                        unreadCount++;
-                    }
-                    sibling = sibling.nextElementSibling;
-                }
-
-                if (unreadCount > 0) {
-                    // Insert Divider if missing
-                    let nextEl = anchor.nextElementSibling;
-                    if (!nextEl || !nextEl.classList.contains('new-messages-divider')) {
-                        const marker = document.createElement('div');
-                        marker.className = 'new-messages-divider';
-                        marker.dataset.scope = scope;
-                        marker.innerHTML = 'New Messages';
-                        anchor.insertAdjacentElement('afterend', marker);
-                    }
-
-                    if (jumpToPresentBtn) {
-                        jumpToPresentBtn.classList.remove('hidden');
-                        jumpToPresentBtn.innerHTML = `<span>${unreadCount} New Messages</span> <i class="fas fa-arrow-down"></i>`;
-                        newMessagesCount = unreadCount; // Sync global counter
-                    }
-                } else if (jumpToPresentBtn) {
-                    jumpToPresentBtn.classList.add('hidden');
-                    newMessagesCount = 0;
-                    // Do NOT remove divider here. It persists until reply.
-                }
-            }
-        }
-
-        if (!restored) {
-            messages.scrollTop = messages.scrollHeight;
-            if (jumpToPresentBtn) {
-                jumpToPresentBtn.classList.add('hidden');
-                newMessagesCount = 0;
+            // If we have unread messages, show the jump button
+            if (unreadCounts[scope] > 0 && jumpToPresentBtn) {
+                jumpToPresentBtn.classList.remove('hidden');
+                jumpToPresentBtn.innerHTML = `<span>${unreadCounts[scope]} New Messages</span> <i class="fas fa-arrow-down"></i>`;
             }
         }
     }
@@ -217,11 +173,10 @@ function initializeChat(socket) {
         }
 
         // 2. Restore state of NEW scope
-        // Need brief timeout for layout update? Usually sync DOM update handles it before paint, 
-        // but scrollTop needs layout. 
-        // Force layout by reading scrollHeight?
-        const _ = messages.scrollHeight;
-        restoreTabState(scope);
+        // Timeout to allow display:none to Toggle layout
+        setTimeout(() => {
+            restoreTabState(scope);
+        }, 10);
     }
 
     if (tabGlobal && tabLocal) {
@@ -294,21 +249,63 @@ function initializeChat(socket) {
             reactionsHtml += '</div>';
         }
 
+        // --- Avatar Rendering ---
+        const senderProfile = msg.senderProfile || {};
+        const avatarHtml = renderAvatar(senderProfile, msgId);
+
         return `
             <div id="${msgId}" class="${messageClasses} scope-${scope}" data-timestamp="${rawTime}" data-scope="${scope}">
-                <div class="msg-title-bar">
-                    <div>
-                        <span class="postTime">${time} </span>
-                        <span class="msgUsername"><strong>${username}:</strong></span>
+                ${avatarHtml}
+                <div class="message-body" style="flex: 1; min-width: 0;">
+                    <div class="msg-title-bar">
+                        <div>
+                            <span class="postTime">${time} </span>
+                            <span class="msgUsername"><strong>${username}:</strong></span>
+                        </div>
+                        <button class="msg-control-btn material-icons" data-dropdown-button data-id="${msgId}" data-sender-id="${identifier}" title="Options">more_vert</button>
                     </div>
-                    <button class="msg-control-btn material-icons" data-dropdown-button data-id="${msgId}" data-sender-id="${identifier}" title="Options">more_vert</button>
+                    <div class="${contentClasses}" data-spoiler-type="${spoilerStatus}">
+                        ${content}
+                    </div>
+                    ${reactionsHtml}
                 </div>
-                <div class="${contentClasses}" data-spoiler-type="${spoilerStatus}">
-                    ${content}
-                </div>
-                ${reactionsHtml}
             </div >
             `;
+    }
+
+    function renderAvatar(profile, msgId) {
+        if (!profile || !profile.head || !profile.head.sprite) return '';
+
+        // Placeholder: use a transparent pixel or loading state.
+        // We use a DIV with background-image instead of IMG to avoid frame jumping/gap issues.
+        // The 'avatar-container' class handles size (64x64) and shared styles.
+        // Inline style sets individual animation properties.
+
+        const html = `
+            <div id="avatar-${msgId}" 
+                 class="avatar-container pixel-art" 
+                 style="
+                    background-image: url('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
+                    background-repeat: no-repeat;
+                    background-position: 0 0;
+                    background-size: 640px 64px;
+                    /* Animation defined in CSS class usually, but we ensure it here */
+                    animation: play-emote-v2 2s steps(10) infinite;
+                 ">
+            </div>
+        `;
+
+        // Queue Render
+        if (window.avatarRenderer) {
+            window.avatarRenderer.render(profile).then(url => {
+                const el = document.getElementById(`avatar-${msgId}`);
+                if (el && url) {
+                    el.style.backgroundImage = `url('${url}')`;
+                }
+            });
+        }
+
+        return html;
     }
 
     // --- Helper: Add Local System Message ---
@@ -376,7 +373,7 @@ function initializeChat(socket) {
             }
 
             jumpToPresentBtn.classList.add('hidden');
-            newMessagesCount = 0;
+            unreadCounts[currentScope] = 0;
             // Note: We do NOT remove the divider here. It serves as a visual marker.
             // The scroll listener will remove it when the user reaches the bottom.
         });
@@ -385,7 +382,7 @@ function initializeChat(socket) {
     messages.addEventListener('scroll', () => {
         if (scrollChecker()) {
             if (jumpToPresentBtn) jumpToPresentBtn.classList.add('hidden');
-            newMessagesCount = 0;
+            unreadCounts[currentScope] = 0;
             // Do NOT remove divider on scroll.
         }
     });
@@ -397,77 +394,132 @@ function initializeChat(socket) {
 
         socket.on('output', function (data) {
             if (data.length) {
-                const isScrolledToBottom = scrollChecker();
-                let html = '';
-                const hasVisible = data.some(m => (m.scope || 'global') === currentScope);
+                // Check Is Scrolled To Bottom BEFORE insertion
+                let isScrolledToBottom = scrollChecker();
 
-                // Process messages
-                let currentBatchHTML = '';
+                // Identify if *I* sent any of these messages
+                const myCharId = document.location.href.split('play/')[1]; // Simple ID extraction
+                const sentByMe = data.some(m => {
+                    // Check Character ID if available, or clientMsgId
+                    return (m.character && m.character._id === myCharId) || m.clientMsgId;
+                });
 
+                // Force Auto-Scroll if I sent it (Ghost message compensation)
+                if (sentByMe) {
+                    isScrolledToBottom = true;
+                }
+
+                // Force Auto-Scroll on Initial Load (if chat was empty/uninitialized)
+                // We use a property on the messages container to track initialization
+                let isInitialLoad = false;
+                if (!messages.dataset.initialized) {
+                    isScrolledToBottom = true;
+                    isInitialLoad = true;
+                    // Defer setting dataset.initialized until AFTER the scroll
+                }
+
+                // Process messages and handle unread counts
+                let newHtml = '';
                 for (let i = 0; i < data.length; i++) {
-                    if (data[i].deleted.status == 'false') {
-                        const msgHtml = renderMessageHTML(data[i]);
-                        let processed = false;
-
-                        // Check for ghost replacement
-                        if (data[i].clientMsgId) {
-                            const ghost = document.getElementById('temp-' + data[i].clientMsgId);
+                    const msg = data[i];
+                    if (msg.deleted.status == 'false') {
+                        const msgHtml = renderMessageHTML(msg);
+                        // Ghost Detection
+                        if (msg.clientMsgId) {
+                            const ghost = document.getElementById('temp-' + msg.clientMsgId);
                             if (ghost) {
-                                // Flush any pending batch before replacing
-                                if (currentBatchHTML) {
-                                    messages.insertAdjacentHTML('beforeend', currentBatchHTML);
-                                    currentBatchHTML = '';
-                                }
-                                ghost.outerHTML = msgHtml;
-                                processed = true;
+                                ghost.outerHTML = msgHtml; // Replace ghost in-place
+                                continue; // Skip appending
                             }
                         }
+                        newHtml += msgHtml; // Batch append
 
-                        if (!processed) {
-                            currentBatchHTML += msgHtml;
+                        // --- Unread Count Logic ---
+                        const msgScope = msg.scope || 'global';
+
+                        // If message is for CURRENT scope
+                        if (msgScope === currentScope) {
+                            if (!isScrolledToBottom) {
+                                // Add divider if missing
+                                if (!messages.querySelector(`.new-messages-divider[data-scope="${currentScope}"]`)) {
+                                    const marker = document.createElement('div');
+                                    marker.className = 'new-messages-divider';
+                                    marker.dataset.scope = currentScope;
+                                    marker.innerHTML = 'New Messages';
+                                    messages.appendChild(marker);
+                                }
+                                unreadCounts[currentScope]++;
+                            }
+                        } else {
+                            // Message is for background scope
+                            if (!messages.querySelector(`.new-messages-divider[data-scope="${msgScope}"]`)) {
+                                const marker = document.createElement('div');
+                                marker.className = 'new-messages-divider';
+                                marker.dataset.scope = msgScope;
+                                marker.innerHTML = 'New Messages';
+                                messages.appendChild(marker);
+                            }
+                            unreadCounts[msgScope]++;
                         }
                     }
                 }
 
-                // Insert remaining DOM
-                if (!isScrolledToBottom) {
-                    // If user is scrolled up, add marker if not present AND we have visible messages
-                    if (hasVisible && !messages.querySelector(`.new-messages-divider[data-scope="${currentScope}"]`)) {
-                        const marker = document.createElement('div');
-                        marker.className = 'new-messages-divider';
-                        marker.dataset.scope = currentScope;
-                        marker.innerHTML = 'New Messages';
-                        messages.appendChild(marker);
-                    }
+                if (unreadCounts[currentScope] > 0 && jumpToPresentBtn) {
+                    jumpToPresentBtn.classList.remove('hidden');
+                    jumpToPresentBtn.innerHTML = `<span>${unreadCounts[currentScope]} New Messages</span> <i class="fas fa-arrow-down"></i>`;
+                }
 
-                    if (currentBatchHTML) {
-                        messages.insertAdjacentHTML('beforeend', currentBatchHTML);
-                    }
+                // Append New HTML
+                if (newHtml) {
+                    messages.insertAdjacentHTML('beforeend', newHtml);
+                }
 
-                    if (hasVisible) {
-                        newMessagesCount += data.filter(m => (m.scope || 'global') === currentScope).length;
-                        if (newMessagesCount > 0 && jumpToPresentBtn) {
-                            jumpToPresentBtn.classList.remove('hidden');
-                            jumpToPresentBtn.innerHTML = `<span>${newMessagesCount} New Messages</span> <i class="fas fa-arrow-down"></i>`;
+                // --- PRUNING LOGIC (Always run) ---
+                const MAX_CHAT_HISTORY = 200;
+                if (messages.children.length > MAX_CHAT_HISTORY) {
+                    let count = messages.children.length;
+                    // Avoid removing loading spinner if it exists as first child
+                    const firstMsgIndex = (messages.firstElementChild && messages.firstElementChild.id === 'chat-loading-spinner') ? 1 : 0;
+
+                    while (count > MAX_CHAT_HISTORY) {
+                        if (messages.children[firstMsgIndex]) {
+                            messages.children[firstMsgIndex].remove();
+                            count--;
+                        } else {
+                            break;
                         }
                     }
-                } else {
-                    // User is at bottom, just append and scroll
-                    if (currentBatchHTML) {
-                        messages.insertAdjacentHTML('beforeend', currentBatchHTML);
-                    }
+                }
 
-                    // Only auto-scroll if content is visible?
-                    // display: none takes no space. So scrollTop remains at bottom.
-                    messages.scrollTop = messages.scrollHeight - messages.clientHeight;
+                // --- AUTO-SCROLL LOGIC ---
+                // Scroll if they WERE at the bottom (or forced).
+                if (isScrolledToBottom) {
+                    // Sync attempt
+                    messages.scrollTop = messages.scrollHeight;
 
-                    // clear button
-                    newMessagesCount = 0;
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            messages.scrollTop = messages.scrollHeight;
+
+                            // Mark as initialized AFTER the scroll logic triggers regarding initial load
+                            if (!messages.dataset.initialized) {
+                                messages.dataset.initialized = "true";
+                            }
+                        });
+                    });
+
+                    // Clear notifications if we auto-scrolled
+                    unreadCounts[currentScope] = 0;
                     if (jumpToPresentBtn) jumpToPresentBtn.classList.add('hidden');
-                    // Do NOT remove divider here.
+                } else {
+                    // If this was an initial load but we somehow failed isScrolledToBottom (unlikely but safe)
+                    if (typeof isInitialLoad !== 'undefined' && isInitialLoad) {
+                        // Fallback mark
+                        messages.dataset.initialized = "true";
+                    }
                 }
 
-                // Apply filters immediately after rendering
+                // Filters
                 applySpoilerFilters();
             }
         });
@@ -1020,7 +1072,9 @@ function initializeChat(socket) {
                     ghostEl.classList.add('ghost-message');
                     // Ensure it is visible in current view (it matches scope)
                     messages.appendChild(ghostEl);
-                    messages.scrollTop = messages.scrollHeight;
+                    requestAnimationFrame(() => {
+                        messages.scrollTop = messages.scrollHeight;
+                    });
                 }
 
                 socket.emit('input', {
@@ -1083,7 +1137,7 @@ function initializeChat(socket) {
     }
 
     function scrollChecker() {
-        return messages.scrollHeight - messages.clientHeight <= messages.scrollTop + 50; // Tolerance
+        return messages.scrollHeight - messages.clientHeight <= messages.scrollTop + 150;
     }
 
     // --- Formatting Buttons ---

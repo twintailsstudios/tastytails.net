@@ -94,7 +94,8 @@ class MessageSystem {
                 identifier: chat.identifier.character,
                 visibleTo: chat.visibleTo,
                 excludedPlayers: chat.excludedPlayers,
-                reactions: chat.reactions
+                reactions: chat.reactions,
+                senderProfile: chat.senderProfile // Include avatar profile
             }));
             socket.emit('output', allMsgs.reverse());
         } catch (e) {
@@ -132,7 +133,8 @@ class MessageSystem {
                 identifier: chat.identifier.character,
                 visibleTo: chat.visibleTo,
                 excludedPlayers: chat.excludedPlayers,
-                reactions: chat.reactions
+                reactions: chat.reactions,
+                senderProfile: chat.senderProfile // Include avatar profile
             }));
             socket.emit('olderChatsOutput', olderMsgs.reverse());
         } catch (e) {
@@ -476,6 +478,11 @@ class MessageSystem {
             }
 
             // 5. Create and Save Message
+            // Extract Sender Profile for Avatar Display
+            const players = serverGame.getAllPlayers();
+            const senderPlayer = players[socket.id];
+            const senderProfile = this.extractSenderProfile(senderPlayer);
+
             const chatMessage = new Chats({
                 name: data.name,
                 type: type,
@@ -484,6 +491,7 @@ class MessageSystem {
                 spoiler: { status: data.spoiler || 'none', votes: { watersports: 0, disposal: 0, gore: 0 } },
                 deleted: { status: false, deletionTime: null },
                 identifier: { account: verified._id, character: data.charId },
+                senderProfile: senderProfile, // New Field
                 visibleTo: visibleTo,
                 gameState: this.captureGameState(socket, 'talk', (type === 'Unique' && targetName) ?
                     (serverGame.findPlayerByName(targetName) ? serverGame.findPlayerByName(targetName).playerId : null)
@@ -500,11 +508,30 @@ class MessageSystem {
 
             // 6. Broadcast Message (Immediate)
             // Pass clientMsgId (if any) to broadcast so client can reconcile ghost message
-            this.broadcastMessage(chatMessage, visibleTo, [], data.clientMsgId);
+            this.broadcastMessage(chatMessage, visibleTo, [], data.clientMsgId, socket.id);
 
         } catch (e) {
             log.error('Error in handleIncomingMessage:', e);
         }
+    }
+
+    /**
+     * Extracts visual profile data from the player object.
+     * @param {Object} player - The runtime player object.
+     * @returns {Object} The lightweight profile for avatars.
+     */
+    extractSenderProfile(player) {
+        if (!player) return {};
+        // List of cosmetic parts to include
+        const parts = ['head', 'eyes', 'ear', 'body', 'hands', 'feet', 'tail', 'hair', 'headAccessories', 'beak'];
+        const profile = {};
+
+        parts.forEach(part => {
+            if (player[part]) {
+                profile[part] = player[part];
+            }
+        });
+        return profile;
     }
 
     /**
@@ -541,14 +568,15 @@ class MessageSystem {
      * @param {Object} messageObject - The saved mongoose document.
      * @param {Array} visibleTo - Array of Character IDs to restrict visibility.
      * @param {Array} excludedPlayers - Array of Character IDs to exclude.
+     * @param {string} clientMsgId - The transient ID for the sender.
+     * @param {string} senderSocketId - The socket ID of the sender.
      */
-    broadcastMessage(messageObject, visibleTo = [], excludedPlayers = [], clientMsgId = null) {
+    broadcastMessage(messageObject, visibleTo = [], excludedPlayers = [], clientMsgId = null, senderSocketId = null) {
         try {
             // Ensure excludedPlayers are strings for comparison
             excludedPlayers = excludedPlayers.map(id => id.toString());
 
-            // log.debug(`Broadcasting message: ${messageObject._id} Type: ${messageObject.type} VisibleTo: ${JSON.stringify(visibleTo)} Excluded: ${JSON.stringify(excludedPlayers)}`);
-
+            // Base client message
             const clientMsg = {
                 _id: messageObject._id,
                 name: messageObject.name,
@@ -558,10 +586,11 @@ class MessageSystem {
                 spoiler: messageObject.spoiler,
                 deleted: messageObject.deleted,
                 identifier: messageObject.identifier.character,
+                senderProfile: messageObject.senderProfile, // Include in broadcast
                 visibleTo: messageObject.visibleTo,
                 excludedPlayers: messageObject.excludedPlayers,
                 reactions: messageObject.reactions, // Include reactions in initial load/broadcast
-                clientMsgId: clientMsgId // Return transient ID for optimistic UI
+                clientMsgId: clientMsgId // Return transient ID for optimistic UI (will be stripped for others)
             };
 
             const connectedSockets = this.io.sockets.sockets;
@@ -572,35 +601,60 @@ class MessageSystem {
                     if (excludedPlayers && excludedPlayers.includes(charId)) return; // Skip excluded
 
                     const sId = serverGame.getSocketIdByCharId(charId);
-                    // log.debug(`Checking charId: ${charId} -> SocketId: ${sId}`);
 
                     if (sId) {
-                        // Check if socket is actually connected in io
                         const socket = connectedSockets.get(sId);
                         if (socket) {
-                            socket.emit('output', [clientMsg]);
-                            // log.debug(`Sent to socket: ${sId}`);
+                            // Only include clientMsgId if this is the sender
+                            const payload = { ...clientMsg };
+                            if (sId !== senderSocketId) {
+                                delete payload.clientMsgId;
+                            }
+                            socket.emit('output', [payload]);
                         } else {
                             log.warn(`Socket ${sId} found in game state but not in io.sockets`);
                         }
                     } else {
-                        log.warn(`No socket found for charId: ${charId}`);
+                        // log.warn(`No socket found for charId: ${charId}`);
                     }
                 });
             } else {
-                // Public message, but might have exclusions
+                // Public Message
+                const payloadNoId = { ...clientMsg };
+                delete payloadNoId.clientMsgId;
+
+                // If public, we need to handle specific sender vs broadcast if simpler, 
+                // BUT we have excludedPlayers logic.
+
                 if (excludedPlayers && excludedPlayers.length > 0) {
-                    // We must iterate all sockets to check if they are excluded
+                    // Iterate all sockets
                     for (const [socketId, socket] of connectedSockets) {
                         const charId = serverGame.getCharIdBySocketId(socketId);
                         if (charId && excludedPlayers.includes(charId.toString())) {
                             continue; // Skip excluded
                         }
-                        socket.emit('output', [clientMsg]);
+
+                        if (socketId === senderSocketId) {
+                            socket.emit('output', [clientMsg]); // With ID
+                        } else {
+                            socket.emit('output', [payloadNoId]); // Without ID
+                        }
                     }
                 } else {
                     // Truly public, no exclusions
-                    this.io.emit('output', [clientMsg]);
+                    if (senderSocketId) {
+                        const senderSocket = connectedSockets.get(senderSocketId);
+                        if (senderSocket) {
+                            senderSocket.emit('output', [clientMsg]); // Send to sender with ID
+                            senderSocket.broadcast.emit('output', [payloadNoId]); // Send to others without ID
+                        } else {
+                            // Fallback if sender disconnected? Just broadcast clean.
+                            this.io.emit('output', [payloadNoId]);
+                        }
+                    } else {
+                        // System message or no specific sender
+                        this.io.emit('output', [payloadNoId]);
+                    }
                 }
             }
         } catch (e) {

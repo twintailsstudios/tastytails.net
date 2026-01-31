@@ -86,6 +86,10 @@ const chatSchema = new mongoose.Schema({
       type: String
     }
   },
+  senderProfile: {
+    type: mongoose.Schema.Types.Mixed, // Stores { head, eyes, ears, colors: {...} }
+    default: {}
+  },
   createdAt: {
     type: Date,
     default: Date.now

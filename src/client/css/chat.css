@@ -70,6 +70,14 @@
     transition: background-color 0.2s;
     border-radius: 4px;
     padding: 5px 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+
+    /* Performance Optimization: Skip rendering off-screen messages */
+    /* content-visibility: auto; */
+    /* contain-intrinsic-size: 100px; */
+    /* Approximate height of a message */
 }
 
 .chat-message:hover {
@@ -538,6 +546,61 @@
     align-items: center;
     z-index: 2000;
     animation: fadeIn 0.2s;
+}
+
+.avatar-container {
+    width: 64px;
+    height: 64px;
+    position: relative;
+    flex-shrink: 0;
+    /* border: 1px solid #444; */
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: transparent;
+    animation: play-emote-v2 2s steps(10) infinite;
+}
+
+/* .avatar-layer removed - Flattened to single element */
+
+/* Animation Keyframes - Shifts X position through 10 frames */
+/* Animation Keyframes - Shifts X position through 10 frames */
+/* Note: Container is 64px. Atlas row is 10 frames (640px width). 
+   We shift left by 640px over 10 steps to show each frame. */
+/* Animation Keyframes - Shifts X position through 10 frames */
+/* Note: Container is 64px. Atlas row is 10 frames (640px width). 
+   We shift left by 640px over 10 steps to show each frame. */
+@keyframes play-emote-v2 {
+    from {
+        background-position-x: 0px;
+        mask-position-x: 0px;
+        -webkit-mask-position-x: 0px;
+    }
+
+    to {
+        background-position-x: -640px;
+        mask-position-x: -640px;
+        -webkit-mask-position-x: -640px;
+    }
+}
+
+.avatar-placeholder {
+    background-image: url('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    background-size: 640px 64px;
+    animation: play-emote-v2 2s steps(10) infinite;
+}
+
+/* Animation for flattening <img> tags (uses object-position) */
+@keyframes play-emote-img {
+    from {
+        object-position: 0 0;
+    }
+
+    to {
+        object-position: -640px 0;
+    }
+}
 }
 
 .dialogue-box {
