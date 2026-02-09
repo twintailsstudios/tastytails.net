@@ -1,3 +1,6 @@
+import { Animal } from './entity/Animal.js';
+import { createAnimations } from './animations.js';
+
 export function createMap(scene, onProgress) {
     //----- Loads the json  file and also the map tileset -----//
     const map = scene.make.tilemap({ key: 'dynamic_map' }); // Using the dynamic key
@@ -141,6 +144,25 @@ export function createMap(scene, onProgress) {
             }
         }
     });
+
+    // --- Animal System ---
+    scene.animals = scene.physics.add.group({
+        classType: Animal,
+        runChildUpdate: true
+    });
+
+    // Collide animals with world blocked tiles
+    if (scene.mapLayers) {
+        scene.mapLayers.forEach(layer => {
+            scene.physics.add.collider(scene.animals, layer);
+        });
+    }
+
+    // Initialize Animations for known animals (Sheep)
+    // We reuse the player animation creator because the sprite sheet layout is identical (36 frames)
+    if (scene.anims) {
+        createAnimations(scene, ['sheep']);
+    }
 
     scene.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
 
@@ -290,6 +312,33 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
     }
 
     // 3. Create the Sprite
+    // --- Animal Special Handling ---
+    if (tileProps.isAnimal || obj.properties?.some(p => p.name === 'isAnimal' && p.value === true)) {
+        // Merge properties
+        const mergedProps = { ...tileProps, ...obj.properties };
+        // Handle array of properties from Tiled
+        if (Array.isArray(obj.properties)) {
+            obj.properties.forEach(p => { mergedProps[p.name] = p.value; });
+        }
+
+        // [FIX] Force ID to match Server Format for synchronization
+        // Server uses: `${layerName}_${obj.id}`. We assume layer is 'animals'.
+        if (!mergedProps.id) {
+            mergedProps.id = `animals_${obj.id}`;
+        }
+
+        const animal = new Animal(scene, obj.x, obj.y, textureKey, frame, mergedProps);
+
+        // Add to specific group
+        if (scene.animals) {
+            scene.animals.add(animal);
+        } else {
+            console.warn('scene.animals group missing, adding to display list only');
+            scene.add.existing(animal);
+        }
+        return; // Skip standard sprite creation
+    }
+
     const sprite = scene.objectGroup.create(obj.x, obj.y, textureKey, frame);
     if (!sprite) {
         console.error(`[World Builder] Failed to create sprite for ${textureKey}`);

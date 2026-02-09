@@ -376,8 +376,8 @@ export class SewingModule {
         // Connect Crafting UI Output & Progress
         this.craftingUI.outputSlot = this.container.querySelector('#outputSlot');
         this.craftingUI.outputHint = this.container.querySelector('#outputHint');
-        this.craftingUI.progressBar = this.container.querySelector('#sewing-progress-container');
-        this.craftingUI.progressFill = this.container.querySelector('#sewing-progress-fill');
+        // Fix: craftingUI expects progressBar to be the fill element that grows
+        this.craftingUI.progressBar = this.container.querySelector('#sewing-progress-fill');
 
         // Events
         this.dom.tabs.forEach((tab, idx) => {
@@ -477,6 +477,13 @@ export class SewingModule {
     }
 
     extractColor(item) {
+        // [FIX] Check for color on the item root first (where server merges customData)
+        if (item.color !== undefined) {
+            return typeof item.color === 'number'
+                ? '#' + item.color.toString(16).padStart(6, '0')
+                : item.color;
+        }
+        // Legacy/Structure Support: Check customData wrapper
         if (item.customData && item.customData.color !== undefined) {
             return typeof item.customData.color === 'number'
                 ? '#' + item.customData.color.toString(16).padStart(6, '0')

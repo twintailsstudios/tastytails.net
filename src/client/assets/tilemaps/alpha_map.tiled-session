@@ -118,6 +118,9 @@
                 "x": 1897.3333333333333,
                 "y": 260
             }
+        },
+        "sheep.tsx": {
+            "dynamicWrapping": false
         }
     },
     "last.exportedFilePath": "C:/Users/kkmcl/Documents/GitHub/tastytails.net/src/client/assets/tilemaps",
@@ -131,7 +134,7 @@
     "openFiles": [
     ],
     "project": "alpha_map.tiled-project",
-    "property.type": "bool",
+    "property.type": "string",
     "recentFiles": [
         "alpha_dye.tsx",
         "alpha_door.tsx",
@@ -145,8 +148,8 @@
     "tileset.lastUsedFilter": "Tiled tileset files (*.tsx *.xml)",
     "tileset.lastUsedFormat": "tsx",
     "tileset.tileSize": {
-        "height": 64,
-        "width": 12
+        "height": 198,
+        "width": 215
     },
     "tileset.type": 0
 }

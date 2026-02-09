@@ -64,7 +64,7 @@
  <tile id="18">
   <properties>
    <property name="blocked" type="bool" value="true"/>
-   <property name="lightBlock" type="bool" value="false"/>
+   <property name="lightBlock" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="20">
@@ -166,7 +166,7 @@
  <tile id="63">
   <properties>
    <property name="blocked" type="bool" value="true"/>
-   <property name="lightBlock" type="bool" value="false"/>
+   <property name="lightBlock" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="65">
@@ -244,7 +244,7 @@
  <tile id="108">
   <properties>
    <property name="blocked" type="bool" value="true"/>
-   <property name="lightBlock" type="bool" value="false"/>
+   <property name="lightBlock" type="bool" value="true"/>
   </properties>
  </tile>
 </tileset>

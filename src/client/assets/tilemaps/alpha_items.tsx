@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.11.2" name="alpha_items" tilewidth="64" tileheight="64" tilecount="9" columns="0" objectalignment="bottom">
+<tileset version="1.10" tiledversion="1.11.2" name="alpha_items" tilewidth="64" tileheight="64" tilecount="12" columns="0" objectalignment="bottom">
  <grid orientation="orthogonal" width="1" height="1"/>
  <tile id="0">
   <properties>
@@ -92,5 +92,35 @@
    <property name="texture" value="indigo"/>
   </properties>
   <image source="indigo.png" width="64" height="64"/>
+ </tile>
+ <tile id="9">
+  <properties>
+   <property name="isItem" type="bool" value="true"/>
+   <property name="itemID" value="madder_root"/>
+   <property name="itemType" value="object"/>
+   <property name="name" value="madder_root"/>
+   <property name="texture" value="madder_root"/>
+  </properties>
+  <image source="madder_root.png" width="64" height="64"/>
+ </tile>
+ <tile id="10">
+  <properties>
+   <property name="isItem" type="bool" value="true"/>
+   <property name="itemID" value="weld"/>
+   <property name="itemType" value="object"/>
+   <property name="name" value="weld"/>
+   <property name="texture" value="weld"/>
+  </properties>
+  <image source="weld.png" width="64" height="64"/>
+ </tile>
+ <tile id="11">
+  <properties>
+   <property name="isItem" type="bool" value="true"/>
+   <property name="itemID" value="sheers"/>
+   <property name="itemType" value="object"/>
+   <property name="name" value="Sheers"/>
+   <property name="texture" value="sheers"/>
+  </properties>
+  <image source="sheers.png" width="64" height="64"/>
  </tile>
 </tileset>

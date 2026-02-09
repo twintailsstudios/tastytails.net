@@ -21,6 +21,17 @@ module.exports = {
             result: { itemId: 'weapon_iron_dagger', count: 1 },
             time: 3000,
             icon: 'fa-solid fa-syringe' // Placeholder
+        },
+        {
+            id: 'tool_sheers',
+            name: 'Iron Sheers',
+            description: 'A standard iron sheers.',
+            ingredients: [
+                { itemId: 'ingot_iron', count: 2 }
+            ],
+            result: { itemId: 'tool_sheers', count: 1 },
+            time: 5000, // 5 seconds
+            icon: 'fa-solid fa-khanda' // FontAwesome icon for UI
         }
     ],
     furnace: [
@@ -178,6 +189,64 @@ module.exports = {
                 }
             },
             time: 1000
+        },
+        {
+            id: 'thread_wool_red',
+            name: 'Red Wool Thread',
+            description: 'A red thread made from wool.',
+            ingredients: [
+                { itemId: 'fiber_wool', count: 1 },
+                { itemId: 'alpha_dye', count: 1, customData: { variant: 'dye_red' } }
+            ],
+            result: {
+                itemId: 'alpha_thread',
+                count: 1,
+                customData: {
+                    name: 'Red Wool Thread',
+                    variant: 'thread_wool_red', // Critical for ingredient matching
+                    icon: 'fa-scroll',
+                    color: 0xFF0000, // Red Thread hex color
+                    flavor: 'tastes like wool.',
+                    description: 'Red, soft, warm, and fiberous thread',
+                    rendering: {
+                        type: 'layered',
+                        layers: [
+                            { frameOffset: 10, tintParam: 'color' }, // Threads (Bottom) uses the new color
+                            { frameOffset: 0, interactive: true }    // Spool (Top)
+                        ]
+                    }
+                }
+            },
+            time: 1000
+        },
+        {
+            id: 'thread_wool_yellow',
+            name: 'Yellow Wool Thread',
+            description: 'A yellow thread made from wool.',
+            ingredients: [
+                { itemId: 'fiber_wool', count: 1 },
+                { itemId: 'alpha_dye', count: 1, customData: { variant: 'dye_yellow' } }
+            ],
+            result: {
+                itemId: 'alpha_thread',
+                count: 1,
+                customData: {
+                    name: 'Yellow Wool Thread',
+                    variant: 'thread_wool_yellow', // Critical for ingredient matching
+                    icon: 'fa-scroll',
+                    color: 0xFFFF00, // Yellow Thread hex color
+                    flavor: 'tastes like wool.',
+                    description: 'Yellow, soft, warm, and fiberous thread',
+                    rendering: {
+                        type: 'layered',
+                        layers: [
+                            { frameOffset: 10, tintParam: 'color' }, // Threads (Bottom) uses the new color
+                            { frameOffset: 0, interactive: true }    // Spool (Top)
+                        ]
+                    }
+                }
+            },
+            time: 1000
         }
     ],
     sewing_machine: [
@@ -293,6 +362,62 @@ module.exports = {
                     color: 0x0000FF, // Blue hex color
                     flavor: 'tastes like blue.',
                     description: 'A blue dye.',
+                    rendering: {
+                        type: 'layered',
+                        layers: [
+                            { frameOffset: 10, tintParam: 'color' }, // Dye (Bottom) uses the new color
+                            { frameOffset: 0, interactive: true }    // Cauldron (Top)
+                        ]
+                    }
+                }
+            },
+            time: 1000
+        },
+        {
+            id: `dye_red`,
+            name: 'Red Dye',
+            description: 'A red dye.',
+            ingredients: [
+                { itemId: 'madder_root', count: 1 }
+            ],
+            result: {
+                itemId: 'alpha_dye',
+                count: 1,
+                customData: {
+                    name: 'Red Dye',
+                    variant: 'dye_red', // Critical for ingredient matching
+                    icon: 'fa-scroll',
+                    color: 0xFF0000, // Red hex color
+                    flavor: 'tastes like red.',
+                    description: 'A red dye.',
+                    rendering: {
+                        type: 'layered',
+                        layers: [
+                            { frameOffset: 10, tintParam: 'color' }, // Dye (Bottom) uses the new color
+                            { frameOffset: 0, interactive: true }    // Cauldron (Top)
+                        ]
+                    }
+                }
+            },
+            time: 1000
+        },
+        {
+            id: `dye_yellow`,
+            name: 'Yellow Dye',
+            description: 'A yellow dye.',
+            ingredients: [
+                { itemId: 'weld', count: 1 }
+            ],
+            result: {
+                itemId: 'alpha_dye',
+                count: 1,
+                customData: {
+                    name: 'Yellow Dye',
+                    variant: 'dye_yellow', // Critical for ingredient matching
+                    icon: 'fa-scroll',
+                    color: 0xFFFF00, // Yellow hex color
+                    flavor: 'tastes like yellow.',
+                    description: 'A yellow dye.',
                     rendering: {
                         type: 'layered',
                         layers: [

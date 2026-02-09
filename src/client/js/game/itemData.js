@@ -40,11 +40,16 @@ export default {
     'food_orange': { size: 1, name: 'Orange', icon: 'fa-apple-whole', texture: 'food_orange', flavor: `Tangy and sweet`, description: `A juicy orange.`, verb: 'eat', maxUses: 1, playerUse: true, isDynamic: true },
     'food_potato': { size: 1, name: 'Potato', icon: 'fa-apple-whole', texture: 'food_potato', flavor: `Starchy and savory`, description: `A rich potato.`, verb: 'eat', maxUses: 1, playerUse: true, isDynamic: true },
 
+    // Tools
+    'tool_sheers': { size: 1, name: 'Sheers', icon: 'fa-apple-whole', texture: 'sheers', flavor: `Tastes like metal`, description: `Big heavy scissors`, verb: 'use', maxUses: 1, playerUse: false },
+
     // Fibers
     'fiber_wool': { size: 1, name: 'Wool Fiber', icon: 'fa-apple-whole', texture: 'fiber_wool', flavor: `Soft and warm`, description: `A roll of wool fiber.`, verb: 'use', maxUses: 1, playerUse: false },
 
     // Dye precursors
     'indigo': { size: 1, name: 'Indigo', icon: 'fa-apple-whole', texture: 'indigo', flavor: `Pungent`, description: `A roll of indigo fiber.`, verb: 'use', maxUses: 1, playerUse: false },
+    'madder_root': { size: 1, name: 'Madder Root', icon: 'fa-apple-whole', texture: 'madder_root', flavor: `Pungent`, description: `A roll of madder root fiber.`, verb: 'use', maxUses: 1, playerUse: false },
+    'weld': { size: 1, name: 'Weld', icon: 'fa-apple-whole', texture: 'weld', flavor: `Pungent`, description: `A roll of weld fiber.`, verb: 'use', maxUses: 1, playerUse: false },
 
 
     // Special

@@ -254,11 +254,12 @@ async function runTests() {
         // -------------------------------------------------------------
         console.log("\n--- Test 1: Global Message ---");
         const globalMsg = "Hello Global World " + Date.now();
+        console.log("Sending Global...");
         Sender.sendMessage(globalMsg, 'global');
 
         // Verify Receiver
         try {
-            const [msgs] = await Receiver.waitForEvent('output', 2000, (args) => {
+            const [msgs] = await Receiver.waitForEvent('output', 3000, (args) => {
                 // args[0] is the array of messages [msg1, msg2]
                 return args[0][0].message[0].content.includes(globalMsg);
             });
@@ -267,11 +268,14 @@ async function runTests() {
 
         // Verify FarBot
         try {
-            const [msgs] = await FarBot.waitForEvent('output', 2000, (args) => {
+            const [msgs] = await FarBot.waitForEvent('output', 3000, (args) => {
                 return args[0][0].message[0].content.includes(globalMsg);
             });
             console.log("✅ FarBot saw Global message.");
         } catch (e) { console.error("❌ FarBot failed to see Global message", e); }
+
+
+        await sleep(2000); // Wait for Rate Limit (500ms)
 
 
         // -------------------------------------------------------------
@@ -279,11 +283,12 @@ async function runTests() {
         // -------------------------------------------------------------
         console.log("\n--- Test 2: Local Message (Range) ---");
         const localMsg = "Hello Local Neighbors " + Date.now();
+        console.log("Sending Local...");
         Sender.sendMessage(localMsg, 'local');
 
         // Verify Receiver (Close)
         try {
-            const [msgs] = await Receiver.waitForEvent('output', 2000, (args) => {
+            const [msgs] = await Receiver.waitForEvent('output', 3000, (args) => {
                 return args[0][0].scope === 'local' && args[0][0].message[0].content.includes(localMsg);
             });
             console.log("✅ Receiver saw Local message.");
@@ -302,6 +307,9 @@ async function runTests() {
         else console.error("❌ FarBot saw Local message (Range Fail).");
 
 
+        await sleep(2000); // Wait for Rate Limit
+
+
         // -------------------------------------------------------------
         // Test 3: Formatting (HTML/Sanitization)
         // -------------------------------------------------------------
@@ -310,7 +318,7 @@ async function runTests() {
         Sender.sendMessage(boldMsg, 'global');
 
         try {
-            const [msgs] = await Receiver.waitForEvent('output', 2000, (args) => {
+            const [msgs] = await Receiver.waitForEvent('output', 3000, (args) => {
                 return args[0][0].message[0].content.includes('<strong>Bold Text</strong>');
             });
             // The wait returns the 'args' array: [ [msg] ]
@@ -324,6 +332,9 @@ async function runTests() {
         } catch (e) { console.error("❌ Formatting test timed out", e); }
 
 
+        await sleep(2000); // Wait for Rate Limit
+
+
         // -------------------------------------------------------------
         // Test 4: Spoilers
         // -------------------------------------------------------------
@@ -334,7 +345,7 @@ async function runTests() {
         let msgIdToEdit = null;
 
         try {
-            const [msgs] = await Receiver.waitForEvent('output', 2000); // Wait for ANY output
+            const [msgs] = await Receiver.waitForEvent('output', 3000); // Wait for ANY output
             // Should verify it's the spoiler one
             const msg = msgs[0];
             if (msg.spoiler && (msg.spoiler.status === 'warning' || msg.spoiler.status === 'content')) {
@@ -342,6 +353,7 @@ async function runTests() {
                 msgIdToEdit = msg._id;
             } else {
                 console.log(`⚠️ Msg received but not spoiler: ${JSON.stringify(msg.spoiler)}`);
+                // Maybe it is the spoiler msg but default status?
             }
         } catch (e) { console.error("❌ Spoiler test timed out", e); }
 

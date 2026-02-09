@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.10" tiledversion="1.11.2" name="alpha_objects" tilewidth="252" tileheight="511" tilecount="42" columns="0" objectalignment="bottomleft">
- <editorsettings>
-  <export target="alpha_objects..tsx" format="tsx"/>
- </editorsettings>
  <grid orientation="orthogonal" width="1" height="1"/>
  <tile id="0">
   <properties>

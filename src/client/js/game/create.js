@@ -15,6 +15,7 @@ import { equipmentManager } from './equipment.js';
 import { inventoryUI } from './inventory.js';
 import { CraftingUI } from './crafting.js'; // NEW
 import { initCorpses } from './corpses.js';
+import { Animal } from './entity/Animal.js'; // NEW
 
 let debugGraphics;
 let playerDebugGraphics;
@@ -373,6 +374,38 @@ export function create() {
                 const otherPlayer = displayOtherPlayers(self, players[id]);
                 if (otherPlayer) {
                     self.otherPlayersMap.set(players[id].playerId, otherPlayer);
+                }
+            }
+        });
+    });
+
+    // --- Animal Updates ---
+    this.socket.on('animalUpdates', (updates) => {
+        // Debug: Log once to confirm receipt
+        if (!window._recAnimalUpdates) {
+            console.log('[Client] Received animalUpdates:', Object.keys(updates));
+            window._recAnimalUpdates = true;
+        }
+
+        if (!this.animals) return;
+
+        Object.keys(updates).forEach(id => {
+            const data = updates[id];
+            // Match ID
+            // Server ID Format: animals_323
+            // Client ID Format (map.js): animals_323
+            const animal = this.animals.getChildren().find(a => a.objectInfo && a.objectInfo.uniqueId === id);
+
+            if (animal) {
+                animal.serverUpdate(data);
+            } else {
+                // Warn once per missing ID
+                if (!window[`_missing_${id}`]) {
+                    console.warn(`[Client] Update for unknown animal: ${id}`);
+                    // debug list available
+                    const existing = this.animals.getChildren().map(a => a.objectInfo ? a.objectInfo.uniqueId : 'none');
+                    console.log('Available IDs:', existing);
+                    window[`_missing_${id}`] = true;
                 }
             }
         });

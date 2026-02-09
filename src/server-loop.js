@@ -164,6 +164,7 @@ const GRID_CELL_SIZE = 128; // Size of each grid cell (4 x 32px tiles)
 let objectGrid = {};        // Hash Map: "x,y" -> [Array of objects]
 let mapLayers = [];         // New: Store layers for property lookup
 let globalTilesets = [];    // New: Store tilesets for property lookup
+let activeAnimals = {};     // New: Store active server-side animals (Key: uniqueId)
 
 // --- Constants ---
 const TICK_RATE = 30; // 30 updates per second
@@ -174,7 +175,11 @@ const PLAYER_HEIGHT = 30;
 
 // --- Initial Setup ---
 
+
+let ioGlobal; // Global reference for independent loops
+
 function initializeGame(io) {
+    ioGlobal = io;
     log.info('Initializing game state...');
     monitoring.init(io); // Ensure IO is passed
     initializeSpells();
@@ -187,6 +192,7 @@ function initializeGame(io) {
  * ALSO loads static objects from the "Objects" layer for collision using "World Builder" logic.
  */
 const mapConfig = require('./server/mapConfig');
+const Animal = require('./server/mechanics/Animal'); // NEW
 
 function initializeMap() {
     // developer_note:
@@ -364,20 +370,22 @@ function initializeMap() {
                         const tileData = rawTs.tiles[trueLocalID];
                         const props = tileData ? tileData.properties : {};
 
+                        // --- Pre-Calculate Properties (Merged) ---
+                        // Extract Object Properties to Override Tile Props
+                        let objectProps = {};
+                        if (obj.properties && Array.isArray(obj.properties)) {
+                            obj.properties.forEach(p => {
+                                objectProps[p.name] = p.value;
+                            });
+                        }
+                        // Merge Props (Object overrides Tile)
+                        const combinedProps = { ...props, ...objectProps };
+
                         // --- Door System Check ---
                         // If we are in the 'doors' layer, treat as a door
                         if (objectLayer.name.toLowerCase() === 'doors' || props.isDoor) {
                             // Initialize Door
                             const doorId = `${objectLayer.name}_${obj.id}`;
-
-                            // Merge Props
-                            let objectProps = {};
-                            if (obj.properties && Array.isArray(obj.properties)) {
-                                obj.properties.forEach(p => {
-                                    objectProps[p.name] = p.value;
-                                });
-                            }
-                            const combinedProps = { ...props, ...objectProps };
 
                             // Determine State
                             // Default: Closed (blocked: true, lightBlock: true) if not specified
@@ -432,6 +440,24 @@ function initializeMap() {
                             return; // SKIP adding detailed "body" static object logic below, we handled it.
                         }
 
+                        // --- Animal System Check ---
+                        if (props.isAnimal || combinedProps.isAnimal) {
+                            const animalId = `${objectLayer.name}_${obj.id}`;
+
+                            // Create Server Animal
+                            const animal = new Animal(
+                                animalId,
+                                obj.x,
+                                obj.y,
+                                combinedProps,
+                                (x, y) => checkPointCollision(x, y) // Pass point collision function
+                            );
+
+                            activeAnimals[animalId] = animal;
+                            log.info(`[Server] Spawning Animal: ${animalId}`);
+                            return; // Skip static object creation
+                        }
+
                         // --- Item System Check ---
                         if (props.isItem) {
                             // Derive Item ID
@@ -477,16 +503,7 @@ function initializeMap() {
                         }
 
                         // --- Collision Box Dimensions ---
-                        // Extract Object Properties to Override Tile Props
-                        let objectProps = {};
-                        if (obj.properties && Array.isArray(obj.properties)) {
-                            obj.properties.forEach(p => {
-                                objectProps[p.name] = p.value;
-                            });
-                        }
-
-                        // Merge Props (Object overrides Tile)
-                        const combinedProps = { ...props, ...objectProps };
+                        // (combinedProps is already defined at top)
 
                         // Check for explicit blocked: false
                         // Tiled might send boolean false or string "false"
@@ -780,6 +797,50 @@ function handlePlayerInput(playerId, inputData) {
  * Checks if a player at position (x, y) collides with any blocked tiles OR static objects.
  * Uses a bounding box of size TILE_SIZE x TILE_SIZE centered at (x, y).
  */
+/**
+ * Checks if a SPECIFIC POINT (x, y) is blocked by a tile or static object.
+ * Used for AI/Animals that have their own size/collision logic and just need to query the world.
+ * Does NOT apply player-specific offsets or bounding boxes.
+ */
+function checkPointCollision(x, y) {
+    // 1. Check Tile Collision
+    if (collisionMap && collisionMap.length > 0) {
+        const tx = Math.floor(x / TILE_SIZE);
+        const ty = Math.floor(y / TILE_SIZE);
+
+        // Bounds Check
+        if (ty < 0 || ty >= collisionMap.length || tx < 0 || tx >= collisionMap[0].length) {
+            return true; // Out of bounds is blocked
+        }
+
+        // Blocked Tile Check
+        if (collisionMap[ty][tx] === 1) {
+            return true;
+        }
+    }
+
+    // 2. Check Static Object Collision (Spatial Hash)
+    if (objectGrid) {
+        const gx = Math.floor(x / GRID_CELL_SIZE);
+        const gy = Math.floor(y / GRID_CELL_SIZE);
+        const key = `${gx},${gy}`;
+        const cellObjects = objectGrid[key];
+
+        if (cellObjects) {
+            for (const obj of cellObjects) {
+                if (obj.blocked === false) continue;
+
+                // Point vs AABB
+                if (x >= obj.minX && x <= obj.maxX && y >= obj.minY && y <= obj.maxY) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 function checkCollision(x, y) {
     // 1. Check Tile Collision
     if (collisionMap && collisionMap.length > 0) {
@@ -1223,6 +1284,64 @@ function gameLoop(io) {
 
     // [FIX] Ensure players move before we calculate visibility
     updatePlayers(delta, io);
+
+    // [FIX] Update Animals
+    const animalUpdates = {};
+    if (Object.keys(activeAnimals).length > 0) {
+        Object.values(activeAnimals).forEach(animal => {
+            // [OPTIMIZATION] Culling: Skip update if no players are nearby (1500px buffer)
+            // This prevents CPU usage for animals in empty parts of the map.
+            const nearbyPlayers = getPlayersInRange(animal.x, animal.y, 1500);
+            if (nearbyPlayers.length === 0) return;
+
+            if (animal.update) {
+                const oldX = animal.x;
+                const oldY = animal.y;
+                const oldState = animal.state;
+
+                animal.update(delta);
+
+                // Check for changes (Delta compression or just send all moving ones)
+                // Sending all moving/state-changed animals is safer for now.
+                // Or just send ALL animals that are active? No, bandwidth.
+                // Send if position changed or state changed.
+                if (Math.abs(animal.x - oldX) > 0.1 || Math.abs(animal.y - oldY) > 0.1 || animal.state !== oldState) {
+                    animalUpdates[animal.id] = animal.getData();
+                }
+            }
+        });
+    }
+
+    // Broadcast Animal Updates (Optimized AOI)
+    if (Object.keys(animalUpdates).length > 0) {
+        // Instead of Global Broadcast, we filter per-player.
+        // For small player counts, O(Players * MovingAnimals) is fine.
+        const connectedSocketIds = Object.keys(players);
+
+        connectedSocketIds.forEach(socketId => {
+            const player = players[socketId];
+            if (!player) return;
+
+            const relevantUpdates = {};
+            let hasUpdates = false;
+
+            for (const [animId, animData] of Object.entries(animalUpdates)) {
+                // Ensure animData has position (getData should return it)
+                if (animData.x !== undefined && animData.y !== undefined) {
+                    const dist = Math.sqrt(Math.pow(player.position.x - animData.x, 2) + Math.pow(player.position.y - animData.y, 2));
+                    if (dist < 1200) { // View Distance (slightly larger than 1000 for fade in)
+                        relevantUpdates[animId] = animData;
+                        hasUpdates = true;
+                    }
+                }
+            }
+
+            if (hasUpdates) {
+                io.to(socketId).emit('animalUpdates', relevantUpdates);
+            }
+        });
+    }
+
     tPhysics = performance.now() - tPhysicsStart;
 
     // --- GLOBAL PACKET CACHING (O(N) Optimization) ---
@@ -2207,7 +2326,7 @@ module.exports.start = (io, _messageSystem) => {
         // Extracted to src/sockets/interactionHandlers.js
         const initInteractionHandlers = require('./sockets/interactionHandlers');
         // Note: We pass TILE_SIZE (32) and craftingStations
-        initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32, saveCharacter, craftingStations, getPlayersInRange);
+        initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid);
 
         // --- ITEM & INVENTORY HANDLERS ---
         // Extracted to src/sockets/inventoryHandlers.js
@@ -2650,6 +2769,10 @@ module.exports.start = (io, _messageSystem) => {
     setInterval(() => {
         try {
             const start = performance.now();
+
+            // Update Animals (Server A.I.)
+            updateAnimals(1 / TICK_RATE);
+
             const stats = gameLoop(io);
             const end = performance.now();
 
@@ -2903,3 +3026,28 @@ function updateDynamicSegments(io) {
 
 module.exports.getZoneAt = getZoneAt;
 module.exports.getAvailableZones = getAvailableZones;
+
+// --- Animal Update Loop ---
+function updateAnimals(delta) {
+    const animalPackets = {};
+    let hasUpdates = false;
+
+    if (!activeAnimals) return;
+
+    Object.keys(activeAnimals).forEach(id => {
+        const animal = activeAnimals[id];
+        animal.update(delta);
+        animalPackets[id] = {
+            id: animal.id,
+            x: animal.x,
+            y: animal.y,
+            state: animal.state,
+            properties: animal.properties
+        };
+        hasUpdates = true;
+    });
+
+    if (hasUpdates && ioGlobal) {
+        ioGlobal.emit('animalUpdates', animalPackets);
+    }
+}

@@ -14,7 +14,7 @@ const { trackVictim, untrackVictim } = require('../server/mechanics/digestion');
  * 
  * Reorganized for readability.
  */
-module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter, craftingStations, getPlayersInRange) {
+module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid) {
     const logPrefix = `[Inter:${socket.id}]`;
 
     // =========================================================================
@@ -232,6 +232,93 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
             }
         } catch (e) {
             log.error(`${logPrefix} Error handling examineClicked:`, e);
+        }
+    });
+
+    // =========================================================================
+    // 3.5 OBJECT INTERACTIONS (Items, Animals, etc)
+    // =========================================================================
+
+    /**
+     * Generic Map Object Interaction.
+     * Handles specific logic for animals (like gathering wool).
+     */
+    socket.on('objectInteract', (data) => {
+        try {
+            const { type, id, action } = data;
+            const player = players[socket.id];
+            if (!player || player.isDead) return;
+
+            // 1. Animal Interaction
+            if (type === 'animal') {
+                const animal = activeAnimals[id];
+                if (!animal) return;
+
+                // Distance Check (Server Side specific for Animals)
+                // Animals have x/y. Player has position.x/y
+                const dist = Math.sqrt(Math.pow(player.position.x - animal.x, 2) + Math.pow(player.position.y - animal.y, 2));
+                if (dist > 120) { // Slight buffer over client 100
+                    return;
+                }
+
+                // Interaction Logic
+                if (action === 'gather') {
+                    // Check if already sheared
+                    if (animal.isSheared) {
+                        sendSystemMsg(socket, messageSystem, `The ${animal.properties.name || 'sheep'} has no wool left.`);
+                        return;
+                    }
+
+                    // [NEW] Check for Sheers
+                    const currentActiveHand = player.actionHands.activeHand; // 'left' or 'right'
+                    let hasSheers = false;
+
+                    if (currentActiveHand === 'left') {
+                        if (player.actionHands.leftNode && player.actionHands.leftNode.itemId === 'tool_sheers') {
+                            hasSheers = true;
+                        }
+                    } else if (currentActiveHand === 'right') {
+                        if (player.actionHands.rightNode && player.actionHands.rightNode.itemId === 'tool_sheers') {
+                            hasSheers = true;
+                        }
+                    }
+
+                    if (!hasSheers) {
+                        sendSystemMsg(socket, messageSystem, `You need to hold sheers to harvest wool.`);
+                        return;
+                    }
+
+                    // Logic for Gathering Wool - SPAWN ON GROUND
+                    const woolItem = {
+                        uid: `wool_${Date.now()}_${Math.random()}`,
+                        itemId: 'fiber_wool',
+                        name: 'Wool Fiber',
+                        texture: 'fiber_wool',
+                        icon: 'fa-apple-whole', // Match itemData (or update if needed)
+                        size: 1,
+                        properties: {},
+                        x: animal.x,
+                        y: animal.y + 20 // Slight offset to be visible
+                    };
+
+                    // Add to World
+                    if (worldItems && addItemToGrid) {
+                        worldItems.push(woolItem);
+                        addItemToGrid(woolItem);
+                        io.emit('itemSpawned', woolItem);
+
+                        animal.markSheared();
+                        sendSystemMsg(socket, messageSystem, `You shear the ${animal.properties.name || 'sheep'} and wool falls to the ground.`);
+                    } else {
+                        // Fallback should not happen if wired correctly
+                        log.error('Missing worldItems or addItemToGrid in interactionHandlers');
+                    }
+
+                }
+            }
+
+        } catch (e) {
+            log.error(`${logPrefix} Error handling objectInteract:`, e);
         }
     });
 
