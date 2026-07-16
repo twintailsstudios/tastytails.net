@@ -124,7 +124,59 @@ app.use('/api/chat-archives', require('./routes/chatArchives'));
 
 // --- Monitoring Endpoint ---
 app.get('/stats', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.json(monitoring.getStats());
+});
+
+// --- Valid Point Spawning Endpoint ---
+app.get('/api/valid-point', (req, res) => {
+  const tlx = parseFloat(req.query.tlx);
+  const tly = parseFloat(req.query.tly);
+  const trx = parseFloat(req.query.trx);
+  const try_ = parseFloat(req.query.try);
+  const blx = parseFloat(req.query.blx);
+  const bly = parseFloat(req.query.bly);
+  const brx = parseFloat(req.query.brx);
+  const bry = parseFloat(req.query.bry);
+
+  if (isNaN(tlx) || isNaN(tly) || isNaN(trx) || isNaN(try_) || isNaN(blx) || isNaN(bly) || isNaN(brx) || isNaN(bry)) {
+    return res.status(400).json({ error: 'Missing or invalid coordinate parameters.' });
+  }
+
+  // Bilinear interpolation validation loop
+  let attempts = 0;
+  const players = serverGame.getAllPlayers() || {};
+
+  while (attempts < 100) {
+    const u = Math.random();
+    const v = Math.random();
+    const x = Math.round((1 - u) * (1 - v) * tlx + u * (1 - v) * trx + (1 - u) * v * blx + u * v * brx);
+    const y = Math.round((1 - u) * (1 - v) * tly + u * (1 - v) * try_ + (1 - u) * v * bly + u * v * bry);
+
+    if (!serverGame.checkPointCollision(x, y)) {
+      let tooClose = false;
+      for (const id in players) {
+        const other = players[id];
+        if (other && other.position) {
+          const dx = other.position.x - x;
+          const dy = other.position.y - y;
+          if (dx * dx + dy * dy < 256) { // 16px minimum distance
+            tooClose = true;
+            break;
+          }
+        }
+      }
+      if (!tooClose) {
+        return res.json({ x, y, success: true });
+      }
+    }
+    attempts++;
+  }
+
+  // Fallback to center of the quad
+  const centerX = Math.round((tlx + trx + blx + brx) / 4);
+  const centerY = Math.round((tly + try_ + bly + bry) / 4);
+  res.json({ x: centerX, y: centerY, success: false });
 });
 
 // --- Global Middleware Error Handler ---
@@ -153,6 +205,13 @@ io.on('connection', (socket) => {
   // Handle chat events
   // Use MessageSystem to handle all incoming chat messages.
   messageSystem.setupSocketListeners(socket);
+
+  // Allow test client bots to report action success/failure stats
+  socket.on('reportAction', (data) => {
+    if (data && data.actionType) {
+      require('./server/monitoring').recordAction(data.actionType, !!data.success);
+    }
+  });
 
   // The 'disconnect' event is handled by the server-loop for players,
   // but a generic log here is fine too.

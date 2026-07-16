@@ -40,6 +40,7 @@ export function create() {
 
     // [FIX] Store initial door states to handle race condition (Packet vs Map Build)
     this.startDoorStates = null;
+    this.startResourceNodeStates = null;
 
     this.isFadingOut = false;
 
@@ -75,6 +76,17 @@ export function create() {
                             doorSprite.body.enable = true;
                         }
                         doorSprite.objectInfo.state = d.state;
+                    }
+                });
+            }
+
+            // Apply cached resource node states now that map objects are built
+            if (self.startResourceNodeStates && self.objectGroup) {
+                console.log('[Client] Applying cached resource node states after map build.');
+                self.startResourceNodeStates.forEach(nodeData => {
+                    const sprite = self.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === nodeData.id);
+                    if (sprite) {
+                        sprite.setFrame(nodeData.frame);
                     }
                 });
             }
@@ -839,6 +851,28 @@ export function create() {
                         doorSprite.body.enable = true;
                     }
                     doorSprite.objectInfo.state = d.state;
+                }
+            });
+        }
+    });
+
+    // --- Resource Node State Listeners ---
+    this.socket.on('resourceNodeUpdate', (data) => {
+        if (self.objectGroup) {
+            const sprite = self.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === data.id);
+            if (sprite) {
+                sprite.setFrame(data.frame);
+            }
+        }
+    });
+
+    this.socket.on('resourceNodeStates', (nodes) => {
+        self.startResourceNodeStates = nodes;
+        if (self.objectGroup) {
+            nodes.forEach(nodeData => {
+                const sprite = self.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === nodeData.id);
+                if (sprite) {
+                    sprite.setFrame(nodeData.frame);
                 }
             });
         }

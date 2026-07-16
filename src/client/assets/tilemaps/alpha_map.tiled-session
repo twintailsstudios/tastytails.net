@@ -3,9 +3,10 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "",
+    "activeFile": "alpha_map.tmx",
     "automapping.whileDrawing": false,
     "expandedProjectPaths": [
+        "."
     ],
     "exportAsImage.drawTileGrid": true,
     "exportAsImage.useCurrentScale": true,
@@ -15,7 +16,8 @@
             "scaleInEditor": 1
         },
         ":/automap-tiles.tsx": {
-            "dynamicWrapping": false
+            "dynamicWrapping": false,
+            "scaleInDock": 1
         },
         "C:/Users/kkmcl/Documents/GitHub/tastytails.net/Map_Testing/Demo_Map.tmx": {
             "expandedObjectLayers": [
@@ -39,10 +41,12 @@
             "scaleInDock": 1
         },
         "alpha_bottle.tsx": {
-            "dynamicWrapping": false
+            "dynamicWrapping": false,
+            "scaleInDock": 1
         },
         "alpha_buildings.tsx": {
-            "dynamicWrapping": true
+            "dynamicWrapping": true,
+            "scaleInDock": 0.25
         },
         "alpha_door.tsx": {
             "dynamicWrapping": false,
@@ -65,15 +69,15 @@
         },
         "alpha_map.tmx": {
             "expandedObjectLayers": [
-                3,
                 6,
-                5
+                5,
+                3
             ],
-            "scale": 0.33,
-            "selectedLayer": 6,
+            "scale": 0.5,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 4215.151515151515,
-                "y": 1903.030303030303
+                "x": 3272,
+                "y": 3550
             }
         },
         "alpha_map.tmx#alpha_ground_set": {
@@ -92,16 +96,24 @@
             "dynamicWrapping": false,
             "scaleInDock": 1
         },
-        "alpha_objects.tsx": {
+        "alpha_objects..tsx": {
             "dynamicWrapping": true,
             "scaleInDock": 1,
-            "scaleInEditor": 0.0625
+            "scaleInEditor": 0.06
+        },
+        "alpha_objects.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 0.33,
+            "scaleInEditor": 0.33
         },
         "alpha_thread.tsx": {
-            "dynamicWrapping": false
+            "dynamicWrapping": false,
+            "scaleInDock": 1
         },
         "alpha_tileset..tsx": {
-            "dynamicWrapping": false
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
         },
         "alpha_tileset.tsx": {
             "dynamicWrapping": false,
@@ -109,7 +121,8 @@
             "scaleInEditor": 1
         },
         "alpha_zones.tsx": {
-            "dynamicWrapping": false
+            "dynamicWrapping": false,
+            "scaleInDock": 1
         },
         "auto_tile_rules.tmx": {
             "scale": 0.75,
@@ -119,8 +132,19 @@
                 "y": 260
             }
         },
+        "rock_iron.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
         "sheep.tsx": {
-            "dynamicWrapping": false
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "tree_orange.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
         }
     },
     "last.exportedFilePath": "C:/Users/kkmcl/Documents/GitHub/tastytails.net/src/client/assets/tilemaps",
@@ -132,24 +156,34 @@
     "map.lastUsedFormat": "tmx",
     "map.width": 240,
     "openFiles": [
+        "alpha_map.tmx",
+        "alpha_objects.tsx",
+        "tree_orange.tsx",
+        "sheep.tsx",
+        "rock_iron.tsx",
+        "alpha_tileset..tsx"
     ],
     "project": "alpha_map.tiled-project",
-    "property.type": "string",
+    "property.type": "int",
     "recentFiles": [
+        "alpha_tileset..tsx",
+        "rock_iron.tsx",
+        "sheep.tsx",
+        "tree_orange.tsx",
+        "alpha_objects.tsx",
+        "alpha_map.tmx",
+        "alpha_objects..tsx",
         "alpha_dye.tsx",
         "alpha_door.tsx",
         "auto_tile_rules.tmx",
-        "alpha_objects.tsx",
         "alpha_items.tsx",
-        "alpha_ground_set.tsx",
-        "alpha_tileset.tsx",
-        "C:/Users/kkmcl/Documents/GitHub/tastytails.net/Map_Testing/Demo_Map.tmx"
+        "alpha_ground_set.tsx"
     ],
     "tileset.lastUsedFilter": "Tiled tileset files (*.tsx *.xml)",
     "tileset.lastUsedFormat": "tsx",
     "tileset.tileSize": {
-        "height": 198,
-        "width": 215
+        "height": 64,
+        "width": 64
     },
     "tileset.type": 0
 }

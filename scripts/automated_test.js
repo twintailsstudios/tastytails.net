@@ -75,7 +75,6 @@ class Bot {
                 // Check expectations
                 if (this.expectedEvents[eventName]) {
                     const resolver = this.expectedEvents[eventName];
-                    delete this.expectedEvents[eventName];
                     resolver(args);
                 }
 
@@ -146,16 +145,20 @@ class Bot {
                 return;
             }
 
-            this.expectedEvents[eventName] = (args) => {
+            const resolver = (args) => {
                 if (!predicate || predicate(args)) {
+                    if (this.expectedEvents[eventName] === resolver) {
+                        delete this.expectedEvents[eventName];
+                    }
                     resolve(args);
                 } else {
                     console.log(`[${this.name}] Ignored event '${eventName}' (predicate failed)`);
                 }
             };
+            this.expectedEvents[eventName] = resolver;
 
             setTimeout(() => {
-                if (this.expectedEvents[eventName]) {
+                if (this.expectedEvents[eventName] === resolver) {
                     delete this.expectedEvents[eventName];
                     reject(new Error(`[${this.name}] Timeout waiting for event '${eventName}'`));
                 }
@@ -254,15 +257,19 @@ async function runTests() {
             e.args[0][tester.id]
         );
 
-        if (targetEvents.length > 0) console.log("✅ Target saw Tester move (AOI Working).");
-        else console.error("❌ Target did NOT see Tester move.");
-
-        if (remoteEvents.length === 0) {
-            console.log("✅ Remote did NOT see Tester move (AOI Working).");
+        let aoiSuccess = false;
+        if (targetEvents.length > 0) {
+            console.log("✅ Target saw Tester move (AOI Working).");
+            if (remoteEvents.length === 0) {
+                console.log("✅ Remote did NOT see Tester move (AOI Working).");
+                aoiSuccess = true;
+            } else {
+                console.error(`❌ Remote SAW Tester move (AOI Failure). Remote Pos: ${JSON.stringify(remote.pos)}`);
+            }
         } else {
-            console.error(`❌ Remote SAW Tester move (AOI Failure). Remote Pos: ${JSON.stringify(remote.pos)}`);
+            console.error("❌ Target did NOT see Tester move.");
         }
-
+        tester.emit('reportAction', { actionType: 'test: automated aoi check', success: aoiSuccess });
 
         // ---------------------------------------------------------
         // Test 2: Item Interaction (Pick Up)
@@ -277,12 +284,15 @@ async function runTests() {
         console.log(`Tester attempting to pick up item '${TEST_ITEM_UID}'...`);
         tester.emit('pickUpClicked', { Identifier: 'item', Name: TEST_ITEM_UID });
 
+        let pickupSuccess = false;
         try {
             await tester.waitForEvent('playerStateUpdate');
             console.log("✅ Tester received state update (Item picked up).");
+            pickupSuccess = true;
         } catch (e) {
             console.error("❌ Pick Up Failed (Item might be missing?):", e.message);
         }
+        tester.emit('reportAction', { actionType: 'test: automated item pickup', success: pickupSuccess });
 
         // ---------------------------------------------------------
         // Test 3: Equip Item
@@ -290,12 +300,15 @@ async function runTests() {
         console.log("\n--- Test 3: Equip Item ---");
         console.log("Tester attempting to equip item to 'head'...");
         tester.emit('equipItemClicked', 'head');
+        let equipSuccess = false;
         try {
             await tester.waitForEvent('playerStateUpdate');
             console.log("✅ Tester received state update (Item equipped).");
+            equipSuccess = true;
         } catch (e) {
             console.error("❌ Equip Failed:", e.message);
         }
+        tester.emit('reportAction', { actionType: 'test: automated item equip', success: equipSuccess });
 
         // ---------------------------------------------------------
         // Test 4: Physical Interactions (Hold/Grip)
@@ -315,6 +328,7 @@ async function runTests() {
             intent: 'grabbing'
         });
 
+        let grappleSuccess = false;
         const [msg] = await target.waitForEvent('systemMessage', 2000).catch(e => []);
         if (msg) {
             console.log("✅ Target received grab message.");
@@ -332,11 +346,14 @@ async function runTests() {
             tester.emit('releaseClicked', { playerId: target.id });
 
             const [msg3] = await target.waitForEvent('systemMessage', 2000).catch(e => []);
-            if (msg3) console.log("✅ Target received release message.");
+            if (msg3) {
+                console.log("✅ Target received release message.");
+                grappleSuccess = true;
+            }
         } else {
             console.error("❌ Grab Notification Failed (Timeout)");
         }
-
+        tester.emit('reportAction', { actionType: 'test: automated grapple and release', success: grappleSuccess });
 
         // ---------------------------------------------------------
         // Test 5: Collision Logic
@@ -360,11 +377,13 @@ async function runTests() {
         await sleep(500);
 
         console.log(`Final X Position: ${tester.pos.x}`);
-        if (tester.pos.x >= -5) {
+        let collisionSuccess = tester.pos.x >= -5;
+        if (collisionSuccess) {
             console.log("✅ Collision prevented movement (Correct).");
         } else {
             console.log("❌ Collision failed, player moved too far left.");
         }
+        tester.emit('reportAction', { actionType: 'test: automated collision checks', success: collisionSuccess });
 
         console.log("\n=== Test Suite Completed ===");
 

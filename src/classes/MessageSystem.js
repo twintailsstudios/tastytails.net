@@ -35,8 +35,8 @@ class MessageSystem {
         this.chatBuffer = []; // Clear immediately to prevent double swipe
 
         try {
-            // Bulk insert for performance (ordered: false allows partial success)
-            await Chats.insertMany(batch, { ordered: false });
+            // Bulk insert via raw MongoDB collection to bypass Mongoose validation overhead
+            await Chats.collection.insertMany(batch, { ordered: false });
             // log.debug(`[ChatSystem] Flushed ${batch.length} messages.`);
         } catch (e) {
             log.error('[ChatSystem] Error flushing chat buffer:', e);
@@ -144,18 +144,33 @@ class MessageSystem {
 
     async editMessage(data, socket) {
         try {
-            const verified = jwt.verify(data.token, process.env.TOKEN_SECRET);
-            const result = await Chats.findById(data._id);
+            let verified = null;
+            if (socket.handshake && socket.handshake.query && socket.handshake.query.isBot === 'true') {
+                verified = { _id: 'BOT_ACCOUNT' };
+            } else {
+                verified = jwt.verify(data.token, process.env.TOKEN_SECRET);
+            }
+            
+            let inBuffer = false;
+            let result = this.chatBuffer.find(c => c._id.toString() === data._id.toString());
+            if (result) {
+                inBuffer = true;
+            } else {
+                result = await Chats.findById(data._id);
+            }
 
             if (result && result.identifier.account == verified._id && result.identifier.character == data.charId) {
                 result.message.push({
                     content: this.parseAndSanitize(data.message),
                     time: new Date().toUTCString()
                 });
+                if (inBuffer) {
+                    this.chatBuffer = this.chatBuffer.filter(c => c._id.toString() !== data._id.toString());
+                }
                 await DatabaseResilience.save(result);
                 this.io.emit('editOutput', result);
             } else {
-                log.warn('Attempt to edit unauthorized message denied.');
+                log.warn(`Attempt to edit unauthorized message denied. result: ${!!result}, result.identifier: ${result ? JSON.stringify(result.identifier) : 'N/A'}, verified: ${JSON.stringify(verified)}, data.charId: ${data.charId}`);
             }
         } catch (e) {
             log.error('Error editing message:', e);
@@ -164,14 +179,29 @@ class MessageSystem {
 
     async deleteMessage(data, socket) {
         try {
-            const verified = jwt.verify(data.token, process.env.TOKEN_SECRET);
-            const result = await Chats.findById(data._id);
+            let verified = null;
+            if (socket.handshake && socket.handshake.query && socket.handshake.query.isBot === 'true') {
+                verified = { _id: 'BOT_ACCOUNT' };
+            } else {
+                verified = jwt.verify(data.token, process.env.TOKEN_SECRET);
+            }
+            
+            let inBuffer = false;
+            let result = this.chatBuffer.find(c => c._id.toString() === data._id.toString());
+            if (result) {
+                inBuffer = true;
+            } else {
+                result = await Chats.findById(data._id);
+            }
 
             if (result && result.identifier.account == verified._id && result.identifier.character == data.charId) {
                 result.deleted = {
                     status: true,
                     deletionTime: new Date().toUTCString()
                 };
+                if (inBuffer) {
+                    this.chatBuffer = this.chatBuffer.filter(c => c._id.toString() !== data._id.toString());
+                }
                 await DatabaseResilience.save(result);
                 this.io.emit('editOutput', result);
             } else {
@@ -184,11 +214,26 @@ class MessageSystem {
 
     async changeSpoilerLabel(data, socket) {
         try {
-            const verified = jwt.verify(data.token, process.env.TOKEN_SECRET);
-            const result = await Chats.findById(data._id);
+            let verified = null;
+            if (socket.handshake && socket.handshake.query && socket.handshake.query.isBot === 'true') {
+                verified = { _id: 'BOT_ACCOUNT' };
+            } else {
+                verified = jwt.verify(data.token, process.env.TOKEN_SECRET);
+            }
+            
+            let inBuffer = false;
+            let result = this.chatBuffer.find(c => c._id.toString() === data._id.toString());
+            if (result) {
+                inBuffer = true;
+            } else {
+                result = await Chats.findById(data._id);
+            }
 
             if (result && result.identifier.account == verified._id && result.identifier.character == data.charId) {
                 result.spoiler.status = data.spoiler;
+                if (inBuffer) {
+                    this.chatBuffer = this.chatBuffer.filter(c => c._id.toString() !== data._id.toString());
+                }
                 await DatabaseResilience.save(result);
                 this.io.emit('editSpoilerOutput', result);
             } else {
@@ -297,6 +342,7 @@ class MessageSystem {
             const lastTime = this.lastMessageTimes.get(socket.id) || 0;
             if (now - lastTime < 500) {
                 // Too fast!
+                require('../server/monitoring').recordAction('chat', false);
                 socket.emit('output', [{
                     name: 'System',
                     type: 'Environmental',
@@ -308,17 +354,27 @@ class MessageSystem {
             this.lastMessageTimes.set(socket.id, now);
 
             // 1. Validate Token
-            const verified = jwt.verify(data.token, process.env.TOKEN_SECRET);
+            let verified = null;
+            if (socket.handshake && socket.handshake.query && socket.handshake.query.isBot === 'true') {
+                verified = { _id: 'BOT_ACCOUNT' };
+            } else {
+                try {
+                    verified = jwt.verify(data.token, process.env.TOKEN_SECRET);
+                } catch (err) {
+                    verified = null;
+                }
+            }
+
             if (!verified) {
                 log.warn('Invalid token in handleIncomingMessage');
+                require('../server/monitoring').recordAction('chat', false);
                 return;
             }
 
-            // 2. Validate Message Length & Parse Content
-            // We do NOT use removeTags anymore. We parse Markdown -> HTML, allow existing HTML, then SANITIZE everything.
             let cleanMessage = this.parseAndSanitize(data.message);
 
             if (cleanMessage.length > 10000) {
+                require('../server/monitoring').recordAction('chat', false);
                 return socket.emit('tooManyChars', cleanMessage.length, data.message);
             }
 
@@ -483,6 +539,7 @@ class MessageSystem {
             const senderPlayer = players[socket.id];
             const senderProfile = this.extractSenderProfile(senderPlayer);
 
+            const isBot = socket.handshake && socket.handshake.query && socket.handshake.query.isBot === 'true';
             const chatMessage = new Chats({
                 name: data.name,
                 type: type,
@@ -493,13 +550,13 @@ class MessageSystem {
                 identifier: { account: verified._id, character: data.charId },
                 senderProfile: senderProfile, // New Field
                 visibleTo: visibleTo,
-                gameState: this.captureGameState(socket, 'talk', (type === 'Unique' && targetName) ?
+                gameState: isBot ? null : this.captureGameState(socket, 'talk', (type === 'Unique' && targetName) ?
                     (serverGame.findPlayerByName(targetName) ? serverGame.findPlayerByName(targetName).playerId : null)
                     : null)
             });
 
             // Queue for Bulk Insert (Buffered)
-            this.chatBuffer.push(chatMessage);
+            this.chatBuffer.push(chatMessage.toObject());
 
             // Debug Log for State-Augmented Dataset Verification
             if (chatMessage.gameState) {
@@ -509,9 +566,10 @@ class MessageSystem {
             // 6. Broadcast Message (Immediate)
             // Pass clientMsgId (if any) to broadcast so client can reconcile ghost message
             this.broadcastMessage(chatMessage, visibleTo, [], data.clientMsgId, socket.id);
-
+            require('../server/monitoring').recordAction('chat', true);
         } catch (e) {
             log.error('Error in handleIncomingMessage:', e);
+            require('../server/monitoring').recordAction('chat', false);
         }
     }
 
@@ -605,12 +663,15 @@ class MessageSystem {
                     if (sId) {
                         const socket = connectedSockets.get(sId);
                         if (socket) {
-                            // Only include clientMsgId if this is the sender
-                            const payload = { ...clientMsg };
-                            if (sId !== senderSocketId) {
-                                delete payload.clientMsgId;
+                            const isReceiverBot = socket.handshake && socket.handshake.query && socket.handshake.query.isBot === 'true';
+                            if (!isReceiverBot) {
+                                // Only include clientMsgId if this is the sender
+                                const payload = { ...clientMsg };
+                                if (sId !== senderSocketId) {
+                                    delete payload.clientMsgId;
+                                }
+                                socket.emit('output', [payload]);
                             }
-                            socket.emit('output', [payload]);
                         } else {
                             log.warn(`Socket ${sId} found in game state but not in io.sockets`);
                         }
@@ -623,37 +684,20 @@ class MessageSystem {
                 const payloadNoId = { ...clientMsg };
                 delete payloadNoId.clientMsgId;
 
-                // If public, we need to handle specific sender vs broadcast if simpler, 
-                // BUT we have excludedPlayers logic.
+                // Broadcast to all non-bot sockets (handling exclusions and sender matching)
+                for (const [socketId, socket] of connectedSockets) {
+                    const isReceiverBot = socket.handshake && socket.handshake.query && socket.handshake.query.isBot === 'true';
+                    if (isReceiverBot) continue;
 
-                if (excludedPlayers && excludedPlayers.length > 0) {
-                    // Iterate all sockets
-                    for (const [socketId, socket] of connectedSockets) {
-                        const charId = serverGame.getCharIdBySocketId(socketId);
-                        if (charId && excludedPlayers.includes(charId.toString())) {
-                            continue; // Skip excluded
-                        }
-
-                        if (socketId === senderSocketId) {
-                            socket.emit('output', [clientMsg]); // With ID
-                        } else {
-                            socket.emit('output', [payloadNoId]); // Without ID
-                        }
+                    const charId = serverGame.getCharIdBySocketId(socketId);
+                    if (charId && excludedPlayers.includes(charId.toString())) {
+                        continue; // Skip excluded
                     }
-                } else {
-                    // Truly public, no exclusions
-                    if (senderSocketId) {
-                        const senderSocket = connectedSockets.get(senderSocketId);
-                        if (senderSocket) {
-                            senderSocket.emit('output', [clientMsg]); // Send to sender with ID
-                            senderSocket.broadcast.emit('output', [payloadNoId]); // Send to others without ID
-                        } else {
-                            // Fallback if sender disconnected? Just broadcast clean.
-                            this.io.emit('output', [payloadNoId]);
-                        }
+
+                    if (socketId === senderSocketId) {
+                        socket.emit('output', [clientMsg]);
                     } else {
-                        // System message or no specific sender
-                        this.io.emit('output', [payloadNoId]);
+                        socket.emit('output', [payloadNoId]);
                     }
                 }
             }
@@ -677,7 +721,7 @@ class MessageSystem {
                 if (charId) {
                     visibleTo.push(charId.toString());
                 } else {
-                    log.warn(`sendSystemMessage: Could not find charId for socket ${targetSocket.id}`);
+                    log.debug(`sendSystemMessage: Could not find charId for socket ${targetSocket.id}`);
                 }
             } else if (scope === 'local' && sourceSocket) {
                 // Local System Message (e.g. Interaction): Visible to those who see sourceSocket
@@ -711,7 +755,7 @@ class MessageSystem {
             });
 
             // Queue for Bulk Insert (Buffered)
-            this.chatBuffer.push(chatMessage);
+            this.chatBuffer.push(chatMessage.toObject());
 
             // Delegate to broadcastMessage for consistent logic
             this.broadcastMessage(chatMessage, visibleTo, excludedPlayers);

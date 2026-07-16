@@ -118,7 +118,7 @@ export class ShadowSystem {
         }
 
         // Use local player position for instant, predicted shadows
-        const targetX = player.x;
+        const targetX = player.x + 30;
         const targetY = player.y;
 
         // Initialize if missing

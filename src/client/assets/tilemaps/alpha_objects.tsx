@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.11.2" name="alpha_objects" tilewidth="252" tileheight="511" tilecount="42" columns="0" objectalignment="bottomleft">
+<tileset version="1.10" tiledversion="1.11.2" name="alpha_objects" tilewidth="252" tileheight="511" tilecount="41" columns="0" objectalignment="bottomleft">
  <editorsettings>
   <export target="alpha_objects..tsx" format="tsx"/>
  </editorsettings>
@@ -396,17 +396,6 @@
    <property name="tableTop" type="bool" value="true"/>
    <property name="texture" value="cocktail_bar"/>
   </properties>
-  <image source="cocktail_bar.png" width="192" height="192"/>
- </tile>
- <tile id="55">
-  <properties>
-   <property name="bodyHeight" type="int" value="15"/>
-   <property name="bodyOffsetY" type="int" value="5"/>
-   <property name="bodyWidth" type="int" value="30"/>
-   <property name="produces" value="food_orange"/>
-   <property name="spawnPoints" value="'[{&quot;x&quot;: 10, &quot;y&quot;: 15}, {&quot;x&quot;: 30, &quot;y&quot;: 10}, {&quot;x&quot;: 20, &quot;y&quot;: 25}]'"/>
-   <property name="texture" value="tree_orange"/>
-  </properties>
-  <image source="tree_orange.png" width="230" height="291"/>
+  <image source="cocktail_bar.png" width="132" height="192"/>
  </tile>
 </tileset>

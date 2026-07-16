@@ -1,5 +1,6 @@
 import { Animal } from './entity/Animal.js';
 import { createAnimations } from './animations.js';
+import resourceNodeData from './resourceNodeData.js';
 
 export function createMap(scene, onProgress) {
     //----- Loads the json  file and also the map tileset -----//
@@ -183,6 +184,7 @@ async function buildMapObjectsAsync(scene, map, onProgress) {
         rawMapData.tilesets.forEach(rawTs => {
             const tsData = {
                 name: rawTs.name,
+                image: rawTs.image,
                 firstgid: rawTs.firstgid,
                 tilecount: rawTs.tilecount || 0,
                 tiles: {}
@@ -294,6 +296,15 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
         const parts = normalizedPath.split('/');
         const filename = parts[parts.length - 1];
         textureKey = filename.split('.')[0];
+    } else if (rawTs && rawTs.image) {
+        // Resolve from tileset image path
+        const normalizedPath = rawTs.image.replace(/\\/g, '/');
+        const parts = normalizedPath.split('/');
+        const filename = parts[parts.length - 1];
+        textureKey = filename.split('.')[0];
+    } else if (rawTs && rawTs.name) {
+        // Resolve from tileset name
+        textureKey = rawTs.name;
     } else {
         const phaserTileset = map.tilesets.find(ts => obj.gid >= ts.firstgid && obj.gid < (ts.firstgid + ts.total));
         if (phaserTileset) {
@@ -384,7 +395,22 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
 
     let customCollisionApplied = false;
 
-    if (tileProps) {
+    // Check centralized configuration first
+    const nodeDef = resourceNodeData[textureKey];
+
+    if (nodeDef) {
+        if (nodeDef.bodyWidth && nodeDef.bodyHeight) {
+            sprite.body.setSize(nodeDef.bodyWidth, nodeDef.bodyHeight);
+            customCollisionApplied = true;
+        }
+        if (nodeDef.bodyOffsetY !== undefined) {
+            const widthDiff = sprite.width - (nodeDef.bodyWidth || sprite.width);
+            const offsetX = widthDiff / 2;
+            const offsetY = sprite.height - (nodeDef.bodyHeight || sprite.height) - nodeDef.bodyOffsetY;
+            sprite.body.setOffset(offsetX, offsetY);
+            customCollisionApplied = true;
+        }
+    } else if (tileProps) {
         if (tileProps.bodyWidth && tileProps.bodyHeight) {
             sprite.body.setSize(tileProps.bodyWidth, tileProps.bodyHeight);
             customCollisionApplied = true;
@@ -413,8 +439,8 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
     sprite.objectInfo = {
         Identifier: 'mapObject',
         uniqueId: `${layerName}_${obj.id}`,
-        name: tileProps.name || obj.name || textureKey,
-        description: tileProps.description || tileProps.desc || tileProps.icDescrip || 'It is a ' + (obj.type || 'object') + '.'
+        name: nodeDef ? nodeDef.name : (tileProps.name || obj.name || textureKey),
+        description: nodeDef ? nodeDef.description : (tileProps.description || tileProps.desc || tileProps.icDescrip || 'It is a ' + (obj.type || 'object') + '.')
     };
 
     // --- Zone Transparency Prop ---

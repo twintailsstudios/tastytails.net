@@ -53,7 +53,7 @@ export class SewingModule {
             });
         });
         if (this.bases.length === 0) {
-            this.bases = [{ id: 'shirt', name: 'T-Shirt', shape: 'shirt', resultItemId: 'alpha_shirt' }];
+            this.bases = [{ id: 'shirt', name: 'T-Shirt', shape: 'shirt', resultItemId: 'shirt_01' }];
         }
     }
 
@@ -460,7 +460,7 @@ export class SewingModule {
         this.state.threads = [null, null, null, null];
         this.state.threadItems = [null, null, null, null];
 
-        const threads = this.inventory.filter(i => i.itemId === 'alpha_thread' || i.name.toLowerCase().includes('thread'));
+        const threads = this.inventory.filter(i => i.itemId.startsWith('thread_wool_') || i.name.toLowerCase().includes('thread'));
 
         for (let i = 0; i < 4; i++) {
             if (threads[i]) {
@@ -683,7 +683,7 @@ export class SewingModule {
 
         const recipeId = `sewing_${threadCount}_layer`;
         const selectedBase = this.bases.find(b => b.id === this.state.selections[0]);
-        const targetItemId = selectedBase ? selectedBase.resultItemId : 'alpha_shirt';
+        const targetItemId = selectedBase ? selectedBase.resultItemId : 'shirt_01';
 
         const customData = {
             itemId: targetItemId,

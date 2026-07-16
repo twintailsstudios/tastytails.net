@@ -3,6 +3,9 @@
  * All game assets (images, spritesheets) should be defined here.
  */
 
+import resourceNodeData from './resourceNodeData.js';
+import itemData from './itemData.js';
+
 export const assets = {
     // Map Tilesets (Must match Tiled Tileset Names)
     tilesets: [
@@ -19,7 +22,6 @@ export const assets = {
         // Interactive Objects
         { key: 'tree_01', path: '/assets/tilemaps/tree_01.png' },
         { key: 'tree_02', path: '/assets/tilemaps/tree_02.png' },
-        { key: 'tree_orange', path: '/assets/tilemaps/tree_orange.png' },
         { key: 'lamp_01', path: '/assets/tilemaps/lamp_01.png' },
         { key: 'lamp_02', path: '/assets/tilemaps/lamp_02.png' },
         { key: 'grand_altar', path: '/assets/tilemaps/grand_altar.png' },
@@ -65,18 +67,15 @@ export const assets = {
         // Items & Misc
         { key: 'pants', path: '/assets/tilemaps/pants.png' },
         { key: 'shirt', path: '/assets/tilemaps/shirt.png' },
-        { key: 'key', path: '/assets/tilemaps/key.png' },
-        { key: 'ingot_iron', path: '/assets/tilemaps/ingot_iron.png' },
-        { key: 'ore_iron', path: '/assets/tilemaps/ore_iron.png' },
-        { key: 'food_orange', path: '/assets/tilemaps/food_orange.png' },
-        { key: 'food_potato', path: '/assets/tilemaps/food_potato.png' },
-        { key: 'fiber_wool', path: '/assets/tilemaps/fiber_wool.png' },
-        { key: 'indigo', path: '/assets/tilemaps/indigo.png' },
-        { key: 'madder_root', path: '/assets/tilemaps/madder_root.png' },
-        { key: 'weld', path: '/assets/tilemaps/weld.png' },
         { key: 'clothing_store_exit_rug', path: '/assets/tilemaps/clothing_store_exit_rug.png' },
         { key: 'pub_exit_rug', path: '/assets/tilemaps/pub_exit_rug.png' },
-        { key: 'sheers', path: '/assets/tilemaps/sheers.png' },
+        // Dynamically loaded item textures
+        ...Object.entries(itemData)
+            .filter(([key, def]) => def.texture && !def.rendering)
+            .map(([key, def]) => ({
+                key: def.texture,
+                path: `/assets/tilemaps/${def.texture}.png`
+            })),
         // Building Sprites
         { key: 'blacksmith_outside_01', path: '/assets/tilemaps/blacksmith_outside_01.png' },
         { key: 'blacksmith_outside_02', path: '/assets/tilemaps/blacksmith_outside_02.png' },
@@ -179,13 +178,26 @@ export const assets = {
         { key: 'door_spa', path: '/assets/spritesheets/door_spa.png', frameWidth: 197, frameHeight: 255 },
         { key: 'alpha_door', path: '/assets/tilemaps/alpha_door.png', frameWidth: 96, frameHeight: 288 },
 
-        // Interactive Sprites
-        { key: 'alpha_bottle', path: '/assets/tilemaps/alpha_bottle.png', frameWidth: 12, frameHeight: 64 },
-        { key: 'alpha_thread', path: '/assets/tilemaps/alpha_thread.png', frameWidth: 12, frameHeight: 64 },
-        { key: 'alpha_dye', path: '/assets/tilemaps/alpha_dye.png', frameWidth: 12, frameHeight: 64 },
+        // Dynamically loaded layered/spritesheet items
+        ...Object.entries(itemData)
+            .filter(([key, def]) => def.texture && def.rendering)
+            .map(([key, def]) => ({
+                key: def.texture,
+                path: `/assets/tilemaps/${def.texture}.png`,
+                frameWidth: 12,
+                frameHeight: 64
+            })),
 
         //animals
         { key: 'sheep', path: '/assets/animals/sheep.png', frameWidth: 215, frameHeight: 198 },
+
+        // Dynamic resource nodes
+        ...Object.entries(resourceNodeData).map(([key, def]) => ({
+            key: key,
+            path: `/assets/tilemaps/${key}.png`,
+            frameWidth: def.frameWidth,
+            frameHeight: def.frameHeight
+        }))
     ],
 
     // Emotes

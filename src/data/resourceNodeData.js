@@ -1,0 +1,51 @@
+/**
+ * resourceNodeData.js
+ * Source of truth for interactive environment objects (trees, rocks, plants, etc.).
+ * Shared by server (physics/state) and client (preloading/visuals).
+ */
+module.exports = {
+    'tree_orange': {
+        name: 'Orange Tree',
+        description: 'A vibrant orange tree heavy with ripe fruit.',
+        frameWidth: 230,
+        frameHeight: 291,
+        bodyWidth: 30,
+        bodyHeight: 15,
+        bodyOffsetY: 5,
+        interactType: 'gather',
+        gatherItem: 'food_orange',
+        gatherTool: 'none',
+        maxCapacity: 5,
+        regrowTime: 60, // Regrows 1 capacity every 60 seconds
+        capacityFrames: {
+            5: 0,
+            4: 1,
+            3: 2,
+            2: 3,
+            1: 4,
+            0: 5
+        }
+    },
+    'rock_iron': {
+        name: 'Iron Rock',
+        description: 'A rock containing iron ore.',
+        frameWidth: 64,
+        frameHeight: 64,
+        bodyWidth: 64,
+        bodyHeight: 15,
+        bodyOffsetY: 5,
+        interactType: 'gather',
+        gatherItem: 'ore_iron',
+        gatherTool: 'tool_pickaxe',
+        maxCapacity: 5,
+        regrowTime: 60, // Regrows 1 capacity every 60 seconds
+        capacityFrames: {
+            5: 0,
+            4: 1,
+            3: 2,
+            2: 3,
+            1: 4,
+            0: 5
+        }
+    }
+};

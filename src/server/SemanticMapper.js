@@ -8,6 +8,89 @@
 const itemData = require('../data/itemData');
 const semanticMap = require('../data/semanticMap.json');
 
+const hexToRgb = (hex) => {
+    if (!hex) return null;
+    if (hex.startsWith('0x')) hex = '#' + hex.substring(2);
+    if (!hex.startsWith('#')) return null;
+    const bigint = parseInt(hex.substring(1), 16);
+    return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
+};
+
+const getDistSq = (c1, c2) => {
+    return (c1.r - c2.r) ** 2 + (c1.g - c2.g) ** 2 + (c1.b - c2.b) ** 2;
+};
+
+// Pre-parse semanticMap colors once at startup
+const preParsedColors = [];
+if (semanticMap && semanticMap.colors) {
+    for (const [hexKey, name] of Object.entries(semanticMap.colors)) {
+        if (!hexKey.startsWith('#')) continue;
+        const rgb = hexToRgb(hexKey);
+        if (rgb) {
+            preParsedColors.push({ rgb, name });
+        }
+    }
+}
+
+// Global cache for resolved colors
+const colorCache = new Map();
+
+const translateColor = (color) => {
+    if (!color || color === 'none') return '';
+    let lowerColor = color.toLowerCase();
+    if (lowerColor.startsWith('0x')) lowerColor = '#' + lowerColor.substring(2);
+
+    const cached = colorCache.get(lowerColor);
+    if (cached !== undefined) return cached;
+
+    // 1. Exact Match
+    if (semanticMap.colors[lowerColor]) {
+        colorCache.set(lowerColor, semanticMap.colors[lowerColor]);
+        return semanticMap.colors[lowerColor];
+    }
+    if (lowerColor === 'standard') {
+        colorCache.set(lowerColor, 'natural');
+        return 'natural';
+    }
+
+    // 2. Nearest Neighbor
+    const inputRgb = hexToRgb(lowerColor);
+    if (!inputRgb) {
+        const fallback = lowerColor.replace('#', '');
+        colorCache.set(lowerColor, fallback);
+        return fallback;
+    }
+
+    let closestColorName = 'colored';
+    let minDistSq = Infinity;
+
+    for (let i = 0; i < preParsedColors.length; i++) {
+        const target = preParsedColors[i];
+        const distSq = getDistSq(inputRgb, target.rgb);
+        if (distSq < minDistSq) {
+            minDistSq = distSq;
+            closestColorName = target.name;
+        }
+    }
+
+    colorCache.set(lowerColor, closestColorName);
+    return closestColorName;
+};
+
+const translateSprite = (spriteKey) => {
+    if (!spriteKey || spriteKey === 'none') return null;
+
+    const lookup = semanticMap.sprites[spriteKey];
+    if (lookup) {
+        if (typeof lookup === 'object' && lookup.internal_id) {
+            return lookup.internal_id.replace(/_/g, ' ');
+        }
+        return lookup;
+    }
+
+    return spriteKey.replace(/_/g, ' ');
+};
+
 class SemanticMapper {
 
     /**
@@ -18,68 +101,6 @@ class SemanticMapper {
     static getVisualContext(char) {
         const tags = [];
         if (!char) return tags;
-
-        // Helper to hex to RGB
-        const hexToRgb = (hex) => {
-            if (!hex) return null;
-            if (hex.startsWith('0x')) hex = '#' + hex.substring(2);
-            if (!hex.startsWith('#')) return null;
-            const bigint = parseInt(hex.substring(1), 16);
-            return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
-        };
-
-        // Helper to calculate distance squared
-        const getDistSq = (c1, c2) => {
-            return (c1.r - c2.r) ** 2 + (c1.g - c2.g) ** 2 + (c1.b - c2.b) ** 2;
-        };
-
-        // Helper to translate color using Nearest Neighbor
-        const translateColor = (color) => {
-            if (!color || color === 'none') return '';
-            let lowerColor = color.toLowerCase();
-            if (lowerColor.startsWith('0x')) lowerColor = '#' + lowerColor.substring(2);
-
-            // 1. Exact Match
-            if (semanticMap.colors[lowerColor]) return semanticMap.colors[lowerColor];
-            if (lowerColor === 'standard') return 'natural';
-
-            // 2. Nearest Neighbor
-            const inputRgb = hexToRgb(lowerColor);
-            if (!inputRgb) return lowerColor.replace('#', ''); // Fallback for bad hex
-
-            let closestColorName = 'colored';
-            let minDistSq = Infinity;
-
-            for (const [hexKey, name] of Object.entries(semanticMap.colors)) {
-                if (!hexKey.startsWith('#')) continue; // Skip named keys like "standard"
-                const targetRgb = hexToRgb(hexKey);
-                if (targetRgb) {
-                    const distSq = getDistSq(inputRgb, targetRgb);
-                    if (distSq < minDistSq) {
-                        minDistSq = distSq;
-                        closestColorName = name;
-                    }
-                }
-            }
-
-            return closestColorName;
-        };
-
-        // Helper to translate sprite
-        const translateSprite = (spriteKey) => {
-            if (!spriteKey || spriteKey === 'none') return null;
-
-            const lookup = semanticMap.sprites[spriteKey];
-            if (lookup) {
-                if (typeof lookup === 'object' && lookup.internal_id) {
-                    return lookup.internal_id.replace(/_/g, ' ');
-                }
-                return lookup;
-            }
-
-            // For now, simple fallback:
-            return spriteKey.replace(/_/g, ' ');
-        };
 
         // Helper to format "color_part"
         const addTag = (partObj) => {
@@ -102,10 +123,6 @@ class SemanticMapper {
         addTag(char.tail);
         // Ears special handling (outer/inner) - usually we just describe the outer/main ear type
         if (char.ear && char.ear.outerSprite) {
-            // We might map "ears_01-outer" -> "wolf ears" in the JSON by stripping suffix?
-            // Or better, just lookup the base name if we can derive it.
-            // preload.js shows 'ears_01-outer'. My JSON has 'ears_01'.
-            // Let's clean the sprite string.
             const baseSprite = char.ear.outerSprite.split('-')[0];
             const spriteDesc = translateSprite(baseSprite);
             const colorDesc = translateColor(char.ear.outerColor);
@@ -131,10 +148,8 @@ class SemanticMapper {
      * @returns {string} "Predator", "Prey", "Friend", "Neutral"
      */
     static getEntityRole(observer, target) {
-        // logic based on vore state
         if (target.consumedBy === observer.identifier) return 'Prey';
         if (observer.consumedBy === target.identifier) return 'Predator';
-        // TODO: relationships
         return 'Neutral';
     }
 
@@ -147,7 +162,6 @@ class SemanticMapper {
         return items.map(item => {
             const def = itemData[item.itemId];
             if (def) {
-                // Return defined name formatted as snake_case tag
                 return def.name.toLowerCase().replace(/\s+/g, '_');
             }
             return item.name ? item.name.toLowerCase().replace(/\s+/g, '_') : 'unknown_object';

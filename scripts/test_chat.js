@@ -73,10 +73,6 @@ class Bot {
                 // Check expectations
                 if (this.expectedEvents[eventName]) {
                     const resolver = this.expectedEvents[eventName];
-                    // We don't delete immediately if we want to catch multiple, 
-                    // but for simple 'waitForEvent', we usually consume it.
-                    // For now, let's consume it.
-                    delete this.expectedEvents[eventName];
                     resolver(args);
                 }
 
@@ -140,14 +136,18 @@ class Bot {
                 return;
             }
 
-            this.expectedEvents[eventName] = (args) => {
+            const resolver = (args) => {
                 if (!predicate || predicate(args)) {
+                    if (this.expectedEvents[eventName] === resolver) {
+                        delete this.expectedEvents[eventName];
+                    }
                     resolve(args);
                 }
             };
+            this.expectedEvents[eventName] = resolver;
 
             setTimeout(() => {
-                if (this.expectedEvents[eventName]) {
+                if (this.expectedEvents[eventName] === resolver) {
                     delete this.expectedEvents[eventName];
                     reject(new Error(`[${this.name}] Timeout waiting for event '${eventName}'`));
                 }
@@ -257,23 +257,26 @@ async function runTests() {
         console.log("Sending Global...");
         Sender.sendMessage(globalMsg, 'global');
 
-        // Verify Receiver
+        let globalSuccess = false;
+        let receiverSaw = false;
+        let farSaw = false;
         try {
             const [msgs] = await Receiver.waitForEvent('output', 3000, (args) => {
-                // args[0] is the array of messages [msg1, msg2]
                 return args[0][0].message[0].content.includes(globalMsg);
             });
             console.log("✅ Receiver saw Global message.");
+            receiverSaw = true;
         } catch (e) { console.error("❌ Receiver failed to see Global message", e); }
 
-        // Verify FarBot
         try {
             const [msgs] = await FarBot.waitForEvent('output', 3000, (args) => {
                 return args[0][0].message[0].content.includes(globalMsg);
             });
             console.log("✅ FarBot saw Global message.");
+            farSaw = true;
         } catch (e) { console.error("❌ FarBot failed to see Global message", e); }
-
+        globalSuccess = receiverSaw && farSaw;
+        Sender.emit('reportAction', { actionType: 'test: chat global delivery', success: globalSuccess });
 
         await sleep(2000); // Wait for Rate Limit (500ms)
 
@@ -286,15 +289,17 @@ async function runTests() {
         console.log("Sending Local...");
         Sender.sendMessage(localMsg, 'local');
 
-        // Verify Receiver (Close)
+        let localSuccess = false;
+        let receiverLocalSaw = false;
+        let farLocalSaw = false;
         try {
             const [msgs] = await Receiver.waitForEvent('output', 3000, (args) => {
                 return args[0][0].scope === 'local' && args[0][0].message[0].content.includes(localMsg);
             });
             console.log("✅ Receiver saw Local message.");
+            receiverLocalSaw = true;
         } catch (e) { console.error("❌ Receiver failed to see Local message", e); }
 
-        // Verify FarBot (Far) - SHOULD NOT SEE
         let farSawIt = false;
         try {
             await FarBot.waitForEvent('output', 1000, (args) => {
@@ -303,9 +308,14 @@ async function runTests() {
             farSawIt = true;
         } catch (e) { /* Expected Timeout */ }
 
-        if (!farSawIt) console.log("✅ FarBot did NOT see Local message (Correct).");
-        else console.error("❌ FarBot saw Local message (Range Fail).");
-
+        if (!farSawIt) {
+            console.log("✅ FarBot did NOT see Local message (Correct).");
+            farLocalSaw = true;
+        } else {
+            console.error("❌ FarBot saw Local message (Range Fail).");
+        }
+        localSuccess = receiverLocalSaw && farLocalSaw;
+        Sender.emit('reportAction', { actionType: 'test: chat local scope limits', success: localSuccess });
 
         await sleep(2000); // Wait for Rate Limit
 
@@ -317,20 +327,20 @@ async function runTests() {
         const boldMsg = "**Bold Text**";
         Sender.sendMessage(boldMsg, 'global');
 
+        let formattingSuccess = false;
         try {
             const [msgs] = await Receiver.waitForEvent('output', 3000, (args) => {
                 return args[0][0].message[0].content.includes('<strong>Bold Text</strong>');
             });
-            // The wait returns the 'args' array: [ [msg] ]
-            // so msgs is [msg]
             const content = msgs[0].message[0].content;
             if (content.includes('<strong>Bold Text</strong>')) {
                 console.log("✅ Bold formatting verified.");
+                formattingSuccess = true;
             } else {
                 console.error(`❌ Formatting mismatch. Got: ${content}`);
             }
         } catch (e) { console.error("❌ Formatting test timed out", e); }
-
+        Sender.emit('reportAction', { actionType: 'test: chat md bold formatting', success: formattingSuccess });
 
         await sleep(2000); // Wait for Rate Limit
 
@@ -343,25 +353,27 @@ async function runTests() {
         Sender.sendSpoiler(spoilerMsg, 'global');
 
         let msgIdToEdit = null;
+        let spoilerSuccess = false;
 
         try {
             const [msgs] = await Receiver.waitForEvent('output', 3000); // Wait for ANY output
-            // Should verify it's the spoiler one
             const msg = msgs[0];
             if (msg.spoiler && (msg.spoiler.status === 'warning' || msg.spoiler.status === 'content')) {
                 console.log("✅ Spoiler flag received.");
                 msgIdToEdit = msg._id;
+                spoilerSuccess = true;
             } else {
                 console.log(`⚠️ Msg received but not spoiler: ${JSON.stringify(msg.spoiler)}`);
-                // Maybe it is the spoiler msg but default status?
             }
         } catch (e) { console.error("❌ Spoiler test timed out", e); }
+        Sender.emit('reportAction', { actionType: 'test: chat spoilers flag', success: spoilerSuccess });
 
 
         // -------------------------------------------------------------
         // Test 5: Editing
         // -------------------------------------------------------------
         console.log("\n--- Test 5: Message Editing ---");
+        let editSuccess = false;
         if (msgIdToEdit) {
             const newText = "Edited Content";
             Sender.editMessage(msgIdToEdit, newText);
@@ -371,11 +383,11 @@ async function runTests() {
                     return args[0]._id === msgIdToEdit;
                 });
 
-                // Check content
                 const history = result.message;
                 const latest = history[history.length - 1];
                 if (latest.content.includes(newText)) {
                     console.log("✅ Edit received and content updated.");
+                    editSuccess = true;
                 } else {
                     console.error("❌ Edit received but content mismatch.");
                 }
@@ -384,11 +396,13 @@ async function runTests() {
         } else {
             console.warn("⚠️ Skipping Edit Test (Dependencies failed)");
         }
+        Sender.emit('reportAction', { actionType: 'test: chat message editing', success: editSuccess });
 
         // -------------------------------------------------------------
         // Test 6: Reactions
         // -------------------------------------------------------------
         console.log("\n--- Test 6: Reactions ---");
+        let reactionSuccess = false;
         if (msgIdToEdit) {
             Sender.emit('toggleReaction', {
                 _id: msgIdToEdit,
@@ -402,8 +416,10 @@ async function runTests() {
                     return args[0]._id === msgIdToEdit;
                 });
 
+                let added = false;
                 if (result.reactions && result.reactions.heart && result.reactions.heart.includes(Sender.charId)) {
                     console.log("✅ Reaction added successfully.");
+                    added = true;
                 } else {
                     console.log("❌ Reaction update received but data mismatch.");
                 }
@@ -418,14 +434,18 @@ async function runTests() {
                 });
 
                 const [result2] = await Receiver.waitForEvent('messageReactionUpdate', 2000);
+                let removed = false;
                 if (!result2.reactions.heart.includes(Sender.charId)) {
                     console.log("✅ Reaction removed successfully.");
+                    removed = true;
                 } else {
                     console.error("❌ Reaction removal failed.");
                 }
+                reactionSuccess = added && removed;
 
             } catch (e) { console.error("❌ Reaction test timed out", e); }
         }
+        Sender.emit('reportAction', { actionType: 'test: chat message reactions', success: reactionSuccess });
 
 
     } catch (err) {

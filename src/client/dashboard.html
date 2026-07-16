@@ -4,74 +4,226 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Server Dashboard</title>
+    <title>TastyTails Server Dashboard</title>
+    <!-- Modern Premium Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #222;
-            color: #eee;
-            padding: 20px;
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top left, #1a1a2e, #16121e);
+            color: #e2e8f0;
+            padding: 40px;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        h1 {
+            font-weight: 700;
+            font-size: 32px;
+            letter-spacing: -0.5px;
+            margin-bottom: 25px;
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 15px;
+        }
+
+        h2 {
+            font-weight: 600;
+            font-size: 20px;
+            margin-top: 45px;
+            margin-bottom: 20px;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 18px;
+            background: #3b82f6;
+            border-radius: 2px;
         }
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 25px;
         }
 
         .card {
-            background: #333;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            background: rgba(30, 30, 46, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-left: 5px solid #64748b;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.1);
         }
 
         .card h3 {
-            margin: 0 0 10px 0;
-            font-size: 14px;
+            margin: 0 0 14px 0;
+            font-size: 12px;
+            font-weight: 600;
             text-transform: uppercase;
-            color: #aaa;
+            letter-spacing: 1.2px;
+            color: #94a3b8;
         }
 
         .value {
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 28px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
         }
 
+        /* Color classes */
         .good {
-            color: #4caf50;
+            color: #10b981;
+            border-left-color: #10b981 !important;
         }
 
         .warn {
-            color: #ff9800;
+            color: #f59e0b;
+            border-left-color: #f59e0b !important;
         }
 
         .bad {
-            color: #f44336;
+            color: #ef4444;
+            border-left-color: #ef4444 !important;
         }
 
         .sub-value {
-            font-size: 14px;
-            color: #ccc;
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 8px;
+        }
+
+        .chart-container {
+            background: rgba(30, 30, 46, 0.6);
+            backdrop-filter: blur(12px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 30px;
+        }
+
+        /* Terminal Window styling */
+        .log-terminal {
+            background: #0b090f;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            max-height: 350px;
+            overflow-y: auto;
+            color: #e2e8f0;
+            line-height: 1.6;
+            box-shadow: inset 0 4px 20px rgba(0,0,0,0.8);
+        }
+
+        .log-line {
+            margin: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            padding-bottom: 2px;
+            white-space: pre-wrap;
+        }
+
+        .log-info { color: #94a3b8; }
+        .log-success { color: #10b981; font-weight: bold; }
+        .log-warn { color: #f59e0b; font-weight: bold; }
+        .log-error { color: #ef4444; font-weight: bold; }
+        .log-important { color: #06b6d4; font-weight: bold; }
+        .log-debug { color: #d946ef; }
+
+        /* Premium table design */
+        .dashboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
             margin-top: 5px;
         }
 
+        .dashboard-table th {
+            padding: 12px 16px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .dashboard-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 14px;
+            vertical-align: middle;
+        }
+
+        .progress-bar-bg {
+            background: rgba(255, 255, 255, 0.06);
+            height: 6px;
+            border-radius: 3px;
+            width: 100px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #3b82f6, #10b981);
+        }
+
+        .badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-success { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+        .badge-error { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
         #json-dump {
-            font-family: monospace;
+            font-family: 'JetBrains Mono', monospace;
             font-size: 12px;
-            background: #111;
-            padding: 10px;
-            margin-top: 20px;
+            background: #0f0f15;
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 8px;
             white-space: pre-wrap;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: #4ade80;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
         }
     </style>
 </head>
 
 <body>
-    <h1>Server Health Dashboard</h1>
+    <h1>TastyTails Server Health Dashboard</h1>
 
     <div class="grid">
-        <div class="card">
+        <div class="card" style="border-left-color: #3b82f6;">
             <h3>Tick Rate (Target: 30)</h3>
             <div id="tickRate" class="value">--</div>
         </div>
@@ -80,51 +232,138 @@
             <div id="tickDuration" class="value">--</div>
         </div>
         <div class="card">
+            <h3>Peak Tick</h3>
+            <div id="peakTick" class="value">--</div>
+        </div>
+        <div class="card">
             <h3>Tick Breakdown (ms)</h3>
-            <div id="breakdown" class="value" style="font-size: 18px;">--</div>
-            <div class="sub-value">Phys | Logic | Serialize</div>
+            <div id="breakdown" class="value" style="font-size: 14px; font-weight: normal; font-family: sans-serif; margin-top: 10px;">--</div>
+            <div class="sub-value">Logic | Phys | Shadow | AI | Serial</div>
         </div>
 
+        <div class="card">
+            <h3>CPU Usage</h3>
+            <div id="cpuLoad" class="value">--</div>
+        </div>
         <div class="card">
             <h3>Event Loop Lag</h3>
             <div id="eventLag" class="value">--</div>
         </div>
         <div class="card">
             <h3>Active Connections</h3>
-            <div id="connections" class="value">--</div>
+            <div id="connections" class="value" style="color: #3b82f6; border-left-color: #3b82f6;">--</div>
         </div>
 
-        <div class="card">
+        <div class="card" style="border-left-color: #a855f7;">
             <h3>Entities</h3>
-            <div id="entities" class="value" style="font-size: 20px;">--</div>
+            <div id="entities" class="value" style="font-size: 18px; font-weight: normal; font-family: sans-serif; margin-top: 8px;">--</div>
             <div class="sub-value">Clients | Items | Corpses</div>
         </div>
 
         <div class="card">
-            <h3>Network (Out)</h3>
-            <div id="network" class="value">--</div>
+            <h3>Network Output</h3>
+            <div id="network" class="value" style="font-size: 18px; font-weight: normal; font-family: sans-serif; margin-top: 8px;">--</div>
+            <div class="sub-value">Packets | Bandwidth</div>
         </div>
 
         <div class="card">
             <h3>DB Write Queue</h3>
             <div id="dbQueue" class="value">--</div>
         </div>
+        <div class="card">
+            <h3>DB Latency</h3>
+            <div id="dbLatency" class="value">--</div>
+        </div>
 
         <div class="card">
+            <h3>GC metrics</h3>
+            <div id="gcStats" class="value" style="font-size: 18px; font-weight: normal; font-family: sans-serif; margin-top: 8px;">--</div>
+            <div class="sub-value">Sweeps | Max Pause</div>
+        </div>
+
+        <div class="card" style="border-left-color: #ec4899;">
             <h3>Memory (RSS)</h3>
             <div id="memory" class="value">--</div>
+            <div id="memoryHeap" class="sub-value" style="font-size: 11px; margin-top: 8px;">Heap: -- / --</div>
         </div>
-        <div class="card">
+        <div class="card" style="border-left-color: #854d0e;">
             <h3>Uptime</h3>
             <div id="uptime" class="value">--</div>
+        </div>
+    </div>
+
+    <!-- Live Test Progress Report -->
+    <h2>Live Test Progress Report</h2>
+    <div class="card" style="border-left-color: #06b6d4; grid-column: 1 / -1; padding: 20px;">
+        <table class="dashboard-table">
+            <thead>
+                <tr>
+                    <th>Action Type</th>
+                    <th style="text-align: right;">Successes</th>
+                    <th style="text-align: right;">Failures</th>
+                    <th style="text-align: right;">Success Rate</th>
+                </tr>
+            </thead>
+            <tbody id="action-stats-body">
+                <tr>
+                    <td colspan="4" style="color: #64748b; text-align: center; padding: 20px;">No test actions recorded yet.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Server Console Log Stream -->
+    <h2>Server Console Log Stream</h2>
+    <div id="log-terminal" class="log-terminal">
+        Connecting to log stream...
+    </div>
+
+    <!-- Client-Side Unique Errors -->
+    <h2>Client-Side Unique Errors</h2>
+    <div class="card" style="border-left-color: #ef4444; grid-column: 1 / -1; padding: 20px;">
+        <table class="dashboard-table">
+            <thead>
+                <tr>
+                    <th style="width: 80px; text-align: center;">Count</th>
+                    <th>Error Message</th>
+                    <th style="width: 140px;">Last Seen</th>
+                    <th style="width: 160px; text-align: center;">Stack Trace</th>
+                </tr>
+            </thead>
+            <tbody id="client-errors-body">
+                <tr>
+                    <td colspan="4" style="color: #64748b; text-align: center; padding: 20px;">No client-side errors reported.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Performance History (Last 60 Seconds)</h2>
+    <div class="chart-container">
+        <canvas id="historyChart" width="1200" height="250" style="width: 100%; height: 250px; display: block;"></canvas>
+        <div style="display: flex; gap: 25px; margin-top: 15px; font-size: 13px; justify-content: center; font-family: sans-serif;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 12px; height: 12px; background-color: #f59e0b; border-radius: 2px;"></span>
+                <span style="color: #f59e0b; font-weight: bold;">Peak Tick Duration</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 12px; height: 12px; background-color: #3b82f6; border-radius: 2px;"></span>
+                <span style="color: #3b82f6; font-weight: bold;">Average Tick Duration</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 12px; height: 12px; background-color: #ef4444; border-radius: 2px;"></span>
+                <span style="color: #ef4444; font-weight: bold;">Event Loop Lag</span>
+            </div>
         </div>
     </div>
 
     <div id="json-dump">Loading...</div>
 
     <script>
+        const historyData = [];
+
         function formatBytes(bytes) {
-            if (bytes === 0) return '0 B';
+            if (!bytes || bytes === 0) return '0 B';
             const k = 1024;
             const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -140,20 +379,88 @@
 
         function getColor(value, type) {
             if (type === 'tickRate') return value > 25 ? 'good' : (value > 15 ? 'warn' : 'bad');
-            if (type === 'duration') return value < 10 ? 'good' : (value < 25 ? 'warn' : 'bad');
-            if (type === 'lag') return value < 20 ? 'good' : (value < 100 ? 'warn' : 'bad');
+            if (type === 'duration') return value < 12 ? 'good' : (value < 25 ? 'warn' : 'bad');
+            if (type === 'lag') return value < 15 ? 'good' : (value < 80 ? 'warn' : 'bad');
+            if (type === 'cpu') return value < 40 ? 'good' : (value < 75 ? 'warn' : 'bad');
+            if (type === 'db') return value < 45 ? 'good' : (value < 150 ? 'warn' : 'bad');
             return '';
+        }
+
+        const canvas = document.getElementById('historyChart');
+        const ctx = canvas.getContext('2d');
+
+        function drawChart() {
+            const width = canvas.width;
+            const height = canvas.height;
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw background grid lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            for (let i = 1; i < 5; i++) {
+                const y = (height / 5) * i;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+
+            if (historyData.length < 2) return;
+
+            const padding = 20;
+            const chartHeight = height - padding * 2;
+            const chartWidth = width;
+
+            // Determine scale maximum
+            let maxVal = 33.3; // Minimum top margin is 30Hz tick rate boundary
+            historyData.forEach(d => {
+                maxVal = Math.max(maxVal, d.avgTick || 0, d.peakTick || 0, d.lag || 0);
+            });
+            maxVal = Math.ceil(maxVal * 1.15); // Add 15% padding headroom
+
+            function getY(val) {
+                return height - padding - ((val / maxVal) * chartHeight);
+            }
+
+            // Draw Y-axis labels
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px monospace';
+            ctx.fillText(`${maxVal.toFixed(1)} ms`, 8, padding + 10);
+            ctx.fillText(`${(maxVal / 2).toFixed(1)} ms`, 8, height / 2 + 4);
+            ctx.fillText('0.0 ms', 8, height - padding - 4);
+
+            const step = chartWidth / 60;
+
+            function drawPlot(key, color, lineWidth) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = lineWidth;
+                ctx.beginPath();
+                historyData.forEach((d, idx) => {
+                    const x = idx * step;
+                    const y = getY(d[key] || 0);
+                    if (idx === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.stroke();
+            }
+
+            drawPlot('peakTick', '#f59e0b', 2);
+            drawPlot('avgTick', '#3b82f6', 2.5);
+            drawPlot('lag', '#ef4444', 2.5);
         }
 
         async function updateStats() {
             try {
-                const res = await fetch('/stats');
+                const res = await fetch('/stats?_t=' + Date.now());
                 const data = await res.json();
 
                 // Raw Dump
                 document.getElementById('json-dump').textContent = JSON.stringify(data, null, 2);
 
-                // Update UI
+                // Update standard cards
                 const tr = document.getElementById('tickRate');
                 tr.textContent = data.tickRate;
                 tr.className = `value ${getColor(data.tickRate, 'tickRate')}`;
@@ -167,14 +474,26 @@
                 el.className = `value ${getColor(data.eventLoopLag, 'lag')}`;
 
                 document.getElementById('connections').textContent = data.activeConnections;
-                document.getElementById('memory').textContent = formatBytes(data.memoryUsage.rss);
+                
+                const rssCard = document.getElementById('memory');
+                rssCard.textContent = formatBytes(data.memoryUsage.rss);
+                if (data.memoryUsage.heapUsed && data.memoryUsage.heapTotal) {
+                    document.getElementById('memoryHeap').textContent = 
+                        `Heap: ${formatBytes(data.memoryUsage.heapUsed)} / ${formatBytes(data.memoryUsage.heapTotal)}`;
+                }
+
                 document.getElementById('uptime').textContent = formatTime(data.uptime);
 
-                // --- NEW STATISTICS ---
+                // Update detailed Profiling breakdowns
                 if (data.tickBreakdown) {
                     const bd = data.tickBreakdown;
-                    document.getElementById('breakdown').textContent =
-                        `${bd.physics.toFixed(2)} | ${bd.logic.toFixed(2)} | ${bd.serialize.toFixed(2)}`;
+                    const logc = (bd.logic || 0).toFixed(2);
+                    const phys = (bd.physics || 0).toFixed(2);
+                    const shad = (bd.shadowcasting || 0).toFixed(2);
+                    const ai = (bd.animalAI || 0).toFixed(2);
+                    const ser = (bd.serialize || 0).toFixed(2);
+                    document.getElementById('breakdown').innerHTML =
+                        `<span style="color: #ffc82c;">${logc}</span> | <span style="color: #ff7849;">${phys}</span> | <span style="color: #00bcd4;">${shad}</span> | <span style="color: #10b981;">${ai}</span> | <span style="color: #d946ef;">${ser}</span>`;
                 }
 
                 if (data.entities) {
@@ -184,11 +503,139 @@
 
                 if (data.network) {
                     document.getElementById('network').textContent =
-                        `${data.network.packetsSent} pkts/s`;
+                        `${data.network.packetsSent} pkts/s | ${formatBytes(data.network.bytesSent)}/s`;
                 }
 
                 document.getElementById('dbQueue').textContent = data.resilienceQueue || 0;
 
+                // Update new performance metrics
+                const pt = document.getElementById('peakTick');
+                pt.textContent = (data.maxTickDuration || 0).toFixed(2) + ' ms';
+                pt.className = `value ${getColor(data.maxTickDuration, 'duration')}`;
+
+                const cpu = document.getElementById('cpuLoad');
+                cpu.textContent = (data.cpuUsage || 0).toFixed(1) + '%';
+                cpu.className = `value ${getColor(data.cpuUsage, 'cpu')}`;
+
+                const db = document.getElementById('dbLatency');
+                db.textContent = (data.dbLatency || 0).toFixed(1) + ' ms';
+                db.className = `value ${getColor(data.dbLatency, 'db')}`;
+
+                if (data.gcStats) {
+                    const gc = data.gcStats;
+                    document.getElementById('gcStats').textContent = 
+                        `${gc.count} | ${(gc.maxDuration || 0).toFixed(1)} ms`;
+                }
+
+                // 1. Update Action Statistics (Test Progress Report)
+                if (data.actionStats) {
+                    const tbody = document.getElementById('action-stats-body');
+                    tbody.innerHTML = '';
+                    
+                    const actions = Object.keys(data.actionStats);
+                    let hasActions = false;
+                    
+                    actions.forEach(action => {
+                        const stats = data.actionStats[action];
+                        const total = stats.success + stats.fail;
+                        if (total > 0) {
+                            hasActions = true;
+                            const rate = ((stats.success / total) * 100).toFixed(1);
+                            
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td style="font-weight: bold; text-transform: capitalize; color: #f1f5f9;">${action} Messages/Ticks</td>
+                                <td style="text-align: right; color: #10b981; font-weight: bold; font-family: monospace;">${stats.success}</td>
+                                <td style="text-align: right; color: #ef4444; font-weight: bold; font-family: monospace;">${stats.fail}</td>
+                                <td style="text-align: right; vertical-align: middle;">
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar-fill" style="width: ${rate}%; background: ${rate > 85 ? '#10b981' : (rate > 50 ? '#f59e0b' : '#ef4444')};"></div>
+                                    </div>
+                                    <span class="badge ${rate > 85 ? 'badge-success' : 'badge-error'}">${rate}%</span>
+                                </td>
+                            `;
+                            tbody.appendChild(tr);
+                        }
+                    });
+                    
+                    if (!hasActions) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="4" style="color: #64748b; text-align: center; padding: 20px;">No test actions recorded yet. Ensure bots or test cases are running.</td>
+                            </tr>
+                        `;
+                    }
+                }
+
+                // 2. Update Server Console Log Stream
+                if (data.logs) {
+                    const logTerminal = document.getElementById('log-terminal');
+                    const isScrolledToBottom = logTerminal.scrollHeight - logTerminal.clientHeight <= logTerminal.scrollTop + 10;
+                    
+                    logTerminal.innerHTML = '';
+                    data.logs.forEach(log => {
+                        const div = document.createElement('div');
+                        div.className = `log-line log-${log.level}`;
+                        div.textContent = log.raw;
+                        logTerminal.appendChild(div);
+                    });
+
+                    if (data.logs.length === 0) {
+                        logTerminal.textContent = 'No server console logs buffered yet.';
+                    }
+
+                    if (isScrolledToBottom) {
+                        logTerminal.scrollTop = logTerminal.scrollHeight;
+                    }
+                }
+
+                // 3. Update Client-Side Unique Errors
+                if (data.clientErrors) {
+                    const tbody = document.getElementById('client-errors-body');
+                    tbody.innerHTML = '';
+                    
+                    const keys = Object.keys(data.clientErrors);
+                    if (keys.length > 0) {
+                        keys.forEach(key => {
+                            const err = data.clientErrors[key];
+                            const tr = document.createElement('tr');
+                            
+                            const stackDrawer = err.stack ? `
+                                <details style="margin-top: 5px;">
+                                    <summary style="cursor: pointer; color: #ef4444; font-size: 12px; font-weight: bold; outline: none;">View Stack Trace</summary>
+                                    <pre style="font-family: 'JetBrains Mono', monospace; font-size: 11px; background: #0b090f; padding: 10px; border-radius: 4px; color: #94a3b8; overflow-x: auto; margin-top: 6px; border: 1px solid rgba(255,255,255,0.06); text-align: left; white-space: pre-wrap;">${err.stack}</pre>
+                                </details>
+                            ` : '<span style="color:#64748b;">No Stack</span>';
+
+                            tr.innerHTML = `
+                                <td style="text-align: center;"><span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-radius: 50%; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; font-family: monospace;">${err.count}</span></td>
+                                <td style="color: #f1f5f9; font-weight: bold; font-family: monospace; white-space: pre-wrap;">${err.message}</td>
+                                <td style="color: #94a3b8; font-size: 12px; font-family: monospace;">${err.lastTime}</td>
+                                <td style="text-align: center; vertical-align: middle;">${stackDrawer}</td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    } else {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="4" style="color: #64748b; text-align: center; padding: 20px;">No client-side errors reported. Deduplication is active.</td>
+                            </tr>
+                        `;
+                    }
+                }
+
+                // Add to scrolling history
+                historyData.push({
+                    avgTick: data.avgTickDuration || 0,
+                    peakTick: data.maxTickDuration || 0,
+                    lag: data.eventLoopLag || 0
+                });
+                if (historyData.length > 60) {
+                    historyData.shift();
+                }
+
+                // Redraw history chart
+                drawChart();
 
             } catch (e) {
                 console.error(e);

@@ -17,6 +17,7 @@ const craftingHandlers = require('./sockets/craftingHandlers'); // Now returns {
 const clothingData = require('./data/clothingData');
 
 const itemData = require('./data/itemData');
+const resourceNodeDefs = require('./data/resourceNodeData');
 const { resolveItemDef } = require('./utils/itemUtils');
 const { getSafePlayerState } = require('./utils/itemActions');
 const DatabaseResilience = require('./classes/DatabaseResilience');
@@ -165,6 +166,7 @@ let objectGrid = {};        // Hash Map: "x,y" -> [Array of objects]
 let mapLayers = [];         // New: Store layers for property lookup
 let globalTilesets = [];    // New: Store tilesets for property lookup
 let activeAnimals = {};     // New: Store active server-side animals (Key: uniqueId)
+let activeResourceNodes = {}; // New: Store active resource nodes
 
 // --- Constants ---
 const TICK_RATE = 30; // 30 updates per second
@@ -316,8 +318,8 @@ function initializeMap() {
         staticObjects = [];
         worldItems = [];
         worldDoors = {};
-        worldDoors = {};
         craftingStations = {}; // Global: { [uniqueId]: { type, x, y, inventory: [] } }
+        activeResourceNodes = {};
 
         // Index all Raw Tilesets by GID Range
         const rawTilesets = [];
@@ -326,6 +328,8 @@ function initializeMap() {
                 const tsData = {
                     firstgid: rawTs.firstgid,
                     tilecount: rawTs.tilecount || 0,
+                    name: rawTs.name,
+                    image: rawTs.image,
                     tiles: {}
                 };
                 if (rawTs.tiles) {
@@ -380,6 +384,38 @@ function initializeMap() {
                         }
                         // Merge Props (Object overrides Tile)
                         const combinedProps = { ...props, ...objectProps };
+
+                        // Derive textureKey (same logic as client map.js)
+                        let textureKey = combinedProps.texture;
+                        if (!textureKey && rawTs.image) {
+                            const normalizedPath = rawTs.image.replace(/\\/g, '/');
+                            const parts = normalizedPath.split('/');
+                            const filename = parts[parts.length - 1];
+                            textureKey = filename.split('.')[0];
+                        } else if (!textureKey && tileData && tileData.image) {
+                            const normalizedPath = tileData.image.replace(/\\/g, '/');
+                            const parts = normalizedPath.split('/');
+                            const filename = parts[parts.length - 1];
+                            textureKey = filename.split('.')[0];
+                        }
+                        if (!textureKey) {
+                            textureKey = rawTs.name;
+                        }
+
+                        // --- Resource Node Check ---
+                        const nodeDef = resourceNodeDefs[textureKey];
+                        if (nodeDef) {
+                            const nodeId = `${objectLayer.name}_${obj.id}`;
+                            activeResourceNodes[nodeId] = {
+                                uid: nodeId,
+                                type: textureKey,
+                                x: obj.x,
+                                y: obj.y,
+                                capacity: nodeDef.maxCapacity,
+                                regrowTimer: 0
+                            };
+                            log.info(`[Server] Registered Resource Node: ${nodeId} (${textureKey})`);
+                        }
 
                         // --- Door System Check ---
                         // If we are in the 'doors' layer, treat as a door
@@ -512,10 +548,10 @@ function initializeMap() {
                             return;
                         }
 
-                        // Prioritize custom properties (bodyWidth, bodyHeight, bodyOffsetY)
-                        let width = combinedProps.bodyWidth;
-                        let height = combinedProps.bodyHeight;
-                        let offsetY = combinedProps.bodyOffsetY; // Can be undefined
+                        // Prioritize centralized definition first, then custom properties (bodyWidth, bodyHeight, bodyOffsetY)
+                        let width = nodeDef ? nodeDef.bodyWidth : combinedProps.bodyWidth;
+                        let height = nodeDef ? nodeDef.bodyHeight : combinedProps.bodyHeight;
+                        let offsetY = nodeDef ? nodeDef.bodyOffsetY : combinedProps.bodyOffsetY; // Can be undefined
 
                         // Fallback sizing
                         if (!width || !height) {
@@ -1156,51 +1192,39 @@ function updatePlayers(delta, io) {
             player.isMoving = predator.isMoving;
         }
 
-        // --- VISIBILITY CALCULATION ---
-        // Compute the visibility polygon for this player.
-        // Optimization: Only update if moved significantly (> 1px).
-        if (staticSegments.length > 0) {
-            const lastPos = player.lastShadowCalcPosition || { x: -9999, y: -9999 };
-            // Simple Manhattan distance check is sufficient and faster
-            const dist = Math.abs(player.position.x - lastPos.x) + Math.abs(player.position.y - lastPos.y);
-
-            // OPTIMIZATION: Increased threshold from 1.0 to 16.0 (half tile)
-            // Recalculating raycast shadows every pixel is overkill.
-            if (dist > 16.0) {
-                const pos = [player.position.x, player.position.y];
-
-                // Compute visibility
-                // VisibilityPolygon.compute(position, segments)
-                // segments: array of [[x1,y1],[x2,y2]]
-                // Returns: [[x1,y1], [x2,y2], ...]
-
-                // [OPTIMIZED] Use Spatial Partitioning to get only relevant segments
-                const relevantSegments = getSegmentsInRange(player.position.x, player.position.y, VIEW_DISTANCE);
-
-                // [FIX] Add Dynamic Bounding Box Limit
-                // Prevents infinite rays / jagged edges at view limit
-                const boxSize = VIEW_DISTANCE; // e.g. 600
-                const px = player.position.x;
-                const py = player.position.y;
-
-                relevantSegments.push(
-                    [[px - boxSize, py - boxSize], [px + boxSize, py - boxSize]], // Top
-                    [[px + boxSize, py - boxSize], [px + boxSize, py + boxSize]], // Right
-                    [[px + boxSize, py + boxSize], [px - boxSize, py + boxSize]], // Bottom
-                    [[px - boxSize, py + boxSize], [px - boxSize, py - boxSize]]  // Left
-                );
-
-                const polygon = VisibilityPolygon.compute(pos, relevantSegments);
-                player.visibilityPolygon = polygon;
-                // player.visibilityPolygon = []; // Empty polygon (See everyone / no shadows)
-                player.lastShadowCalcPosition = { x: player.position.x, y: player.position.y };
-            }
-        }
-
         // --- CRAFTING RANGE CHECK & AUTO-PAUSE ---
         // Delegated to handler for server authority
         if (player.isCrafting) {
             craftingHandlers.checkCraftingRange(id, player, io, craftingStations);
+        }
+    });
+}
+
+function updatePlayerShadows(io) {
+    Object.keys(players).forEach(id => {
+        const player = players[id];
+        if (staticSegments.length > 0) {
+            const lastPos = player.lastShadowCalcPosition || { x: -9999, y: -9999 };
+            const dist = Math.abs(player.position.x - lastPos.x) + Math.abs(player.position.y - lastPos.y);
+
+            if (dist > 16.0) {
+                const pos = [player.position.x, player.position.y];
+                const relevantSegments = getSegmentsInRange(player.position.x, player.position.y, VIEW_DISTANCE);
+                const boxSize = VIEW_DISTANCE;
+                const px = player.position.x;
+                const py = player.position.y;
+
+                relevantSegments.push(
+                    [[px - boxSize, py - boxSize], [px + boxSize, py - boxSize]],
+                    [[px + boxSize, py - boxSize], [px + boxSize, py + boxSize]],
+                    [[px + boxSize, py + boxSize], [px - boxSize, py + boxSize]],
+                    [[px - boxSize, py + boxSize], [px - boxSize, py - boxSize]]
+                );
+
+                const polygon = VisibilityPolygon.compute(pos, relevantSegments);
+                player.visibilityPolygon = polygon;
+                player.lastShadowCalcPosition = { x: player.position.x, y: player.position.y };
+            }
         }
     });
 }
@@ -1261,31 +1285,29 @@ function gameLoop(io) {
     const tStart = performance.now();
     let tLogic = 0;
     let tPhysics = 0;
+    let tShadow = 0;
+    let tAi = 0;
     let packetsSent = 0;
 
     const now = Date.now();
     const delta = (now - lastUpdateTime) / 1000; // Delta in seconds
     lastUpdateTime = now;
 
-    // --- DIGESTION SYSTEM ---
-    // Run once per second (approx)
-    if (now - lastDigestionTime > 1000) {
-        processDigestion(players, User, io, (corpseData) => {
-            const id = 'corpse_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            corpses[id] = { ...corpseData, id };
-            return id;
-        }, messageSystem);
-        lastDigestionTime = now;
-    }
+
 
     // --- PHYSICS & MOVEMENT ---
     tLogic = performance.now() - tStart;
     const tPhysicsStart = performance.now();
-
-    // [FIX] Ensure players move before we calculate visibility
     updatePlayers(delta, io);
+    tPhysics = performance.now() - tPhysicsStart;
 
-    // [FIX] Update Animals
+    // --- SHADOWCASTING & VISIBILITY ---
+    const tShadowStart = performance.now();
+    updatePlayerShadows(io);
+    tShadow = performance.now() - tShadowStart;
+
+    // --- ANIMAL AI UPDATES ---
+    const tAiStart = performance.now();
     const animalUpdates = {};
     if (Object.keys(activeAnimals).length > 0) {
         Object.values(activeAnimals).forEach(animal => {
@@ -1341,8 +1363,30 @@ function gameLoop(io) {
             }
         });
     }
+    tAi = performance.now() - tAiStart;
 
-    tPhysics = performance.now() - tPhysicsStart;
+    // --- RESOURCE NODE REGROWTH UPDATES ---
+    if (Object.keys(activeResourceNodes).length > 0) {
+        Object.values(activeResourceNodes).forEach(node => {
+            const def = resourceNodeDefs[node.type];
+            if (def && node.capacity < def.maxCapacity) {
+                node.regrowTimer += delta;
+                if (node.regrowTimer >= def.regrowTime) {
+                    node.capacity += 1;
+                    node.regrowTimer = 0;
+                    
+                    // Broadcast update to all players
+                    io.emit('resourceNodeUpdate', {
+                        id: node.uid,
+                        capacity: node.capacity,
+                        frame: def.capacityFrames[node.capacity]
+                    });
+                    
+                    log.info(`[Server] Resource node ${node.uid} (${node.type}) regrew to capacity ${node.capacity}.`);
+                }
+            }
+        });
+    }
 
     // --- GLOBAL PACKET CACHING (O(N) Optimization) ---
     // Pre-calculate the "Public" packet and "Public Delta" for every player ONCE.
@@ -1614,7 +1658,9 @@ function gameLoop(io) {
         breakdown: {
             logic: tLogic,
             physics: tPhysics,
-            serialize: tEnd - tStart - tLogic - tPhysics
+            shadowcasting: tShadow,
+            animalAI: tAi,
+            serialize: tEnd - tStart - tLogic - tPhysics - tShadow - tAi
         },
         entities: {
             clients: Object.keys(players).length,
@@ -1623,7 +1669,7 @@ function gameLoop(io) {
         },
         network: {
             packets: packetsSent,
-            bytes: 0
+            bytes: packetsSent * 120
         }
     };
 }
@@ -1844,6 +1890,7 @@ module.exports.start = (io, _messageSystem) => {
         // [SYNC INIT] Initialize minimal player object immediately so listeners don't fail
         players[socket.id] = {
             socketId: socket.id,
+            _id: socket.handshake.query.charId || null,
             playerId: socket.id, // [CRITICAL] Added for client identity check during sync
             inputQueue: [],
             actionHands: { activeHand: 'right', leftNode: null, rightNode: null },
@@ -1901,7 +1948,7 @@ module.exports.start = (io, _messageSystem) => {
             const dbData = {
                 Identifier: "player",
                 playerId: socket.id,
-                _id: characterData ? characterData._id : null,
+                _id: characterData ? characterData._id : (socket.handshake.query.charId || null),
                 Username: characterData ? (characterData.firstName + ' ' + characterData.lastName) : "Guest",
                 firstName: characterData ? characterData.firstName : "Guest",
                 lastName: characterData ? characterData.lastName : "",
@@ -2105,6 +2152,25 @@ module.exports.start = (io, _messageSystem) => {
         }
         if (activeDoors.length > 0) {
             socket.emit('doorStates', activeDoors);
+        }
+
+        // Send initial active resource nodes (only those with capacity < max)
+        const activeNodesPayload = [];
+        if (activeResourceNodes) {
+            for (const key in activeResourceNodes) {
+                const node = activeResourceNodes[key];
+                const def = resourceNodeDefs[node.type];
+                if (def && node.capacity !== def.maxCapacity) {
+                    activeNodesPayload.push({
+                        id: node.uid,
+                        capacity: node.capacity,
+                        frame: def.capacityFrames[node.capacity]
+                    });
+                }
+            }
+        }
+        if (activeNodesPayload.length > 0) {
+            socket.emit('resourceNodeStates', activeNodesPayload);
         }
 
         // Send current players to the new connection
@@ -2326,7 +2392,7 @@ module.exports.start = (io, _messageSystem) => {
         // Extracted to src/sockets/interactionHandlers.js
         const initInteractionHandlers = require('./sockets/interactionHandlers');
         // Note: We pass TILE_SIZE (32) and craftingStations
-        initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid);
+        initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid, activeResourceNodes);
 
         // --- ITEM & INVENTORY HANDLERS ---
         // Extracted to src/sockets/inventoryHandlers.js
@@ -2550,6 +2616,15 @@ module.exports.start = (io, _messageSystem) => {
                         if (craftingStations[clickedItem.uniqueId]) {
                             if (!requestingPlayer.isDead) {
                                 actions.push('Craft');
+                            }
+                        }
+                        // Check if it's a resource node
+                        const resourceNode = activeResourceNodes[clickedItem.uniqueId];
+                        if (resourceNode) {
+                            const def = resourceNodeDefs[resourceNode.type];
+                            if (def && !requestingPlayer.isDead) {
+                                const actionLabel = def.interactType.charAt(0).toUpperCase() + def.interactType.slice(1);
+                                actions.push(actionLabel);
                             }
                         }
                         // Dead players can Haunt objects
@@ -2815,11 +2890,25 @@ module.exports.findPlayerByName = (name) => {
     return player;
 };
 
+let lastCacheUpdateTime = 0;
+const charIdToSocketIdMap = new Map();
+
 module.exports.getSocketIdByCharId = (charId) => {
-    // Search for player where _id matches the provided charId
-    const player = Object.values(players).find(p => p._id && p._id.toString() === charId.toString());
-    // Return playerId which holds the socket ID
-    return player ? player.playerId : null;
+    if (!charId) return null;
+    const charIdStr = charId.toString();
+
+    const now = Date.now();
+    if (now - lastCacheUpdateTime > 100 || charIdToSocketIdMap.size !== Object.keys(players).length) {
+        charIdToSocketIdMap.clear();
+        for (const [sId, p] of Object.entries(players)) {
+            if (p._id) {
+                charIdToSocketIdMap.set(p._id.toString(), sId);
+            }
+        }
+        lastCacheUpdateTime = now;
+    }
+
+    return charIdToSocketIdMap.get(charIdStr) || null;
 };
 
 module.exports.getCharIdBySocketId = (socketId) => {
@@ -2837,10 +2926,15 @@ module.exports.getCharIdBySocketId = (socketId) => {
  */
 module.exports.checkVisibility = (observerSocketId, targetSocketId) => {
     const observer = players[observerSocketId];
-    const target = players[targetSocketId];
-
-    if (!observer || !target) return false;
+    if (!observer) return false;
     if (observerSocketId === targetSocketId) return true; // Always see self
+
+    if (observer._visibleSet) {
+        return observer._visibleSet.has(targetSocketId);
+    }
+
+    const target = players[targetSocketId];
+    if (!target) return false;
 
     // 1. Distance Check
     const dx = observer.position.x - target.position.x;
@@ -3026,6 +3120,7 @@ function updateDynamicSegments(io) {
 
 module.exports.getZoneAt = getZoneAt;
 module.exports.getAvailableZones = getAvailableZones;
+module.exports.checkPointCollision = checkPointCollision;
 
 // --- Animal Update Loop ---
 function updateAnimals(delta) {

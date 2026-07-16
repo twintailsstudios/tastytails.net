@@ -11,10 +11,12 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             const player = players[socket.id];
             if (!player) {
                 log.debug(`${logPrefix} Player not found`);
+                require('../server/monitoring').recordAction('equip', false);
                 return;
             }
             if (!player.equipment) {
                 log.debug(`${logPrefix} Player has no equipment object`);
+                require('../server/monitoring').recordAction('equip', false);
                 return;
             }
             if (player.isDead) return;
@@ -70,8 +72,10 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
 
             // Save changes to DB immediately
             saveCharacter(socket.id);
+            require('../server/monitoring').recordAction('equip', true);
         } catch (e) {
             log.error(`Error handling equipItemClicked for ${socket.id}:`, e);
+            require('../server/monitoring').recordAction('equip', false);
         }
     });
 

@@ -1,11 +1,38 @@
 const log = require('../logger');
+const itemData = require('../data/itemData');
 let recipes = {};
 
 try {
     const recipesData = require('../data/recipes');
-    recipes = recipesData;
+    recipes = { ...recipesData };
+
+    // Compile co-located recipes from itemData
+    Object.entries(itemData).forEach(([itemId, def]) => {
+        if (def.recipe) {
+            const station = def.recipe.station;
+            if (!recipes[station]) recipes[station] = [];
+
+            // Check if recipe already exists (by ID)
+            const recipeId = def.recipe.id || itemId;
+            const exists = recipes[station].some(r => r.id === recipeId);
+
+            if (!exists) {
+                recipes[station].push({
+                    id: recipeId,
+                    name: def.name,
+                    description: def.description || def.flavor || '',
+                    ingredients: def.recipe.ingredients,
+                    result: def.recipe.result || { itemId: itemId, count: def.recipe.count || 1 },
+                    time: def.recipe.time || 3000,
+                    icon: def.recipe.icon || def.icon || 'fa-solid fa-cube',
+                    validateOnly: def.recipe.validateOnly || false,
+                    customData: def.recipe.customData || undefined
+                });
+            }
+        }
+    });
 } catch (e) {
-    log.error('[Crafting] Failed to load recipes.js', e);
+    log.error('[Crafting] Failed to load recipes', e);
 }
 
 let stationConfigs = {};
@@ -274,61 +301,39 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             // Use saved data if resuming, otherwise use new data
             const finalCustomData = isResuming ? savedCustomData : customCraftingData;
 
+
             // Validate Ingredients (Skip if resuming)
             if (!isResuming) {
-                // [OPTIMIZED] Single-pass validation
-                // 1. Count available items by "Key" (ItemId + Variant)
-                // 2. Check requirements against counts
-                // 3. Mark items for removal
-
-                const inventoryMap = new Map(); // Key -> [Indices]
-                const getKey = (item) => {
-                    let key = item.itemId;
-                    if (item.variant) key += `|${item.variant}`;
-                    return key;
-                };
-
-                // Build Index Map
-                station.inventory.forEach((item, idx) => {
-                    const fullKey = getKey(item);
-                    if (!inventoryMap.has(fullKey)) inventoryMap.set(fullKey, []);
-                    inventoryMap.get(fullKey).push(idx);
-
-                    // [FIX] Also index under base ItemID if variant exists
-                    // This allows recipes asking for 'alpha_thread' to accept 'alpha_thread|variant'
-                    if (item.variant) {
-                        const baseKey = item.itemId;
-                        // Avoid duplicates if variant key happened to be same as base (unlikely logic but safe)
-                        if (baseKey !== fullKey) {
-                            if (!inventoryMap.has(baseKey)) inventoryMap.set(baseKey, []);
-                            inventoryMap.get(baseKey).push(idx);
-                        }
-                    }
-                });
-
                 const indicesToRemove = new Set();
                 let hasIngredients = true;
 
                 for (const ing of recipe.ingredients) {
-                    // Construct required key
-                    let reqKey = ing.itemId;
-                    if (ing.customData && ing.customData.variant) {
-                        reqKey += `|${ing.customData.variant}`;
-                    }
-
-                    const availableIndices = inventoryMap.get(reqKey) || [];
+                    const reqKey = ing.itemId;
+                    
+                    // Find all matching item indices in station inventory
+                    const availableIndices = [];
+                    station.inventory.forEach((item, idx) => {
+                        let isMatch = item.itemId === reqKey;
+                        // Thread fallback for sewing machine
+                        if (!isMatch && reqKey.startsWith('thread_wool_')) {
+                            if (item.itemId.startsWith('thread_wool_') || (item.name && item.name.toLowerCase().includes('thread'))) {
+                                isMatch = true;
+                            }
+                        }
+                        if (isMatch) {
+                            availableIndices.push(idx);
+                        }
+                    });
 
                     // Filter out already used indices
                     const unusedIndices = availableIndices.filter(idx => !indicesToRemove.has(idx));
 
                     if (unusedIndices.length >= ing.count) {
-                        // Mark for removal
                         // Mark for removal or update uses
                         for (let i = 0; i < ing.count; i++) {
                             const idx = unusedIndices[i];
                             const item = station.inventory[idx];
                             // Check for maxUses (dynamic item)
-                            // [FIX] Ensure we respect instance or definition maxUses
                             const def = itemData[item.itemId] || {};
                             const maxUses = item.maxUses || def.maxUses || 0;
 
@@ -340,7 +345,6 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
                                 if (item.timesUsed >= maxUses) {
                                     indicesToRemove.add(idx);
                                 }
-                                // Else: Item remains in inventory with updated timesUsed
                             } else {
                                 // Normal item: Consume fully
                                 indicesToRemove.add(idx);
@@ -359,7 +363,6 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
                 }
 
                 // Consumption: Create new inventory excluding removed indices
-                // More efficient than repeated splicing which is O(N^2)
                 const newInventory = station.inventory.filter((_, idx) => !indicesToRemove.has(idx));
                 station.inventory = newInventory;
             }

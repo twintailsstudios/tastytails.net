@@ -96,10 +96,7 @@ export function reconcile(serverPlayerState, self) {
 
         // Update physics body to match
         const body = self.playerContainer.body;
-        body.position.set(
-            newX - body.offset.x,
-            newY - body.offset.y
-        );
+        body.updateFromGameObject();
         body.prev.copy(body.position);
 
         // We do NOT reset velocity here, as we want to keep momentum while correcting
@@ -169,7 +166,7 @@ function checkPredictionCollision(scene, x, y) {
 
     // --- SAFETY MARGIN ("Fat Prediction") ---
     // Expand the collision box by 2px to ensure we stop before the server does.
-    const margin = 2;
+    const margin = 0;
 
     // Calculate Proposed Bounding Box
     const left = (x + serverOffsetX) - (width / 2) - margin;

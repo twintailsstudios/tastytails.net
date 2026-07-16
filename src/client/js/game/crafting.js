@@ -551,7 +551,9 @@ export class CraftingUI {
 
         const getKey = (item) => {
             let key = item.itemId;
-            if (item.variant) key += `|${item.variant}`;
+            if (key.startsWith('alpha_') && item.variant) {
+                key += `|${item.variant}`;
+            }
             return key;
         };
 

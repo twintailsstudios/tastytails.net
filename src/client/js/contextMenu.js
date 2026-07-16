@@ -493,6 +493,17 @@ function initializeContextMenu(scene, socket) {
                                     if (!checkReach(targetId, targetType, e)) return;
                                     socket.emit('hauntClicked', currentItem);
                                 }));
+                            } else {
+                                // Dynamic actions: e.g. "Gather", "Mine"
+                                let icon = 'fa-hand';
+                                if (action.toLowerCase() === 'gather') icon = 'fa-hand-holding';
+                                else if (action.toLowerCase() === 'mine') icon = 'fa-hammer';
+                                else if (action.toLowerCase() === 'chop') icon = 'fa-axe';
+                                
+                                actionsUl.appendChild(createMenuItem(action, 'fa-solid ' + icon, (e) => {
+                                    if (!checkReach(targetId, targetType, e)) return;
+                                    socket.emit('objectInteract', { type: 'resourceNode', id: currentItem.uniqueId, action: action.toLowerCase() });
+                                }));
                             }
                         } catch (err) {
                             // console.error(`[ContextMenu] Error processing action '${action}' for ${targetId}:`, err);

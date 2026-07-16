@@ -1,5 +1,6 @@
 const log = require('../logger');
 const itemData = require('../data/itemData');
+const resourceNodeDefs = require('../data/resourceNodeData');
 const { performItemUse } = require('../utils/itemActions');
 const { resolveItemDef } = require('../utils/itemUtils');
 const { trackVictim, untrackVictim } = require('../server/mechanics/digestion');
@@ -14,7 +15,7 @@ const { trackVictim, untrackVictim } = require('../server/mechanics/digestion');
  * 
  * Reorganized for readability.
  */
-module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid) {
+module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid, activeResourceNodes) {
     const logPrefix = `[Inter:${socket.id}]`;
 
     // =========================================================================
@@ -54,7 +55,10 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 players[socket.id] = { ...players[socket.id], ...safeData };
 
                 // Broadcast non-physics changes to other clients
-                socket.broadcast.emit('playerMoved', players[socket.id]);
+                socket.broadcast.emit('playerMoved', {
+                    playerId: socket.id,
+                    ...safeData
+                });
             }
         } catch (e) {
             log.error(`${logPrefix} Error handling characterUpdate:`, e);
@@ -158,14 +162,19 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
             if (!player || !targetPlayer) {
                 log.warn(`${logPrefix} Action failed: Player or Target not found.`);
+                require('../server/monitoring').recordAction('grapple', false);
                 return;
             }
 
-            if (player.isDead) return;
+            if (player.isDead) {
+                require('../server/monitoring').recordAction('grapple', false);
+                return;
+            }
 
             // 1. Check Reach (AABB Collision)
             if (!checkReach(player, targetPlayer)) {
                 sendSystemMsg(socket, messageSystem, `${targetPlayer.firstName} is too far away.`);
+                require('../server/monitoring').recordAction('grapple', false);
                 return;
             }
 
@@ -181,8 +190,10 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 handleHostileAction(socket, player, targetPlayer);
             }
 
+            require('../server/monitoring').recordAction('grapple', true);
         } catch (e) {
             log.error(`${logPrefix} Error handling playerPerformAction:`, e);
+            require('../server/monitoring').recordAction('grapple', false);
         }
     });
 
@@ -316,6 +327,96 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
                 }
             }
+            
+            // 2. Resource Node Interaction
+            else if (type === 'resourceNode') {
+                const node = activeResourceNodes[id];
+                if (!node) {
+                    log.warn(`${logPrefix} Resource node not found: ${id}`);
+                    return;
+                }
+
+                const nodeDef = resourceNodeDefs[node.type];
+                if (!nodeDef) {
+                    log.warn(`${logPrefix} Resource node definition not found for: ${node.type}`);
+                    return;
+                }
+
+                // Distance Check
+                const dist = Math.sqrt(Math.pow(player.position.x - node.x, 2) + Math.pow(player.position.y - node.y, 2));
+                if (dist > 120) { // Same buffer as animal
+                    log.warn(`${logPrefix} Player too far from resource node (${dist.toFixed(1)}px)`);
+                    return;
+                }
+
+                // Action Check
+                if (action !== nodeDef.interactType) {
+                    log.warn(`${logPrefix} Invalid action '${action}' for resource node '${node.type}' (expected '${nodeDef.interactType}')`);
+                    return;
+                }
+
+                // Capacity Check
+                if (node.capacity <= 0) {
+                    sendSystemMsg(socket, messageSystem, `The ${nodeDef.name} is depleted. Please wait for it to replenish.`);
+                    return;
+                }
+
+                // Tool Check
+                if (nodeDef.gatherTool && nodeDef.gatherTool !== 'none') {
+                    const currentActiveHand = player.actionHands.activeHand; // 'left' or 'right'
+                    let hasTool = false;
+
+                    if (currentActiveHand === 'left') {
+                        if (player.actionHands.leftNode && player.actionHands.leftNode.itemId === nodeDef.gatherTool) {
+                            hasTool = true;
+                        }
+                    } else if (currentActiveHand === 'right') {
+                        if (player.actionHands.rightNode && player.actionHands.rightNode.itemId === nodeDef.gatherTool) {
+                            hasTool = true;
+                        }
+                    }
+
+                    if (!hasTool) {
+                        const toolName = itemData[nodeDef.gatherTool] ? itemData[nodeDef.gatherTool].name : 'appropriate tool';
+                        sendSystemMsg(socket, messageSystem, `You need to hold a ${toolName} to harvest this.`);
+                        return;
+                    }
+                }
+
+                // Perform gathering
+                node.capacity -= 1;
+                node.regrowTimer = 0; // Reset regrowth timer on gather
+
+                // Spawn item on ground
+                const spawnedItem = {
+                    uid: `${node.type}_item_${Date.now()}_${Math.random()}`,
+                    itemId: nodeDef.gatherItem,
+                    name: itemData[nodeDef.gatherItem] ? itemData[nodeDef.gatherItem].name : 'Resource',
+                    texture: itemData[nodeDef.gatherItem] ? itemData[nodeDef.gatherItem].texture : 'default_item',
+                    icon: itemData[nodeDef.gatherItem] ? itemData[nodeDef.gatherItem].icon : 'fa-gem',
+                    size: itemData[nodeDef.gatherItem] ? itemData[nodeDef.gatherItem].size : 1,
+                    properties: {},
+                    x: node.x + (Math.random() * 20 - 10), // slight random offset
+                    y: node.y + 15
+                };
+
+                if (worldItems && addItemToGrid) {
+                    worldItems.push(spawnedItem);
+                    addItemToGrid(spawnedItem);
+                    io.emit('itemSpawned', spawnedItem);
+
+                    // Broadcast node update
+                    io.emit('resourceNodeUpdate', {
+                        id: node.uid,
+                        capacity: node.capacity,
+                        frame: nodeDef.capacityFrames[node.capacity]
+                    });
+
+                    sendSystemMsg(socket, messageSystem, `You harvest a ${spawnedItem.name} from the ${nodeDef.name}.`);
+                } else {
+                    log.error('Missing worldItems or addItemToGrid in interactionHandlers');
+                }
+            }
 
         } catch (e) {
             log.error(`${logPrefix} Error handling objectInteract:`, e);
@@ -353,7 +454,10 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
             const preySocketId = Object.keys(players).find(key => players[key].playerId === targetId);
             const prey = players[preySocketId];
 
-            if (!predator || !prey) return;
+            if (!predator || !prey) {
+                require('../server/monitoring').recordAction('vore', false);
+                return;
+            }
 
             const predSocket = socket;
             const preySocket = io.sockets.sockets.get(preySocketId);
@@ -496,8 +600,10 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 saveState(saveCharacter, socket.id, prey.socketId);
             }
 
+            require('../server/monitoring').recordAction('vore', true);
         } catch (e) {
             log.error(`${logPrefix} Error handling voreAction:`, e);
+            require('../server/monitoring').recordAction('vore', false);
         }
     });
 

@@ -72,6 +72,8 @@ const FILE_TOKEN_COLORS = {
 // --- Internal State for Advanced Features ---
 let currentIndentLevel = 0;
 const timers = new Map();
+const logBuffer = [];
+const MAX_LOGS = 200;
 
 // --- Helper Functions ---
 
@@ -158,6 +160,22 @@ function baseLog(levelKey, ...args) {
     // Assembly: [Time] [Level] [File]   Indent Message
     // align columns slightly for readability
     console.log(`${timePart} ${levelPart.padEnd(20)} ${filePart.padEnd(30)} ${indent}${message}`);
+
+    // Buffer log line for Web Dashboard
+    const cleanMsg = message.replace(/\x1b\[[0-9;]*m/g, '');
+    const cleanLogStr = `[${timestamp}] [${level.label}] [${fileName}:${lineNumber}] ${cleanMsg}`;
+    
+    logBuffer.push({
+        time: timestamp,
+        level: levelKey,
+        label: level.label,
+        caller: `${fileName}:${lineNumber}`,
+        message: cleanMsg,
+        raw: cleanLogStr
+    });
+    if (logBuffer.length > MAX_LOGS) {
+        logBuffer.shift();
+    }
 }
 
 // --- Public API ---
@@ -315,5 +333,7 @@ logger.health = () => {
     ];
     logger.table(stats);
 };
+
+logger.getLogs = () => logBuffer;
 
 module.exports = logger;

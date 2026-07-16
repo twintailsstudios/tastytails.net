@@ -1,0 +1,17 @@
+{
+  "tickRate": 22,
+  "avgTickDuration": 0.4684218181818654,
+  "maxTickDuration": 0.6412000000000262,
+  "eventLoopLag": 8.230199999999787,
+  "cpuUsage": 4.051621502591731,
+  "dbLatency": 0,
+  "gcCount": 10,
+  "gcMaxDuration": 3.8235000371932983,
+  "logic": 0.005459090909128214,
+  "physics": 0.006766363636333236,
+  "shadowcasting": 0.002074545454533191,
+  "animalAI": 0.12215636363640772,
+  "serialize": 0.05821636363641367,
+  "memoryRss": 106124083.2,
+  "memoryHeapUsed": 40595020.8
+}

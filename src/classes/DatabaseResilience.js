@@ -224,11 +224,16 @@ class DatabaseResilience {
         this.writeBuffer.clear();
 
         // Execute Bulk Writes
+        const monitoring = require('../server/monitoring');
+        const { performance } = require('perf_hooks');
         for (const modelName of Object.keys(opsByModel)) {
             const { Model, ops } = opsByModel[modelName];
             try {
                 // bulkWrite(ops, { ordered: false }) for parallelism
+                const dbStart = performance.now();
                 const res = await Model.bulkWrite(ops, { ordered: false });
+                const dbEnd = performance.now();
+                monitoring.recordDbLatency(dbEnd - dbStart);
                 log.success(`[ResilienceEngine] ${modelName} Sync: Matched ${res.matchedCount}, Modified ${res.modifiedCount}`);
             } catch (err) {
                 log.error(`[ResilienceEngine] BulkWrite failed for ${modelName}:`, err);
