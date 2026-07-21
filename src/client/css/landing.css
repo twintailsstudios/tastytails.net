@@ -60,7 +60,7 @@ main {
 
 .notice-title {
     font-family: 'Cinzel', serif;
-    font-size: 3.5rem;
+    font-size: 3.0rem;
     color: var(--palette-accent-red);
     margin-bottom: 10px;
     border-bottom: 2px dashed var(--palette-wood-light);
@@ -79,6 +79,7 @@ main {
 
 .notice-text {
     color: var(--palette-text-dark);
+    font-family: 'Philosopher', sans-serif;
     font-size: 1.1rem;
     line-height: 1.6;
     margin-bottom: 30px;
@@ -87,12 +88,12 @@ main {
     margin-right: auto;
 }
 
-/* CTA Button */
+/* CTA Button (Entrance Green Keycap) */
 .cta-btn {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    background-color: var(--palette-accent-blue);
+    background-color: var(--btn-primary-bg); /* #6b8c42 Entrance Green */
     color: white;
     text-decoration: none;
     padding: 15px 40px;
@@ -100,14 +101,16 @@ main {
     font-family: 'Cinzel', serif;
     font-weight: bold;
     font-size: 1.2rem;
-    box-shadow: 0 4px 0 #1a237e;
-    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 0 var(--btn-primary-shadow); /* #3e5527 */
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .cta-btn:hover {
     transform: translateY(2px);
-    box-shadow: 0 2px 0 #1a237e;
-    background-color: #303f9f;
+    box-shadow: 0 2px 0 var(--btn-primary-shadow);
+    background-color: var(--btn-primary-hover); /* #7ea34f */
 }
 
 /* Construction Image Styling */
@@ -146,32 +149,26 @@ main {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(5px);
     z-index: 2000;
     display: flex;
     justify-content: center;
     align-items: center;
-
-    /* Hidden state managed by JS/Server logic (if using class toggle) */
-    /* opacity: 0; pointer-events: none; transition: opacity 0.3s ease; */
 }
 
-/* The "Open Book" Container */
+/* Standardized 6px Dark Wood Modal Box Frame */
 .popUpContainer {
     background-color: var(--palette-parchment);
     background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
     width: 900px;
     max-width: 95%;
-    /* min-height: 500px; */
-    border: 12px solid #271815;
-    /* Darker brown border */
+    border: 6px solid var(--palette-wood-dark);
     border-radius: 8px;
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
     position: relative;
     display: grid;
     grid-template-columns: 1fr 1px 1fr;
-    /* Split layout: Register | Line | Login */
     padding: 40px;
     gap: 20px;
     color: var(--palette-text-dark);
@@ -198,11 +195,8 @@ main {
     height: 45px;
     border-radius: 50%;
     border: 2px solid var(--palette-wood-light);
-    /* Matches frame border */
     background-color: var(--palette-wood-dark);
-    /* Dark wood background */
     color: var(--palette-parchment);
-    /* Parchment color icon */
     font-size: 1.2rem;
     cursor: pointer;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
@@ -215,17 +209,14 @@ main {
 
 .close button:hover {
     background-color: var(--palette-accent-red);
-    /* Turns red only on hover */
     border-color: var(--palette-accent-red);
     color: white;
     transform: scale(1.1) rotate(90deg);
-    /* Playful rotation */
 }
 
 /* Headers inside Popup */
 .popUpContainer header {
     background: none;
-    /* Override global header background */
     box-shadow: none;
     border: none;
     padding: 0;
@@ -233,6 +224,7 @@ main {
 }
 
 .popUpContainer header h1 {
+    font-family: 'Cinzel', serif;
     font-size: 1.8rem;
     margin-bottom: 5px;
     color: var(--palette-wood-dark);
@@ -259,25 +251,23 @@ main {
     margin-bottom: 15px;
 }
 
-/* Input Styling (The "Signature Line" look) */
+/* Signature Line Inputs */
 .popUpContainer input {
     width: 100%;
     padding: 10px;
     background: transparent;
-    /* Ensure transparent background */
     border: none;
     border-bottom: 2px solid var(--palette-wood-light);
-    font-family: 'Lato', sans-serif;
+    font-family: 'Philosopher', sans-serif;
     font-size: 1rem;
     color: var(--palette-wood-dark);
     outline: none;
-    transition: background 0.2s;
+    transition: all 0.3s ease;
 }
 
 .popUpContainer input:focus {
-    background: rgba(255, 193, 7, 0.1);
-    /* Gold tint on focus */
-    border-bottom-color: var(--palette-accent-blue);
+    background: rgba(255, 193, 7, 0.1); /* Gold tint focus */
+    border-bottom-color: var(--btn-primary-bg); /* #6b8c42 Entrance Green focus */
 }
 
 .popUpContainer input::placeholder {
@@ -285,29 +275,28 @@ main {
     font-style: italic;
 }
 
-/* Action Buttons */
+/* Action Buttons (Primary Green Keycaps) */
 .button {
     width: 100%;
     padding: 12px;
     margin-top: 10px;
-    background-color: var(--palette-accent-blue);
-    /* Blue background */
+    background-color: var(--btn-primary-bg); /* #6b8c42 Entrance Green */
     color: white;
     border: none;
+    border-radius: 4px;
     font-family: 'Cinzel', serif;
     font-weight: bold;
     font-size: 1.1rem;
     cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 4px 0 #1a237e;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 0 var(--btn-primary-shadow); /* #3e5527 */
     text-transform: uppercase;
 }
 
 .button:hover {
     transform: translateY(2px);
-    box-shadow: 0 2px 0 #1a237e;
-    background-color: #303f9f;
-    /* Darker blue on hover */
+    box-shadow: 0 2px 0 var(--btn-primary-shadow);
+    background-color: var(--btn-primary-hover); /* #7ea34f */
 }
 
 /* Responsive Popup */
@@ -325,7 +314,6 @@ main {
     }
 }
 
-/* Override to fix z-index issue */
 .notice-board {
     z-index: 1;
-}
+}

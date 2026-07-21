@@ -20,19 +20,90 @@
 </div>
 
 <script>
-    // Local script to handle visual toggle immediately
-    // The main game logic in play.ejs or input.js needs to read 'currentIntent'
-    // We can bridge that here.
-    function setIntent(val) {
-        // Visual Update
-        document.querySelectorAll('.intent-option').forEach(el => el.classList.remove('active'));
-        document.getElementById('intent-' + val).classList.add('active');
+    // --- Soft-Sticky Intent & Hotkey Override System ---
+    let savedManualIntent = 'friendly';
+    let isOneShot = false;
+    let shiftPressed = false;
+    let ctrlPressed = false;
 
-        // Logic Update (Trigger the hidden radios to fire existing listeners)
+    // Track Spacebar globally for instant radial menu trigger
+    window.spacebarPressed = false;
+
+    // Initialize globals
+    window.currentIntent = 'friendly';
+
+    window.updateIntentUI = function(val) {
+        document.querySelectorAll('.intent-option').forEach(el => el.classList.remove('active'));
+        const activeOption = document.getElementById('intent-' + val);
+        if (activeOption) {
+            activeOption.classList.add('active');
+        }
         const radio = document.getElementById(val + '_radio');
         if (radio) {
             radio.checked = true;
+            // Dispatch change event to keep server/game code updated
             radio.dispatchEvent(new Event('change'));
         }
-    }
+    };
+
+    window.setIntentManually = function(val, oneShot = false) {
+        savedManualIntent = val;
+        isOneShot = oneShot;
+        window.currentIntent = val;
+        window.updateIntentUI(val);
+        console.log(`[Intent] Manually set: ${val} (One-Shot: ${oneShot})`);
+    };
+
+    window.updateIntentVisuals = function(tempVal) {
+        window.currentIntent = tempVal;
+        window.updateIntentUI(tempVal);
+    };
+
+    window.restorePreviousIntent = function() {
+        window.currentIntent = savedManualIntent;
+        window.updateIntentUI(savedManualIntent);
+    };
+
+    window.onActionExecuted = function() {
+        if (isOneShot) {
+            console.log('[Intent] One-shot action executed. Resetting to friendly.');
+            window.setIntentManually('friendly', false);
+        }
+    };
+
+    // Override the legacy onclick function
+    window.setIntent = function(val) {
+        // If clicking friendly, make it persistent. Grabbing/Hostile clicks are one-shot
+        const isOneShotOverride = (val !== 'friendly');
+        window.setIntentManually(val, isOneShotOverride);
+    };
+
+    // Keyboard Hotkey Listeners
+    window.addEventListener('keydown', (e) => {
+        // Prevent overrides when typing in text fields
+        if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+            return;
+        }
+        if (e.key === 'Shift' && !shiftPressed) {
+            shiftPressed = true;
+            window.updateIntentVisuals('grabbing');
+        } else if (e.key === 'Control' && !ctrlPressed) {
+            ctrlPressed = true;
+            window.updateIntentVisuals('hostile');
+        } else if (e.key === ' ' || e.key === 'Spacebar') {
+            window.spacebarPressed = true;
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (e.key === 'Shift') {
+            shiftPressed = false;
+            window.restorePreviousIntent();
+        } else if (e.key === 'Control') {
+            ctrlPressed = false;
+            window.restorePreviousIntent();
+        } else if (e.key === ' ' || e.key === 'Spacebar') {
+            window.spacebarPressed = false;
+        }
+    });
 </script>

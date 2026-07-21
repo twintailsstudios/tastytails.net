@@ -73,13 +73,10 @@ class ChatMessage {
                         </div>
                         <button class="msg-control-btn material-icons" data-dropdown-button data-id="${msgId}" data-sender-id="${identifier}" title="Options">more_vert</button>
                     </div>
-                    <div class="${contentClasses}" data-spoiler-type="${spoilerStatus}">
-                        ${content}
-                    </div>
+                    <div class="${contentClasses}" data-spoiler-type="${spoilerStatus}">${content}</div>
                     ${reactionsHtml}
                 </div>
-            </div >
-        `;
+            </div>`;
     }
 
     /**

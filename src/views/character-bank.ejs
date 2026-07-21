@@ -1,17 +1,4 @@
-<!-- 
-  === TYPOGRAPHY IMPORTS ===
-  Cinzel: For Headers (Classic RPG feel)
-  Lato: For UI elements and body text (Clean readability)
-  Caveat Brush: For "Handwritten" character details (Immersion)
--->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link
-  href="https://fonts.googleapis.com/css2?family=Caveat+Brush&family=Cinzel:wght@400;700&family=Lato:ital,wght@0,400;0,700;1,400&display=swap"
-  rel="stylesheet">
-
-<!-- Icons (FontAwesome) -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Character Bank Page Stylesheet -->
 <link rel="stylesheet" href="/css/character-bank.css">
 
 <!-- Main Content -->
@@ -28,7 +15,6 @@
 </main>
 
 <!-- DELETE CONFIRMATION MODAL -->
-<!-- Note: This modal is shared by all delete actions to improve performance (DOM reuse) -->
 <div id="deleteModal" class="modal-overlay">
   <div class="modal-box">
     <h2 id="modalTitle">Delete Character?</h2>
@@ -49,8 +35,8 @@
     <form id="deleteForm" method="POST" action="/api/user/deletecharacter/">
       <input type="hidden" name="charId" id="deleteInputId">
       <div class="modal-actions">
-        <button type="button" class="btn-cancel" onclick="closeModal()">No, Keep Them</button>
-        <button type="submit" id="finalDeleteBtn" class="btn-delete" disabled>Yes, Delete</button>
+        <button type="button" class="btn btn-secondary btn-cancel" onclick="closeModal()">No, Keep Them</button>
+        <button type="submit" id="finalDeleteBtn" class="btn btn-danger btn-delete" disabled>Yes, Delete</button>
       </div>
     </form>
   </div>

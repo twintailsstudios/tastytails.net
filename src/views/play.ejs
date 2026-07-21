@@ -27,11 +27,6 @@
   <link rel="stylesheet" href="/css/anatomy_forge.css">
 </head>
 
-
-<div id="navToggle" class="nav-toggle-btn" onclick="toggleNav()">
-  <i class="fa-solid fa-bars"></i>
-</div>
-
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('play-mode');
@@ -39,13 +34,13 @@
 
   function toggleNav() {
     document.body.classList.toggle('nav-visible');
-    const btnIcon = document.querySelector('#navToggle i');
-    if (document.body.classList.contains('nav-visible')) {
-      btnIcon.classList.remove('fa-bars');
-      btnIcon.classList.add('fa-xmark');
-    } else {
-      btnIcon.classList.remove('fa-xmark');
-      btnIcon.classList.add('fa-bars');
+    const chevron = document.querySelector('#navToggle .chevron-icon');
+    if (chevron) {
+      if (document.body.classList.contains('nav-visible')) {
+        chevron.style.transform = 'rotate(180deg)';
+      } else {
+        chevron.style.transform = 'rotate(0deg)';
+      }
     }
   }
 </script>
@@ -155,6 +150,13 @@
       <div class="restore-btn" id="crafting-tab-restore">☐</div>
     </div>
   </div>
+  <div id="navToggle" class="guild-crest-toggle" onclick="toggleNav()" title="Toggle Guild Navigation">
+    <div class="crest-plate">
+      <i class="fa-solid fa-dragon crest-icon"></i>
+      <span class="crest-label">Guild Nav</span>
+      <i class="fa-solid fa-chevron-down chevron-icon"></i>
+    </div>
+  </div>
 
   <div id="phaserApp" tabindex="0" oncontextmenu="return showContextMenu(event);">
     <%- include('partials/gameOverlay') %>
@@ -189,13 +191,10 @@
             <div class="hand-slot left-hand" id="leftHandSlot" onclick="window.actionHands.onSlotClick('left')">
               <span class="hand-label">LEFT</span>
             </div>
-            <div class="hand-toggle" id="handToggle" onclick="window.actionHands.toggleActiveHand()">
-              <i class="fa-solid fa-rotate"></i>
-            </div>
             <div class="hand-slot right-hand" id="rightHandSlot" onclick="window.actionHands.onSlotClick('right')">
               <span class="hand-label">RIGHT</span>
             </div>
-            <button id="drop-btn" class="hand-btn" onclick="window.actionHands.dropItem()">Drop</button>
+            <button id="drop-btn" class="hand-btn">Drop</button>
           </div>
           <div id="inventory-drawer-slot"></div>
         </div>

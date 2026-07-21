@@ -1,4 +1,5 @@
 import StaticItemData from './itemData.js';
+import resourceNodeData from './resourceNodeData.js';
 
 export const itemManager = {
     scene: null,
@@ -11,6 +12,7 @@ export const itemManager = {
         this.socket = socket;
         this.itemsGroup = scene.add.group(); // Visual group
         this.items = {};
+        window.itemData = StaticItemData;
 
         // Bind Socket Events
         socket.on('currentItems', (items) => this.syncItems(items));
@@ -79,74 +81,105 @@ export const itemManager = {
 
         // Click to Pickup
         interactiveTarget.on('pointerdown', (pointer) => {
-            if (pointer.leftButtonDown()) {
-                // Range Check (AABB Overlap: Reach Box vs Item Box)
-                const playerContainer = this.scene.playerContainer;
-                if (playerContainer) {
-                    // Reach Box (Centered on Player + 30)
-                    const reachRadius = 48; // half-width
-                    const pCenterX = playerContainer.x + 30;
-                    const pCenterY = playerContainer.y;
+            // If the item cannot be picked up, let the global click handler in contextMenu.js handle it
+            if (staticDef.preventPickup || itemData.preventPickup || (itemData.properties && itemData.properties.preventPickup)) {
+                return;
+            }
 
-                    const rLeft = pCenterX - reachRadius;
-                    const rRight = pCenterX + reachRadius;
-                    const rTop = pCenterY - reachRadius;
-                    const rBottom = pCenterY + reachRadius;
+            // Determine hand (Left Click = left, Right Click = right)
+            const hand = pointer.rightButtonDown() ? 'right' : 'left';
 
-                    // Item Box (Based on Sprite/Target dimensions & Origin)
-                    // Default origin is usually (0.5, 1) for items
-                    const iW = interactiveTarget.displayWidth || interactiveTarget.width || 32;
-                    const iH = interactiveTarget.displayHeight || interactiveTarget.height || 32;
-                    const oX = interactiveTarget.originX !== undefined ? interactiveTarget.originX : 0.5;
-                    const oY = interactiveTarget.originY !== undefined ? interactiveTarget.originY : 1;
+            // Range Check (AABB Overlap: Reach Box vs Item Box)
+            const playerContainer = this.scene.playerContainer;
+            if (playerContainer) {
+                // Reach Box (Centered on Player + 30)
+                const reachRadius = 48; // half-width
+                const pCenterX = playerContainer.x + 30;
+                const pCenterY = playerContainer.y;
 
-                    const iX = interactiveTarget.x; // Container or Sprite X (World Space if parent is scene)
-                    // Note: If inside a container, interactiveTarget might be local.
-                    // But in items.js, we attach click to either the sprite (if simple) or checking hierarchy?
-                    // interactiveTarget is usually the sprite/container added to scene or group.
-                    // items.js adds to `itemsGroup`.
-                    // If layered, interactiveTarget passed to setupItemInteraction is `interactiveSprite` which is inside container.
-                    // We need World Position.
+                const rLeft = pCenterX - reachRadius;
+                const rRight = pCenterX + reachRadius;
+                const rTop = pCenterY - reachRadius;
+                const rBottom = pCenterY + reachRadius;
 
-                    let worldX = iX;
-                    let worldY = interactiveTarget.y;
+                // Item Box (Based on Sprite/Target dimensions & Origin)
+                const iW = interactiveTarget.displayWidth || interactiveTarget.width || 32;
+                const iH = interactiveTarget.displayHeight || interactiveTarget.height || 32;
+                const oX = interactiveTarget.originX !== undefined ? interactiveTarget.originX : 0.5;
+                const oY = interactiveTarget.originY !== undefined ? interactiveTarget.originY : 1;
 
-                    // If interactTarget is child of container, transform?
-                    if (interactiveTarget.parentContainer) {
-                        worldX = interactiveTarget.parentContainer.x + iX;
-                        worldY = interactiveTarget.parentContainer.y + interactiveTarget.y;
-                    }
+                const iX = interactiveTarget.x; 
 
-                    const iLeft = worldX - (iW * oX);
-                    const iRight = worldX + (iW * (1 - oX));
-                    const iTop = worldY - (iH * oY);
-                    const iBottom = worldY + (iH * (1 - oY));
+                let worldX = iX;
+                let worldY = interactiveTarget.y;
 
-                    // Intersection Check
-                    // ! ( rLeft > iRight || rRight < iLeft || rTop > iBottom || rBottom < iTop )
-                    const active = !(rLeft > iRight || rRight < iLeft || rTop > iBottom || rBottom < iTop);
-
-                    if (!active) {
-                        console.log(`[ItemManager] Pickup Out of Reach (AABB)`);
-                        if (window.showWorldToast) window.showWorldToast(pointer.event.clientX, pointer.event.clientY, "out of reach");
-                        if (window.addLocalSystemMessage) window.addLocalSystemMessage(`${itemData.name || 'Item'} is too far away.`);
-                        return;
-                    }
+                // If interactTarget is child of container, transform
+                if (interactiveTarget.parentContainer) {
+                    worldX = interactiveTarget.parentContainer.x + iX;
+                    worldY = interactiveTarget.parentContainer.y + interactiveTarget.y;
                 }
 
-                console.log('[ItemManager] Clicked item:', itemData.uid);
-                this.socket.emit('pickUpClicked', {
-                    Identifier: 'item',
-                    Name: itemData.uid
-                });
+                const iLeft = worldX - (iW * oX);
+                const iRight = worldX + (iW * (1 - oX));
+                const iTop = worldY - (iH * oY);
+                const iBottom = worldY + (iH * (1 - oY));
 
-                // Signal to Global ClickHandler (contextMenu.js) that we handled this.
-                pointer.interactionHandled = true;
+                const active = !(rLeft > iRight || rRight < iLeft || rTop > iBottom || rBottom < iTop);
 
-                // Stop propagation (DOM)
-                if (pointer.event) {
-                    pointer.event.stopPropagation();
+                if (!active) {
+                    console.log(`[ItemManager] Pickup Out of Reach (AABB) - Initiating Smart Walk`);
+                    this.scene.smartWalkTarget = {
+                        x: worldX,
+                        y: worldY,
+                        checkReach: (playerX, playerY) => {
+                            const pCenterX = playerX + 30;
+                            const pCenterY = playerY;
+                            const rLeft = pCenterX - 15; 
+                            const rRight = pCenterX + 15;
+                            const rTop = pCenterY - 15;
+                            const rBottom = pCenterY + 15;
+                            return !(rLeft > iRight || rRight < iLeft || rTop > iBottom || rBottom < iTop);
+                        },
+                        onReach: () => {
+                            console.log('[ItemManager] Smart Walk reached item:', itemData.uid);
+                            this.socket.emit('playerHandClicked', {
+                                hand: hand,
+                                clickedItem: { Identifier: 'mapObject', uniqueId: itemData.uid },
+                                playerIntent: window.currentIntent || 'friendly',
+                                pointerX: pointer.event ? pointer.event.clientX : pointer.x,
+                                pointerY: pointer.event ? pointer.event.clientY : pointer.y
+                            });
+                            if (window.completeTutorialTask) {
+                                window.completeTutorialTask(hand === 'left' ? 'left_pickup' : 'right_pickup');
+                            }
+                        }
+                    };
+                    pointer.interactionHandled = true;
+                    if (pointer.event) {
+                        pointer.event.stopPropagation();
+                    }
+                    return;
                 }
+            }
+
+            console.log('[ItemManager] Clicked item:', itemData.uid, 'Hand:', hand);
+            this.socket.emit('playerHandClicked', {
+                hand: hand,
+                clickedItem: { Identifier: 'mapObject', uniqueId: itemData.uid },
+                playerIntent: window.currentIntent || 'friendly',
+                pointerX: pointer.event ? pointer.event.clientX : pointer.x,
+                pointerY: pointer.event ? pointer.event.clientY : pointer.y
+            });
+            if (window.completeTutorialTask) {
+                window.completeTutorialTask(hand === 'left' ? 'left_pickup' : 'right_pickup');
+            }
+
+            // Signal to Global ClickHandler (contextMenu.js) that we handled this.
+            pointer.interactionHandled = true;
+
+            // Stop propagation (DOM)
+            if (pointer.event) {
+                pointer.event.stopPropagation();
             }
         });
     },
@@ -155,7 +188,8 @@ export const itemManager = {
         if (this.items[itemData.uid]) return; // Already exists
 
         // Resolve Static Definition for Rendering Config
-        const staticDef = StaticItemData[itemData.itemId] || StaticItemData[itemData.texture] || {};
+        const staticDef = StaticItemData[itemData.itemId] || StaticItemData[itemData.texture] || 
+                          resourceNodeData[itemData.itemId] || resourceNodeData[itemData.texture] || {};
 
         // [FIX] Prioritize Instance Rendering Data (from Sewing Machine etc)
         const rendering = itemData.rendering || staticDef.rendering || {};
@@ -163,16 +197,16 @@ export const itemManager = {
         // GENERIC LAYERED RENDERING
         if (rendering.type === 'layered') {
             const container = this.scene.add.container(itemData.x, itemData.y);
-            // Height adjustment for TableTop items
-            if (itemData.onTable) {
-                // Use precise surface depth if available
-                const z = (itemData.surfaceDepth !== undefined) ? itemData.surfaceDepth + 1 : itemData.y + 100;
-                container.setDepth(z);
-            } else {
-                container.setDepth(itemData.y);
+            // Height adjustment for TableTop items or ground-level items
+            let depth = itemData.y;
+            if (staticDef.isGround || itemData.isGround || (itemData.properties && itemData.properties.isGround)) {
+                depth = -5; // Below players, above grass layer
+            } else if (itemData.onTable) {
+                depth = (itemData.surfaceDepth !== undefined) ? itemData.surfaceDepth + 1 : itemData.y + 100;
             }
+            container.setDepth(depth);
 
-            const timesUsed = itemData.timesUsed || 0;
+            const timesUsed = Math.min(itemData.timesUsed || 0, 9);
             const layers = rendering.layers || [];
             let interactiveSprite = null;
 
@@ -194,57 +228,45 @@ export const itemManager = {
                     sprite.setTint(layerDef.tint);
                     sprite.originalTint = layerDef.tint;
                 }
+                // Interactive / Hitbox logic: Layer designated as interactive gets the hit area
+                if (layerDef.interactive || !interactiveSprite) {
+                    interactiveSprite = sprite;
+                }
 
                 container.add(sprite);
-
-                if (layerDef.interactive) {
-                    interactiveSprite = sprite;
-                    sprite.setInteractive({ cursor: 'pointer' });
-                }
             });
 
-            // If no interactive layer defined, default to the first layer (Base)
-            if (!interactiveSprite && layers.length > 0 && container.list.length > 0) {
-                const baseSprite = container.list[0];
-                baseSprite.setInteractive({ cursor: 'pointer' });
-                interactiveSprite = baseSprite;
+            // Set container size based on main layer or default frame size
+            if (interactiveSprite && interactiveSprite.width > 0) {
+                container.setSize(interactiveSprite.width, interactiveSprite.height);
+            } else {
+                container.setSize(32, 32);
             }
 
-            if (interactiveSprite) {
-                // Collect tint targets (all children)
-                const tintTargets = container.list;
-                this.setupItemInteraction(interactiveSprite, itemData, staticDef, tintTargets);
+            this.setupItemInteraction(container, itemData, staticDef);
 
-                // Copy objectInfo to container for reference if needed
-                container.objectInfo = interactiveSprite.objectInfo;
-            }
-
-            this.items[itemData.uid] = container;
+            this.items[itemData.uid] = container; // Track container instead of single sprite
             this.itemsGroup.add(container);
             return;
         }
 
-        // Texture: Use itemData.texture or default
-        const texture = itemData.texture || 'default_item';
-        // Need to ensure texture exists, or fallback? 
-        // Phaser will show a placeholder/green box if missing usually?
-
-        const sprite = this.scene.add.sprite(itemData.x, itemData.y, texture);
-
-        // Origin: Bottom Center to match server collision logic
+        // --- Standard Single Sprite Item Fallback ---
+        const textureKey = itemData.texture || staticDef.texture || 'default_item';
+        const sprite = this.scene.add.sprite(itemData.x, itemData.y, textureKey);
         sprite.setOrigin(0.5, 1);
 
-        // Height adjustment for TableTop items
-        if (itemData.onTable) {
-            const z = (itemData.surfaceDepth !== undefined) ? itemData.surfaceDepth + 1 : itemData.y + 100;
-            sprite.setDepth(z);
-        } else {
-            sprite.setDepth(itemData.y);
+        // Height adjustment for TableTop items or ground-level items
+        let depth = itemData.y;
+        if (staticDef.isGround || itemData.isGround || (itemData.properties && itemData.properties.isGround)) {
+            depth = -5; // Below players, above grass layer
+        } else if (itemData.onTable) {
+            depth = (itemData.surfaceDepth !== undefined) ? itemData.surfaceDepth + 1 : itemData.y + 100;
         }
+        sprite.setDepth(depth);
 
         // Dynamic Frame Rendering (for simple items that are usable but not layered)
-        if (itemData.timesUsed) {
-            sprite.setFrame(itemData.timesUsed);
+        if (itemData.timesUsed !== undefined) {
+            sprite.setFrame(Math.min(itemData.timesUsed, 9));
         }
 
         // Interaction & Metadata via Helper

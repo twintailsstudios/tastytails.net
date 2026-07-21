@@ -45,6 +45,19 @@ export class CraftingUI {
 
         this.setupWindowControls();
 
+        // Prevent pointer clicks on crafting window from propagating to Phaser game world
+        if (this.window) {
+            const preventPhaserPropagation = (e) => {
+                e.stopPropagation();
+            };
+            ['mousedown', 'mouseup', 'click', 'pointerdown', 'pointerup', 'touchstart', 'touchend'].forEach(evt => {
+                this.window.addEventListener(evt, preventPhaserPropagation);
+                if (this.minimizedTab) {
+                    this.minimizedTab.addEventListener(evt, preventPhaserPropagation);
+                }
+            });
+        }
+
         // [NEW] Save Default Layout for restoration
         const bodyEl = this.window.querySelector('.window-body');
         this.defaultBodyHTML = bodyEl ? bodyEl.innerHTML : "";
@@ -59,7 +72,16 @@ export class CraftingUI {
 
         // Listen for "Deposit" via the hidden button (or future satchel click)
         const depositBtn = document.getElementById('crafting-btn-deposit');
-        if (depositBtn) depositBtn.onclick = () => this.depositInStation();
+        if (depositBtn) {
+            depositBtn.onclick = (e) => {
+                e.preventDefault();
+                this.depositInStation('left');
+            };
+            depositBtn.oncontextmenu = (e) => {
+                e.preventDefault();
+                this.depositInStation('right');
+            };
+        }
 
         // Socket Events
         this.socket.on('craftingUIOpen', (data) => {
@@ -90,6 +112,18 @@ export class CraftingUI {
         this.isOpen = true;
         this.currentStationId = data.stationId;
         this.uiContainer.style.display = 'flex'; // Ensure flex layout
+        if (window.completeTutorialTask) {
+            window.completeTutorialTask('crafting_open');
+        }
+
+        // [FIX] Reset dragged position style to cleanly center the window when opened
+        if (this.window) {
+            this.window.style.position = '';
+            this.window.style.left = '';
+            this.window.style.top = '';
+            this.window.style.transform = '';
+            this.window.style.margin = '';
+        }
 
         // Force Reflow to enable transition
         void this.uiContainer.offsetWidth;
@@ -424,11 +458,15 @@ export class CraftingUI {
                 // Only touch DOM if changed
                 if (el.innerHTML !== iconHtml) el.innerHTML = iconHtml;
 
-                const newTitle = `${item.name} (Click to Retrieve)`;
+                const newTitle = `${item.name} (L-Click for Left Hand, R-Click for Right Hand)`;
                 if (el.title !== newTitle) el.title = newTitle;
 
-                // Always update handler (closure captures item.uid)
-                el.onclick = () => this.retrieveItem(item.uid);
+                // Unified Hand Click Handler (Retrieve: Left Click = Left Hand, Right Click = Right Hand)
+                clickManager.bindElementHandClick(el, {
+                    onHandClick: (hand, e) => {
+                        this.retrieveItem(item.uid, hand);
+                    }
+                });
 
                 // Visual State
                 if (el.style.opacity === '0.5') el.style.opacity = '1'; // Reset if needed
@@ -438,10 +476,15 @@ export class CraftingUI {
                 const emptyHtml = `<span style="opacity:0.2; font-size:20px;">⬇️</span>`;
                 if (el.innerHTML !== emptyHtml) el.innerHTML = emptyHtml;
 
-                const newTitle = "Deposit from Hand";
+                const newTitle = "Deposit from Hand (L-Click: Left Hand, R-Click: Right Hand)";
                 if (el.title !== newTitle) el.title = newTitle;
 
-                el.onclick = () => this.depositInStation();
+                // Unified Hand Click Handler (Deposit: Left Click = Left Hand, Right Click = Right Hand)
+                clickManager.bindElementHandClick(el, {
+                    onHandClick: (hand, e) => {
+                        this.depositInStation(hand);
+                    }
+                });
             }
         }
 
@@ -503,11 +546,12 @@ export class CraftingUI {
         }
     }
 
-    retrieveItem(itemUid) {
+    retrieveItem(itemUid, hand = 'left') {
         if (!this.isOpen || !this.currentStationId) return;
         this.socket.emit('craftingRetrieveItem', {
             stationId: this.currentStationId,
-            itemUid: itemUid
+            itemUid: itemUid,
+            hand: hand
         });
     }
 
@@ -631,9 +675,12 @@ export class CraftingUI {
         }
     }
 
-    depositInStation() {
-        // Legacy: Deposit Held Item.
-        this.socket.emit('craftingDepositItem', { stationId: this.currentStationId });
+    depositInStation(hand) {
+        // Deposit Held Item.
+        this.socket.emit('craftingDepositItem', { 
+            stationId: this.currentStationId,
+            hand: hand || 'left'
+        });
     }
 
     depositFromInventory(slotId, pocketId, itemUid) {
@@ -772,20 +819,24 @@ export class CraftingUI {
             }
 
             this.outputSlot.innerHTML = iconHtml;
-            this.outputSlot.title = `${item.name} (Click to Retrieve)`;
+            this.outputSlot.title = `${item.name} (L-Click for Left Hand, R-Click for Right Hand)`;
 
-            // Interaction
-            this.outputSlot.onclick = () => {
-                this.retrieveItem(item.uid);
-                // Optimistic clear?
-                this.outputSlot.innerHTML = '';
-                this.outputHint.textContent = (this.currentConfig && this.currentConfig.outputLabel) ? this.currentConfig.outputLabel : "Cooling Rack";
-                this.outputSlot.onclick = null;
-            };
+            // Unified Hand Click Interaction
+            clickManager.bindElementHandClick(this.outputSlot, {
+                onHandClick: (hand, e) => {
+                    this.retrieveItem(item.uid, hand);
+                    // Optimistic clear
+                    this.outputSlot.innerHTML = '';
+                    this.outputHint.textContent = (this.currentConfig && this.currentConfig.outputLabel) ? this.currentConfig.outputLabel : "Cooling Rack";
+                    this.outputSlot.onclick = null;
+                    this.outputSlot.oncontextmenu = null;
+                }
+            });
         } else {
             this.outputSlot.innerHTML = '';
             this.outputHint.textContent = (this.currentConfig && this.currentConfig.outputLabel) ? this.currentConfig.outputLabel : "Cooling Rack";
             this.outputSlot.onclick = null;
+            this.outputSlot.oncontextmenu = null;
         }
     }
 

@@ -16,11 +16,9 @@ export class ShadowSystem {
     }
 
     init() {
-        // 1. Create a Render Texture (Screen Size)
-        const width = this.scene.scale.width;
-        const height = this.scene.scale.height;
-
-        // console.log(`[ShadowSystem] Init: Screen Size: ${width}x${height}`);
+        // 1. Create a Render Texture (Screen Size with minimum dimension bounds to prevent 0x0 Framebuffer error)
+        const width = Math.max(Math.floor(this.scene.scale.width || 800), 16);
+        const height = Math.max(Math.floor(this.scene.scale.height || 600), 16);
 
         // DIRECTLY add the RenderTexture to the scene
         this.renderTexture = this.scene.add.renderTexture(0, 0, width, height);
@@ -36,7 +34,6 @@ export class ShadowSystem {
     }
 
     setSegments(segments) {
-        // console.log(`[ShadowSystem] setSegments called with ${segments ? segments.length : 'null'} segments`);
         this.segments = segments;
         this.populateSegmentGrid(segments);
     }
@@ -67,7 +64,6 @@ export class ShadowSystem {
                 }
             }
         });
-        // console.log(`[ShadowSystem] Client-side Segment Grid populated.`);
     }
 
     getSegmentsInRange(x, y, range) {
@@ -92,9 +88,14 @@ export class ShadowSystem {
     }
 
     onResize(gameSize) {
-        if (this.renderTexture) this.renderTexture.destroy();
+        const width = Math.max(Math.floor((gameSize && gameSize.width) || this.scene.scale.width || 800), 16);
+        const height = Math.max(Math.floor((gameSize && gameSize.height) || this.scene.scale.height || 600), 16);
 
-        this.renderTexture = this.scene.add.renderTexture(0, 0, gameSize.width, gameSize.height);
+        if (this.renderTexture) {
+            this.renderTexture.destroy();
+        }
+
+        this.renderTexture = this.scene.add.renderTexture(0, 0, width, height);
         this.renderTexture.setOrigin(0, 0);
         this.renderTexture.setScrollFactor(0);
         this.renderTexture.setDepth(100);

@@ -1,6 +1,4 @@
-/**
- * Utility functions for Item Management
- */
+const resourceNodeData = require('../data/resourceNodeData');
 
 /**
  * Resolves the static definition for an item instance.
@@ -12,7 +10,8 @@
  */
 module.exports.resolveItemDef = (item, itemData) => {
     if (!item) return {};
-    return itemData[item.itemId] || itemData[item.texture] || {};
+    return itemData[item.itemId] || itemData[item.texture] ||
+           resourceNodeData[item.itemId] || resourceNodeData[item.texture] || {};
 };
 
 /**

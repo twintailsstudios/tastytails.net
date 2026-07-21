@@ -51,7 +51,7 @@ export class Animal extends Phaser.Physics.Arcade.Sprite {
 
         // Input
         if (properties.interactType === 'gather') {
-            this.setInteractive({ cursor: 'url(/assets/cursors/interact.cur), pointer' });
+            this.setInteractive({ cursor: 'pointer' });
             this.on('pointerdown', this.onInteract, this);
         }
 
@@ -149,12 +149,31 @@ export class Animal extends Phaser.Physics.Arcade.Sprite {
         // If Right Click (2), we do nothing so it bubbles to Context Menu
         if (pointer.button !== 0) return;
 
+        pointer.interactionHandled = true;
+
         // Distance Check
         const player = this.scene.playerContainer;
         if (!player) return;
 
         const dist = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
-        if (dist > 100) return; // Too far
+        if (dist > 100) {
+            console.log(`[Animal] Too far - Smart Walking towards ${this.properties.name}`);
+            this.scene.smartWalkTarget = {
+                target: this,
+                range: 75,
+                onReach: () => {
+                    console.log(`[Animal] Smart Walk reached animal: ${this.properties.name}`);
+                    if (this.scene.socket) {
+                        this.scene.socket.emit('objectInteract', {
+                            type: 'animal',
+                            id: this.properties.id || 'unknown',
+                            action: this.properties.interactType
+                        });
+                    }
+                }
+            };
+            return;
+        }
 
         // Trigger Event
         console.log(`[Animal] Interacted with ${this.properties.name}`);

@@ -1,3 +1,15 @@
+import itemData from '../itemData.js';
+import { clickManager } from '../clickManager.js';
+
+export const SLOT_CAMERA_CONFIGS = {
+    'torsoOuter': { offsetY: 0,   zoom: 3.0 },
+    'torsoInner': { offsetY: 0,   zoom: 3.0 },
+    'legs':       { offsetY: -40, zoom: 2.8 },
+    'feet':       { offsetY: -70, zoom: 3.0 },
+    'head':       { offsetY: 20,  zoom: 3.0 },
+    'default':    { offsetY: 0,   zoom: 3.0 }
+};
+
 export class SewingModule {
     constructor(container, socket, craftingUI) {
         this.container = container;
@@ -18,7 +30,15 @@ export class SewingModule {
         this.patterns = [];
         this.trims = [];
         this.details = [];
-        this.populatePatternsFromRecipes();
+
+        // Camera Smooth Transition State
+        this.camera = {
+            currentY: 0,
+            targetY: 0,
+            currentZoom: 3.0,
+            targetZoom: 3.0,
+            lerpFactor: 0.12
+        };
 
         // State
         this.state = {
@@ -34,50 +54,87 @@ export class SewingModule {
             this.state.selections[0] = this.bases[0].id;
         }
 
+        this.updatePatternsForSelectedBase();
+
         this.rafId = null;
         this.render();
     }
 
     populateBasesFromRecipes() {
-        if (!this.craftingUI.allRecipes) return;
-        const baseRecipes = this.craftingUI.allRecipes.filter(r =>
-            r.customData && r.customData.baseShape && !r.validateOnly
-        );
-        baseRecipes.forEach(r => {
-            this.bases.push({
-                id: r.customData.baseShape,
-                name: r.customData.baseName || r.name,
-                shape: r.customData.baseShape,
-                recipeId: r.id,
-                resultItemId: r.result.itemId
-            });
+        this.bases = [];
+        Object.values(itemData).forEach(item => {
+            if (item.itemType === 'clothing' && item.recipe && item.recipe.station === 'sewing_machine') {
+                this.bases.push({
+                    id: item.itemId,
+                    name: item.name,
+                    shape: item.recipe.customData?.baseShape || item.itemId,
+                    resultItemId: item.itemId,
+                    equipSlot: item.equipSlot || 'torsoOuter',
+                    secondaryPatterns: item.secondaryPatterns || []
+                });
+            }
         });
+
+        // Fallback to craftingUI recipes if itemData produced nothing
+        if (this.bases.length === 0 && this.craftingUI.allRecipes) {
+            const baseRecipes = this.craftingUI.allRecipes.filter(r =>
+                r.customData && r.customData.baseShape && !r.validateOnly
+            );
+            baseRecipes.forEach(r => {
+                this.bases.push({
+                    id: r.result.itemId || r.customData.baseShape,
+                    name: r.customData.baseName || r.name,
+                    shape: r.customData.baseShape,
+                    recipeId: r.id,
+                    resultItemId: r.result.itemId,
+                    equipSlot: 'torsoOuter',
+                    secondaryPatterns: []
+                });
+            });
+        }
+
         if (this.bases.length === 0) {
-            this.bases = [{ id: 'shirt', name: 'T-Shirt', shape: 'shirt', resultItemId: 'shirt_01' }];
+            this.bases = [{ id: 'shirt_01', name: 'T-Shirt', shape: 'shirt', resultItemId: 'shirt_01', equipSlot: 'torsoOuter', secondaryPatterns: [] }];
         }
     }
 
-    populatePatternsFromRecipes() {
-        if (!this.craftingUI.allRecipes) return;
+    setCameraTargetForSlot(slotId) {
+        const config = SLOT_CAMERA_CONFIGS[slotId] || SLOT_CAMERA_CONFIGS['default'];
+        this.camera.targetY = config.offsetY;
+        this.camera.targetZoom = config.zoom;
+        this.state.dirty = true;
+    }
+
+    updatePatternsForSelectedBase() {
+        const selectedBaseId = this.state.selections[0];
+        const selectedBase = this.bases.find(b => b.id === selectedBaseId) || this.bases[0];
+
+        if (selectedBase) {
+            this.setCameraTargetForSlot(selectedBase.equipSlot);
+        }
 
         const noneItem = { id: 'none', name: 'None' };
-        this.patterns.push(noneItem);
-        this.trims.push(noneItem);
-        this.details.push(noneItem);
+        const patternList = [noneItem];
 
-        const patternRecipesAll = this.craftingUI.allRecipes.filter(r =>
-            r.customData && r.customData.patternId
-        );
+        if (selectedBase && selectedBase.secondaryPatterns) {
+            selectedBase.secondaryPatterns.forEach(pattern => {
+                const id = typeof pattern === 'string' ? pattern : pattern.id;
+                const name = typeof pattern === 'string' ? `Style ${pattern}` : (pattern.name || pattern.id);
+                patternList.push({ id, name });
+            });
+        }
 
-        patternRecipesAll.forEach(r => {
-            const item = {
-                id: r.customData.patternId,
-                name: r.customData.patternName || r.name
-            };
-            this.patterns.push(item);
-            this.trims.push(item);
-            this.details.push(item);
-        });
+        this.patterns = patternList;
+        this.trims = patternList;
+        this.details = patternList;
+
+        // Reset any invalid selections back to 'none'
+        const validIds = new Set(patternList.map(p => p.id));
+        for (let i = 1; i <= 3; i++) {
+            if (!validIds.has(this.state.selections[i])) {
+                this.state.selections[i] = 'none';
+            }
+        }
     }
 
     render() {
@@ -385,7 +442,9 @@ export class SewingModule {
         });
 
         this.dom.slots.forEach((slot, idx) => {
-            slot.onclick = () => this.handleSlotClick(idx);
+            clickManager.bindElementHandClick(slot, {
+                onHandClick: (hand) => this.handleSlotClick(idx, hand)
+            });
         });
 
         this.dom.craftBtn.onclick = () => this.craft();
@@ -445,6 +504,10 @@ export class SewingModule {
     selectItem(id) {
         this.state.selections[this.state.activeTab] = id;
         this.state.dirty = true;
+
+        if (this.state.activeTab === 0) {
+            this.updatePatternsForSelectedBase();
+        }
 
         const items = this.dom.list.querySelectorAll('.pattern-item');
         items.forEach(el => {
@@ -510,20 +573,20 @@ export class SewingModule {
                 spool.style.backgroundColor = color;
                 slot.appendChild(spool);
                 slot.style.borderColor = 'rgba(255,255,255,0.5)';
-                slot.title = item.name + " (Click to Remove)";
+                slot.title = `${item.name} (L-Click: Left Hand, R-Click: Right Hand)`;
             } else {
                 slot.textContent = '+';
                 slot.style.borderColor = 'transparent';
-                slot.title = "Add Thread";
+                slot.title = "Add Thread (L-Click: Left Hand, R-Click: Right Hand)";
             }
         });
     }
 
-    handleSlotClick(idx) {
+    handleSlotClick(idx, hand = 'left') {
         if (this.state.threadItems[idx]) {
-            this.craftingUI.retrieveItem(this.state.threadItems[idx].uid);
+            this.craftingUI.retrieveItem(this.state.threadItems[idx].uid, hand);
         } else {
-            this.craftingUI.depositInStation();
+            this.craftingUI.depositInStation(hand);
         }
     }
 
@@ -547,6 +610,19 @@ export class SewingModule {
 
     startRenderLoop() {
         const loop = () => {
+            // Update Camera Lerp (Smooth scrolling transition)
+            const deltaY = this.camera.targetY - this.camera.currentY;
+            const deltaZoom = this.camera.targetZoom - this.camera.currentZoom;
+
+            if (Math.abs(deltaY) > 0.1 || Math.abs(deltaZoom) > 0.001) {
+                this.camera.currentY += deltaY * this.camera.lerpFactor;
+                this.camera.currentZoom += deltaZoom * this.camera.lerpFactor;
+                this.state.dirty = true;
+            } else {
+                this.camera.currentY = this.camera.targetY;
+                this.camera.currentZoom = this.camera.targetZoom;
+            }
+
             if (this.state.dirty) {
                 this.drawCanvas();
                 this.state.dirty = false;
@@ -566,15 +642,16 @@ export class SewingModule {
         ctx.clearRect(0, 0, w, h);
 
         ctx.save();
-        // Zoom 3x, Center (w/2, 0)
+        // Dynamic camera zoom & horizontal centering
         ctx.translate(w / 2, 0);
-        ctx.scale(3.0, 3.0);
+        ctx.scale(this.camera.currentZoom, this.camera.currentZoom);
 
-        // Alignment: -40px offset
-        const CLOTHING_Y_OFFSET = -40;
+        // Dynamic camera Y offset for smooth scrolling focusing by equipSlot
+        const mannequinY = this.camera.currentY;
+        const clothingY = mannequinY - 40;
 
         // 1. Draw Mannequin Body
-        this.drawSprite('mannequin_00', 0, 0, null);
+        this.drawSprite('mannequin_00', 0, mannequinY, null);
 
         // 2. Base
         const baseId = this.state.selections[0];
@@ -585,7 +662,7 @@ export class SewingModule {
                 const textureKey = baseObj.resultItemId;
                 const alpha = baseThread ? 1.0 : 0.4;
                 const color = baseThread ? baseThread : '#888888';
-                this.drawSprite(textureKey, 0, CLOTHING_Y_OFFSET, color, alpha);
+                this.drawSprite(textureKey, 0, clothingY, color, alpha);
             }
         }
 
@@ -602,7 +679,7 @@ export class SewingModule {
                 const alpha = thread ? 1.0 : 0.4;
                 const color = thread ? thread : '#888888';
 
-                this.drawSprite(textureKey, 0, CLOTHING_Y_OFFSET, color, alpha);
+                this.drawSprite(textureKey, 0, clothingY, color, alpha);
             }
         }
 

@@ -1,12 +1,34 @@
+/* === CHAT ARCHIVES STYLESHEET (UNIVERSAL STYLE GUIDE STANDARD) === */
+
 .main-content {
     padding-top: 100px;
-    /* Account for fixed header */
     padding-bottom: 50px;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
 .archive-header {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 35px;
+}
+
+.archive-header h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 3.0rem;
+    font-weight: bold;
+    color: var(--palette-parchment, #f3e5ab);
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.archive-header p {
+    font-family: 'Philosopher', sans-serif;
+    font-size: 1.2rem;
+    color: var(--palette-parchment-dark, #e6d598);
+    margin-top: 5px;
 }
 
 .archive-layout {
@@ -15,99 +37,137 @@
     align-items: flex-start;
 }
 
-/* Sidebar Filters */
+/* === SIDEBAR FILTERS (THE BINDER) === */
 .filters-panel {
-    width: 300px;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 320px;
+    background-color: var(--palette-parchment, #f3e5ab);
+    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    border: 10px solid var(--palette-wood-dark, #3e2723);
+    border-radius: 8px;
+    box-shadow: inset 0 0 60px rgba(62, 39, 35, 0.2), 0 10px 30px rgba(0, 0, 0, 0.5);
+    padding: 25px;
     flex-shrink: 0;
+    color: var(--palette-text-dark, #3e2723);
 }
 
 .filter-group {
-    margin-bottom: 15px;
+    margin-bottom: 18px;
 }
 
 .filter-group label {
     display: block;
-    font-weight: bold;
-    margin-bottom: 5px;
-    font-size: 0.9rem;
-    color: #333;
+    font-family: 'Caveat Brush', cursive;
+    font-size: 1.2rem;
+    color: var(--palette-wood-light, #5d4037);
+    margin-bottom: 4px;
+    white-space: nowrap;
 }
 
 .input-base {
     width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid var(--palette-wood-light, #5d4037);
+    font-family: 'Caveat Brush', cursive;
+    font-size: 1.1rem;
+    color: var(--palette-text-dark, #3e2723);
+    padding: 6px 10px;
+    outline: none;
+    transition: all 0.3s ease;
+    border-radius: 0;
+}
+
+.input-base:focus {
+    border-bottom-color: var(--btn-primary-bg, #6b8c42);
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+.input-base:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+select.input-base {
+    cursor: pointer;
+}
+
+select.input-base option {
+    background-color: var(--palette-parchment, #f3e5ab);
+    color: var(--palette-text-dark, #3e2723);
+    font-family: 'Caveat Brush', cursive;
 }
 
 .dates {
     display: flex;
-    gap: 10px;
+    gap: 12px;
 }
 
 .dates div {
     flex: 1;
 }
 
-.btn-primary {
-    width: 100%;
-    padding: 10px;
-    background: #6a0dad;
-    /* Match theme roughly */
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
+details {
     margin-top: 10px;
+    margin-bottom: 15px;
+    border: 1px dashed var(--palette-wood-light, #5d4037);
+    border-radius: 4px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.2);
 }
 
-.btn-primary:hover {
-    background: #580b92;
-}
-
-.btn-primary:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-
-.btn-secondary {
-    padding: 5px 15px;
-    background: #2c3e50;
-    color: white;
-    border: none;
-    border-radius: 5px;
+summary {
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    font-size: 0.95rem;
+    color: var(--palette-wood-dark, #3e2723);
     cursor: pointer;
+    outline: none;
 }
 
-.btn-secondary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+summary:hover {
+    color: var(--palette-accent-red, #8b0000);
 }
 
-/* Results Area */
+.advanced-filters {
+    margin-top: 15px;
+}
+
+/* === RESULTS AREA (THE LOG VIEWER) === */
 .results-panel {
     flex: 1;
-    background: rgba(255, 255, 255, 0.8);
-    min-height: 500px;
-    padding: 20px;
-    border-radius: 10px;
-    border: 1px solid #ddd;
+    background-color: var(--palette-parchment, #f3e5ab);
+    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    border: 10px solid var(--palette-wood-dark, #3e2723);
+    border-radius: 8px;
+    box-shadow: inset 0 0 60px rgba(62, 39, 35, 0.2), 0 10px 30px rgba(0, 0, 0, 0.5);
+    min-height: 600px;
+    padding: 25px;
     display: flex;
     flex-direction: column;
+    color: var(--palette-text-dark, #3e2723);
 }
 
 .results-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px dashed var(--palette-wood-light, #5d4037);
+    padding-bottom: 15px;
+}
+
+.results-header h3 {
+    font-family: 'Cinzel', serif;
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: var(--palette-accent-red, #8b0000);
+    margin: 0;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .chat-container {
@@ -115,15 +175,18 @@
     overflow-y: auto;
     max-height: 700px;
     background: transparent;
-    /* Use parent bg */
     padding: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--palette-wood-light, #5d4037) transparent;
 }
 
 .placeholder-msg {
     text-align: center;
-    color: #777;
-    margin-top: 50px;
+    color: var(--palette-wood-light, #5d4037);
+    margin-top: 60px;
+    font-family: 'Philosopher', sans-serif;
     font-style: italic;
+    font-size: 1.1rem;
 }
 
 /* Message Item Extensions */
@@ -131,13 +194,21 @@
     display: flex;
     gap: 10px;
     align-items: flex-start;
-    margin-bottom: 8px;
-    padding: 5px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    margin-bottom: 12px;
+    padding: 8px;
+    border-bottom: 1px dashed rgba(62, 39, 35, 0.15);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.chat-message-row:hover {
+    background-color: rgba(62, 39, 35, 0.05);
 }
 
 .select-checkbox {
-    margin-top: 5px;
+    margin-top: 6px;
+    accent-color: var(--btn-primary-bg, #6b8c42);
 }
 
 .msg-content-wrapper {
@@ -145,48 +216,32 @@
 }
 
 #statusMsg {
-    margin-top: 10px;
-    font-size: 0.9rem;
-    color: #666;
+    margin-top: 12px;
+    font-family: 'Philosopher', sans-serif;
+    font-size: 0.95rem;
+    color: var(--palette-wood-light, #5d4037);
     text-align: center;
-}
-
-/* Pagination */
-.pagination-controls {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 15px;
-    align-items: center;
-}
-
-@media (max-width: 800px) {
-    .archive-layout {
-        flex-direction: column;
-    }
-
-    .filters-panel {
-        width: 100%;
-    }
 }
 
 /* Partner Tags */
 .tags-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 5px;
+    gap: 6px;
+    margin-top: 8px;
 }
 
 .partner-tag {
-    background-color: var(--accent-color, #4a90e2);
+    background-color: var(--btn-primary-bg, #6b8c42);
     color: white;
-    padding: 2px 8px;
+    padding: 3px 10px;
     border-radius: 12px;
-    font-size: 0.85em;
+    font-family: 'Philosopher', sans-serif;
+    font-size: 0.85rem;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .partner-tag .remove-tag {
@@ -199,33 +254,26 @@
     opacity: 1;
 }
 
-/* Range Mode Styles */
+/* Range Mode Highlight Styles */
 .range-mode-active {
-    background-color: #27ae60 !important;
-    /* Green to show active */
-    color: white;
-}
-
-.chat-message-row {
-    cursor: pointer;
-    /* Indicate clickable in range mode */
-    transition: background-color 0.2s;
+    background-color: var(--btn-primary-bg, #6b8c42) !important;
+    color: white !important;
+    box-shadow: 0 2px 0 var(--btn-primary-shadow, #3e5527);
 }
 
 .chat-message-row.range-start {
-    border: 2px solid #27ae60;
-    background-color: rgba(39, 174, 96, 0.1);
+    border: 2px solid var(--btn-primary-bg, #6b8c42);
+    background-color: rgba(107, 140, 66, 0.15);
 }
 
 .chat-message-row.range-end {
-    border: 2px solid #c0392b;
-    background-color: rgba(192, 57, 43, 0.1);
+    border: 2px solid var(--palette-accent-red, #8b0000);
+    background-color: rgba(139, 0, 0, 0.15);
 }
 
 .chat-message-row.in-range {
-    background-color: rgba(39, 174, 96, 0.05);
-    /* Very light green */
-    border-left: 4px solid #27ae60;
+    background-color: rgba(107, 140, 66, 0.08);
+    border-left: 4px solid var(--btn-primary-bg, #6b8c42);
 }
 
 .chat-message-row.flash-highlight {
@@ -234,35 +282,53 @@
 
 @keyframes flash-highlight {
     0% {
-        background-color: rgba(241, 196, 15, 0.5);
+        background-color: rgba(255, 193, 7, 0.5);
     }
-
     100% {
         background-color: transparent;
     }
 }
 
-.actions {
+/* Pagination Controls */
+.pagination-controls {
     display: flex;
-    gap: 10px;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+    align-items: center;
 }
 
-.btn-icon {
-    background: transparent;
+.pagination-controls button {
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    background: var(--palette-wood-light, #5d4037);
+    color: var(--palette-parchment, #f3e5ab);
     border: none;
+    padding: 8px 18px;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 1.1em;
-    color: #666;
-    padding: 2px 5px;
-    transition: color 0.2s;
+    box-shadow: 0 3px 0 var(--palette-wood-dark, #3e2723);
+    transition: all 0.2s;
 }
 
-.btn-icon:hover {
-    color: #333;
+.pagination-controls button:hover {
+    background: #6d4c41;
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 var(--palette-wood-dark, #3e2723);
 }
 
-.msg-header-actions {
-    float: right;
-    display: flex;
-    gap: 5px;
+.pagination-controls span {
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    color: var(--palette-wood-dark, #3e2723);
+}
+
+@media (max-width: 900px) {
+    .archive-layout {
+        flex-direction: column;
+    }
+
+    .filters-panel {
+        width: 100%;
+    }
 }

@@ -9,18 +9,19 @@ export const dropMode = {
     dropCoords: { x: 0, y: 0 },
     candidates: [], // Reusable array for spiral search logic
 
-    start(scene, item) {
+    start(scene, item, hand) {
         if (this.active) this.cancel(); // Reset if already active
 
         this.scene = scene;
         this.item = item;
+        this.hand = hand;
         this.active = true;
         this.validDrop = false;
 
         // 1. Create Ghost Sprite
         const texture = item.texture || 'default_item';
         let frame = 0;
-        if (item.timesUsed) frame = item.timesUsed;
+        if (item.timesUsed !== undefined) frame = Math.min(item.timesUsed, 9);
 
         // Handle layered rendering (simplified: just use base texture or default)
         // If we really wanted to be fancy we'd replicate the whole container, 
@@ -360,7 +361,8 @@ export const dropMode = {
                 x: this.dropCoords.x,
                 y: this.dropCoords.y,
                 onTable: this.dropCoords.onTable,
-                surfaceDepth: this.dropCoords.surfaceDepth
+                surfaceDepth: this.dropCoords.surfaceDepth,
+                hand: this.hand
             });
         }
 

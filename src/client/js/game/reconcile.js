@@ -83,6 +83,10 @@ export function reconcile(serverPlayerState, self) {
     // However, we MUST allow animation updates to proceed below.
     const shouldReconcilePosition = !serverPlayerState.isHeld;
 
+    if (shouldReconcilePosition) {
+        self.playerContainer.holderPositionHistory = null;
+    }
+
     if (shouldReconcilePosition && dist > 5.0) {
         // console.log(`[RECONCILE] Divergence detected (${dist.toFixed(2)}px). Interpolating to predicted.`);
 
@@ -120,10 +124,10 @@ export function reconcile(serverPlayerState, self) {
     let rotation = serverPlayerState.rotation; // Default to server rotation
 
     if (self.cursors && !serverPlayerState.isCrafting && !window.chatFocused) {
-        const left = self.cursors.left.isDown;
-        const right = self.cursors.right.isDown;
-        const up = self.cursors.up.isDown;
-        const down = self.cursors.down.isDown;
+        const left = self.cursors.left.isDown || (self.wasdKeys && self.wasdKeys.left.isDown);
+        const right = self.cursors.right.isDown || (self.wasdKeys && self.wasdKeys.right.isDown);
+        const up = self.cursors.up.isDown || (self.wasdKeys && self.wasdKeys.up.isDown);
+        const down = self.cursors.down.isDown || (self.wasdKeys && self.wasdKeys.down.isDown);
 
         isMoving = left || right || up || down;
 
@@ -131,6 +135,20 @@ export function reconcile(serverPlayerState, self) {
         else if (right) rotation = 2;
         else if (up) rotation = 3;
         else if (down) rotation = 4;
+
+        if (!isMoving && self.smartWalkTarget) {
+            isMoving = true;
+            const targetX = self.smartWalkTarget.target ? self.smartWalkTarget.target.x : self.smartWalkTarget.x;
+            const targetY = self.smartWalkTarget.target ? self.smartWalkTarget.target.y : self.smartWalkTarget.y;
+            const dx = targetX - localPlayer.x;
+            const dy = targetY - localPlayer.y;
+
+            if (Math.abs(dx) > Math.abs(dy)) {
+                rotation = dx < 0 ? 1 : 2; // Left / Right
+            } else {
+                rotation = dy < 0 ? 3 : 4; // Up / Down
+            }
+        }
     }
 
     // If held, we MUST use the server's state for animation (walking behind holder)

@@ -18,8 +18,9 @@ const clothingData = require('./data/clothingData');
 
 const itemData = require('./data/itemData');
 const resourceNodeDefs = require('./data/resourceNodeData');
+const stationConfigs = require('./data/craftingStations');
 const { resolveItemDef } = require('./utils/itemUtils');
-const { getSafePlayerState } = require('./utils/itemActions');
+const { getSafePlayerState, performItemUse } = require('./utils/itemActions');
 const DatabaseResilience = require('./classes/DatabaseResilience');
 
 const VisibilityPolygon = require('visibility-polygon'); // New: For shadowcasting
@@ -344,7 +345,10 @@ function initializeMap() {
                                 }
                             });
                         }
-                        tsData.tiles[tile.id] = { properties: props };
+                        tsData.tiles[tile.id] = { 
+                            properties: props,
+                            image: tile.image
+                        };
                     });
                 }
                 rawTilesets.push(tsData);
@@ -495,32 +499,39 @@ function initializeMap() {
                         }
 
                         // --- Item System Check ---
-                        if (props.isItem) {
+                        const isItem = props.isItem || 
+                                       combinedProps.isItem || 
+                                       objectLayer.name.toLowerCase() === 'items';
+
+                        if (isItem) {
                             // Derive Item ID
-                            let derivedItemId = props.itemId || props.itemID;
+                            let derivedItemId = props.itemId || props.itemID || combinedProps.itemId || combinedProps.itemID;
                             if (!derivedItemId) {
                                 // Try reverse lookup by Name
-                                const nameToCheck = props.name || obj.name;
+                                const nameToCheck = props.name || obj.name || combinedProps.name;
                                 derivedItemId = Object.keys(itemData).find(key => itemData[key].name === nameToCheck);
+                            }
+                            if (!derivedItemId && textureKey && itemData[textureKey]) {
+                                derivedItemId = textureKey;
                             }
                             if (!derivedItemId) derivedItemId = 'unknown_item';
 
                             // Derive Texture
-                            const derivedTexture = props.texture || (derivedItemId !== 'unknown_item' ? itemData[derivedItemId].texture : 'default_item');
+                            const derivedTexture = props.texture || combinedProps.texture || (derivedItemId !== 'unknown_item' ? itemData[derivedItemId].texture : 'default_item');
 
                             // It's an Item! Add to worldItems and Skip collision (unless isSolid)
                             worldItems.push({
                                 uid: `item_${obj.id}`, // Unique ID from Tiled
                                 x: obj.x,
                                 y: obj.y,
-                                name: props.name || obj.name || 'Unknown Item',
+                                name: itemData[derivedItemId]?.name || props.name || obj.name || 'Unknown Item',
                                 itemId: derivedItemId,
-                                itemType: props.itemType || 'misc',
+                                itemType: props.itemType || combinedProps.itemType || 'misc',
                                 texture: derivedTexture,
-                                properties: props // Store all props just in case
+                                properties: { ...props, ...combinedProps } // Store all props just in case
                             });
 
-                            if (!props.isSolid) {
+                            if (!props.isSolid && !combinedProps.isSolid) {
                                 return; // Skip adding to staticObjects
                             }
                         }
@@ -805,7 +816,36 @@ function getSegmentsInRange(x, y, range) {
     // They should be picked up by the grid automatically.
 
     // Convert Set back to Array (VisibilityPolygon needs array)
-    return Array.from(segments);
+    const result = Array.from(segments);
+
+    // Add Dynamic Closed Doors
+    if (worldDoors) {
+        for (const key in worldDoors) {
+            const door = worldDoors[key];
+            if (door.lightBlock) {
+                // Check if door is in range of (x, y)
+                const dx = x - door.x;
+                const dy = y - door.y;
+                const distSq = dx * dx + dy * dy;
+                const maxDist = range + 200; // Add buffer for door dimensions
+                if (distSq < maxDist * maxDist) {
+                    const w = door.width;
+                    const h = 20; // Match collision height
+                    const x1 = door.x;
+                    const x2 = door.x + w;
+                    const y1 = door.y;
+                    const y2 = door.y - h;
+
+                    result.push([[x1, y1], [x2, y1]]); // Bottom
+                    result.push([[x2, y1], [x2, y2]]); // Right
+                    result.push([[x2, y2], [x1, y2]]); // Top
+                    result.push([[x1, y2], [x1, y1]]); // Left
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 function initializeSpells() {
@@ -875,6 +915,41 @@ function checkPointCollision(x, y) {
     }
 
     return false;
+}
+
+function getPositionAtDistance(history, targetDistance) {
+    if (!history || history.length === 0) return null;
+    if (history.length === 1) return { x: history[0].x, y: history[0].y, rotation: history[0].rotation, isMoving: history[0].isMoving };
+
+    let accumulatedDistance = 0;
+    for (let i = 0; i < history.length - 1; i++) {
+        const pCurrent = history[i];
+        const pNext = history[i + 1];
+        const dx = pNext.x - pCurrent.x;
+        const dy = pNext.y - pCurrent.y;
+        const segLength = Math.sqrt(dx * dx + dy * dy);
+
+        if (accumulatedDistance + segLength >= targetDistance) {
+            const remaining = targetDistance - accumulatedDistance;
+            const ratio = segLength > 0 ? (remaining / segLength) : 0;
+            
+            const x = pCurrent.x + ratio * dx;
+            const y = pCurrent.y + ratio * dy;
+            
+            const rotation = pNext.rotation;
+            const isMoving = pNext.isMoving;
+
+            // Prune old history that is no longer needed
+            history.splice(i + 2); 
+
+            return { x, y, rotation, isMoving };
+        }
+        accumulatedDistance += segLength;
+    }
+
+    // If the history path is shorter than targetDistance, return the oldest point
+    const oldest = history[history.length - 1];
+    return { x: oldest.x, y: oldest.y, rotation: oldest.rotation, isMoving: oldest.isMoving };
 }
 
 function checkCollision(x, y) {
@@ -1003,6 +1078,16 @@ function updatePlayers(delta, io) {
         while (player.inputQueue && player.inputQueue.length > 0) {
             const input = player.inputQueue.shift();
 
+            // Keep track of the last processed input for reconciliation
+            if (input.sequence) {
+                player.lastProcessedInputSequence = input.sequence;
+            }
+
+            if (player.isHeld) {
+                // Held players cannot move on their own
+                continue;
+            }
+
             const inputDelta = input.delta || 0.016; // Default to ~60fps if missing
 
             let newX = player.position.x;
@@ -1017,7 +1102,6 @@ function updatePlayers(delta, io) {
                 proposedX += speed * inputDelta;
             }
 
-            // Check X collision
             // Check X collision
             if (player.isDead || !checkCollision(proposedX, player.position.y)) {
                 newX = proposedX;
@@ -1050,11 +1134,6 @@ function updatePlayers(delta, io) {
             else if (input.down) player.rotation = 4;
 
             player.isMoving = input.left || input.right || input.up || input.down;
-
-            // Keep track of the last processed input for reconciliation
-            if (input.sequence) {
-                player.lastProcessedInputSequence = input.sequence;
-            }
         }
 
         // Check for zone changes
@@ -1132,52 +1211,41 @@ function updatePlayers(delta, io) {
         player.isMoving = input.left || input.right || input.up || input.down;
 
         // --- HELD PLAYER LOGIC ---
-        // --- HELD PLAYER LOGIC ---
         if (player.isHeld && player.heldBySocketId && players[player.heldBySocketId]) {
             const holder = players[player.heldBySocketId];
-            // Gripped firmly is tighter range
             const holdDist = player.grippedFirmly ? 20 : 64;
 
-            // Calculate distance to holder center
-            const dx = player.position.x - holder.position.x;
-            const dy = player.position.y - holder.position.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            // Initialize holder position history queue on the held player if not present
+            if (!player.holderPositionHistory) {
+                player.holderPositionHistory = [
+                    { x: holder.position.x, y: holder.position.y, rotation: holder.rotation, isMoving: holder.isMoving },
+                    { x: player.position.x, y: player.position.y, rotation: player.rotation, isMoving: player.isMoving }
+                ];
+            }
 
-            if (holder.isMoving) {
-                // If holder is moving, drag the player behind them ("Fall in line")
-                let targetX = holder.position.x;
-                let targetY = holder.position.y;
-                const behindOffset = 50; // Distance to trail behind
+            // Push holder's position to the history queue if it changed
+            const lastHistory = player.holderPositionHistory[0];
+            if (!lastHistory || lastHistory.x !== holder.position.x || lastHistory.y !== holder.position.y || lastHistory.rotation !== holder.rotation || lastHistory.isMoving !== holder.isMoving) {
+                player.holderPositionHistory.unshift({
+                    x: holder.position.x,
+                    y: holder.position.y,
+                    rotation: holder.rotation,
+                    isMoving: holder.isMoving
+                });
+            }
 
-                if (holder.rotation === 1) targetX += behindOffset; // Left -> Behind is Right
-                else if (holder.rotation === 2) targetX -= behindOffset; // Right -> Behind is Left
-                else if (holder.rotation === 3) targetY += behindOffset; // Up -> Behind is Down
-                else if (holder.rotation === 4) targetY -= behindOffset; // Down -> Behind is Up
+            const prevX = player.position.x;
+            const prevY = player.position.y;
 
-                // Move towards target position smoothly ("Leash" effect)
-                // Use a lerp factor to drag them along.
-                const lerpFactor = 0.15;
-                player.position.x += (targetX - player.position.x) * lerpFactor;
-                player.position.y += (targetY - player.position.y) * lerpFactor;
-
-                // "Fall in line" - match rotation and movement state
-                player.rotation = holder.rotation;
-                player.isMoving = true;
-
-            } else {
-                // Holder is stationary.
-                // Enforce "Leash": If outside holdDist, pull them in.
-                // If inside, leave them be (maintain relative side).
-
-                if (dist > holdDist) {
-                    // Too far, pull in to max distance
-                    const angle = Math.atan2(dy, dx);
-                    player.position.x = holder.position.x + Math.cos(angle) * holdDist;
-                    player.position.y = holder.position.y + Math.sin(angle) * holdDist;
-                }
-
-                // If stationary, held player stops moving too
-                player.isMoving = false;
+            const targetPos = getPositionAtDistance(player.holderPositionHistory, holdDist);
+            if (targetPos) {
+                player.position.x = targetPos.x;
+                player.position.y = targetPos.y;
+                player.rotation = targetPos.rotation;
+                const dx = player.position.x - prevX;
+                const dy = player.position.y - prevY;
+                const distMoved = Math.sqrt(dx * dx + dy * dy);
+                player.isMoving = distMoved > 0.1;
             }
         }
 
@@ -1365,6 +1433,29 @@ function gameLoop(io) {
     }
     tAi = performance.now() - tAiStart;
 
+    // --- CROP GROWTH TICK ---
+    worldItems.forEach(item => {
+        if (item.itemId === 'tilled_soil_planted' && item.properties && item.properties.soilState === 'planted') {
+            const plantedTime = item.properties.plantedTime || 0;
+            const age = Date.now() - plantedTime;
+            const growthTime = 15000; // 15 seconds
+            if (age >= growthTime) {
+                const plantId = item.properties.plantId;
+                const def = itemData[plantId] || resourceNodeDefs[plantId];
+                if (def) {
+                    item.itemId = plantId;
+                    item.name = def.name;
+                    item.texture = def.texture || plantId;
+                    item.rendering = def.rendering; // layered rendering config
+                    item.properties.soilState = 'sprouted';
+
+                    io.emit('itemUpdated', item);
+                    log.info(`[Server] Crop sprouted: ${plantId} at (${item.x}, ${item.y})`);
+                }
+            }
+        }
+    });
+
     // --- RESOURCE NODE REGROWTH UPDATES ---
     if (Object.keys(activeResourceNodes).length > 0) {
         Object.values(activeResourceNodes).forEach(node => {
@@ -1427,7 +1518,7 @@ function gameLoop(io) {
         // Actually, getUpdatePacketForOther creates a new object structure (shallow helpers), 
         // but we need to ensure we don't mutate `_lastPublicState` later.
         // Since we are replacing `_lastPublicState` entirely, it's fine.
-        p._lastPublicState = currentPublicState;
+        p._lastPublicState = clonePacketForSnapshot(currentPublicState);
     });
 
     // --- AREA OF INTEREST (AOI) SYSTEM ---
@@ -1508,10 +1599,7 @@ function gameLoop(io) {
                                 // 2. Shadow/Visibility Check
                                 let isVisible = false;
 
-                                // OPTIMIZATION: Proximity Short-Circuit
-                                if (distSq < 22500) { // 150 * 150
-                                    isVisible = true;
-                                } else if (observer.visibilityPolygon && observer.visibilityPolygon.length > 0) {
+                                if (observer.visibilityPolygon && observer.visibilityPolygon.length > 0) {
                                     // [OPTIMIZED] Center First Raycast
                                     const tx = target.position.x;
                                     const ty = target.position.y;
@@ -1569,7 +1657,7 @@ function gameLoop(io) {
                     } else {
                         selfDelta = selfState;
                     }
-                    socket._lastSelfState = selfState;
+                    socket._lastSelfState = clonePacketForSnapshot(selfState);
 
                     if (selfDelta) {
                         selfDelta.playerId = observerId;
@@ -1782,7 +1870,7 @@ function clonePacketForSnapshot(p) {
     // These might differ, but often standard arrays/objects. 
     // JSON parse/stringify is still safest/easiest for deep structures like equipment 
     // without writing a full deepClone function, but we only do it for specific fields.
-    if (p.equipment) clone.equipment = { ...p.equipment };
+    if (p.equipment) clone.equipment = JSON.parse(JSON.stringify(p.equipment));
     // Note: If Equipment has nested objects, Spread is shallow. 
     // But currently equipment is mostly flat key-val (head: 'sprite', etc).
 
@@ -1869,6 +1957,25 @@ function hasShallowChanged(a, b) {
 module.exports.start = (io, _messageSystem) => {
     messageSystem = _messageSystem;
     initializeGame(io);
+
+    const broadcastNewPlayer = (newPlayerSocketId) => {
+        const newPlayer = players[newPlayerSocketId];
+        if (!newPlayer || !newPlayer.isInGame) return;
+
+        const newPlayerPacket = getUpdatePacketForOther(newPlayer);
+        Object.keys(players).forEach(otherId => {
+            if (otherId !== newPlayerSocketId && players[otherId].isInGame) {
+                const otherSocket = io.sockets.sockets.get(otherId);
+                if (otherSocket) {
+                    if (module.exports.checkVisibility(otherId, newPlayerSocketId)) {
+                        otherSocket.emit('newPlayer', newPlayerPacket);
+                        if (!otherSocket._knownPlayers) otherSocket._knownPlayers = new Set();
+                        otherSocket._knownPlayers.add(newPlayerSocketId);
+                    }
+                }
+            }
+        });
+    };
 
     io.on('connection', (socket) => {
         log.info(`Player connected with socket ID: ${socket.id}`);
@@ -2174,11 +2281,42 @@ module.exports.start = (io, _messageSystem) => {
         }
 
         // Send current players to the new connection
-        // FILTER: Only send players who are actually in-game
+        // FILTER: Only send players who are actually visible to the new connection
         const visiblePlayers = {};
+        const newPlayerId = socket.id;
+        const newPlayer = players[newPlayerId];
+
+        // Force initial shadow/visibility calculation for the new player so they have a visibilityPolygon
+        if (newPlayer && staticSegments.length > 0) {
+            const pos = [newPlayer.position.x, newPlayer.position.y];
+            const relevantSegments = getSegmentsInRange(newPlayer.position.x, newPlayer.position.y, VIEW_DISTANCE);
+            const boxSize = VIEW_DISTANCE;
+            const px = newPlayer.position.x;
+            const py = newPlayer.position.y;
+
+            relevantSegments.push(
+                [[px - boxSize, py - boxSize], [px + boxSize, py - boxSize]],
+                [[px + boxSize, py - boxSize], [px + boxSize, py + boxSize]],
+                [[px + boxSize, py + boxSize], [px - boxSize, py + boxSize]],
+                [[px - boxSize, py + boxSize], [px - boxSize, py - boxSize]]
+            );
+
+            newPlayer.visibilityPolygon = VisibilityPolygon.compute(pos, relevantSegments);
+            newPlayer.lastShadowCalcPosition = { x: newPlayer.position.x, y: newPlayer.position.y };
+        }
+
+        // Initialize _knownPlayers
+        socket._knownPlayers = new Set();
+
         Object.keys(players).forEach(id => {
-            if (players[id].isInGame || id === socket.id) {
-                visiblePlayers[id] = getUpdatePacketForOther(players[id]);
+            if (id === newPlayerId) {
+                visiblePlayers[id] = getUpdatePacketForSelf(newPlayer);
+                socket._knownPlayers.add(id);
+            } else if (players[id].isInGame) {
+                if (module.exports.checkVisibility(newPlayerId, id)) {
+                    visiblePlayers[id] = getUpdatePacketForOther(players[id]);
+                    socket._knownPlayers.add(id);
+                }
             }
         });
         socket.emit('currentPlayers', visiblePlayers);
@@ -2186,11 +2324,8 @@ module.exports.start = (io, _messageSystem) => {
         // Send Map Segments (Shadows) including Doors
         socket.emit('mapSegments', getDynamicSegments());
         // Inform other players of the new player
-        // Broadcast new player to others
-        // FILTER: Only broadcast if this socket has a valid character
-        if (players[socket.id].isInGame) {
-            socket.broadcast.emit('newPlayer', getUpdatePacketForOther(players[socket.id]));
-        }
+        // Broadcast new player only to those who can see them
+        broadcastNewPlayer(socket.id);
 
 
         // --- Helper to Save Character Data ---
@@ -2347,10 +2482,8 @@ module.exports.start = (io, _messageSystem) => {
                     }
 
                     log.info(`Character updated for ${socket.id}`);
-                    // Inform other players about the visual update
-                    if (players[socket.id].isInGame) {
-                        socket.broadcast.emit('newPlayer', getUpdatePacketForOther(players[socket.id]));
-                    }
+                    // Inform other players about the visual update (if visible)
+                    broadcastNewPlayer(socket.id);
                     socket.broadcast.emit('avatarSelection', getUpdatePacketForOther(players[socket.id]));
                 }
             } catch (e) {
@@ -2392,7 +2525,7 @@ module.exports.start = (io, _messageSystem) => {
         // Extracted to src/sockets/interactionHandlers.js
         const initInteractionHandlers = require('./sockets/interactionHandlers');
         // Note: We pass TILE_SIZE (32) and craftingStations
-        initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid, activeResourceNodes);
+        initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid, activeResourceNodes, removeItemFromGrid);
 
         // --- ITEM & INVENTORY HANDLERS ---
         // Extracted to src/sockets/inventoryHandlers.js
@@ -2484,6 +2617,12 @@ module.exports.start = (io, _messageSystem) => {
                         const inReach = !(rLeft > iRight || rRight < iLeft || rTop > iBottom || rBottom < iTop);
 
                         if (inReach) {
+                            // Check if the item cannot be picked up (soil/crop)
+                            const def = resolveItemDef(item, itemData);
+                            if (def && def.preventPickup) {
+                                return;
+                            }
+
                             const activeHand = player.actionHands.activeHand;
                             const activeNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
 
@@ -2552,6 +2691,286 @@ module.exports.start = (io, _messageSystem) => {
             }
         });
 
+        // --- Use compiled recipes from craftingHandlers ---
+        const recipes = craftingHandlers.recipes;
+
+        socket.on('playerHandClicked', (data) => {
+            try {
+                const { hand, clickedItem, playerIntent, pointerX, pointerY } = data;
+                const player = players[socket.id];
+                if (!player || player.isDead) return;
+
+                log.info(`[playerHandClicked] Hand: ${hand}, Intent: ${playerIntent}, Target: ${clickedItem ? clickedItem.Identifier : 'none'}`);
+
+                if (!clickedItem) return;
+
+                // Resolve active item for the clicked hand
+                const activeHand = hand; // 'left' or 'right'
+                const activeNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+
+                // --- Scenario A: Clicked a Player ---
+                if (clickedItem.Identifier === 'player' && players[clickedItem.playerId]) {
+                    const targetPlayer = players[clickedItem.playerId];
+                    
+                    // Verify reach
+                    const distance = Math.sqrt(Math.pow(player.position.x - targetPlayer.position.x, 2) + Math.pow(player.position.y - targetPlayer.position.y, 2));
+                    if (distance > 100) {
+                        if (messageSystem) messageSystem.sendSystemMessage('Interactional', `${targetPlayer.Username || 'Player'} is too far away.`, null, [], 'local', socket);
+                        return;
+                    }
+
+                    // Grabbing Intent
+                    if (playerIntent === 'grabbing') {
+                        // Empty active hand is required to grab a player
+                        if (activeNode) {
+                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', `Your ${activeHand} hand must be empty to grab someone.`, null, [], 'local', socket);
+                            return;
+                        }
+
+                        // Direct progression
+                        if (!targetPlayer.isHeld && targetPlayer.heldBySocketId !== socket.id) {
+                            // Stage 1: Hold (Grab)
+                            targetPlayer.isHeld = true;
+                            targetPlayer.heldBy = player._id;
+                            targetPlayer.heldBySocketId = socket.id;
+                            targetPlayer.grippedFirmly = false;
+                            targetPlayer.struggleCount = 0;
+                            
+                            const msg = `${player.Username} has taken hold of ${targetPlayer.Username}.`;
+                            io.emit('voreLog', msg);
+                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', msg, null, [], 'local', socket);
+                            io.emit('playerStateUpdate', { [targetPlayer.playerId]: getSafePlayerState(targetPlayer) });
+                        } else if (targetPlayer.heldBySocketId === socket.id && !targetPlayer.grippedFirmly) {
+                            // Stage 2: Grip Firmly
+                            targetPlayer.grippedFirmly = true;
+                            targetPlayer.grippedBy = socket.id;
+                            targetPlayer.struggleCount = 0;
+
+                            const msg = `${player.Username} is gripping ${targetPlayer.Username} tightly.`;
+                            io.emit('voreLog', msg);
+                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', msg, null, [], 'local', socket);
+                            io.emit('playerStateUpdate', { [targetPlayer.playerId]: getSafePlayerState(targetPlayer) });
+                        } else if (targetPlayer.heldBySocketId === socket.id && targetPlayer.grippedFirmly) {
+                            // Stage 3: Already gripped firmly -> Open Vore radial menu
+                            let voreOptions = player.voreTypes || [];
+                            if (player.anatomyData) {
+                                try {
+                                    const graph = JSON.parse(player.anatomyData);
+                                    if (graph.nodes) {
+                                        const entrances = graph.nodes.filter(n => n.type === 'entrance');
+                                        voreOptions = entrances.map(e => ({
+                                            destination: e.properties.name || 'Unknown Entrance',
+                                            id: e.id,
+                                            graphNodeId: String(e.id),
+                                            isEntrance: true,
+                                            verb: e.properties.verb
+                                        }));
+                                    }
+                                } catch (e) {}
+                            }
+                            const predatorInfo = {
+                                name: player.Username,
+                                voreTypes: voreOptions
+                            };
+                            const responseInfo = [{
+                                Identifier: 'player',
+                                playerId: targetPlayer.playerId,
+                                name: targetPlayer.Username,
+                                availableActions: ['Examine', 'Vore', 'Release']
+                            }];
+                            socket.emit('playerRightClickedResponse', { responseInfo, predatorInfo, pointerX, pointerY });
+                        }
+                    } 
+                    // Friendly Intent
+                    else if (playerIntent === 'friendly') {
+                        let itemUsed = false;
+                        if (activeNode) {
+                            const def = resolveItemDef(activeNode, itemData);
+                            if (def && (def.isDynamic || (activeNode.properties && activeNode.properties.isDynamic)) && def.playerUse !== false) {
+                                // Try to perform item use on player
+                                const result = performItemUse(io, socket, player, activeNode, itemData, false, null, saveCharacter, def);
+                                if (result) itemUsed = true;
+                            }
+                        }
+
+                        if (!itemUsed) {
+                            // Custom messages based on held items:
+                            if (activeNode && activeNode.itemId === 'tool_pickaxe') {
+                                const msg = `${player.Username} pokes ${targetPlayer.Username} with their pickaxe.`;
+                                io.emit('voreLog', msg);
+                                if (messageSystem) {
+                                    messageSystem.sendSystemMessage('Interactional', `You poke ${targetPlayer.Username} with your pickaxe.`, null, [], 'local', socket);
+                                    messageSystem.sendSystemMessage('Interactional', `${player.Username} pokes you with their pickaxe.`, null, [], 'local', targetPlayer.socket);
+                                }
+                            } else if (activeNode && activeNode.itemId === 'material_wool') {
+                                if (messageSystem) {
+                                    messageSystem.sendSystemMessage('Interactional', `You playfully pat the wool against ${targetPlayer.Username}'s cheek.`, null, [], 'local', socket);
+                                    messageSystem.sendSystemMessage('Interactional', `${player.Username} playfully pats wool against your cheek.`, null, [], 'local', targetPlayer.socket);
+                                }
+                            } else {
+                                // Hug
+                                const msg = `${player.Username} hugged ${targetPlayer.Username}.`;
+                                if (messageSystem) messageSystem.sendSystemMessage('Interactional', msg, null, [], 'local', socket);
+                            }
+                        }
+                    }
+                    // Hostile Intent
+                    else if (playerIntent === 'hostile') {
+                        if (activeNode && activeNode.itemId === 'material_wool') {
+                            if (messageSystem) {
+                                messageSystem.sendSystemMessage('Interactional', `You rudely shove the wool in ${targetPlayer.Username}'s face.`, null, [], 'local', socket);
+                                messageSystem.sendSystemMessage('Interactional', `${player.Username} rudely shoves wool in your face.`, null, [], 'local', targetPlayer.socket);
+                            }
+                        } else {
+                            const msg = `${player.Username} punched ${targetPlayer.Username}.`;
+                            io.emit('voreLog', msg);
+                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', msg, null, [], 'local', socket);
+                        }
+                    }
+                }
+                
+                // --- Scenario B: Clicked a Map Object ---
+                else if (clickedItem.Identifier === 'mapObject') {
+                    // Check if it is a world item (dynamic item on ground)
+                    const worldItemIndex = worldItems.findIndex(i => i.uid === clickedItem.uniqueId);
+                    if (worldItemIndex > -1) {
+                        const worldItem = worldItems[worldItemIndex];
+                        const dist = Math.sqrt(Math.pow(player.position.x - worldItem.x, 2) + Math.pow(player.position.y - worldItem.y, 2));
+                        if (dist > 150) {
+                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', 'Too far away.', null, [], 'local', socket);
+                            return;
+                        }
+
+                        const def = resolveItemDef(worldItem, itemData);
+                        if (def && def.preventPickup) {
+                            return;
+                        }
+
+                        if (!activeNode) {
+                            // Standard Pickup
+                            if (activeHand === 'left') player.actionHands.leftNode = worldItem;
+                            else player.actionHands.rightNode = worldItem;
+
+                            worldItems.splice(worldItemIndex, 1);
+                            removeItemFromGrid(worldItem);
+                            io.emit('itemRemoved', worldItem.uid);
+
+                            io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+                            saveCharacter(socket.id);
+                            log.info(`[playerHandClicked] ${player.Username} picked up ${worldItem.name} in ${activeHand} hand.`);
+                        } else {
+                            // Swap: Drop activeNode and pick up new item
+                            const oldItem = activeNode;
+                            oldItem.x = player.position.x;
+                            oldItem.y = player.position.y + 20;
+
+                            if (!oldItem.uid) oldItem.uid = 'item_' + Date.now() + Math.floor(Math.random() * 1000);
+
+                            worldItems.push(oldItem);
+                            addItemToGrid(oldItem);
+
+                            if (activeHand === 'left') player.actionHands.leftNode = worldItem;
+                            else player.actionHands.rightNode = worldItem;
+
+                            worldItems.splice(worldItemIndex, 1);
+                            removeItemFromGrid(worldItem);
+                            io.emit('itemRemoved', worldItem.uid);
+                            io.emit('itemSpawned', oldItem);
+
+                            io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+                            saveCharacter(socket.id);
+                            log.info(`[playerHandClicked] ${player.Username} swapped ${oldItem.name} for ${worldItem.name} in ${activeHand} hand.`);
+                        }
+                        return;
+                    }
+
+                    const resourceNode = activeResourceNodes[clickedItem.uniqueId];
+                    const station = craftingStations[clickedItem.uniqueId];
+
+                    if (resourceNode) {
+                        const def = resourceNodeDefs[resourceNode.type];
+                        if (def) {
+                            const dist = Math.sqrt(Math.pow(player.position.x - resourceNode.x, 2) + Math.pow(player.position.y - resourceNode.y, 2));
+                            if (dist > 150) {
+                                if (messageSystem) messageSystem.sendSystemMessage('Interactional', 'Too far away.', null, [], 'local', socket);
+                                return;
+                            }
+
+                            const reqTool = def.interactType;
+                            let toolMatched = false;
+                            
+                            if (reqTool === 'mine' && activeNode && activeNode.itemId === 'tool_pickaxe') toolMatched = true;
+                            else if (reqTool === 'chop' && activeNode && activeNode.itemId === 'tool_axe') toolMatched = true;
+                            else if (reqTool === 'gather') toolMatched = true;
+
+                            if (toolMatched) {
+                                const interactData = { type: 'resourceNode', id: clickedItem.uniqueId, action: reqTool, hand: activeHand };
+                                socket.listeners('objectInteract').forEach(listener => {
+                                    try {
+                                        listener(interactData);
+                                    } catch (e) {
+                                        log.error('Error invoking objectInteract listener locally:', e);
+                                    }
+                                });
+                            } else {
+                                if (messageSystem) messageSystem.sendSystemMessage('Interactional', `You need a proper tool in your ${activeHand} hand to harvest this.`, null, [], 'local', socket);
+                            }
+                        }
+                    }
+                    else if (station) {
+                        const dist = Math.sqrt(Math.pow(player.position.x - station.x, 2) + Math.pow(player.position.y - station.y, 2));
+                        if (dist > 150) {
+                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', 'Too far away.', null, [], 'local', socket);
+                            return;
+                        }
+
+                        if (activeNode && activeNode.itemId === 'tool_pickaxe') {
+                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', `You tapped the ${station.name || 'station'} with your pickaxe.`, null, [], 'local', socket);
+                        } else if (activeNode && activeNode.itemId === 'material_wool' && playerIntent === 'hostile') {
+                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', `You forcefully shove the wool into the ${station.name || 'station'}.`, null, [], 'local', socket);
+                        }
+
+                        let ingredientDeposited = false;
+                        if (activeNode) {
+                            const stationConfig = stationConfigs[station.type] || {};
+                            const availableRecipes = recipes[station.type] || [];
+                            const maxSlots = stationConfig.inputSlots || 6;
+                            const isIngredient = availableRecipes.some(r => r.ingredients && r.ingredients.some(ing => ing.itemId === activeNode.itemId));
+                            
+                            if (isIngredient && station.inventory.length < maxSlots) {
+                                const depositedItem = activeNode;
+                                if (activeHand === 'left') player.actionHands.leftNode = null;
+                                else player.actionHands.rightNode = null;
+
+                                station.inventory.push(depositedItem);
+                                ingredientDeposited = true;
+
+                                log.info(`[AutoDeposit] Deposited ${depositedItem.name} into ${clickedItem.uniqueId} during click-open.`);
+                                if (messageSystem) messageSystem.sendSystemMessage('Interactional', `You deposited ${depositedItem.name} into the ${station.name || 'station'}.`, null, [], 'local', socket);
+                                
+                                const safePlayer = getSafePlayerState(player);
+                                io.emit('playerStateUpdate', { [socket.id]: safePlayer });
+                                saveCharacter(socket.id);
+                            }
+                        }
+
+                        const availableRecipes = recipes[station.type] || [];
+                        socket.emit('craftingUIOpen', {
+                            stationId: clickedItem.uniqueId,
+                            stationType: station.type,
+                            recipes: availableRecipes,
+                            stationInventory: station.inventory,
+                            outputItem: station.outputItem || null,
+                            craftingState: station.craftingState || null,
+                            uiConfig: stationConfigs[station.type] || {}
+                        });
+                    }
+                }
+            } catch (err) {
+                log.error('Error handling playerHandClicked:', err);
+            }
+        });
+
         // --- On Right Click get list of all targets clicked and player intent ---
         socket.on('playerRightClicked', (data) => {
             try {
@@ -2597,7 +3016,7 @@ module.exports.start = (io, _messageSystem) => {
                             } else if (targetPlayer.heldBySocketId === socket.id) {
                                 availableActions.push('Release');
                                 availableActions.push('Grip Firmly');
-                            } else if (distance <= 100) {
+                            } else {
                                 availableActions.push('Hold');
                             }
                         }
@@ -2645,6 +3064,11 @@ module.exports.start = (io, _messageSystem) => {
                             const def = resolveItemDef(worldItem, itemData);
                             // Log definition
                             log.debug(`[RightClick] WorldItemDef: ${JSON.stringify(def)}`);
+
+                            // Check if it's a gatherable crop world item
+                            if (def && def.gatherable && !requestingPlayer.isDead) {
+                                actions.push('Gather');
+                            }
 
                             // [FIXED] Use Instance Properties -> Def Properties -> Client Data
                             name = worldItem.name || def.name || name;
@@ -2752,13 +3176,21 @@ module.exports.start = (io, _messageSystem) => {
         });
 
         // --- On Left Click get list of all targets clicked and player intent ---
+        const SEED_TO_PLANT = {
+            'seed_indigo': 'plant_indigo_node',
+            'seed_madder_root': 'plant_madder_root_node',
+            'seed_weld': 'plant_weld_node',
+            'seed_potato': 'plant_potato_node'
+        };
+
         socket.on('playerLeftClicked', (data) => {
             try {
-                const { clickedList, playerIntent, pointerX, pointerY } = data;
+                const { clickedList, playerIntent, pointerX, pointerY, hand } = data;
                 const player = players[socket.id];
                 if (!player) return;
 
                 const responseInfo = [];
+                const targetHand = hand || 'left';
 
                 // --- Process each clicked item ---
                 for (const clickedItem of clickedList) {
@@ -2777,11 +3209,141 @@ module.exports.start = (io, _messageSystem) => {
                             name: targetName
                         });
                     }
+                    // --- Check if the clicked item is a mapObject (soil) ---
+                    else if (clickedItem.Identifier === 'mapObject') {
+                        const worldItem = worldItems.find(i => i.uid === clickedItem.uniqueId);
+                        if (worldItem) {
+                            const dist = Math.sqrt(Math.pow(player.position.x - worldItem.x, 2) + Math.pow(player.position.y - worldItem.y, 2));
+                            if (dist <= 150) {
+                                const activeNode = targetHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+
+                                // WATERING DRY SOIL
+                                if (worldItem.itemId === 'tilled_soil_dry' && activeNode && activeNode.itemId === 'tool_watering_can') {
+                                    worldItem.itemId = 'tilled_soil_watered';
+                                    worldItem.name = 'Watered Tilled Soil';
+                                    worldItem.texture = 'tilled_soil_watered';
+                                    worldItem.properties.soilState = 'watered';
+
+                                    io.emit('itemUpdated', worldItem);
+                                    if (messageSystem) messageSystem.sendSystemMessage('Interactional', 'You water the tilled soil.', null, [], 'local', socket);
+                                    log.info(`[Farming] Soil watered by ${player.Username} at (${worldItem.x}, ${worldItem.y}) with ${targetHand} hand`);
+                                }
+                                // PLANTING SEEDS
+                                else if (worldItem.itemId === 'tilled_soil_watered' && activeNode && SEED_TO_PLANT[activeNode.itemId]) {
+                                    const seedId = activeNode.itemId;
+                                    const plantId = SEED_TO_PLANT[seedId];
+
+                                    // Consume seed from target hand
+                                    if (targetHand === 'left') player.actionHands.leftNode = null;
+                                    else player.actionHands.rightNode = null;
+
+                                    // Transform soil
+                                    worldItem.itemId = 'tilled_soil_planted';
+                                    worldItem.name = 'Planted Tilled Soil';
+                                    worldItem.texture = 'tilled_soil_planted';
+                                    worldItem.properties.soilState = 'planted';
+                                    worldItem.properties.plantedTime = Date.now();
+                                    worldItem.properties.plantId = plantId;
+
+                                    io.emit('itemUpdated', worldItem);
+                                    io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+                                    saveCharacter(socket.id);
+
+                                    if (messageSystem) messageSystem.sendSystemMessage('Interactional', `You plant the ${itemData[seedId]?.name || 'seed'}.`, null, [], 'local', socket);
+                                    log.info(`[Farming] Seed ${seedId} planted by ${player.Username} at (${worldItem.x}, ${worldItem.y}) with ${targetHand} hand`);
+                                }
+                            }
+                        }
+                    }
                 }
 
                 socket.emit('playerLeftClickedResponse', { responseInfo, playerIntent, pointerX, pointerY });
             } catch (e) {
                 log.error(`Error handling playerLeftClicked for ${socket.id}:`, e);
+            }
+        });
+
+        // --- On Ground click with hoe, till soil ---
+        socket.on('useToolOnGround', (data) => {
+            try {
+                const { toolId, x, y, hand } = data;
+                const player = players[socket.id];
+                if (!player || player.isDead) return;
+
+                const targetHand = hand || 'left';
+
+                // 1. Verify player is holding the hoe in the target hand
+                const activeNode = targetHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+
+                if (!activeNode || activeNode.itemId !== 'tool_hoe') {
+                    if (messageSystem) messageSystem.sendSystemMessage('Interactional', `You must hold a hoe in your ${targetHand} hand to till the ground.`, null, [], 'local', socket);
+                    return;
+                }
+
+                // 2. Range Check
+                const dist = Math.sqrt(Math.pow(player.position.x - x, 2) + Math.pow(player.position.y - y, 2));
+                if (dist > 150) {
+                    if (messageSystem) messageSystem.sendSystemMessage('Interactional', 'Too far away.', null, [], 'local', socket);
+                    return;
+                }
+
+                // 3. Align to grid (TILE_SIZE = 32)
+                const TILE_SIZE = 32;
+                const tx = Math.floor(x / TILE_SIZE);
+                const ty = Math.floor(y / TILE_SIZE);
+
+                // Check bounds
+                if (ty < 0 || ty >= collisionMap.length || tx < 0 || tx >= collisionMap[0].length) {
+                    return;
+                }
+
+                // 4. Check if blocked
+                if (collisionMap[ty][tx] === 1) {
+                    if (messageSystem) messageSystem.sendSystemMessage('Interactional', 'You cannot till this ground.', null, [], 'local', socket);
+                    return;
+                }
+
+                // 5. Check if already occupied by a ground item (soil)
+                const tileCenterX = tx * TILE_SIZE + TILE_SIZE / 2;
+                const tileCenterY = (ty + 1) * TILE_SIZE;
+
+                const existingSoil = worldItems.find(item => 
+                    item.properties && 
+                    item.properties.isGround && 
+                    item.x === tileCenterX && 
+                    item.y === tileCenterY
+                );
+                if (existingSoil) {
+                    if (messageSystem) messageSystem.sendSystemMessage('Interactional', 'This ground is already tilled.', null, [], 'local', socket);
+                    return;
+                }
+
+                // 6. Spawn dry tilled soil!
+                const drySoilItem = {
+                    uid: `soil_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+                    itemId: 'tilled_soil_dry',
+                    name: 'Tilled Soil',
+                    texture: 'tilled_soil_dry',
+                    icon: 'fa-seedling',
+                    size: 1,
+                    properties: {
+                        isGround: true,
+                        soilState: 'dry',
+                        originalTileX: tx,
+                        originalTileY: ty
+                    },
+                    x: tileCenterX,
+                    y: tileCenterY
+                };
+
+                worldItems.push(drySoilItem);
+                addItemToGrid(drySoilItem);
+                io.emit('itemSpawned', drySoilItem);
+
+                if (messageSystem) messageSystem.sendSystemMessage('Interactional', 'You till the soil.', null, [], 'local', socket);
+                log.info(`[Farming] Soil tilled by ${player.Username} at tile (${tx}, ${ty})`);
+            } catch (e) {
+                log.error(`Error handling useToolOnGround for ${socket.id}:`, e);
             }
         });
 
@@ -3115,6 +3677,10 @@ function updateDynamicSegments(io) {
     if (io) {
         io.emit('mapSegments', segments);
     }
+    // Force all players to recalculate their visibility polygon on the next tick
+    Object.values(players).forEach(p => {
+        p.lastShadowCalcPosition = null;
+    });
 }
 
 

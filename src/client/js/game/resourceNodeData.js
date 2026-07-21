@@ -56,5 +56,89 @@ export default {
             1: 4,
             0: 5
         }
+    },
+    'plant_indigo_node': {
+        name: 'Indigo Plant',
+        description: 'A mature indigo plant ready for harvest.',
+        interactType: 'gather',
+        gatherItem: 'indigo',
+        gatherSeed: 'seed_indigo',
+        gatherTool: 'none',
+        maxCapacity: 1,
+        regrowTime: 999999,
+        capacityFrames: { 1: 0, 0: 0 },
+        preventPickup: true,
+        isGround: true,
+        gatherable: true,
+        rendering: {
+            type: 'layered',
+            layers: [
+                { texture: 'tilled_soil_planted' },
+                { texture: 'plant_indigo' }
+            ]
+        }
+    },
+    'plant_madder_root_node': {
+        name: 'Madder Root Plant',
+        description: 'A mature madder root plant ready for harvest.',
+        interactType: 'gather',
+        gatherItem: 'madder_root',
+        gatherSeed: 'seed_madder_root',
+        gatherTool: 'none',
+        maxCapacity: 1,
+        regrowTime: 999999,
+        capacityFrames: { 1: 0, 0: 0 },
+        preventPickup: true,
+        isGround: true,
+        gatherable: true,
+        rendering: {
+            type: 'layered',
+            layers: [
+                { texture: 'tilled_soil_planted' },
+                { texture: 'plant_madder_root' }
+            ]
+        }
+    },
+    'plant_weld_node': {
+        name: 'Weld Plant',
+        description: 'A mature weld plant ready for harvest.',
+        interactType: 'gather',
+        gatherItem: 'weld',
+        gatherSeed: 'seed_weld',
+        gatherTool: 'none',
+        maxCapacity: 1,
+        regrowTime: 999999,
+        capacityFrames: { 1: 0, 0: 0 },
+        preventPickup: true,
+        isGround: true,
+        gatherable: true,
+        rendering: {
+            type: 'layered',
+            layers: [
+                { texture: 'tilled_soil_planted' },
+                { texture: 'plant_weld' }
+            ]
+        }
+    },
+    'plant_potato_node': {
+        name: 'Potato Plant',
+        description: 'A mature potato plant ready for harvest.',
+        interactType: 'gather',
+        gatherItem: 'food_potato',
+        gatherSeed: 'seed_potato',
+        gatherTool: 'none',
+        maxCapacity: 1,
+        regrowTime: 999999,
+        capacityFrames: { 1: 0, 0: 0 },
+        preventPickup: true,
+        isGround: true,
+        gatherable: true,
+        rendering: {
+            type: 'layered',
+            layers: [
+                { texture: 'tilled_soil_planted' },
+                { texture: 'plant_potato' }
+            ]
+        }
     }
 };

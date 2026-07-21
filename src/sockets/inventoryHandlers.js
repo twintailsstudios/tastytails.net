@@ -1,13 +1,17 @@
 const log = require('../logger');
 const { performItemUse, getSafePlayerState } = require('../utils/itemActions');
+const { resolveHand, getHandItem, setHandItem, clearHandItem } = require('./utils/handUtils');
 
 module.exports = function (io, socket, players, worldItems, saveCharacter, clothingData, itemData, addItemToGrid, removeItemFromGrid) {
     const logPrefix = `[Inventory:${socket.id}]`;
 
     // --- Equip Item Handlers ---
-    socket.on('equipItemClicked', (slotId) => {
+    socket.on('equipItemClicked', (data) => {
         try {
-            log.debug(`${logPrefix} Received 'equipItemClicked' with slot ${slotId}`);
+            const slotId = (typeof data === 'object' && data !== null) ? data.slotId : data;
+            const targetHand = (typeof data === 'object' && data !== null && data.hand) ? resolveHand(data.hand) : resolveHand(player?.actionHands?.activeHand);
+
+            log.debug(`${logPrefix} Received 'equipItemClicked' with slot ${slotId}, Hand: ${targetHand}`);
             const player = players[socket.id];
             if (!player) {
                 log.debug(`${logPrefix} Player not found`);
@@ -21,19 +25,15 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             }
             if (player.isDead) return;
 
-            const activeHand = player.actionHands.activeHand;
-            // Get item in active hand
-            const handItem = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+            const handItem = getHandItem(player, targetHand);
             const slotItem = player.equipment[slotId];
 
-            // log.debug(`${logPrefix} Slot: ${slotId}, Hand: ${activeHand}, HandItem: ${handItem ? 'YES' : 'NO'}, SlotItem: ${slotItem ? 'YES' : 'NO'}`);
-
             // Logic:
-            // 1. If hand has item: Try to Equip
-            // 2. If hand is empty: Unequip from slot to hand
+            // 1. If target hand has item: Try to Equip/Swap
+            // 2. If target hand is empty: Unequip from slot to target hand
 
             if (handItem) {
-                log.debug(`${logPrefix} Hand not empty (${handItem.name}). Attempting to EQIUP/SWAP to ${slotId}.`);
+                log.debug(`${logPrefix} Hand (${targetHand}) not empty (${handItem.name}). Attempting to EQUIP/SWAP to ${slotId}.`);
 
                 let canEquip = false;
                 if (handItem.properties && handItem.properties.equipSlot === slotId) {
@@ -45,25 +45,21 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
                 if (canEquip) {
                     // Swap logic
                     player.equipment[slotId] = handItem;
+                    setHandItem(player, targetHand, slotItem);
 
-                    if (activeHand === 'left') player.actionHands.leftNode = slotItem;
-                    else player.actionHands.rightNode = slotItem;
-
-                    log.info(`Player ${player.Username} equipped ${handItem.name} to ${slotId}`);
+                    log.info(`Player ${player.Username} equipped ${handItem.name} to ${slotId} with ${targetHand} hand`);
                 } else {
                     log.warn(`Player ${player.Username} failed to equip ${handItem.name} to ${slotId} (Wrong Slot)`);
                 }
 
             } else {
-                log.debug(`${logPrefix} Hand empty. Attempting to UNEQUIP from ${slotId}.`);
-                // --- UNEQUIP ATTEMPT (Hand Empty) ---
+                log.debug(`${logPrefix} Hand (${targetHand}) empty. Attempting to UNEQUIP from ${slotId}.`);
+                // --- UNEQUIP ATTEMPT (Target Hand Empty) ---
                 if (slotItem) {
-                    // Move Slot -> Hand
-                    if (activeHand === 'left') player.actionHands.leftNode = slotItem;
-                    else player.actionHands.rightNode = slotItem;
-
+                    // Move Slot -> Target Hand
+                    setHandItem(player, targetHand, slotItem);
                     player.equipment[slotId] = null;
-                    log.info(`Player ${player.Username} unequipped ${slotItem.name} from ${slotId}`);
+                    log.info(`Player ${player.Username} unequipped ${slotItem.name} from ${slotId} to ${targetHand} hand`);
                 }
             }
 
@@ -81,20 +77,20 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
 
     // --- Dynamic Storage Logic (Pockets etc) ---
 
-    // Move item from Hand -> Pocket
+    // Move item from Specified Hand -> Pocket
     socket.on('stashItemClicked', (data) => {
         try {
-            const { targetSlot, targetPocket } = data;
+            const { targetSlot, targetPocket, hand } = data;
             const player = players[socket.id];
             if (!player) return;
             if (player.isDead) return;
 
-            const activeHand = player.actionHands.activeHand;
-            const handItem = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+            const targetHand = resolveHand(hand || player.actionHands?.activeHand);
+            const handItem = getHandItem(player, targetHand);
             const clothingItem = player.equipment[targetSlot];
 
             if (!handItem) {
-                log.debug(`${logPrefix} Hand empty, cannot stash.`);
+                log.debug(`${logPrefix} Hand (${targetHand}) empty, cannot stash.`);
                 return;
             }
             if (!clothingItem) {
@@ -102,12 +98,12 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
                 return;
             }
 
-            // Get clothing definition
-            const textureKey = clothingItem.texture;
-            const clothingDef = clothingData[textureKey];
+            // Get clothing definition strictly from itemData using itemId
+            const itemId = clothingItem.itemId;
+            const clothingDef = itemId ? itemData[itemId] : null;
 
-            if (!clothingDef) {
-                log.debug(`${logPrefix} No clothing definition found for ${textureKey}`);
+            if (!clothingDef || !clothingDef.pockets) {
+                log.debug(`${logPrefix} No clothing definition or pockets found for itemId: ${itemId}`);
                 return;
             }
 
@@ -140,11 +136,10 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             // --- SUCCESS: Move Item ---
             clothingItem.contents[targetPocket].push(handItem);
 
-            // Remove from Hand
-            if (activeHand === 'left') player.actionHands.leftNode = null;
-            else player.actionHands.rightNode = null;
+            // Remove from Target Hand
+            clearHandItem(player, targetHand);
 
-            log.info(`[Storage] Stashed ${handItem.name} into ${clothingDef.name}'s ${pocketDef.name}.`);
+            log.info(`[Storage] Stashed ${handItem.name} from ${targetHand} hand into ${clothingDef.name}'s ${pocketDef.name}.`);
 
             io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
             saveCharacter(socket.id);
@@ -153,20 +148,22 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
         }
     });
 
-    // Move item from Pocket -> Hand
+    // Move item from Pocket -> Specified Hand
     socket.on('retrieveItemClicked', (data) => {
         try {
-            const { sourceSlot, sourcePocket, itemUid } = data;
+            const { sourceSlot, sourcePocket, itemUid, hand } = data;
             const player = players[socket.id];
             if (!player) return;
             if (player.isDead) return;
 
-            const activeHand = player.actionHands.activeHand;
+            const targetHand = resolveHand(hand || player.actionHands?.activeHand);
             const clothingItem = player.equipment[sourceSlot];
 
-            // Check if hand is empty
-            if (activeHand === 'left' && player.actionHands.leftNode) return; // Hand full
-            if (activeHand === 'right' && player.actionHands.rightNode) return; // Hand full
+            // Check if target hand is empty
+            if (getHandItem(player, targetHand)) {
+                log.debug(`${logPrefix} Hand (${targetHand}) full, cannot retrieve item.`);
+                return;
+            }
 
             if (!clothingItem || !clothingItem.contents || !clothingItem.contents[sourcePocket]) return;
 
@@ -176,14 +173,13 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
 
             const item = clothingItem.contents[sourcePocket][itemIndex];
 
-            // Move to Hand
-            if (activeHand === 'left') player.actionHands.leftNode = item;
-            else player.actionHands.rightNode = item;
+            // Move to Target Hand
+            setHandItem(player, targetHand, item);
 
             // Remove from Pocket
             clothingItem.contents[sourcePocket].splice(itemIndex, 1);
 
-            log.info(`[Storage] Retrieved ${item.name} from ${sourcePocket}.`);
+            log.info(`[Storage] Retrieved ${item.name} into ${targetHand} hand from ${sourcePocket}.`);
 
             io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
             saveCharacter(socket.id);
@@ -198,7 +194,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             if (!player) return;
             if (player.isDead) return;
 
-            const activeHand = player.actionHands.activeHand;
+            const activeHand = (data && data.hand) ? data.hand : player.actionHands.activeHand;
             let droppedItem = null;
 
             if (activeHand === 'left' && player.actionHands.leftNode) {

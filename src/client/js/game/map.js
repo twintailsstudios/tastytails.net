@@ -127,8 +127,10 @@ export function createMap(scene, onProgress) {
             // Default behavior: layers render in order of creation.
             // If explicit depth is needed, we can set it.
             // For now, let's keep the 'grass' behavior (depth -6) if named grass, otherwise standard.
-            if (layerData.name === 'grass') {
-                layer.depth = -6;
+            if (layerData.name === 'ground') {
+                layer.depth = -10;
+            } else if (layerData.name === 'grass') {
+                layer.depth = -8;
             } else {
                 layer.depth = 0; // Default
             }
@@ -279,13 +281,19 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
         if (rawTs.tiles[trueLocalID]) {
             tileProps = rawTs.tiles[trueLocalID].properties;
             rawImage = rawTs.tiles[trueLocalID].image;
-
-            if (tileProps.isItem) {
-                return;
-            }
         }
     } else {
         console.warn(`[World Builder] Could not find Raw Tileset for GID ${obj.gid}`);
+    }
+
+    // Treat as item if layer is 'items' or isItem property is true
+    const isItem = tileProps.isItem || 
+                   layerName?.toLowerCase() === 'items' || 
+                   obj.properties?.some(p => p.name === 'isItem' && p.value === true) ||
+                   (obj.properties && !Array.isArray(obj.properties) && obj.properties.isItem);
+
+    if (isItem) {
+        return;
     }
 
     // 2. Determine Texture Key
@@ -377,6 +385,8 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
         sprite.setFrame(0);
         sprite.setInteractive({ cursor: 'pointer' });
         sprite.on('pointerdown', (pointer) => {
+            if (pointer.button !== 0) return;
+            pointer.interactionHandled = true;
             const player = scene.playerContainer;
             if (player) {
                 const dist = Phaser.Math.Distance.Between(player.x, player.y, sprite.x, sprite.y);
@@ -384,6 +394,18 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
                     if (scene.socket) {
                         scene.socket.emit('doorInteract', sprite.objectInfo.uniqueId);
                     }
+                } else {
+                    console.log(`[Door] Too far - Smart Walking towards door: ${sprite.objectInfo.uniqueId}`);
+                    scene.smartWalkTarget = {
+                        target: sprite,
+                        range: 110, // closer than 150 to avoid network race conditions
+                        onReach: () => {
+                            console.log(`[Door] Smart Walk reached door: ${sprite.objectInfo.uniqueId}`);
+                            if (scene.socket) {
+                                scene.socket.emit('doorInteract', sprite.objectInfo.uniqueId);
+                            }
+                        }
+                    };
                 }
             }
         });
@@ -436,11 +458,28 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
 
     // 5. Enable Interaction & Metadata
     sprite.setInteractive();
+
+    let stationType = null;
+    if (obj.properties) {
+        if (Array.isArray(obj.properties)) {
+            const p = obj.properties.find(prop => prop.name === 'stationType');
+            if (p) stationType = p.value;
+        } else {
+            if (obj.properties.stationType) stationType = obj.properties.stationType;
+        }
+    }
+    if (!stationType && tileProps && tileProps.stationType) {
+        stationType = tileProps.stationType;
+    }
+
     sprite.objectInfo = {
         Identifier: 'mapObject',
         uniqueId: `${layerName}_${obj.id}`,
         name: nodeDef ? nodeDef.name : (tileProps.name || obj.name || textureKey),
-        description: nodeDef ? nodeDef.description : (tileProps.description || tileProps.desc || tileProps.icDescrip || 'It is a ' + (obj.type || 'object') + '.')
+        description: nodeDef ? nodeDef.description : (tileProps.description || tileProps.desc || tileProps.icDescrip || 'It is a ' + (obj.type || 'object') + '.'),
+        stationType: stationType,
+        gatherTool: nodeDef ? nodeDef.gatherTool : null,
+        interactType: nodeDef ? nodeDef.interactType : null
     };
 
     // --- Zone Transparency Prop ---

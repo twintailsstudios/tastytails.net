@@ -165,12 +165,31 @@ export const assets = {
         { key: 'hair-front_02', path: '/assets/spritesheets/hair-front_02.png', animate: true },
         { key: 'hair-front_03', path: '/assets/spritesheets/hair-front_03.png', animate: true },
 
-        // Clothing
-        { key: 'shirt_01', path: '/assets/clothes/shirt_01.png', animate: true },
-        { key: 'shirt_01-secondary_01', path: '/assets/clothes/shirt_01-secondary_01.png', animate: true },
-        { key: 'shirt_01-secondary_02', path: '/assets/clothes/shirt_01-secondary_02.png', animate: true },
-        { key: 'shirt_01-secondary_03', path: '/assets/clothes/shirt_01-secondary_03.png', animate: true },
-        { key: 'pants_01', path: '/assets/clothes/pants_01.png', animate: true },
+        // Dynamic Clothing items & secondary patterns
+        ...Object.values(itemData)
+            .filter(item => item.itemType === 'clothing')
+            .flatMap(item => {
+                const entries = [];
+                const baseTex = item.texture || item.itemId;
+                if (baseTex) {
+                    entries.push({
+                        key: baseTex,
+                        path: `/assets/clothes/${baseTex}.png`,
+                        animate: true
+                    });
+                }
+                if (item.secondaryPatterns && Array.isArray(item.secondaryPatterns)) {
+                    item.secondaryPatterns.forEach(pattern => {
+                        const patternId = typeof pattern === 'string' ? pattern : pattern.id;
+                        entries.push({
+                            key: `${baseTex}-${patternId}`,
+                            path: `/assets/clothes/${baseTex}-${patternId}.png`,
+                            animate: true
+                        });
+                    });
+                }
+                return entries;
+            }),
 
         // Doors
         { key: 'door_clothing_store', path: '/assets/spritesheets/door_clothing_store.png', frameWidth: 197, frameHeight: 255 },

@@ -270,7 +270,8 @@ export function displayPlayers(self, playerInfo) {
 
     document.getElementById('phaserApp').focus();
 
-    playerContainer.playerInfo = playerInfo;
+    Object.assign(self.playerInfo, playerInfo);
+    playerContainer.playerInfo = self.playerInfo;
     playerContainer.pendingInputs = [];
     playerContainer.inputSequenceNumber = 0;
     window.avatarSelected = true;

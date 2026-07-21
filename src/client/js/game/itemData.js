@@ -30,15 +30,15 @@ export default {
 
     // Crafting Items
     'ore_iron': { size: 2, name: 'Iron Ore', icon: 'fa-gem', texture: 'ore_iron', flavor: `Hard and metallic`, description: `A chunk of iron ore.`, verb: 'use', maxUses: 1, playerUse: false },
-    'ingot_iron': { 
-        size: 2, 
-        name: 'Iron Ingot', 
-        icon: 'fa-solid fa-smithing', 
-        texture: 'ingot_iron', 
-        flavor: `Hard and metallic`, 
-        description: `An ingot of iron.`, 
-        verb: 'use', 
-        maxUses: 1, 
+    'ingot_iron': {
+        size: 2,
+        name: 'Iron Ingot',
+        icon: 'fa-solid fa-smithing',
+        texture: 'ingot_iron',
+        flavor: `Hard and metallic`,
+        description: `An ingot of iron.`,
+        verb: 'use',
+        maxUses: 1,
         playerUse: false,
         recipe: {
             station: 'furnace',
@@ -57,15 +57,15 @@ export default {
     'food_potato': { size: 1, name: 'Potato', icon: 'fa-apple-whole', texture: 'food_potato', flavor: `Starchy and savory`, description: `A rich potato.`, verb: 'eat', maxUses: 1, playerUse: true, isDynamic: true },
 
     // Tools
-    'tool_sheers': { 
-        size: 1, 
-        name: 'Sheers', 
-        icon: 'fa-apple-whole', 
-        texture: 'sheers', 
-        flavor: `Tastes like metal`, 
-        description: `Big heavy scissors`, 
-        verb: 'use', 
-        maxUses: 1, 
+    'tool_sheers': {
+        size: 1,
+        name: 'Sheers',
+        icon: 'fa-apple-whole',
+        texture: 'sheers',
+        flavor: `Tastes like metal`,
+        description: `Big heavy scissors`,
+        verb: 'use',
+        maxUses: 1,
         playerUse: false,
         recipe: {
             station: 'anvil',
@@ -76,21 +76,59 @@ export default {
             icon: 'fa-solid fa-khanda'
         }
     },
-    'tool_pickaxe': { 
-        size: 1, 
-        name: 'Pickaxe', 
-        icon: 'fa-apple-whole', 
-        texture: 'pickaxe', 
-        flavor: `Tastes like metal`, 
-        description: `Big heavy pickaxe`, 
-        verb: 'use', 
-        maxUses: 1, 
+    'tool_pickaxe': {
+        size: 1,
+        name: 'Pickaxe',
+        icon: 'fa-apple-whole',
+        texture: 'pickaxe',
+        flavor: `Tastes like metal`,
+        description: `Big heavy pickaxe`,
+        verb: 'use',
+        maxUses: 1,
         playerUse: false,
         recipe: {
             station: 'anvil',
             time: 5000,
             ingredients: [
                 { itemId: 'ingot_iron', count: 3 }
+            ],
+            icon: 'fa-solid fa-khanda'
+        }
+    },
+    'tool_hoe': {
+        size: 1,
+        name: 'Hoe',
+        icon: 'fa-apple-whole',
+        texture: 'hoe',
+        flavor: `Tastes like metal`,
+        description: `Big heavy hoe`,
+        verb: 'use',
+        maxUses: 1,
+        playerUse: false,
+        recipe: {
+            station: 'anvil',
+            time: 5000,
+            ingredients: [
+                { itemId: 'ingot_iron', count: 2 }
+            ],
+            icon: 'fa-solid fa-khanda'
+        }
+    },
+    'tool_watering_can': {
+        size: 1,
+        name: 'Watering Can',
+        icon: 'fa-apple-whole',
+        texture: 'watering_can',
+        flavor: `Tastes like water`,
+        description: `A watering can`,
+        verb: 'use',
+        maxUses: 1,
+        playerUse: false,
+        recipe: {
+            station: 'anvil',
+            time: 5000,
+            ingredients: [
+                { itemId: 'ingot_iron', count: 2 }
             ],
             icon: 'fa-solid fa-khanda'
         }
@@ -103,6 +141,25 @@ export default {
     'indigo': { size: 1, name: 'Indigo', icon: 'fa-apple-whole', texture: 'indigo', flavor: `Pungent`, description: `A roll of indigo fiber.`, verb: 'use', maxUses: 1, playerUse: false },
     'madder_root': { size: 1, name: 'Madder Root', icon: 'fa-apple-whole', texture: 'madder_root', flavor: `Pungent`, description: `A roll of madder root fiber.`, verb: 'use', maxUses: 1, playerUse: false },
     'weld': { size: 1, name: 'Weld', icon: 'fa-apple-whole', texture: 'weld', flavor: `Pungent`, description: `A roll of weld fiber.`, verb: 'use', maxUses: 1, playerUse: false },
+
+
+
+    // Farming Seeds
+    'seed_indigo': { size: 1, name: 'Indigo Seed', icon: 'fa-seedling', texture: 'seed_indigo', flavor: 'Smells of dirt', description: 'Planted to grow indigo.' },
+    'seed_madder_root': { size: 1, name: 'Madder Root Seed', icon: 'fa-seedling', texture: 'seed_madder_root', flavor: 'Smells of dirt', description: 'Planted to grow madder root.' },
+    'seed_weld': { size: 1, name: 'Weld Seed', icon: 'fa-seedling', texture: 'seed_weld', flavor: 'Smells of dirt', description: 'Planted to grow weld.' },
+    'seed_potato': { size: 1, name: 'Potato Seed', icon: 'fa-seedling', texture: 'seed_potato', flavor: 'Smells of dirt', description: 'Planted to grow potato.' },
+
+    // Farming Soils
+    'tilled_soil_dry': { size: 1, name: 'Tilled Soil', icon: 'fa-seedling', texture: 'tilled_soil_dry', flavor: 'Dry soil', description: 'Needs watering before planting.', preventPickup: true, isGround: true },
+    'tilled_soil_watered': { size: 1, name: 'Watered Tilled Soil', icon: 'fa-seedling', texture: 'tilled_soil_watered', flavor: 'Wet soil', description: 'Ready for planting.', preventPickup: true, isGround: true },
+    'tilled_soil_planted': { size: 1, name: 'Planted Tilled Soil', icon: 'fa-seedling', texture: 'tilled_soil_planted', flavor: 'Wet soil with seed', description: 'A seed is growing here.', preventPickup: true, isGround: true },
+
+    // Farming Plant Textures (Simple definitions to ensure textures load)
+    'plant_indigo': { size: 1, name: 'Indigo Plant Texture', icon: 'fa-seedling', texture: 'plant_indigo', preventPickup: true },
+    'plant_madder_root': { size: 1, name: 'Madder Root Plant Texture', icon: 'fa-seedling', texture: 'plant_madder_root', preventPickup: true },
+    'plant_weld': { size: 1, name: 'Weld Plant Texture', icon: 'fa-seedling', texture: 'plant_weld', preventPickup: true },
+    'plant_potato': { size: 1, name: 'Potato Plant Texture', icon: 'fa-seedling', texture: 'plant_potato', preventPickup: true },
 
 
     // Special
@@ -132,7 +189,7 @@ export default {
         name: 'Alpha Dye',
         icon: 'fa-tint',
         texture: 'alpha_dye',
-        maxUses: 10,
+        maxUses: 9,
         playerUse: false,
         isDynamic: true,
         color: 0xFFC0CB,
@@ -142,8 +199,8 @@ export default {
         rendering: {
             type: 'layered',
             layers: [
-                { frameOffset: 10, tintParam: 'color' }, // Liquid (Bottom)
-                { frameOffset: 0, interactive: true }    // Bottle (Top)
+                { frameOffset: 0 }, // Layer 0: Bottle Base (Frames 0-9)
+                { frameOffset: 10, tintParam: 'color', interactive: true } // Layer 1: Liquid Overlay (Frames 10-18)
             ]
         }
     },
@@ -152,7 +209,7 @@ export default {
         name: 'Alpha Thread',
         icon: 'fa-tint',
         texture: 'alpha_thread',
-        maxUses: 10,
+        maxUses: 9,
         playerUse: false,
         isDynamic: true,
         color: 0xFFFFFF,
@@ -162,8 +219,8 @@ export default {
         rendering: {
             type: 'layered',
             layers: [
-                { frameOffset: 0 }, // spool (Bottom)
-                { frameOffset: 10, tintParam: 'color', interactive: true } // thread (Top)
+                { frameOffset: 0 }, // Layer 0: Spool Base (Frames 0-9)
+                { frameOffset: 10, tintParam: 'color', interactive: true } // Layer 1: Wool Overlay (Frames 10-18)
             ]
         }
     },
@@ -174,7 +231,7 @@ export default {
         itemId: 'shirt_01',
         itemType: 'clothing',
         texture: 'shirt_01',
-        icon: 'fa-shirt', // Changed to fa-shirt to match context
+        icon: 'fa-solid fa-shirt',
         maxUses: 1,
         playerUse: false,
         isDynamic: true,
@@ -182,6 +239,11 @@ export default {
         verb: 'wear',
         flavor: 'cloth',
         description: 'A simple plain t-shirt.',
+        secondaryPatterns: [
+            { id: 'secondary_01', name: 'Shirt Pattern 1' },
+            { id: 'secondary_02', name: 'Shirt Pattern 2' },
+            { id: 'secondary_03', name: 'Shirt Pattern 3' }
+        ],
         pockets: [
             { id: 'breast_pocket', name: 'Front Pocket', capacity: 2 }
         ],
@@ -190,11 +252,50 @@ export default {
             time: 5000,
             icon: 'fa-solid fa-shirt',
             ingredients: [
-                { itemId: 'thread_wool_white', count: 1 }
+                { itemId: 'thread_wool_white', count: 1, usesConsumed: 2 }
             ],
             customData: {
-                baseShape: 'shirt',
+                baseShape: 'shirt_01',
                 baseName: 'T-Shirt'
+            }
+        }
+    },
+    'pants_01': {
+        name: 'Plain Pants',
+        equipSlot: 'legs',
+        isItem: true,
+        itemId: 'pants_01',
+        itemType: 'clothing',
+        texture: 'pants_01',
+        icon: 'fa-solid fa-socks',
+        maxUses: 1,
+        playerUse: false,
+        isDynamic: true,
+        color: 0xFFFFFF,
+        verb: 'wear',
+        flavor: 'cloth',
+        description: 'A simple plain pants.',
+        secondaryPatterns: [
+            { id: 'secondary_01', name: 'Pants Pattern 1' },
+            { id: 'secondary_02', name: 'Pants Pattern 2' },
+            { id: 'secondary_03', name: 'Pants Pattern 3' }
+        ],
+        pockets: [
+            { id: 'front_left', name: 'Front Left', capacity: 5 },
+            { id: 'front_right', name: 'Front Right', capacity: 5 },
+            { id: 'back_left', name: 'Back Left', capacity: 5 },
+            { id: 'back_right', name: 'Back Right', capacity: 5 }
+        ],
+        recipe: {
+            station: 'sewing_machine',
+            time: 5000,
+            icon: 'fa-solid fa-shirt',
+            ingredients: [
+                { itemId: 'thread_wool_white', count: 1, usesConsumed: 3 }
+            ],
+            customData: {
+                baseShape: 'pants_01',
+                baseName: 'Pants'
             }
         }
     },
@@ -288,11 +389,13 @@ export default {
         name: 'White Wool Thread',
         icon: 'fa-scroll',
         texture: 'alpha_thread',
+        maxUses: 9,
+        isDynamic: true,
         color: 0xCACCC6,
         variant: 'thread_wool_white',
         flavor: 'tastes like wool.',
         description: 'Pure white, soft, warm, and fiberous thread',
-        rendering: { type: 'layered', layers: [{ frameOffset: 10, tintParam: 'color' }, { frameOffset: 0, interactive: true }] },
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
         recipe: {
             station: 'spinning_wheel',
             time: 1000,
@@ -306,17 +409,19 @@ export default {
         name: 'Blue Wool Thread',
         icon: 'fa-scroll',
         texture: 'alpha_thread',
+        maxUses: 9,
+        isDynamic: true,
         color: 0x0000FF,
         variant: 'thread_wool_blue',
         flavor: 'tastes like wool.',
         description: 'Blue, soft, warm, and fiberous thread',
-        rendering: { type: 'layered', layers: [{ frameOffset: 10, tintParam: 'color' }, { frameOffset: 0, interactive: true }] },
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
         recipe: {
             station: 'spinning_wheel',
             time: 1000,
             ingredients: [
                 { itemId: 'fiber_wool', count: 1 },
-                { itemId: 'dye_blue', count: 1 }
+                { itemId: 'dye_blue', count: 1, usesConsumed: 1 }
             ]
         }
     },
@@ -325,17 +430,19 @@ export default {
         name: 'Red Wool Thread',
         icon: 'fa-scroll',
         texture: 'alpha_thread',
+        maxUses: 9,
+        isDynamic: true,
         color: 0xFF0000,
         variant: 'thread_wool_red',
         flavor: 'tastes like wool.',
         description: 'Red, soft, warm, and fiberous thread',
-        rendering: { type: 'layered', layers: [{ frameOffset: 10, tintParam: 'color' }, { frameOffset: 0, interactive: true }] },
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
         recipe: {
             station: 'spinning_wheel',
             time: 1000,
             ingredients: [
                 { itemId: 'fiber_wool', count: 1 },
-                { itemId: 'dye_red', count: 1 }
+                { itemId: 'dye_red', count: 1, usesConsumed: 1 }
             ]
         }
     },
@@ -344,17 +451,19 @@ export default {
         name: 'Yellow Wool Thread',
         icon: 'fa-scroll',
         texture: 'alpha_thread',
+        maxUses: 9,
+        isDynamic: true,
         color: 0xFFFF00,
         variant: 'thread_wool_yellow',
         flavor: 'tastes like wool.',
         description: 'Yellow, soft, warm, and fiberous thread',
-        rendering: { type: 'layered', layers: [{ frameOffset: 10, tintParam: 'color' }, { frameOffset: 0, interactive: true }] },
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
         recipe: {
             station: 'spinning_wheel',
             time: 1000,
             ingredients: [
                 { itemId: 'fiber_wool', count: 1 },
-                { itemId: 'dye_yellow', count: 1 }
+                { itemId: 'dye_yellow', count: 1, usesConsumed: 1 }
             ]
         }
     },
@@ -363,16 +472,18 @@ export default {
         name: 'Blue Dye',
         icon: 'fa-scroll',
         texture: 'alpha_dye',
+        maxUses: 9,
+        isDynamic: true,
         color: 0x0000FF,
         variant: 'dye_blue',
         flavor: 'tastes like blue.',
         description: 'A blue dye.',
-        rendering: { type: 'layered', layers: [{ frameOffset: 10, tintParam: 'color' }, { frameOffset: 0, interactive: true }] },
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
         recipe: {
             station: 'cauldron',
             time: 1000,
             ingredients: [
-                { itemId: 'indigo', count: 1 }
+                { itemId: 'indigo', count: 1, usesConsumed: 1 }
             ]
         }
     },
@@ -381,16 +492,18 @@ export default {
         name: 'Red Dye',
         icon: 'fa-scroll',
         texture: 'alpha_dye',
+        maxUses: 9,
+        isDynamic: true,
         color: 0xFF0000,
         variant: 'dye_red',
         flavor: 'tastes like red.',
         description: 'A red dye.',
-        rendering: { type: 'layered', layers: [{ frameOffset: 10, tintParam: 'color' }, { frameOffset: 0, interactive: true }] },
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
         recipe: {
             station: 'cauldron',
             time: 1000,
             ingredients: [
-                { itemId: 'madder_root', count: 1 }
+                { itemId: 'madder_root', count: 1, usesConsumed: 1 }
             ]
         }
     },
@@ -399,16 +512,18 @@ export default {
         name: 'Yellow Dye',
         icon: 'fa-scroll',
         texture: 'alpha_dye',
+        maxUses: 9,
+        isDynamic: true,
         color: 0xFFFF00,
         variant: 'dye_yellow',
         flavor: 'tastes like yellow.',
         description: 'A yellow dye.',
-        rendering: { type: 'layered', layers: [{ frameOffset: 10, tintParam: 'color' }, { frameOffset: 0, interactive: true }] },
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
         recipe: {
             station: 'cauldron',
             time: 1000,
             ingredients: [
-                { itemId: 'weld', count: 1 }
+                { itemId: 'weld', count: 1, usesConsumed: 1 }
             ]
         }
     },
@@ -458,51 +573,6 @@ export default {
             ingredients: [{ itemId: 'thread_wool_white', count: 4 }],
             result: { itemId: 'shirt_01', count: 1 },
             icon: 'fa-solid fa-layer-group'
-        }
-    },
-    'pattern_secondary_01': {
-        name: 'Pattern Style 1',
-        virtual: true,
-        recipe: {
-            station: 'sewing_machine',
-            time: 0,
-            validateOnly: true,
-            ingredients: [{ itemId: 'thread_wool_white', count: 1 }],
-            result: { itemId: 'shirt_01', count: 1 },
-            customData: {
-                patternId: 'secondary_01',
-                patternName: 'Style 01'
-            }
-        }
-    },
-    'pattern_secondary_02': {
-        name: 'Pattern Style 2',
-        virtual: true,
-        recipe: {
-            station: 'sewing_machine',
-            time: 0,
-            validateOnly: true,
-            ingredients: [{ itemId: 'thread_wool_white', count: 1 }],
-            result: { itemId: 'shirt_01', count: 1 },
-            customData: {
-                patternId: 'secondary_02',
-                patternName: 'Style 02'
-            }
-        }
-    },
-    'pattern_secondary_03': {
-        name: 'Pattern Style 3',
-        virtual: true,
-        recipe: {
-            station: 'sewing_machine',
-            time: 0,
-            validateOnly: true,
-            ingredients: [{ itemId: 'thread_wool_white', count: 1 }],
-            result: { itemId: 'shirt_01', count: 1 },
-            customData: {
-                patternId: 'secondary_03',
-                patternName: 'Style 03'
-            }
         }
     }
 };

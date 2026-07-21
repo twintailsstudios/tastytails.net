@@ -66,9 +66,8 @@
             <div class="vore-dashboard-header"
                 style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding: 0 10px;">
                 <h3 style="margin:0; border:none;">Gestalt Status</h3>
-                <button id="openAnatomyForgeBtn" class="action-btn"
-                    onclick="setTimeout(() => { if(window.AnatomyForge) window.AnatomyForge.refreshLayout() }, 100)"
-                    style="background:var(--wood-light); color:var(--parchment); border:1px solid var(--wood-accent); padding:5px 10px; cursor:pointer;">
+                <button id="openAnatomyForgeBtn" class="btn btn-primary action-btn"
+                    onclick="setTimeout(() => { if(window.AnatomyForge) window.AnatomyForge.refreshLayout() }, 100)">
                     <i class="fa-solid fa-network-wired"></i> Open Forge
                 </button>
             </div>
@@ -95,6 +94,21 @@
                             <span class="toggle-slider"></span>
                         </label>
                         <span class="setting-text">Debug Mode (Hitboxes)</span>
+                    </div>
+                    <div class="setting-row" style="margin-top: 15px;">
+                        <label class="toggle-switch-label">
+                            <input type="checkbox" id="tutorialToggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="setting-text">Show Interactive Tutorial Checklist</span>
+                    </div>
+                </div>
+
+                <!-- Tutorial Refresher Section -->
+                <div id="tutorial-refresher-section" class="debug-section" style="margin-top: 20px; display: block; background: rgba(62, 39, 35, 0.05); padding: 10px; border-radius: 4px; border: 1px dashed rgba(62, 39, 35, 0.2);">
+                    <h4 style="margin: 0 0 10px 0; font-family: 'Cinzel', serif; color: var(--wood-dark); border-bottom: 1px solid rgba(62, 39, 35, 0.1); padding-bottom: 5px;">Interactive Controls Refresher</h4>
+                    <div id="tutorial-refresher-list" style="font-size: 0.8rem; line-height: 1.5; color: var(--text-dark);">
+                        <!-- Will be populated dynamically by tutorial.js -->
                     </div>
                 </div>
 

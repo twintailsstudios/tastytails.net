@@ -5,11 +5,8 @@
     gap: 30px;
     perspective: 1000px;
     padding: 0 40px;
-    /* Added padding to prevent cards from touching edges */
     max-width: 1600px;
-    /* Optional: Limit max width for very large screens */
     margin: 0 auto;
-    /* Center the grid */
 }
 
 /* --- Character Card Design --- */
@@ -20,29 +17,26 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.6), inset 0 0 40px rgba(160, 82, 45, 0.2);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5), inset 0 0 40px rgba(160, 82, 45, 0.15);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     height: 600px;
-    /* Increased height to fit everything comfortably */
     overflow: hidden;
-    border: 1px solid #d7c496;
+    border: 2px solid var(--palette-wood-dark);
 }
 
 .char-card:hover {
     transform: translateY(-10px) rotateX(2deg);
-    box-shadow: 0 20px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 20px 30px rgba(0, 0, 0, 0.6);
     z-index: 5;
 }
 
 /* Card Header */
 .card-header {
     padding: 25px 15px 15px 15px;
-    /* Added top padding to clear the pin */
-    border-bottom: 2px dashed rgba(62, 39, 35, 0.3);
+    border-bottom: 2px dashed var(--palette-wood-light);
     text-align: center;
     position: relative;
     height: 160px;
-    /* Increased from 130px */
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -66,7 +60,6 @@
     font-family: 'Caveat Brush', cursive;
     color: var(--palette-text-dark);
     font-size: 2.4rem;
-    /* Slightly larger */
     font-weight: 400;
     margin-top: 10px;
     line-height: 1.2;
@@ -126,11 +119,11 @@
     color: var(--palette-parchment);
     padding: 4px 12px;
     border-radius: 20px;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 1px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    font-family: 'Lato', sans-serif;
+    font-family: 'Philosopher', sans-serif;
     font-weight: bold;
     flex-shrink: 0;
 }
@@ -198,9 +191,9 @@
     font-weight: bold;
     cursor: pointer;
     text-decoration: none;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     text-transform: uppercase;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     flex: 1;
     text-align: center;
     display: flex;
@@ -210,27 +203,30 @@
     height: 40px;
 }
 
+/* Primary Play Button (Entrance Green) */
 .btn-play {
-    background-color: var(--palette-accent-blue);
+    background-color: var(--btn-primary-bg); /* #6b8c42 Entrance Green */
     color: white;
-    box-shadow: 0 4px 0 #1a237e;
+    box-shadow: 0 4px 0 var(--btn-primary-shadow); /* #3e5527 */
 }
 
 .btn-play:hover {
     transform: translateY(2px);
-    box-shadow: 0 2px 0 #1a237e;
-    background-color: #303f9f;
+    box-shadow: 0 2px 0 var(--btn-primary-shadow);
+    background-color: var(--btn-primary-hover); /* #7ea34f */
 }
 
+/* Secondary Edit Button (Light Wood) */
 .btn-edit {
-    background-color: var(--palette-wood-light);
+    background-color: var(--btn-secondary-bg); /* #5d4037 Light Wood */
     color: var(--palette-parchment);
-    box-shadow: 0 4px 0 #3e2723;
+    box-shadow: 0 4px 0 var(--btn-secondary-shadow); /* #3e2723 */
 }
 
 .btn-edit:hover {
     transform: translateY(2px);
-    box-shadow: 0 2px 0 #3e2723;
+    box-shadow: 0 2px 0 var(--btn-secondary-shadow);
+    background-color: #6d4c41;
 }
 
 /* --- "Add New" Card --- */
@@ -319,7 +315,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.75);
     backdrop-filter: blur(5px);
     display: none;
     justify-content: center;
@@ -331,24 +327,34 @@
     display: flex;
 }
 
+/* Standardized 6px Dark Wood Modal Box Frame */
 .modal-box {
     background: var(--palette-parchment);
+    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
     padding: 30px;
     border-radius: 8px;
     max-width: 500px;
     width: 90%;
-    border: 4px solid var(--palette-wood-dark);
+    border: 6px solid var(--palette-wood-dark);
     box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
     position: relative;
     color: var(--palette-text-dark);
+    font-family: 'Philosopher', sans-serif;
 }
 
 .modal-box h2 {
     font-family: 'Cinzel', serif;
+    font-size: 1.8rem;
     color: var(--palette-accent-red);
-    border-bottom: 2px solid var(--palette-text-dark);
+    border-bottom: 2px dashed var(--palette-wood-light);
     padding-bottom: 10px;
     margin-bottom: 20px;
+}
+
+.modal-box p {
+    font-family: 'Philosopher', sans-serif;
+    font-size: 1.0rem;
+    line-height: 1.5;
 }
 
 .warning-list {
@@ -356,6 +362,7 @@
     padding: 15px;
     border-radius: 4px;
     margin: 15px 0;
+    font-family: 'Philosopher', sans-serif;
 }
 
 .warning-list li {
@@ -368,7 +375,8 @@
     display: flex;
     align-items: flex-start;
     gap: 10px;
-    font-size: 0.9rem;
+    font-family: 'Philosopher', sans-serif;
+    font-size: 0.95rem;
     font-weight: bold;
 }
 
@@ -380,27 +388,47 @@
 }
 
 .btn-cancel {
-    background: #ccc;
-    color: #333;
+    background-color: var(--btn-secondary-bg); /* #5d4037 Light Wood */
+    color: var(--palette-parchment);
+    box-shadow: 0 4px 0 var(--btn-secondary-shadow); /* #3e2723 */
     padding: 10px 20px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    font-family: 'Cinzel', serif;
     font-weight: bold;
+    text-transform: uppercase;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+    background-color: #6d4c41;
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--btn-secondary-shadow);
 }
 
 .btn-delete {
-    background: var(--palette-accent-red);
+    background-color: var(--btn-danger-bg); /* #8b0000 Crimson Red */
     color: white;
+    box-shadow: 0 4px 0 var(--btn-danger-shadow); /* #500000 */
     padding: 10px 20px;
     border: none;
     border-radius: 4px;
     cursor: not-allowed;
+    font-family: 'Cinzel', serif;
     font-weight: bold;
+    text-transform: uppercase;
     opacity: 0.5;
+    transition: all 0.2s;
 }
 
 .btn-delete.active {
     cursor: pointer;
     opacity: 1;
 }
+
+.btn-delete.active:hover {
+    background-color: #a80000;
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--btn-danger-shadow);
+}

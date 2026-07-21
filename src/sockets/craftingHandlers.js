@@ -1,4 +1,5 @@
 const log = require('../logger');
+const { resolveHand, getHandItem, setHandItem, clearHandItem } = require('./utils/handUtils');
 const itemData = require('../data/itemData');
 let recipes = {};
 
@@ -51,7 +52,8 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
     socket.on('openCrafting', (data) => {
         try {
             if (players[socket.id] && players[socket.id].isDead) return;
-            const { stationId } = data;
+            const { stationId, hand } = data;
+            const player = players[socket.id];
             const station = craftingStations[stationId];
 
             if (!station) {
@@ -61,6 +63,37 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
 
             // Get recipes for this station type
             const availableRecipes = recipes[station.type] || [];
+
+            // Auto-deposit check (if hand is provided, e.g. from radial menu)
+            if (hand && player) {
+                const activeHand = hand;
+                const activeNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+
+                if (activeNode) {
+                    const stationConfig = stationConfigs[station.type] || {};
+                    const maxSlots = stationConfig.inputSlots || 6;
+                    const isIngredient = availableRecipes.some(r => r.ingredients && r.ingredients.some(ing => ing.itemId === activeNode.itemId));
+                    
+                    if (isIngredient && station.inventory.length < maxSlots) {
+                        const depositedItem = activeNode;
+                        if (activeHand === 'left') player.actionHands.leftNode = null;
+                        else player.actionHands.rightNode = null;
+
+                        station.inventory.push(depositedItem);
+
+                        log.info(`${logPrefix} Auto-deposited ${depositedItem.name} into station ${stationId} during openCrafting`);
+
+                        // Update Player Visuals (Hands)
+                        const safePlayer = getPacket ? getPacket(player) : player;
+                        if (broadcastToVisible) {
+                            broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
+                        } else {
+                            io.emit('playerStateUpdate', { [socket.id]: safePlayer });
+                        }
+                        saveCharacter(socket.id);
+                    }
+                }
+            }
 
             // Emit to client
             socket.emit('craftingUIOpen', {
@@ -83,7 +116,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
     // 2. Deposit Item into Station
     socket.on('craftingDepositItem', (data) => {
         try {
-            const { stationId, sourceSlot, sourcePocket, itemUid } = data;
+            const { stationId, sourceSlot, sourcePocket, itemUid, hand } = data;
             const player = players[socket.id];
             const station = craftingStations[stationId];
 
@@ -114,15 +147,14 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
                     }
                 }
             } else {
-                // Default: Deposit from Active Hand
-                const activeHand = player.actionHands.activeHand;
-                const handItem = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+                // Default: Deposit from specified Hand
+                const targetHand = resolveHand(hand || player.actionHands?.activeHand);
+                const handItem = getHandItem(player, targetHand);
 
                 if (handItem) {
                     depositedItem = handItem;
-                    // Clear from Hand
-                    if (activeHand === 'left') player.actionHands.leftNode = null;
-                    else player.actionHands.rightNode = null;
+                    // Clear from Target Hand
+                    clearHandItem(player, targetHand);
                 }
             }
 
@@ -167,7 +199,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
     // 2.5 Retrieve Item from Station
     socket.on('craftingRetrieveItem', (data) => {
         try {
-            const { stationId, itemUid } = data;
+            const { stationId, itemUid, hand } = data;
             const player = players[socket.id];
             const station = craftingStations[stationId];
 
@@ -202,12 +234,12 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
                 item = station.outputItem;
             }
 
-            // Check if player hand is empty
-            const activeHand = player.actionHands.activeHand; // 'left' or 'right'
-            const handNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+            // Check if target hand is empty
+            const targetHand = resolveHand(hand || player.actionHands?.activeHand);
+            const handNode = getHandItem(player, targetHand);
 
             if (handNode) {
-                socket.emit('craftingError', "Hand is full!");
+                socket.emit('craftingError', `${targetHand === 'left' ? 'Left' : 'Right'} hand is full!`);
                 return;
             }
 
@@ -218,9 +250,8 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
                 station.outputItem = null;
             }
 
-            // Add back to hand
-            if (activeHand === 'left') player.actionHands.leftNode = item;
-            else player.actionHands.rightNode = item;
+            // Add back to target hand
+            setHandItem(player, targetHand, item);
 
             // Notify Station Update
             socket.emit('craftingUpdateStation', {
@@ -237,7 +268,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             }
             saveCharacter(socket.id);
 
-            log.info(`${logPrefix} Retrieved ${item.name} from ${stationId}`);
+            log.info(`${logPrefix} Retrieved ${item.name} into ${targetHand} hand from ${stationId}`);
 
         } catch (e) {
             log.error(`${logPrefix} Error retrieving item:`, e);
@@ -328,30 +359,65 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
                     // Filter out already used indices
                     const unusedIndices = availableIndices.filter(idx => !indicesToRemove.has(idx));
 
-                    if (unusedIndices.length >= ing.count) {
-                        // Mark for removal or update uses
-                        for (let i = 0; i < ing.count; i++) {
-                            const idx = unusedIndices[i];
-                            const item = station.inventory[idx];
-                            // Check for maxUses (dynamic item)
-                            const def = itemData[item.itemId] || {};
-                            const maxUses = item.maxUses || def.maxUses || 0;
-
-                            if (maxUses > 0) {
-                                // Decrement usage (Increment timesUsed)
-                                item.timesUsed = (item.timesUsed || 0) + 1;
-
-                                // Check if exhausted
-                                if (item.timesUsed >= maxUses) {
-                                    indicesToRemove.add(idx);
-                                }
-                            } else {
-                                // Normal item: Consume fully
-                                indicesToRemove.add(idx);
+                    // Check if this is a sewing machine recipe
+                    const isSewing = recipe.station === 'sewing_machine' || (finalCustomData && finalCustomData.itemId);
+                    let baseUses = 1;
+                    if (isSewing && finalCustomData && finalCustomData.itemId) {
+                        const targetItemDef = itemData[finalCustomData.itemId];
+                        if (targetItemDef && targetItemDef.recipe && targetItemDef.recipe.ingredients) {
+                            const targetIng = targetItemDef.recipe.ingredients.find(i => 
+                                i.itemId === reqKey || (reqKey.startsWith('thread_wool_') && i.itemId.startsWith('thread_wool_'))
+                            );
+                            if (targetIng && targetIng.usesConsumed) {
+                                baseUses = targetIng.usesConsumed;
                             }
                         }
-                    } else {
-                        log.warn(`${logPrefix} Missing ingredient: ${reqKey} (Req: ${ing.count}, Found: ${unusedIndices.length})`);
+                    } else if (ing.usesConsumed) {
+                        baseUses = ing.usesConsumed;
+                    }
+
+                    // For sewing machine:
+                    // Spool 0 (base garment) consumes baseUses (e.g. 2 for shirt, 3 for pants).
+                    // Spools 1..N (secondary patterns) consume 1 use each.
+                    const totalUsesNeeded = isSewing 
+                        ? baseUses + Math.max(0, ing.count - 1)
+                        : baseUses * ing.count;
+                        
+                    let usesNeeded = totalUsesNeeded;
+
+                    for (let i = 0; i < unusedIndices.length && usesNeeded > 0; i++) {
+                        const idx = unusedIndices[i];
+                        const item = station.inventory[idx];
+                        const def = itemData[item.itemId] || {};
+                        const maxUses = item.maxUses || def.maxUses || 0;
+
+                        // Required uses for this item: 1st spool needs baseUses, secondary spools need 1 use
+                        const requiredForThisItem = (isSewing && i > 0) ? 1 : baseUses;
+
+                        if (maxUses > 0) {
+                            const currentUsed = item.timesUsed || 0;
+                            const remaining = Math.max(0, maxUses - currentUsed);
+                            if (remaining <= 0) {
+                                indicesToRemove.add(idx);
+                                continue;
+                            }
+
+                            const consume = Math.min(requiredForThisItem, remaining);
+                            item.timesUsed = currentUsed + consume;
+                            usesNeeded -= consume;
+
+                            if (item.timesUsed >= maxUses) {
+                                indicesToRemove.add(idx);
+                            }
+                        } else {
+                            // Standard item (consumed per item)
+                            indicesToRemove.add(idx);
+                            usesNeeded -= 1;
+                        }
+                    }
+
+                    if (usesNeeded > 0) {
+                        log.warn(`${logPrefix} Missing ingredient uses: ${reqKey} (Needed: ${totalUsesNeeded}, Deficit: ${usesNeeded})`);
                         hasIngredients = false;
                         break;
                     }
@@ -583,4 +649,4 @@ const checkCraftingRange = (socketId, player, io, craftingStations) => {
     }
 };
 
-module.exports = { init, checkCraftingRange };
+module.exports = { init, checkCraftingRange, recipes };

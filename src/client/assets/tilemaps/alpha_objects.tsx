@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.11.2" name="alpha_objects" tilewidth="252" tileheight="511" tilecount="41" columns="0" objectalignment="bottomleft">
+<tileset version="1.10" tiledversion="1.12.2" name="alpha_objects" tilewidth="252" tileheight="511" tilecount="48" columns="0" objectalignment="bottomleft">
  <editorsettings>
   <export target="alpha_objects..tsx" format="tsx"/>
  </editorsettings>
@@ -397,5 +397,26 @@
    <property name="texture" value="cocktail_bar"/>
   </properties>
   <image source="cocktail_bar.png" width="132" height="192"/>
+ </tile>
+ <tile id="55">
+  <image source="seed_indigo.png" width="32" height="32"/>
+ </tile>
+ <tile id="56">
+  <image source="seed_madder_root.png" width="32" height="32"/>
+ </tile>
+ <tile id="57">
+  <image source="seed_potato.png" width="32" height="32"/>
+ </tile>
+ <tile id="58">
+  <image source="seed_weld.png" width="32" height="32"/>
+ </tile>
+ <tile id="59">
+  <image source="tilled_soil_dry.png" width="32" height="32"/>
+ </tile>
+ <tile id="60">
+  <image source="tilled_soil_planted.png" width="32" height="32"/>
+ </tile>
+ <tile id="61">
+  <image source="tilled_soil_watered.png" width="32" height="32"/>
  </tile>
 </tileset>

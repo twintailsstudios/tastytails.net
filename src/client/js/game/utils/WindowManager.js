@@ -60,8 +60,8 @@ export class WindowManager {
             windowEl.style.left = `${initialX}px`;
             windowEl.style.top = `${initialY}px`;
 
-            document.addEventListener('mousemove', dragElement);
-            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('mousemove', dragElement, true);
+            document.addEventListener('mouseup', stopDrag, true);
         };
 
         // Also bring to front on clicking the window body itself
@@ -80,8 +80,8 @@ export class WindowManager {
 
         const stopDrag = () => {
             isDragging = false;
-            document.removeEventListener('mousemove', dragElement);
-            document.removeEventListener('mouseup', stopDrag);
+            document.removeEventListener('mousemove', dragElement, true);
+            document.removeEventListener('mouseup', stopDrag, true);
         };
     }
 
@@ -122,8 +122,8 @@ export class WindowManager {
                 windowEl.style.margin = '0';
                 windowEl.style.transform = 'none';
 
-                document.addEventListener('mousemove', doResize);
-                document.addEventListener('mouseup', stopResize);
+                document.addEventListener('mousemove', doResize, true);
+                document.addEventListener('mouseup', stopResize, true);
                 document.body.style.cursor = getCursorForDir(dir);
             });
 
@@ -159,8 +159,8 @@ export class WindowManager {
 
             const stopResize = () => {
                 isResizing = false;
-                document.removeEventListener('mousemove', doResize);
-                document.removeEventListener('mouseup', stopResize);
+                document.removeEventListener('mousemove', doResize, true);
+                document.removeEventListener('mouseup', stopResize, true);
                 document.body.style.cursor = '';
             };
         };

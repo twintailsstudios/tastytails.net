@@ -212,6 +212,42 @@ export function create() {
         pointer.interactionHandled = false;
     });
 
+    // Global pointer down for ground click-to-move navigation
+    this.input.on('pointerdown', (pointer, currentlyOverObjects) => {
+        // Only accept Primary (Left) Click
+        if (pointer.button !== 0) return;
+
+        // Skip if a menu/overlay is open or if dropMode is active
+        const contextMenu = document.getElementById('contextMenu');
+        if (contextMenu && contextMenu.style.display !== 'none') return;
+        if (window.dropMode && window.dropMode.active) return;
+        if (window.craftingUI && window.craftingUI.isOpen) return;
+
+        // Defer check to allow object-specific pointerdown handlers to run and set interactionHandled = true
+        this.time.delayedCall(0, () => {
+            if (pointer.interactionHandled) return;
+
+            // Also check currentlyOverObjects to avoid moving when clicking on interactive elements that might not have set the flag
+            if (currentlyOverObjects && currentlyOverObjects.length > 0) {
+                const clickedInteractive = currentlyOverObjects.some(obj => obj.input && obj.input.enabled);
+                if (clickedInteractive) return;
+            }
+
+            const worldX = pointer.worldX;
+            const worldY = pointer.worldY;
+
+            console.log(`[SmartWalk] Navigating to ground coordinates: (${worldX}, ${worldY})`);
+            this.smartWalkTarget = {
+                x: worldX - 30, // center offset for player container origin
+                y: worldY,
+                range: 5,
+                onReach: () => {
+                    console.log(`[SmartWalk] Finished navigating to ground coordinates: (${worldX}, ${worldY})`);
+                }
+            };
+        });
+    });
+
     // Handle Pickup Failure (e.g. Server rejected range)
     this.socket.on('pickupFailed', (data) => {
         console.log('[Game] Pickup Failed:', data.reason);
@@ -570,10 +606,14 @@ export function create() {
                         return; // Sprite recreated, skip update logic
                     }
 
+                    // Update playerInfo with latest server state (Merge Delta)
+                    Object.assign(otherPlayer.playerInfo, players[id]);
+                    const fullState = otherPlayer.playerInfo;
+
                     // Update position and state
                     let isPredicted = false;
-                    if (players[id].isHeld && players[id].heldBySocketId) {
-                        const holderId = players[id].heldBySocketId;
+                    if (fullState.isHeld && fullState.heldBySocketId) {
+                        const holderId = fullState.heldBySocketId;
                         if (self.socket && self.socket.id === holderId) {
                             isPredicted = true;
                         }
@@ -584,6 +624,7 @@ export function create() {
                     }
 
                     if (!isPredicted) {
+                        otherPlayer.holderPositionHistory = null;
                         // --- GLOBAL INTERPOLATION ---
                         if (typeof otherPlayer.targetX === 'undefined') {
                             if (players[id].position) {
@@ -598,9 +639,6 @@ export function create() {
                             }
                         }
                     }
-                    // Update playerInfo with latest server state (Merge Delta)
-                    Object.assign(otherPlayer.playerInfo, players[id]);
-                    const fullState = otherPlayer.playerInfo;
 
                     // Use Full State for updates
                     updatePlayerAnimations(otherPlayer, fullState);
@@ -677,6 +715,10 @@ export function create() {
                     if (players[id].position) {
                         otherPlayer.targetX = players[id].position.x;
                         otherPlayer.targetY = players[id].position.y;
+                    }
+
+                    if (!fullState.isHeld) {
+                        otherPlayer.holderPositionHistory = null;
                     }
 
                     if (fullState.consumedBy) {
@@ -916,11 +958,23 @@ export function create() {
     // Input Events
     // Input Events
     this.cursors = this.input.keyboard.createCursorKeys();
+    this.wasdKeys = this.input.keyboard.addKeys({
+        up: Phaser.Input.Keyboard.KeyCodes.W,
+        down: Phaser.Input.Keyboard.KeyCodes.S,
+        left: Phaser.Input.Keyboard.KeyCodes.A,
+        right: Phaser.Input.Keyboard.KeyCodes.D
+    });
+    this.smartWalkTarget = null;
+    
     this.input.keyboard.removeCapture(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.input.keyboard.removeCapture(Phaser.Input.Keyboard.KeyCodes.UP);
     this.input.keyboard.removeCapture(Phaser.Input.Keyboard.KeyCodes.DOWN);
     this.input.keyboard.removeCapture(Phaser.Input.Keyboard.KeyCodes.LEFT);
     this.input.keyboard.removeCapture(Phaser.Input.Keyboard.KeyCodes.RIGHT);
+    this.input.keyboard.removeCapture(Phaser.Input.Keyboard.KeyCodes.W);
+    this.input.keyboard.removeCapture(Phaser.Input.Keyboard.KeyCodes.A);
+    this.input.keyboard.removeCapture(Phaser.Input.Keyboard.KeyCodes.S);
+    this.input.keyboard.removeCapture(Phaser.Input.Keyboard.KeyCodes.D);
 
     // Create Animations
     // We need sprite keys. In the original code, 'spritesToAnimate' was used.
@@ -950,14 +1004,14 @@ export function create() {
 
     // --- Window Resize Handler ---
     function windowResize(e) {
-        // console.log('[Resize Event] Triggered', e);
         const container = document.getElementById('phaserApp');
         if (container) {
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            // console.log('[Resize Event] Dimensions:', width, height);
+            const width = Math.max(container.clientWidth || 800, 100);
+            const height = Math.max(container.clientHeight || 600, 100);
 
-            self.scale.resize(width, height);
+            if (self.scale && (self.scale.width !== width || self.scale.height !== height)) {
+                self.scale.resize(width, height);
+            }
 
             if (window.cam1) {
                 window.cam1.setSize(width, height);

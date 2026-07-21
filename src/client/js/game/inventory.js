@@ -1,4 +1,7 @@
 
+import { clickManager } from './clickManager.js';
+import itemData from './itemData.js';
+
 export const inventoryUI = {
     socket: null,
     container: null,
@@ -7,26 +10,6 @@ export const inventoryUI = {
     tower: null,
     activeTab: null,
     lastRenderedHash: '',
-
-    clothingDefinitions: {
-        'pants': {
-            name: 'Blue Jeans',
-            icon: '<i class="fa-solid fa-socks"></i>', // Using FontAwesome as per demo
-            pockets: [
-                { id: 'front_left', name: 'Front Left', capacity: 5 },
-                { id: 'front_right', name: 'Front Right', capacity: 5 },
-                { id: 'back_left', name: 'Back Left', capacity: 5 },
-                { id: 'back_right', name: 'Back Right', capacity: 5 }
-            ]
-        },
-        'shirt': {
-            name: 'Pink Shirt',
-            icon: '<i class="fa-solid fa-shirt"></i>',
-            pockets: [
-                { id: 'breast_pocket', name: 'Front Pocket', capacity: 2 }
-            ]
-        }
-    },
 
     init: function (socket) {
         this.socket = socket;
@@ -69,11 +52,15 @@ export const inventoryUI = {
         const storageItems = [];
         Object.keys(playerInfo.equipment).forEach(slotId => {
             const item = playerInfo.equipment[slotId];
-            if (item && this.clothingDefinitions[item.texture]) {
-                const def = this.clothingDefinitions[item.texture];
+            if (!item || !item.itemId) return;
+
+            // Single Source of Truth: Look up definition strictly by itemId in itemData
+            const def = itemData[item.itemId];
+
+            if (def && def.pockets && def.pockets.length > 0) {
                 storageItems.push({
                     slotId: slotId,
-                    clothingId: item.texture,
+                    clothingId: item.itemId,
                     item: item,
                     def: def
                 });
@@ -130,7 +117,13 @@ export const inventoryUI = {
             const tab = document.createElement('div');
             tab.className = 'tower-tab';
             tab.dataset.id = entry.clothingId;
-            tab.innerHTML = entry.def.icon || '📦';
+            
+            let iconHtml = entry.def.icon || '📦';
+            if (iconHtml && !iconHtml.startsWith('<')) {
+                const iconClass = iconHtml.includes('fa-') ? iconHtml : `fa-solid ${iconHtml}`;
+                iconHtml = `<i class="${iconClass}"></i>`;
+            }
+            tab.innerHTML = iconHtml;
             tab.title = entry.def.name; // Tooltip handled by CSS
 
             if (this.activeTab === entry.clothingId) tab.classList.add('active');
@@ -190,13 +183,14 @@ export const inventoryUI = {
             const row = document.createElement('div');
             row.className = 'pocket-section';
 
-            // Interaction: Click to Stash
-            // Using logic from previous impl: click empty area to stash
-            row.onclick = (e) => {
-                console.log('[Inventory] Pocket Clicked:', pocketDef.id);
-                if (e.target.closest('.hud-item')) return;
-                this.stashItem(entry.slotId, pocketDef.id);
-            };
+            // Unified Hand Click Handler for Pocket Row (Stash: Left Click = Left Hand, Right Click = Right Hand)
+            clickManager.bindElementHandClick(row, {
+                onHandClick: (hand, e) => {
+                    if (e.target.closest('.hud-item')) return;
+                    console.log('[Inventory] Pocket Clicked:', pocketDef.id, 'Hand:', hand);
+                    this.stashItem(entry.slotId, pocketDef.id, hand);
+                }
+            });
 
             row.innerHTML = `
                 <div class="pocket-info">
@@ -212,34 +206,44 @@ export const inventoryUI = {
             contents.forEach((item, itemIdx) => {
                 const itemEl = document.createElement('div');
                 itemEl.className = 'hud-item';
-                // Use FontAwesome icons if available in item definition? 
-                // For now, back to text fallback if no icon system mapped for general items
                 const displayChar = item.name ? item.name.substring(0, 2) : '??';
-                // If we have an icon property in item, use it.
-                // Assuming item.icon is a class string like 'fa-apple-whole'
                 const iconHtml = item.icon ? `<i class="fa-solid ${item.icon}"></i>` : `<span>${displayChar}</span>`;
 
                 itemEl.innerHTML = `${iconHtml}<span class="size-pip">${item.size || 1}</span>`;
                 itemEl.title = item.name;
 
-                itemEl.onclick = (e) => {
-                    e.stopPropagation();
-                    this.retrieveItem(entry.slotId, pocketDef.id, item.uid);
-                };
+                // Unified Hand Click Handler for Pocket Items (Retrieve: Left Click = Left Hand, Right Click = Right Hand)
+                clickManager.bindElementHandClick(itemEl, {
+                    onHandClick: (hand, e) => {
+                        this.retrieveItem(entry.slotId, pocketDef.id, item.uid, hand);
+                    },
+                    onDoubleClick: (e) => {
+                        if (window.craftingUI && window.craftingUI.isOpen && window.craftingUI.currentStationId) {
+                            window.craftingUI.depositFromInventory(entry.slotId, pocketDef.id, item.uid);
+                            if (window.completeTutorialTask) {
+                                window.completeTutorialTask('pocket_deposit');
+                            }
+                        }
+                    }
+                });
 
                 grid.appendChild(itemEl);
             });
 
-            // "Ghost Slot" indicator if space permits (Visual Cue)
+            // "Ghost Slot" indicator if space permits
             if (currentLoad < pocketDef.capacity) {
                 const ghost = document.createElement('div');
                 ghost.className = 'item-ghost';
                 ghost.innerHTML = '<i class="fa-solid fa-plus"></i>';
                 ghost.title = "Stash Here";
-                ghost.onclick = (e) => {
-                    e.stopPropagation(); // Bubble up to row click
-                    this.stashItem(entry.slotId, pocketDef.id);
-                };
+
+                clickManager.bindElementHandClick(ghost, {
+                    onHandClick: (hand, e) => {
+                        console.log('[Inventory] Ghost Clicked:', pocketDef.id, 'Hand:', hand);
+                        this.stashItem(entry.slotId, pocketDef.id, hand);
+                    }
+                });
+
                 grid.appendChild(ghost);
             }
 
@@ -247,16 +251,14 @@ export const inventoryUI = {
         });
     },
 
-    // Canvas bar logic removed in favor of HTML/CSS bars from demo
-
-    stashItem: function (slotId, pocketId) {
-        console.log('[Inventory] Stash to', slotId, pocketId);
-        this.socket.emit('stashItemClicked', { targetSlot: slotId, targetPocket: pocketId });
+    stashItem: function (slotId, pocketId, hand = 'left') {
+        console.log('[Inventory] Stash to', slotId, pocketId, 'Hand:', hand);
+        this.socket.emit('stashItemClicked', { targetSlot: slotId, targetPocket: pocketId, hand: hand });
     },
 
-    retrieveItem: function (slotId, pocketId, itemUid) {
-        console.log('[Inventory] Retrieve', itemUid);
-        this.socket.emit('retrieveItemClicked', { sourceSlot: slotId, sourcePocket: pocketId, itemUid: itemUid });
+    retrieveItem: function (slotId, pocketId, itemUid, hand = 'left') {
+        console.log('[Inventory] Retrieve', itemUid, 'Hand:', hand);
+        this.socket.emit('retrieveItemClicked', { sourceSlot: slotId, sourcePocket: pocketId, itemUid: itemUid, hand: hand });
     },
 
     showToast: function (msg) {

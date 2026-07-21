@@ -29,6 +29,42 @@ class ChatInput {
     bindEvents() {
         if (!this.textarea) return;
 
+        // Sync focus state for game control disabling
+        this.textarea.addEventListener('focus', () => {
+            window.chatFocused = true;
+        });
+
+        this.textarea.addEventListener('blur', () => {
+            window.chatFocused = false;
+        });
+
+        // Global Tab key focus toggle
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                const active = document.activeElement;
+                if (active && active !== this.textarea && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+                    return; // Let standard form navigation handle it
+                }
+
+                e.preventDefault();
+                if (window.chatFocused) {
+                    this.textarea.blur();
+                } else {
+                    this.textarea.focus();
+                    try {
+                        const range = document.createRange();
+                        range.selectNodeContents(this.textarea);
+                        range.collapse(false);
+                        const selection = window.getSelection();
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    } catch (err) {
+                        console.warn('Failed to select text range:', err);
+                    }
+                }
+            }
+        });
+
         this.textarea.addEventListener('input', () => this.handleInput());
 
         this.textarea.addEventListener('keydown', (e) => {
@@ -46,6 +82,7 @@ class ChatInput {
 
             // Formatting shortcuts
             if (e.ctrlKey) {
+                let handled = true;
                 switch (e.key) {
                     case 'b': e.preventDefault(); document.execCommand('bold'); break;
                     case 'i': e.preventDefault(); document.execCommand('italic'); break;
@@ -53,6 +90,11 @@ class ChatInput {
                     case 's': e.preventDefault(); document.execCommand('strikethrough'); break;
                     case '-': e.preventDefault(); document.execCommand('subscript'); break;
                     case '+': e.preventDefault(); document.execCommand('superscript'); break;
+                    default: handled = false; break;
+                }
+                if (handled) {
+                    this.updateToolbarState();
+                    this.handleInput();
                 }
             }
         });
@@ -72,6 +114,72 @@ class ChatInput {
                 }
             });
         }
+
+        this.bindToolbarButtons();
+    }
+
+    bindToolbarButtons() {
+        const toolbarMap = [
+            { id: 'bold-btn', command: 'bold' },
+            { id: 'italic-btn', command: 'italic' },
+            { id: 'underline-btn', command: 'underline' },
+            { id: 'strikethrough-btn', command: 'strikethrough' },
+            { id: 'subscript-btn', command: 'subscript' },
+            { id: 'superscript-btn', command: 'superscript' }
+        ];
+
+        toolbarMap.forEach(({ id, command }) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+
+            // Prevent focus loss from textarea on click so selection remains active
+            btn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+            });
+
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (this.textarea) {
+                    this.textarea.focus();
+                }
+                document.execCommand(command, false, null);
+                this.updateToolbarState();
+                this.handleInput();
+            });
+        });
+
+        // Update toolbar active states on selection change when typing or moving cursor
+        document.addEventListener('selectionchange', () => {
+            if (document.activeElement === this.textarea) {
+                this.updateToolbarState();
+            }
+        });
+    }
+
+    updateToolbarState() {
+        const toolbarMap = [
+            { id: 'bold-btn', command: 'bold' },
+            { id: 'italic-btn', command: 'italic' },
+            { id: 'underline-btn', command: 'underline' },
+            { id: 'strikethrough-btn', command: 'strikethrough' },
+            { id: 'subscript-btn', command: 'subscript' },
+            { id: 'superscript-btn', command: 'superscript' }
+        ];
+
+        toolbarMap.forEach(({ id, command }) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            try {
+                const isState = document.queryCommandState(command);
+                if (isState) {
+                    btn.classList.add('activeBtn');
+                } else {
+                    btn.classList.remove('activeBtn');
+                }
+            } catch (e) {
+                // Command state fallback
+            }
+        });
     }
 
     /**

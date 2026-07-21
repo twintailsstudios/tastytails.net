@@ -10,7 +10,14 @@
     --text-dark: #3e2723;
     --text-light: #f5f5f5;
     --accent-red: #8b0000;
-    --accent-blue: #283593;
+    
+    /* Universal Button Tokens */
+    --btn-primary-bg: #6b8c42;              /* Anatomy Forge Entrance Green */
+    --btn-primary-shadow: #3e5527;          /* Solid 3D Keycap Shadow */
+    --btn-primary-hover: #7ea34f;           /* Lighter Green Hover Fill */
+
+    --btn-secondary-bg: #5d4037;            /* Light Wood */
+    --btn-secondary-shadow: #3e2723;        /* Dark Wood Keycap Shadow */
 }
 
 * {
@@ -23,7 +30,7 @@ body {
     background-color: var(--bg-color);
     background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
     color: var(--text-light);
-    font-family: 'Lato', sans-serif;
+    font-family: 'Philosopher', sans-serif;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -31,7 +38,7 @@ body {
 
 /* --- HEADER & NAV --- */
 header {
-    background: linear-gradient(to bottom, var(--wood-dark), var(--wood-light));
+    background: var(--wood-dark);
     border-bottom: 4px solid var(--gold);
     padding: 1rem 0;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
@@ -185,14 +192,12 @@ nav {
 
 #vorePullout {
     height: 100%;
-    /* display: flex;  <-- REMOVED to allow class .pullout display:none to work */
     padding: 0;
     min-height: 600px;
 }
 
 #vorePullout .af-wrapper {
     display: flex;
-    /* Make the wrapper the flex container */
     flex-direction: row;
     height: 100%;
     min-height: 600px;
@@ -229,6 +234,7 @@ nav {
 .sub-collapsible {
     background-color: rgba(255, 255, 255, 0.3);
     border-bottom: 1px dashed var(--wood-light);
+    font-family: 'Cinzel', serif;
     font-size: 1rem;
     padding: 10px 15px;
     margin-top: 5px;
@@ -237,7 +243,7 @@ nav {
 .sub-collapsible:hover,
 .sub-collapsible.active {
     background-color: rgba(255, 255, 255, 0.5);
-    color: var(--accent-blue);
+    color: var(--btn-primary-bg);
 }
 
 /* --- STYLE TAB GRID --- */
@@ -316,7 +322,7 @@ select {
     position: relative;
     user-select: none;
     width: 100%;
-    font-family: 'Lato', sans-serif;
+    font-family: 'Caveat Brush', cursive;
 }
 
 .custom-select {
@@ -331,8 +337,8 @@ select {
     align-items: center;
     justify-content: space-between;
     padding: 5px 10px;
-    font-size: 1rem;
-    font-weight: bold;
+    font-family: 'Caveat Brush', cursive;
+    font-size: 1.1rem;
     color: var(--text-dark);
     border-bottom: 2px solid var(--wood-light);
     background: transparent;
@@ -341,7 +347,7 @@ select {
 }
 
 .custom-select__trigger:hover {
-    border-bottom-color: var(--accent-blue);
+    border-bottom-color: var(--btn-primary-bg);
     background: rgba(255, 255, 255, 0.2);
 }
 
@@ -379,11 +385,11 @@ select {
 }
 
 .custom-select.open .arrow::before {
-    background-color: var(--accent-blue);
+    background-color: var(--btn-primary-bg);
 }
 
 .custom-select.open .arrow::after {
-    background-color: var(--accent-blue);
+    background-color: var(--btn-primary-bg);
 }
 
 .custom-options {
@@ -418,7 +424,8 @@ select {
     position: relative;
     display: block;
     padding: 10px 15px;
-    font-size: 0.95rem;
+    font-family: 'Caveat Brush', cursive;
+    font-size: 1.1rem;
     color: var(--text-dark);
     cursor: pointer;
     transition: all 0.2s;
@@ -478,19 +485,19 @@ textarea {
     background: transparent;
     border: none;
     border-bottom: 2px solid var(--wood-light);
-    font-family: 'Lato', sans-serif;
-    font-size: 1rem;
+    font-family: 'Caveat Brush', cursive;
+    font-size: 1.2rem;
     color: var(--text-dark);
     padding: 5px;
     width: 100%;
     outline: none;
-    transition: border-color 0.3s;
+    transition: all 0.3s ease;
 }
 
 input:focus,
 textarea:focus {
-    border-bottom-color: var(--accent-blue);
-    background-color: rgba(255, 255, 255, 0.4);
+    border-bottom-color: var(--btn-primary-bg); /* #6b8c42 Entrance Green focus */
+    background-color: rgba(255, 193, 7, 0.1);    /* Gold tint focus */
 }
 
 textarea {
@@ -701,8 +708,8 @@ canvas {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(62, 39, 35, 0.1);
     border-radius: 4px;
-    font-family: 'Caveat Brush', cursive;
-    font-size: 1.1rem;
+    font-family: 'Philosopher', sans-serif;
+    font-size: 1.05rem;
     color: var(--text-dark);
 }
 

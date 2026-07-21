@@ -1,6 +1,41 @@
 import { updateCraftingBar } from './player.js';
 import { updateStatsUI } from './stats.js';
 
+function getPositionAtDistance(history, targetDistance) {
+    if (!history || history.length === 0) return null;
+    if (history.length === 1) return { x: history[0].x, y: history[0].y, rotation: history[0].rotation, isMoving: history[0].isMoving };
+
+    let accumulatedDistance = 0;
+    for (let i = 0; i < history.length - 1; i++) {
+        const pCurrent = history[i];
+        const pNext = history[i + 1];
+        const dx = pNext.x - pCurrent.x;
+        const dy = pNext.y - pCurrent.y;
+        const segLength = Math.sqrt(dx * dx + dy * dy);
+
+        if (accumulatedDistance + segLength >= targetDistance) {
+            const remaining = targetDistance - accumulatedDistance;
+            const ratio = segLength > 0 ? (remaining / segLength) : 0;
+            
+            const x = pCurrent.x + ratio * dx;
+            const y = pCurrent.y + ratio * dy;
+            
+            const rotation = pNext.rotation;
+            const isMoving = pNext.isMoving;
+
+            // Prune old history that is no longer needed
+            history.splice(i + 2); 
+
+            return { x, y, rotation, isMoving };
+        }
+        accumulatedDistance += segLength;
+    }
+
+    // If the history path is shorter than targetDistance, return the oldest point
+    const oldest = history[history.length - 1];
+    return { x: oldest.x, y: oldest.y, rotation: oldest.rotation, isMoving: oldest.isMoving };
+}
+
 export function update(time, delta) {
     const chatFocused = window.chatFocused;
     const showDebug = this.showDebug;
@@ -60,23 +95,61 @@ export function update(time, delta) {
         down: false
     };
 
+    // Read keyboard inputs (Arrows + WASD)
+    const leftPressed = this.cursors.left.isDown || (this.wasdKeys && this.wasdKeys.left.isDown);
+    const rightPressed = this.cursors.right.isDown || (this.wasdKeys && this.wasdKeys.right.isDown);
+    const upPressed = this.cursors.up.isDown || (this.wasdKeys && this.wasdKeys.up.isDown);
+    const downPressed = this.cursors.down.isDown || (this.wasdKeys && this.wasdKeys.down.isDown);
+
+    // Cancel Smart Walk if the player manually inputs movement
+    if (leftPressed || rightPressed || upPressed || downPressed) {
+        this.smartWalkTarget = null;
+    }
+
     // Disable movement if consumed OR crafting
     // If the player is consumed, we ignore their keyboard input for movement.
     // This prevents them from moving their invisible sprite around while inside someone.
     if (!this.playerContainer.playerInfo.consumedBy && !chatFocused) {
         if (!this.playerContainer.playerInfo.isCrafting) {
-            // Normal Movement
-            inputPayload = {
-                left: this.cursors.left.isDown,
-                right: this.cursors.right.isDown,
-                up: this.cursors.up.isDown,
-                down: this.cursors.down.isDown,
-            };
+            if (leftPressed || rightPressed || upPressed || downPressed) {
+                // Normal Movement
+                inputPayload = {
+                    left: leftPressed,
+                    right: rightPressed,
+                    up: upPressed,
+                    down: downPressed
+                };
+            } else if (this.smartWalkTarget) {
+                // Smart Walk Autopathing
+                const targetX = this.smartWalkTarget.target ? this.smartWalkTarget.target.x : this.smartWalkTarget.x;
+                const targetY = this.smartWalkTarget.target ? this.smartWalkTarget.target.y : this.smartWalkTarget.y;
+
+                // Check if reach condition is met
+                const isReached = this.smartWalkTarget.checkReach ?
+                    this.smartWalkTarget.checkReach(this.playerContainer.x, this.playerContainer.y) :
+                    Phaser.Math.Distance.Between(this.playerContainer.x, this.playerContainer.y, targetX, targetY) <= (this.smartWalkTarget.range || 48);
+
+                if (isReached) {
+                    const onReach = this.smartWalkTarget.onReach;
+                    this.smartWalkTarget = null; // Clear target
+                    if (onReach) onReach();
+                } else {
+                    // Simulate direction keys towards target
+                    const dx = targetX - this.playerContainer.x;
+                    const dy = targetY - this.playerContainer.y;
+                    const deadzone = 5; // prevent jitter when close
+
+                    inputPayload = {
+                        left: dx < -deadzone,
+                        right: dx > deadzone,
+                        up: dy < -deadzone,
+                        down: dy > deadzone
+                    };
+                }
+            }
         } else {
             // Crafting - Check for movement attempt to trigger Pause
-            if (this.cursors.left.isDown || this.cursors.right.isDown ||
-                this.cursors.up.isDown || this.cursors.down.isDown) {
-
+            if (leftPressed || rightPressed || upPressed || downPressed) {
                 // Throttle: Only check every 200ms to allow "holding" keys without spams
                 const now = Date.now();
                 if (!this.lastPauseCheck || now - this.lastPauseCheck > 200) {
@@ -119,46 +192,41 @@ export function update(time, delta) {
         }
 
         if (holder) {
-            // "Leash" Logic - Local Version
             const holdDist = this.playerContainer.playerInfo.grippedFirmly ? 20 : 64;
-            const behindOffset = 50;
 
-            let targetX = holder.x;
-            let targetY = holder.y;
+            // Initialize holder position history queue on local player if not present
+            if (!this.playerContainer.holderPositionHistory) {
+                this.playerContainer.holderPositionHistory = [
+                    { x: holder.x, y: holder.y, rotation: holder.playerInfo ? holder.playerInfo.rotation : 0, isMoving: holder.playerInfo ? holder.playerInfo.isMoving : false },
+                    { x: this.playerContainer.x, y: this.playerContainer.y, rotation: this.playerContainer.playerInfo ? this.playerContainer.playerInfo.rotation : 0, isMoving: this.playerContainer.playerInfo ? this.playerContainer.playerInfo.isMoving : false }
+                ];
+            }
 
-            // Check if holder is moving (remote info)
-            const isMoving = holder.playerInfo ? holder.playerInfo.isMoving : false;
+            // Push holder's position if it changed
+            const lastHistory = this.playerContainer.holderPositionHistory[0];
+            const currentRot = holder.playerInfo ? holder.playerInfo.rotation : 0;
+            const currentIsMoving = holder.playerInfo ? holder.playerInfo.isMoving : false;
+            if (!lastHistory || lastHistory.x !== holder.x || lastHistory.y !== holder.y || lastHistory.rotation !== currentRot || lastHistory.isMoving !== currentIsMoving) {
+                this.playerContainer.holderPositionHistory.unshift({
+                    x: holder.x,
+                    y: holder.y,
+                    rotation: currentRot,
+                    isMoving: currentIsMoving
+                });
+            }
 
-            if (isMoving) {
-                // "Fall in line" - Drag to behind
-                let rot = holder.playerInfo ? holder.playerInfo.rotation : 0;
+            const prevX = this.playerContainer.x;
+            const prevY = this.playerContainer.y;
 
-                if (rot === 1) targetX += behindOffset; // Left -> Behind is Right
-                else if (rot === 2) targetX -= behindOffset; // Right -> Behind is Left
-                else if (rot === 3) targetY += behindOffset; // Up -> Behind is Down
-                else if (rot === 4) targetY -= behindOffset; // Down -> Behind is Up
-
-                // LERP to Target (Visual Smoothing)
-                const lerpFactor = 0.15;
-                // Note: We interpolate from OUR current position to the target
-                const currentX = this.playerContainer.x;
-                const currentY = this.playerContainer.y;
-
-                const newX = currentX + (targetX - currentX) * lerpFactor;
-                const newY = currentY + (targetY - currentY) * lerpFactor;
-
-                this.playerContainer.setPosition(newX, newY);
-            } else {
-                // Stationary Leash
-                const dx = this.playerContainer.x - holder.x;
-                const dy = this.playerContainer.y - holder.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-
-                if (dist > holdDist) {
-                    const angle = Math.atan2(dy, dx);
-                    const newX = holder.x + Math.cos(angle) * holdDist;
-                    const newY = holder.y + Math.sin(angle) * holdDist;
-                    this.playerContainer.setPosition(newX, newY);
+            const targetPos = getPositionAtDistance(this.playerContainer.holderPositionHistory, holdDist);
+            if (targetPos) {
+                this.playerContainer.setPosition(targetPos.x, targetPos.y);
+                if (this.playerContainer.playerInfo) {
+                    this.playerContainer.playerInfo.rotation = targetPos.rotation;
+                    const dx = targetPos.x - prevX;
+                    const dy = targetPos.y - prevY;
+                    const distMoved = Math.sqrt(dx * dx + dy * dy);
+                    this.playerContainer.playerInfo.isMoving = distMoved > 0.1;
                 }
             }
 
@@ -460,51 +528,45 @@ export function update(time, delta) {
                     }
 
                     if (holder) {
-                        // Reproduce Server Logic Locally
                         const holdDist = otherPlayer.playerInfo.grippedFirmly ? 20 : 64;
-                        const behindOffset = 50;
 
-                        // Is Holder Moving?
-                        const isMoving = (holder === this.playerContainer) ?
-                            (holder.body.velocity.length() > 5) :
-                            (holder.playerInfo.isMoving);
+                        // Initialize holder position history queue on other player if not present
+                        if (!otherPlayer.holderPositionHistory) {
+                            otherPlayer.holderPositionHistory = [
+                                { x: holder.x, y: holder.y, rotation: holder.playerInfo ? holder.playerInfo.rotation : 0, isMoving: holder.playerInfo ? holder.playerInfo.isMoving : false },
+                                { x: otherPlayer.x, y: otherPlayer.y, rotation: otherPlayer.playerInfo ? otherPlayer.playerInfo.rotation : 0, isMoving: otherPlayer.playerInfo ? otherPlayer.playerInfo.isMoving : false }
+                            ];
+                        }
 
-                        if (isMoving) {
-                            // "Fall in line" Logic
-                            let targetX = holder.x;
-                            let targetY = holder.y;
+                        // Push holder's position if it changed
+                        const lastHistory = otherPlayer.holderPositionHistory[0];
+                        const currentRot = holder.playerInfo ? holder.playerInfo.rotation : 0;
+                        const currentIsMoving = (holder === this.playerContainer) ? (holder.body.velocity.length() > 5) : (holder.playerInfo ? holder.playerInfo.isMoving : false);
+                        if (!lastHistory || lastHistory.x !== holder.x || lastHistory.y !== holder.y || lastHistory.rotation !== currentRot || lastHistory.isMoving !== currentIsMoving) {
+                            otherPlayer.holderPositionHistory.unshift({
+                                x: holder.x,
+                                y: holder.y,
+                                rotation: currentRot,
+                                isMoving: currentIsMoving
+                            });
+                        }
 
-                            if (holder === this.playerContainer && holder.body.velocity.length() > 5) {
-                                const angle = Math.atan2(holder.body.velocity.y, holder.body.velocity.x);
-                                targetX -= Math.cos(angle) * behindOffset;
-                                targetY -= Math.sin(angle) * behindOffset;
-                            }
-                            else {
-                                let rot = holder.playerInfo ? holder.playerInfo.rotation : 0;
+                        const prevX = otherPlayer.x;
+                        const prevY = otherPlayer.y;
 
-                                if (rot === 1) targetX += behindOffset; // Left -> Behind is Right
-                                else if (rot === 2) targetX -= behindOffset; // Right -> Behind is Left
-                                else if (rot === 3) targetY += behindOffset; // Up -> Behind is Down
-                                else if (rot === 4) targetY -= behindOffset; // Down -> Behind is Up
-                            }
-
-                            // LERP to Target (Use pre-calculated t)
-                            otherPlayer.x += (targetX - otherPlayer.x) * lerpT;
-                            otherPlayer.y += (targetY - otherPlayer.y) * lerpT;
-                        } else {
-                            // Stationary Leash Logic
-                            const dx = otherPlayer.x - holder.x;
-                            const dy = otherPlayer.y - holder.y;
-                            // Sqrt is needed here for exact distance hold
-                            const dist = Math.sqrt(dx * dx + dy * dy);
-
-                            if (dist > holdDist) {
-                                const angle = Math.atan2(dy, dx);
-                                otherPlayer.x = holder.x + Math.cos(angle) * holdDist;
-                                otherPlayer.y = holder.y + Math.sin(angle) * holdDist;
+                        const targetPos = getPositionAtDistance(otherPlayer.holderPositionHistory, holdDist);
+                        if (targetPos) {
+                            otherPlayer.x = targetPos.x;
+                            otherPlayer.y = targetPos.y;
+                            otherPlayer.depth = otherPlayer.y;
+                            if (otherPlayer.playerInfo) {
+                                otherPlayer.playerInfo.rotation = targetPos.rotation;
+                                const dx = targetPos.x - prevX;
+                                const dy = targetPos.y - prevY;
+                                const distMoved = Math.sqrt(dx * dx + dy * dy);
+                                otherPlayer.playerInfo.isMoving = distMoved > 0.1;
                             }
                         }
-                        otherPlayer.depth = otherPlayer.y;
                     }
                 }
                 // --- GENERIC REMOTE INTERPOLATION ---

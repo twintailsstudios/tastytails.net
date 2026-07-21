@@ -1,25 +1,27 @@
 :root {
-    /* Palette: Warm Medieval Tavern */
+    /* Palette: Warm Medieval Tavern & Guild Registry */
     --palette-bg: #2c241b;
-    /* Dark base background */
     --palette-wood-dark: #3e2723;
-    /* Dark wood borders/headers */
     --palette-wood-light: #5d4037;
-    /* Lighter wood accents/buttons */
+    --palette-wood-accent: #795548;
     --palette-parchment: #f3e5ab;
-    /* Main card background */
     --palette-parchment-dark: #e6d598;
-    /* Hover states/borders */
     --palette-gold: #ffc107;
-    /* Accents and highlights */
+    --palette-gold-bright: #ffd700;
     --palette-text-dark: #3e2723;
-    /* Main Ink color */
     --palette-text-light: #f5f5f5;
-    /* Light text on dark backgrounds */
     --palette-accent-red: #8b0000;
-    /* Delete/Logout actions */
-    --palette-accent-blue: #283593;
-    /* "Play" primary action */
+
+    /* Universal Button Tokens */
+    --btn-primary-bg: #6b8c42;              /* Anatomy Forge Entrance Green */
+    --btn-primary-shadow: #3e5527;          /* Solid 3D Keycap Shadow */
+    --btn-primary-hover: #7ea34f;           /* Lighter Green Hover Fill */
+
+    --btn-secondary-bg: #5d4037;            /* Light Wood */
+    --btn-secondary-shadow: #3e2723;        /* Dark Wood Keycap Shadow */
+
+    --btn-danger-bg: #8b0000;               /* Crimson Red */
+    --btn-danger-shadow: #500000;           /* Dark Garnet Keycap Shadow */
 
     /* Functional Mappings - Backgrounds */
     --bg-body: var(--palette-bg);
@@ -36,7 +38,7 @@
     --text-dark: var(--palette-text-dark);
 
     /* Functional Mappings - Buttons */
-    --btn-bg: var(--palette-accent-blue);
+    --btn-bg: var(--btn-primary-bg);
     --btn-active: var(--palette-gold);
 
     /* Functional Mappings - Borders */
@@ -44,7 +46,7 @@
     --border-accent-light: var(--palette-gold);
 
     /* Functional Mappings - Inputs */
-    --input-focus-green: var(--palette-gold);
+    --input-focus-green: var(--btn-primary-bg);
 
     /* Functional Mappings - Intents */
     --intent-friendly: #4CAF50;
@@ -54,9 +56,8 @@
 
 /* --- Typography --- */
 body {
-    font-family: 'Lato', sans-serif;
+    font-family: 'Philosopher', sans-serif;
     background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
-    /* Subtle wood texture */
 }
 
 h1,
@@ -65,15 +66,94 @@ h3 {
     font-family: 'Cinzel', serif;
 }
 
+/* --- Universal 4-Tier Button Component System --- */
+.btn {
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    font-size: 1.0rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 10px 24px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    text-decoration: none;
+    user-select: none;
+}
+
+/* 1. Primary Action Button (Entrance Green) */
+.btn-primary {
+    background-color: var(--btn-primary-bg);
+    color: #ffffff;
+    box-shadow: 0 4px 0 var(--btn-primary-shadow);
+}
+
+.btn-primary:hover {
+    background-color: var(--btn-primary-hover);
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--btn-primary-shadow);
+}
+
+/* 2. Secondary Action Button (Light Wood) */
+.btn-secondary {
+    background-color: var(--btn-secondary-bg);
+    color: var(--palette-parchment);
+    box-shadow: 0 4px 0 var(--btn-secondary-shadow);
+}
+
+.btn-secondary:hover {
+    background-color: #6d4c41;
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--btn-secondary-shadow);
+}
+
+/* 3. Control / Outline Button (Parchment Outline) */
+.btn-outline {
+    background-color: transparent;
+    border: 1px solid var(--palette-parchment);
+    color: var(--palette-parchment);
+    padding: 6px 16px;
+    font-family: 'Cinzel', serif;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-outline:hover {
+    background-color: var(--palette-accent-red);
+    border-color: var(--palette-accent-red);
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+/* 4. Destructive / Danger Button (Crimson Red) */
+.btn-danger {
+    background-color: var(--btn-danger-bg);
+    color: #ffffff;
+    box-shadow: 0 4px 0 var(--btn-danger-shadow);
+}
+
+.btn-danger:hover {
+    background-color: #a80000;
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--btn-danger-shadow);
+}
+
 /* --- Header --- */
 header {
-    background: linear-gradient(to bottom, var(--palette-wood-dark), var(--palette-wood-light));
-    border-bottom: 4px solid #FFD700;
-    /* Brighter Yellow */
+    background: var(--palette-wood-dark);
+    border-bottom: 4px solid var(--palette-gold-bright);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    padding: 1rem 0;
 }
 
 h1 {
+    font-family: 'Cinzel', serif;
     color: var(--palette-gold);
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
     letter-spacing: 2px;
@@ -85,7 +165,6 @@ nav {
     backdrop-filter: blur(5px);
     padding: 0.5rem 0;
     border-bottom: 1px solid rgba(255, 215, 0, 0.3);
-    /* Subtle yellow separator for nav */
 }
 
 .nav-container {
@@ -130,23 +209,6 @@ nav {
     gap: 15px;
 }
 
-.logout-btn {
-    background: transparent;
-    border: 1px solid var(--palette-parchment);
-    color: var(--palette-parchment);
-    padding: 5px 15px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: 'Cinzel', serif;
-    transition: all 0.3s;
-}
-
-.logout-btn:hover {
-    background: var(--palette-accent-red);
-    border-color: var(--palette-accent-red);
-    color: white;
-}
-
 footer {
     text-align: center;
     padding: 20px;
@@ -154,9 +216,10 @@ footer {
     color: rgba(255, 255, 255, 0.3);
     font-size: 0.8rem;
     margin-top: auto;
+    font-family: 'Philosopher', sans-serif;
 }
 
-/* Page Title */
+/* Page Title Component */
 .page-title {
     text-align: center;
     margin-bottom: 40px;
@@ -171,8 +234,7 @@ footer {
 
 .page-title p {
     font-style: italic;
+    font-family: 'Philosopher', sans-serif;
     color: var(--palette-parchment-dark);
     margin-top: 10px;
-}
-
-/* Page-specific styles moved to landing.css and character-bank.css */
+}

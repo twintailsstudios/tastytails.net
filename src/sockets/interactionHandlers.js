@@ -15,7 +15,7 @@ const { trackVictim, untrackVictim } = require('../server/mechanics/digestion');
  * 
  * Reorganized for readability.
  */
-module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid, activeResourceNodes) {
+module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid, activeResourceNodes, removeItemFromGrid) {
     const logPrefix = `[Inter:${socket.id}]`;
 
     // =========================================================================
@@ -281,7 +281,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                     }
 
                     // [NEW] Check for Sheers
-                    const currentActiveHand = player.actionHands.activeHand; // 'left' or 'right'
+                    const currentActiveHand = data.hand || player.actionHands.activeHand || 'right'; // 'left' or 'right'
                     let hasSheers = false;
 
                     if (currentActiveHand === 'left') {
@@ -330,9 +330,86 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
             
             // 2. Resource Node Interaction
             else if (type === 'resourceNode') {
-                const node = activeResourceNodes[id];
+                let node = activeResourceNodes[id];
+                let isCrop = false;
+                let cropItem = null;
+
                 if (!node) {
+                    // Fallback to check if it's a gatherable crop world item
+                    cropItem = worldItems.find(item => item.uid === id);
+                    if (cropItem) {
+                        const def = resolveItemDef(cropItem, itemData);
+                        if (def && def.gatherable && action === 'gather') {
+                            isCrop = true;
+                        }
+                    }
+                }
+
+                if (!node && !isCrop) {
                     log.warn(`${logPrefix} Resource node not found: ${id}`);
+                    return;
+                }
+
+                if (isCrop) {
+                    const def = resolveItemDef(cropItem, itemData);
+                    // Distance Check
+                    const dist = Math.sqrt(Math.pow(player.position.x - cropItem.x, 2) + Math.pow(player.position.y - cropItem.y, 2));
+                    if (dist > 120) {
+                        log.warn(`${logPrefix} Player too far from crop (${dist.toFixed(1)}px)`);
+                        return;
+                    }
+
+                    // Perform harvesting
+                    const materialId = def.gatherItem;
+                    const seedId = def.gatherSeed;
+
+                    // Spawn gathered material on the ground
+                    const spawnedMaterial = {
+                        uid: `${materialId}_item_${Date.now()}_${Math.random()}`,
+                        itemId: materialId,
+                        name: itemData[materialId] ? itemData[materialId].name : 'Resource',
+                        texture: itemData[materialId] ? itemData[materialId].texture : 'default_item',
+                        icon: itemData[materialId] ? itemData[materialId].icon : 'fa-gem',
+                        size: itemData[materialId] ? itemData[materialId].size : 1,
+                        properties: {},
+                        x: cropItem.x + (Math.random() * 20 - 10), // slight random offset
+                        y: cropItem.y + 15
+                    };
+
+                    // Spawn seed on the ground
+                    const spawnedSeed = {
+                        uid: `${seedId}_item_${Date.now()}_${Math.random()}`,
+                        itemId: seedId,
+                        name: itemData[seedId] ? itemData[seedId].name : 'Seed',
+                        texture: itemData[seedId] ? itemData[seedId].texture : 'default_item',
+                        icon: itemData[seedId] ? itemData[seedId].icon : 'fa-seedling',
+                        size: itemData[seedId] ? itemData[seedId].size : 1,
+                        properties: {},
+                        x: cropItem.x + (Math.random() * 20 - 10),
+                        y: cropItem.y + 15
+                    };
+
+                    if (worldItems && addItemToGrid) {
+                        worldItems.push(spawnedMaterial);
+                        addItemToGrid(spawnedMaterial);
+                        io.emit('itemSpawned', spawnedMaterial);
+
+                        worldItems.push(spawnedSeed);
+                        addItemToGrid(spawnedSeed);
+                        io.emit('itemSpawned', spawnedSeed);
+
+                        // Remove the crop world item
+                        const itemIndex = worldItems.indexOf(cropItem);
+                        if (itemIndex > -1) {
+                            worldItems.splice(itemIndex, 1);
+                            if (typeof removeItemFromGrid === 'function') {
+                                removeItemFromGrid(cropItem);
+                            }
+                            io.emit('itemRemoved', cropItem.uid);
+                        }
+
+                        sendSystemMsg(socket, messageSystem, `You harvest a ${spawnedMaterial.name} and a seed from the plant.`);
+                    }
                     return;
                 }
 
@@ -363,7 +440,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
                 // Tool Check
                 if (nodeDef.gatherTool && nodeDef.gatherTool !== 'none') {
-                    const currentActiveHand = player.actionHands.activeHand; // 'left' or 'right'
+                    const currentActiveHand = data.hand || player.actionHands.activeHand || 'right'; // 'left' or 'right'
                     let hasTool = false;
 
                     if (currentActiveHand === 'left') {
@@ -1244,6 +1321,7 @@ function resetGrappleState(p) {
     p.grippedFirmly = false;
     p.grippedBy = null;
     p.struggleCount = 0;
+    p.holderPositionHistory = null;
 }
 
 function resetVoreState(p) {

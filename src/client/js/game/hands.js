@@ -7,7 +7,33 @@ export const actionHands = {
     init(socket) {
         this.socket = socket;
         this.render();
-        // console.log('Action Hands Initialized with socket:', this.socket);
+
+        const dropBtn = document.getElementById('drop-btn');
+        if (dropBtn) {
+            // Prevent browser context menu from displaying on right-clicking dropBtn
+            dropBtn.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+            });
+
+            // Listen to mousedown to detect which button was clicked
+            dropBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.button === 2) {
+                    // Right Click -> Drop Right Hand
+                    this.dropItem('right');
+                    if (window.completeTutorialTask) {
+                        window.completeTutorialTask('right_drop');
+                    }
+                } else if (e.button === 0) {
+                    // Left Click -> Drop Left Hand
+                    this.dropItem('left');
+                    if (window.completeTutorialTask) {
+                        window.completeTutorialTask('left_drop');
+                    }
+                }
+            });
+        }
     },
 
     toggleActiveHand() {
@@ -42,17 +68,18 @@ export const actionHands = {
         }
     },
 
-    dropItem() {
+    dropItem(hand) {
         const scene = window.gameScene;
         if (!scene) {
             console.error('Game Scene not found for Drop Mode');
             return;
         }
 
-        // Get item to drop
-        let itemToDrop = null;
-        if (this.activeHand === 'left') itemToDrop = this.leftNode;
-        else itemToDrop = this.rightNode;
+        // Default to activeHand if undefined
+        const targetHand = hand || this.activeHand;
+
+        // Get item to drop matching the clicked hand
+        const itemToDrop = targetHand === 'left' ? this.leftNode : this.rightNode;
 
         if (!itemToDrop) {
             if (window.showToast) window.showToast("Nothing to drop!", "error");
@@ -60,10 +87,10 @@ export const actionHands = {
         }
 
         if (window.dropMode) {
-            window.dropMode.start(scene, itemToDrop);
+            window.dropMode.start(scene, itemToDrop, targetHand);
         } else {
             console.warn('DropMode module not loaded, falling back to instant drop.');
-            if (this.socket) this.socket.emit('dropItemClicked');
+            if (this.socket) this.socket.emit('dropItemClicked', { hand: targetHand });
         }
     },
 
@@ -88,17 +115,8 @@ export const actionHands = {
         }
 
         // Update Active Class
-        if (this.activeHand === 'left') {
-            leftSlot.classList.add('active');
-            rightSlot.classList.remove('active');
-            toggle.classList.add('left');
-            toggle.classList.remove('right');
-        } else {
-            rightSlot.classList.add('active');
-            leftSlot.classList.remove('active');
-            toggle.classList.remove('left');
-            toggle.classList.add('right');
-        }
+        leftSlot.classList.remove('active');
+        rightSlot.classList.remove('active');
 
         // Render Items
         this.renderItem(leftSlot, this.leftNode, 'LEFT');
@@ -123,8 +141,8 @@ export const actionHands = {
                         rightClickedList: [{
                             Identifier: 'heldItem',
                             uniqueId: item.uid, // This might be item_UID or just name? Check server logic.
-                            name: item.Name || 'Held Item',
-                            description: item.Description || 'An item you are holding.',
+                            name: item.name || item.Name || 'Held Item',
+                            description: item.description || item.Description || 'An item you are holding.',
                             // Pass slot info if needed?
                             slot: labelText === 'LEFT' ? 'left' : 'right'
                         }],
@@ -157,7 +175,7 @@ export const actionHands = {
                     div.innerText = iconClass;
                 }
             } else {
-                div.innerText = item.Name || 'Item';
+                div.innerText = item.name || item.Name || 'Item';
             }
             slot.appendChild(div);
         }

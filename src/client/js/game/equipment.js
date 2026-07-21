@@ -1,8 +1,9 @@
 
+import { clickManager } from './clickManager.js';
+
 export const equipmentManager = {
     socket: null,
 
-    // Ordered list of slots for rendering
     // Ordered list of slots for rendering
     slots: [
         { id: 'hair', label: 'Hair', icon: 'fa-ribbon' },
@@ -51,7 +52,11 @@ export const equipmentManager = {
             slotDiv.className = 'equip-slot';
             slotDiv.id = `equip-slot-${slot.id}`;
             slotDiv.dataset.slot = slot.id; // Vital for CSS Grid positioning
-            slotDiv.onclick = () => this.onSlotClick(slot.id);
+            
+            // Unified Hand Click Handler for Equipment Slots (Left Click = Left Hand, Right Click = Right Hand)
+            clickManager.bindElementHandClick(slotDiv, {
+                onHandClick: (hand) => this.onSlotClick(slot.id, hand)
+            });
 
             // Visual Decoration: Add a "link" icon between tail parts
             if (slot.id === 'tailBase') {
@@ -116,11 +121,11 @@ export const equipmentManager = {
         });
     },
 
-    onSlotClick: function (slotId) {
-        console.log('[EquipmentManager] Clicked slot:', slotId);
+    onSlotClick: function (slotId, hand = 'left') {
+        console.log('[EquipmentManager] Clicked slot:', slotId, 'Hand:', hand);
         if (this.socket) {
             console.log('[EquipmentManager] Emitting equipItemClicked');
-            this.socket.emit('equipItemClicked', slotId);
+            this.socket.emit('equipItemClicked', { slotId: slotId, hand: hand });
         } else {
             console.error('[EquipmentManager] Socket not initialized!');
         }
@@ -139,16 +144,13 @@ export const equipmentManager = {
  * - depth: (Optional) Relative z-index depth. Currently unused as layering is largely handled by 
  *          insertion order in player.js or manual sorting in animations.js.
  */
-export const EQUIPMENT_VISUALS = {
+import itemData from './itemData.js';
+
+const baseVisuals = {
     'shirt': {
         atlas: 'shirt_01',
         slotId: 'torsoOuter', // Matches equipmentManager.slots
         depth: 10 // Relative z-index
-    },
-    'shirt_01': {
-        atlas: 'shirt_01',
-        slotId: 'torsoOuter',
-        depth: 10
     },
     'pants': {
         atlas: 'pants_01',
@@ -156,3 +158,19 @@ export const EQUIPMENT_VISUALS = {
         depth: 5
     }
 };
+
+// Dynamically populate from itemData
+Object.values(itemData).forEach(item => {
+    if (item.equipSlot && (item.texture || item.itemId)) {
+        const tex = item.texture || item.itemId;
+        const depth = item.depth || (item.equipSlot === 'legs' ? 5 : 10);
+        baseVisuals[tex] = {
+            atlas: tex,
+            slotId: item.equipSlot,
+            depth: depth
+        };
+        baseVisuals[item.itemId] = baseVisuals[tex];
+    }
+});
+
+export const EQUIPMENT_VISUALS = baseVisuals;
