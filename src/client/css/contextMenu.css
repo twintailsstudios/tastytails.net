@@ -15,11 +15,11 @@
 
 /* Main Menu Container */
 #contextMenu {
-    position: absolute;
+    position: fixed !important;
     background: var(--parchment);
     border: 2px solid var(--wood-dark);
     box-shadow: 5px 5px 20px rgba(0, 0, 0, 0.7);
-    z-index: 20000;
+    z-index: 999999 !important;
     min-width: 200px;
     border-radius: 6px;
     overflow: visible;

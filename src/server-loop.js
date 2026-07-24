@@ -2747,6 +2747,113 @@ module.exports.start = (io, _messageSystem) => {
             }
         });
 
+        function getPlayerVoreOptions(player) {
+            if (!player) return [];
+            let voreOptions = [];
+            if (player.anatomyData) {
+                try {
+                    const graph = JSON.parse(player.anatomyData);
+                    if (graph.nodes) {
+                        const entrances = graph.nodes.filter(n => n.type === 'entrance');
+                        const links = graph.links || graph.connections || [];
+                        if (entrances.length > 0) {
+                            voreOptions = entrances.map(e => {
+                                // Traverse outgoing links down the path to find the node with type === 'destination'
+                                let currentId = String(e.id);
+                                let destNode = null;
+                                let lastOrganNode = null;
+                                const visited = new Set([currentId]);
+
+                                while (currentId) {
+                                    const outgoing = links.find(l => String(l.from) === currentId || String(l.source) === currentId);
+                                    if (!outgoing) break;
+                                    const nextId = String(outgoing.to !== undefined ? outgoing.to : outgoing.target);
+                                    if (visited.has(nextId)) break; // Prevent infinite loops
+                                    visited.add(nextId);
+
+                                    const nextNode = graph.nodes.find(n => String(n.id) === nextId);
+                                    if (!nextNode) break;
+
+                                    if (nextNode.type === 'destination') {
+                                        destNode = nextNode;
+                                        break;
+                                    }
+
+                                    if (nextNode.type !== 'entrance') {
+                                        lastOrganNode = nextNode;
+                                    }
+
+                                    currentId = nextId;
+                                }
+
+                                // Fall back to last organ/path node if no explicit 'destination' node type was found
+                                if (!destNode) {
+                                    destNode = lastOrganNode;
+                                }
+
+                                const destNodeIdStr = destNode ? String(destNode.id) : null;
+                                const targetVoreType = player.voreTypes ? 
+                                    player.voreTypes.find(v => String(v.graphNodeId) === destNodeIdStr || (destNode && v.destination === destNode.properties?.name)) : null;
+
+                                const entranceVoreType = player.voreTypes ?
+                                    player.voreTypes.find(v => String(v.graphNodeId) === String(e.id)) : null;
+
+                                const entranceName = (e.properties && e.properties.name) ? e.properties.name : 'Entrance';
+                                const destName = destNode ? (destNode.properties?.name || 'Stomach') : (targetVoreType ? targetVoreType.destination : 'Stomach');
+
+                                const occupantCount = (targetVoreType && targetVoreType.contents) ? targetVoreType.contents.length : 0;
+                                const maxCap = (destNode && destNode.properties && destNode.properties.maxCapacity !== undefined) ? 
+                                    destNode.properties.maxCapacity : 
+                                    ((targetVoreType && targetVoreType.maxCapacity !== undefined) ? targetVoreType.maxCapacity : 3);
+                                const power = (destNode && destNode.properties && destNode.properties.digestivePower) ? 
+                                    destNode.properties.digestivePower : 
+                                    ((targetVoreType && targetVoreType.digestivePower) ? targetVoreType.digestivePower : 'Normal');
+
+                                return {
+                                    entranceName: entranceName,
+                                    destinationName: destName,
+                                    destination: entranceName,
+                                    id: e.id,
+                                    graphNodeId: String(e.id),
+                                    destGraphNodeId: destNodeIdStr,
+                                    isEntrance: true,
+                                    verb: (e.properties && e.properties.verb) || (entranceVoreType ? entranceVoreType.verb : 'eats'),
+                                    occupantCount: occupantCount,
+                                    maxCapacity: maxCap,
+                                    digestivePower: power,
+                                    contents: targetVoreType ? targetVoreType.contents : []
+                                };
+                            });
+                        }
+                    }
+                } catch (err) {
+                    log.warn(`Failed to parse anatomyData for ${player.Username}`);
+                }
+            }
+
+            if (!voreOptions || voreOptions.length === 0) {
+                const rawTypes = player.voreTypes || [];
+                voreOptions = rawTypes.map(v => {
+                    const isEnt = v.isEntrance || v.type === 'entrance';
+                    return {
+                        entranceName: v.entranceName || (isEnt ? v.destination : 'Entrance'),
+                        destinationName: v.destinationName || (!isEnt ? v.destination : 'Stomach'),
+                        destination: v.destination || 'Vore',
+                        id: v.id || v.graphNodeId,
+                        graphNodeId: String(v.graphNodeId || v.id || ''),
+                        isEntrance: isEnt,
+                        verb: v.verb || 'eats',
+                        occupantCount: (v.occupantCount !== undefined) ? v.occupantCount : (v.contents ? v.contents.length : 0),
+                        maxCapacity: v.maxCapacity !== undefined ? v.maxCapacity : 3,
+                        digestivePower: v.digestivePower || 'Normal',
+                        contents: v.contents || []
+                    };
+                });
+            }
+
+            return voreOptions;
+        }
+
         // --- Use compiled recipes from craftingHandlers ---
         const recipes = craftingHandlers.recipes;
 
@@ -2780,113 +2887,6 @@ module.exports.start = (io, _messageSystem) => {
                         if (messageSystem) messageSystem.sendSystemMessage('Interactional', `${targetPlayer.Username || 'Player'} is too far away.`, null, [], 'local', socket);
                         return;
                     }
-
-function getPlayerVoreOptions(player) {
-    if (!player) return [];
-    let voreOptions = [];
-    if (player.anatomyData) {
-        try {
-            const graph = JSON.parse(player.anatomyData);
-            if (graph.nodes) {
-                const entrances = graph.nodes.filter(n => n.type === 'entrance');
-                const links = graph.links || graph.connections || [];
-                if (entrances.length > 0) {
-                    voreOptions = entrances.map(e => {
-                        // Traverse outgoing links down the path to find the node with type === 'destination'
-                        let currentId = String(e.id);
-                        let destNode = null;
-                        let lastOrganNode = null;
-                        const visited = new Set([currentId]);
-
-                        while (currentId) {
-                            const outgoing = links.find(l => String(l.from) === currentId || String(l.source) === currentId);
-                            if (!outgoing) break;
-                            const nextId = String(outgoing.to !== undefined ? outgoing.to : outgoing.target);
-                            if (visited.has(nextId)) break; // Prevent infinite loops
-                            visited.add(nextId);
-
-                            const nextNode = graph.nodes.find(n => String(n.id) === nextId);
-                            if (!nextNode) break;
-
-                            if (nextNode.type === 'destination') {
-                                destNode = nextNode;
-                                break;
-                            }
-
-                            if (nextNode.type !== 'entrance') {
-                                lastOrganNode = nextNode;
-                            }
-
-                            currentId = nextId;
-                        }
-
-                        // Fall back to last organ/path node if no explicit 'destination' node type was found
-                        if (!destNode) {
-                            destNode = lastOrganNode;
-                        }
-
-                        const destNodeIdStr = destNode ? String(destNode.id) : null;
-                        const targetVoreType = player.voreTypes ? 
-                            player.voreTypes.find(v => String(v.graphNodeId) === destNodeIdStr || (destNode && v.destination === destNode.properties?.name)) : null;
-
-                        const entranceVoreType = player.voreTypes ?
-                            player.voreTypes.find(v => String(v.graphNodeId) === String(e.id)) : null;
-
-                        const entranceName = (e.properties && e.properties.name) ? e.properties.name : 'Entrance';
-                        const destName = destNode ? (destNode.properties?.name || 'Stomach') : (targetVoreType ? targetVoreType.destination : 'Stomach');
-
-                        const occupantCount = (targetVoreType && targetVoreType.contents) ? targetVoreType.contents.length : 0;
-                        const maxCap = (destNode && destNode.properties && destNode.properties.maxCapacity !== undefined) ? 
-                            destNode.properties.maxCapacity : 
-                            ((targetVoreType && targetVoreType.maxCapacity !== undefined) ? targetVoreType.maxCapacity : 3);
-                        const power = (destNode && destNode.properties && destNode.properties.digestivePower) ? 
-                            destNode.properties.digestivePower : 
-                            ((targetVoreType && targetVoreType.digestivePower) ? targetVoreType.digestivePower : 'Normal');
-
-                        return {
-                            entranceName: entranceName,
-                            destinationName: destName,
-                            destination: entranceName,
-                            id: e.id,
-                            graphNodeId: String(e.id),
-                            destGraphNodeId: destNodeIdStr,
-                            isEntrance: true,
-                            verb: (e.properties && e.properties.verb) || (entranceVoreType ? entranceVoreType.verb : 'eats'),
-                            occupantCount: occupantCount,
-                            maxCapacity: maxCap,
-                            digestivePower: power,
-                            contents: targetVoreType ? targetVoreType.contents : []
-                        };
-                    });
-                }
-            }
-        } catch (err) {
-            log.warn(`Failed to parse anatomyData for ${player.Username}`);
-        }
-    }
-
-    if (!voreOptions || voreOptions.length === 0) {
-        const rawTypes = player.voreTypes || [];
-        voreOptions = rawTypes.map(v => {
-            const isEnt = v.isEntrance || v.type === 'entrance';
-            return {
-                entranceName: v.entranceName || (isEnt ? v.destination : 'Entrance'),
-                destinationName: v.destinationName || (!isEnt ? v.destination : 'Stomach'),
-                destination: v.destination || 'Vore',
-                id: v.id || v.graphNodeId,
-                graphNodeId: String(v.graphNodeId || v.id || ''),
-                isEntrance: isEnt,
-                verb: v.verb || 'eats',
-                occupantCount: (v.occupantCount !== undefined) ? v.occupantCount : (v.contents ? v.contents.length : 0),
-                maxCapacity: v.maxCapacity !== undefined ? v.maxCapacity : 3,
-                digestivePower: v.digestivePower || 'Normal',
-                contents: v.contents || []
-            };
-        });
-    }
-
-    return voreOptions;
-}
 
                     // Grabbing Intent
                     if (playerIntent === 'grabbing') {
@@ -3086,8 +3086,18 @@ function getPlayerVoreOptions(player) {
                 // --- Process each clicked item ---
                 for (const clickedItem of rightClickedList) {
                     // --- Check if the clicked item is a player ---
-                    if (clickedItem.Identifier === 'player' && players[clickedItem.playerId]) {
-                        const targetPlayer = players[clickedItem.playerId];
+                    if (clickedItem.Identifier === 'player') {
+                        let targetPlayer = players[clickedItem.playerId];
+                        if (!targetPlayer) {
+                            targetPlayer = Object.values(players).find(p => 
+                                p.socketId === clickedItem.playerId ||
+                                p.playerId === clickedItem.playerId ||
+                                p.id === clickedItem.playerId ||
+                                (p._id && p._id.toString() === clickedItem.playerId)
+                            );
+                        }
+
+                        if (targetPlayer) {
 
                         // Use in-memory data which is already populated on connection/update
                         // This avoids a DB call for every click
@@ -3119,12 +3129,34 @@ function getPlayerVoreOptions(player) {
                             } else {
                                 availableActions.push('Hold');
                             }
+                        } else {
+                            // Target is self - only standard Examine action available
                         }
 
                         // --- Add player details to response ---
                         responseInfo.push({
                             ...playerDetails,
                             availableActions
+                        });
+                    }
+                    }
+
+                    // --- Check if the clicked item is ground ---
+                    else if (clickedItem.Identifier === 'ground') {
+                        const actions = ['Examine'];
+                        const leftNode = requestingPlayer.actionHands ? requestingPlayer.actionHands.leftNode : null;
+                        const rightNode = requestingPlayer.actionHands ? requestingPlayer.actionHands.rightNode : null;
+                        if ((leftNode && leftNode.itemId === 'tool_hoe') || (rightNode && rightNode.itemId === 'tool_hoe')) {
+                            actions.push('Till');
+                        }
+                        responseInfo.push({
+                            name: 'Ground',
+                            Identifier: 'ground',
+                            uniqueId: clickedItem.uniqueId || 'ground',
+                            description: clickedItem.description || 'Ground terrain',
+                            worldX: clickedItem.worldX,
+                            worldY: clickedItem.worldY,
+                            availableActions: actions
                         });
                     }
 

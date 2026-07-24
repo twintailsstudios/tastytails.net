@@ -116,18 +116,26 @@ export class CraftingUI {
     open(data) {
         this.isOpen = true;
         this.currentStationId = data.stationId;
-        this.uiContainer.style.display = 'flex'; // Ensure flex layout
-        if (window.completeTutorialTask) {
-            window.completeTutorialTask('crafting_open');
+
+        // Re-parent window back to overlay container if detached by dragging
+        if (this.window && this.uiContainer && this.window.parentElement !== this.uiContainer) {
+            this.uiContainer.appendChild(this.window);
         }
 
-        // [FIX] Reset dragged position style to cleanly center the window when opened
+        // Reset dragged position style to cleanly center the window when opened
         if (this.window) {
+            delete this.window.dataset.hasBeenDragged;
             this.window.style.position = '';
             this.window.style.left = '';
             this.window.style.top = '';
             this.window.style.transform = '';
             this.window.style.margin = '';
+            this.window.style.display = '';
+        }
+
+        this.uiContainer.style.display = 'flex'; // Ensure flex layout
+        if (window.completeTutorialTask) {
+            window.completeTutorialTask('crafting_open');
         }
 
         // Force Reflow to enable transition
@@ -328,8 +336,19 @@ export class CraftingUI {
         // Ensure minimized tab is hidden immediately
         if (this.minimizedTab) this.minimizedTab.style.display = 'none';
 
-        // Restore window visibility state for next open (in case it was minimized)
-        this.window.style.display = '';
+        // Re-parent window back to overlay container if detached by dragging
+        if (this.window && this.uiContainer && this.window.parentElement !== this.uiContainer) {
+            this.uiContainer.appendChild(this.window);
+        }
+
+        if (this.window) {
+            delete this.window.dataset.hasBeenDragged;
+            this.window.style.position = '';
+            this.window.style.left = '';
+            this.window.style.top = '';
+            this.window.style.transform = '';
+            this.window.style.margin = '';
+        }
 
         // Delay display:none to allow transition
         setTimeout(() => {

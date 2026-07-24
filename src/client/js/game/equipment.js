@@ -126,24 +126,25 @@ export const equipmentManager = {
         this.isOpen = true;
         this.isMinimized = false;
 
+        if (this.window && this.overlay && this.window.parentElement !== this.overlay) {
+            this.overlay.appendChild(this.window);
+        }
+
         if (this.overlay) {
             this.overlay.style.display = 'flex';
             this.overlay.classList.add('active');
         }
         if (this.window) {
-            this.window.style.display = '';
-        }
-        if (this.minimizedTab) {
-            this.minimizedTab.style.display = 'none';
-        }
-
-        // Center window default position if not dragged previously
-        if (this.window && !this.window.style.left) {
+            delete this.window.dataset.hasBeenDragged;
             this.window.style.position = '';
             this.window.style.left = '';
             this.window.style.top = '';
             this.window.style.transform = '';
             this.window.style.margin = '';
+            this.window.style.display = '';
+        }
+        if (this.minimizedTab) {
+            this.minimizedTab.style.display = 'none';
         }
 
         WindowManager.bringToFront(this.window);
@@ -152,6 +153,10 @@ export const equipmentManager = {
     close: function () {
         this.isOpen = false;
         this.isMinimized = false;
+
+        if (this.window && this.overlay && this.window.parentElement !== this.overlay) {
+            this.overlay.appendChild(this.window);
+        }
 
         if (this.overlay) {
             this.overlay.style.display = 'none';

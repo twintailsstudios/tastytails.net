@@ -14,6 +14,7 @@ function initializeContextMenu(scene, socket) {
     let mouseDownButton = 0; // Capture mouse button: 0=Left, 1=Middle, 2=Right
     let startX = 0;
     let startY = 0;
+    let isPendingRadialQuery = false;
 
     // Prevent events from propagating to Phaser
     const stopPropagation = (e) => e.stopPropagation();
@@ -39,6 +40,7 @@ function initializeContextMenu(scene, socket) {
         if (event && contextMenu && contextMenu.contains(event.target)) {
             return;
         }
+        isPendingRadialQuery = false;
         if (contextMenu) {
             contextMenu.style.display = 'none';
             contextMenu.className = ''; // Reset radial class
@@ -71,7 +73,8 @@ function initializeContextMenu(scene, socket) {
         return false;
     };
 
-    // --- Phaser Input Handling ---
+    // Prevent browser default context menu
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
 
     scene.input.on('pointerdown', function (pointer, currentlyOver) {
         if (pointer.interactionHandled) {
@@ -86,20 +89,20 @@ function initializeContextMenu(scene, socket) {
         startY = pointer.y;
         mouseDownButton = pointer.button; // Capture mouse button: 0=Left, 1=Middle, 2=Right
 
-        // Spacebar + click triggers radial menu instantly
-        if (window.spacebarPressed) {
-            console.log('[ContextMenu] Spacebar + click detected. Triggering radial menu.');
+        // Right-Click OR Spacebar + click triggers radial menu instantly
+        if (pointer.button === 2 || pointer.rightButtonDown() || window.spacebarPressed) {
+            console.log('[ContextMenu] Right-click or Spacebar + click detected. Triggering radial menu.');
             didHoldTrigger = true;
             triggerRadialQuery(pointer, currentlyOver);
             return;
         }
 
-        // Long Press timer (400ms hold)
+        // Long Press timer (350ms hold)
         holdTimer = setTimeout(() => {
             console.log('[ContextMenu] Click-and-Hold detected. Triggering radial menu.');
             didHoldTrigger = true;
             triggerRadialQuery(pointer, currentlyOver);
-        }, 400);
+        }, 350);
     });
 
     scene.input.on('pointermove', function (pointer) {
@@ -119,8 +122,8 @@ function initializeContextMenu(scene, socket) {
             holdTimer = null;
         }
 
-        // If context menu is currently visible on screen, do not trigger ground click
-        const isMenuVisible = contextMenu && contextMenu.style.display === 'block';
+        // If context menu is currently visible on screen or pending a radial socket response, do not trigger ground click
+        const isMenuVisible = (contextMenu && contextMenu.style.display === 'block') || isPendingRadialQuery;
         if (isMenuVisible || !mouseDownPointer) {
             mouseDownPointer = null;
             mouseDownCurrentlyOver = null;
@@ -145,7 +148,7 @@ function initializeContextMenu(scene, socket) {
             tooltipEl.style.opacity = '0';
         }
         var clickedList = [];
-        currentlyOver.forEach(function (gameObject) {
+        (currentlyOver || []).forEach(function (gameObject) {
             if (gameObject.playerInfo) {
                 var playerClicked = {
                     Identifier: 'player',
@@ -164,8 +167,35 @@ function initializeContextMenu(scene, socket) {
             }
         });
 
+        // Ground / Self Fallback: If no interactive player or object was directly clicked
+        if (clickedList.length === 0) {
+            const worldX = (pointer.worldX !== undefined) ? pointer.worldX : pointer.x;
+            const worldY = (pointer.worldY !== undefined) ? pointer.worldY : pointer.y;
+
+            clickedList.push({
+                Identifier: 'ground',
+                uniqueId: `ground_${Math.round(worldX)}_${Math.round(worldY)}`,
+                name: 'Ground',
+                description: `Ground terrain at (${Math.round(worldX)}, ${Math.round(worldY)})`,
+                worldX: worldX,
+                worldY: worldY
+            });
+
+            const localId = window.localPlayerInfo ? (window.localPlayerInfo.id || window.localPlayerInfo.playerId) : socket.id;
+            const localName = window.localPlayerInfo ? (window.localPlayerInfo.Username || (window.localPlayerInfo.firstName + ' ' + window.localPlayerInfo.lastName)) : 'Self';
+            if (localId) {
+                clickedList.push({
+                    Identifier: 'player',
+                    playerId: localId,
+                    name: localName || 'Self',
+                    isSelf: true
+                });
+            }
+        }
+
         if (clickedList.length > 0) {
             var intent = window.currentIntent || 'friendly';
+            isPendingRadialQuery = true;
             console.log('[ContextMenu] Querying radial menu details for target:', clickedList[0]);
             socket.emit('playerRightClicked', {
                 rightClickedList: clickedList,
@@ -173,6 +203,12 @@ function initializeContextMenu(scene, socket) {
                 pointerX: pointer.event ? pointer.event.clientX : pointer.x,
                 pointerY: pointer.event ? pointer.event.clientY : pointer.y
             });
+
+            // Safety timeout to reset isPendingRadialQuery if server fails to respond
+            setTimeout(() => {
+                isPendingRadialQuery = false;
+            }, 3000);
+
             if (window.completeTutorialTask) {
                 window.completeTutorialTask('context_open');
             }
@@ -183,7 +219,7 @@ function initializeContextMenu(scene, socket) {
 
     function executeHandClick(pointer, currentlyOver, hand) {
         var clickedList = [];
-        currentlyOver.forEach(function (gameObject) {
+        (currentlyOver || []).forEach(function (gameObject) {
             if (gameObject.playerInfo) {
                 var playerClicked = {
                     Identifier: 'player',
@@ -543,6 +579,7 @@ function initializeContextMenu(scene, socket) {
 
     // --- Handle the playerRightClickedResponse event ---
     socket.on('playerRightClickedResponse', function (data) {
+        isPendingRadialQuery = false;
         const { responseInfo, predatorInfo, pointerX, pointerY } = data;
 
         if (tooltipEl) {
@@ -714,7 +751,23 @@ function initializeContextMenu(scene, socket) {
                     });
                 }
 
-                if (hasVore) {
+                if (actions.includes('Till')) {
+                    innerActions.push({
+                        label: 'Till',
+                        icon: 'fa-solid fa-wheat-awn',
+                        onClick: () => {
+                            const hand = (mouseDownButton === 2) ? 'right' : 'left';
+                            socket.emit('useToolOnGround', {
+                                toolId: 'tool_hoe',
+                                x: currentItem.worldX || pointerX,
+                                y: currentItem.worldY || pointerY,
+                                hand: hand
+                            });
+                        }
+                    });
+                }
+
+                if (hasVore && !isSelf) {
                     innerActions.push({
                         label: 'Vore',
                         icon: 'fa-solid fa-teeth-open',
