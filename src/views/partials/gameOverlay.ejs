@@ -1,19 +1,5 @@
-<!-- Overlay: Intent (Iron Spine Widget) -->
-<div id="intent-hud">
-    <div class="intent-plate">
-        <div class="intent-option active intent-friendly" id="intent-friendly" onclick="setIntent('friendly')"
-            title="Friendly">
-            <i class="fa-regular fa-face-smile"></i>
-        </div>
-        <div class="intent-option intent-grabbing" id="intent-grabbing" onclick="setIntent('grabbing')"
-            title="Grabbing">
-            <i class="fa-solid fa-hand-fist"></i>
-        </div>
-        <div class="intent-option intent-hostile" id="intent-hostile" onclick="setIntent('hostile')" title="Hostile">
-            <i class="fa-solid fa-crosshairs"></i>
-        </div>
-    </div>
-    <!-- Hidden Inputs for logic compatibility if needed, or we just handle state in JS -->
+<!-- Intent State Radio Inputs (For game logic compatibility) -->
+<div id="intent-hud" style="display:none;">
     <input type="radio" name="intent" id="friendly_radio" value="friendly" style="display:none" checked>
     <input type="radio" name="intent" id="grabbing_radio" value="grabbing" style="display:none">
     <input type="radio" name="intent" id="hostile_radio" value="hostile" style="display:none">
@@ -43,6 +29,9 @@
             radio.checked = true;
             // Dispatch change event to keep server/game code updated
             radio.dispatchEvent(new Event('change'));
+        }
+        if (window.setTargetZone) {
+            window.setTargetZone(window.currentTargetZone || 'torso');
         }
     };
 

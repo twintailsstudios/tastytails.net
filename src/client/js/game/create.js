@@ -16,6 +16,8 @@ import { inventoryUI } from './inventory.js';
 import { CraftingUI } from './crafting.js'; // NEW
 import { initCorpses } from './corpses.js';
 import { Animal } from './entity/Animal.js'; // NEW
+import { initMedicalUI } from './medicalUI.js';
+import { initTargetSelection } from './targetSelection.js';
 
 let debugGraphics;
 let playerDebugGraphics;
@@ -26,6 +28,7 @@ export function create() {
     const self = this;
     window.gameScene = self; // Expose globally for UI interactions
     initDebugGraph(); // Initialize HTML debug graph
+    initTargetSelection(); // Initialize Target Selection Paper Doll Widget
 
     // --- LOADING SCREEN HANDOVER ---
     // FIX: Retrieve from window and attach to scene
@@ -145,6 +148,7 @@ export function create() {
     if (this.loadingScreen) this.updateLoadingProgress(0.7, "Connecting to Server...");
     this.socket = io({ query: { charId: charId } });
     window.gameSocket = this.socket; // Expose globally for UI interactions
+    initMedicalUI(this.socket);
     console.log('this.socket = ', this.socket);
 
     this.socket.emit('getAllChats', {
@@ -308,6 +312,11 @@ export function create() {
 
     // Sync initial character data (including MongoDB _id) with the server
     this.socket.emit('characterUpdate', localPlayerInfo);
+
+    // Initial render of Vore Destinations list on game scene creation
+    if (window.localPlayerInfo && window.localPlayerInfo.voreTypes) {
+        createVoreList(window.localPlayerInfo.voreTypes, this);
+    }
 
     // --- DEBUG GRAPHICS INIT ---
     this.debugGraphics = this.add.graphics();
@@ -547,7 +556,7 @@ export function create() {
                     }
 
                     // --- Consumed State & Camera Logic ---
-                    createStruggleButton(!!fullState.consumedBy, self.socket);
+                    createStruggleButton(!!fullState.consumedBy, self.socket, window.lastClenchData);
 
                     if (fullState.consumedBy) {
                         // Player is consumed
@@ -732,15 +741,47 @@ export function create() {
     });
 
 
-    // --- Vore Stage Update (Predator Controls) ---
     this.socket.on('voreStageUpdate', function (data) {
         console.log('[Client] voreStageUpdate:', data);
-        if (data.predatorId === self.socket.id) {
-            // We are the predator
-            createPredatorVoreControls(data, self.socket);
+        const myCharId = window.localPlayerInfo ? (window.localPlayerInfo.playerId || window.localPlayerInfo._id) : null;
+        if (data.predatorId === self.socket.id || (myCharId && data.predatorId === myCharId)) {
+            if (!data || !data.stage || data.stage <= 0) {
+                removePredatorVoreControls();
+            } else {
+                createPredatorVoreControls(data, self.socket);
+            }
         }
-        // If we are the target (or anyone else), ensure no controls are shown? 
-        // controls are specific to predator client.
+        if (data.playerId === self.socket.id || (myCharId && data.playerId === myCharId)) {
+            // We are the contained target (prey)
+            if (!data || !data.stage || data.stage <= 0) {
+                createStruggleButton(false, self.socket);
+            } else {
+                createStruggleButton(true, self.socket, data);
+            }
+        }
+    });
+
+    // --- Target Struggle Activity Pulse Listener ---
+    this.socket.on('targetStruggleActivity', function (data) {
+        const container = document.getElementById('vore-struggle-activity');
+        const statusText = document.getElementById('struggle-status-text');
+        if (container) {
+            container.classList.remove('active-struggle', 'intense-struggle');
+            container.classList.add('intense-struggle');
+            if (statusText) statusText.innerText = 'Desperately Struggling!';
+
+            if (container.struggleTimer) clearTimeout(container.struggleTimer);
+            container.struggleTimer = setTimeout(() => {
+                container.classList.remove('intense-struggle');
+                container.classList.add('active-struggle');
+                if (statusText) statusText.innerText = 'Wriggling';
+
+                container.struggleTimer = setTimeout(() => {
+                    container.classList.remove('active-struggle');
+                    if (statusText) statusText.innerText = 'Calm';
+                }, 2000);
+            }, 1500);
+        }
     });
 
     // Listener to clear controls if released

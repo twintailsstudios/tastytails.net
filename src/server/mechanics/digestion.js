@@ -9,11 +9,11 @@ const { applyDamage } = require('./damage');
 
 // Damage values based on Digestive Intensity (Power)
 const DAMAGE_VALUES = {
-    'Very Low': 1,
-    'Low': 2,
-    'Normal': 3,
-    'High': 4,
-    'Very High': 5
+    'Very Low': 10,
+    'Low': 20,
+    'Normal': 30,
+    'High': 40,
+    'Very High': 50
 };
 
 // Probability of damage occurring (0.0 - 1.0)
@@ -147,115 +147,62 @@ async function processDigestion(players, User, io, addCorpse, messageSystem, del
                 // Check death state BEFORE damage
                 const wasDead = victim.isDead;
 
-                // Apply Damage
-                const result = await applyDamage(players, User, victimId, damageAmount, predatorSocketId, 'acid', null, io);
+                // Equal proportion selection among limbs that have >0 HP
+                const ALL_BODY_PARTS = [
+                    'head', 'torso', 'leftArm', 'rightArm', 'leftHand', 'rightHand',
+                    'leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'tail'
+                ];
+                let availableParts = ALL_BODY_PARTS;
+                if (victim.stats && victim.stats.bodyParts) {
+                    const activeLimbs = ALL_BODY_PARTS.filter(partKey => {
+                        const pObj = victim.stats.bodyParts[partKey];
+                        return pObj && typeof pObj.hp === 'number' && pObj.hp > 0;
+                    });
+                    if (activeLimbs.length > 0) {
+                        availableParts = activeLimbs;
+                    }
+                }
+                const randomTargetPart = availableParts[Math.floor(Math.random() * availableParts.length)];
+
+                // Apply Burn Damage to randomly chosen active body part
+                const result = await applyDamage(players, User, victimId, damageAmount, predatorSocketId, 'burn', null, io, randomTargetPart);
 
                 if (result.success) {
                     // Log / Message
                     log.info(`[Digestion] ${predator.firstName} digested ${victim.firstName} for ${damageAmount} damage (${digestivePower}). Health: ${result.newHealth}`);
 
-                    // Check for Death Transition
-                    if (!wasDead && result.dead) {
-                        log.info(`[Digestion] ${victim.firstName} has been digested by ${predator.firstName}. Processing death release...`);
-
-                        // Stop tracking this victim as they are dead/processed
-                        victimsToRemove.push(victimId);
-
-                        // --- 1. Release Spirit to Map ---
-                        // Position ghost at predator's location
-                        victim.position.x = predator.position.x;
-                        victim.position.y = predator.position.y;
-
-                        // Clear Consumed/Held State
-                        victim.consumedBy = null;
-                        victim.voreStage = 0;
-                        victim.currentVoreNodeId = null;
-                        victim.isHeld = false;
-                        victim.heldBy = null;
-                        victim.heldBySocketId = null;
-                        victim.grippedFirmly = false;
-                        victim.grippedBy = null;
-                        victim.struggleCount = 0;
-
-                        // Predator state update (if holding target)
-                        if (predator.holding === victimId) {
-                            predator.holding = null;
-                        }
-
-                        // --- 2. Update Predator Contents (Legacy list) ---
-                        if (predator.voreTypes) {
-                            predator.voreTypes.forEach(vt => {
-                                if (vt.contents) {
-                                    const tName = victim.Username || (victim.firstName + ' ' + victim.lastName);
-                                    const idx = vt.contents.indexOf(tName);
-                                    if (idx > -1) vt.contents.splice(idx, 1);
-                                }
-                            });
-                        }
-
-                        // --- 3. Emit UI Updates ---
+                    // Live update predator Vore Controls UI with new target health
+                    if (!result.dead) {
                         io.emit('voreStageUpdate', {
                             playerId: victim.playerId,
                             predatorId: predator.playerId,
-                            stage: 0,
-                            nodeName: null
+                            stage: victim.voreStage || 3,
+                            nodeName: nodeName,
+                            targetName: victim.Username || (victim.firstName + ' ' + victim.lastName),
+                            targetHp: Math.round(result.newHealth),
+                            targetMaxHp: victim.stats ? Math.round(victim.stats.maxHealth) : 100,
+                            destinationMode: 'Digest',
+                            nodeVoreTypeId: currentNodeId,
+                            clenchSuppressedUntil: victim.clenchSuppressedUntil || 0,
+                            clenchCooldownUntil: predator.clenchCooldownUntil || 0
                         });
+                    }
 
-                        // --- 4. Chat Messages (Refactored) ---
-                        if (messageSystem) {
-                            const predName = (predator.firstName + ' ' + predator.lastName);
-                            const preyName = (victim.firstName + ' ' + victim.lastName);
-
-                            // Helper: processTags (Inlined to avoid dependency issues)
-                            const processTags = (text, isPrey, isPred) => {
-                                let processed = text || '';
-                                processed = processed
-                                    .replace(/<pred>/gi, isPred ? 'You' : predName)
-                                    .replace(/<prey>/gi, isPrey ? 'you' : preyName)
-                                    .replace(/<node>/gi, nodeName);
-
-                                if (isPred) {
-                                    const nameRegex = new RegExp(`\\b${predName}\\b`, 'gi');
-                                    processed = processed.replace(nameRegex, 'You');
-                                    processed = processed.replace(/\btheir\b/gi, 'your');
-                                    processed = processed.replace(/\btheirs\b/gi, 'yours');
-                                    processed = processed.replace(/\bYou's\b/gi, 'Your');
-                                }
-                                if (isPrey) {
-                                    const nameRegex = new RegExp(`\\b${preyName}\\b`, 'gi');
-                                    processed = processed.replace(nameRegex, 'you');
-                                }
-                                return processed;
-                            };
-
-                            const preyMsg = processTags(internalFate, true, false);
-                            const rawPredMsg = externalOutcome || `<pred>'s ${nodeName} churns as <prey> is fully digested.`;
-                            const predMsg = processTags(rawPredMsg, false, true);
-                            const externalMsg = processTags(rawPredMsg, false, false);
-
-                            const victimSocket = io.sockets.sockets.get(victimId);
-                            const predatorSocket = io.sockets.sockets.get(predatorSocketId);
-
-                            // 1. Prey Message
-                            if (victimSocket) {
-                                messageSystem.sendSystemMessage('Interactional', preyMsg, victimSocket, [], 'local', predatorSocket);
-                            }
-
-                            // 2. Predator Message
-                            if (predatorSocket) {
-                                messageSystem.sendSystemMessage('Interactional', predMsg, predatorSocket, [], 'local', predatorSocket);
-                            }
-
-                            // 3. External (Observers)
-                            const excludedIds = [];
-                            if (victim._id) excludedIds.push(String(victim._id));
-                            if (predator._id) excludedIds.push(String(predator._id));
-
-                            if (externalMsg) {
-                                messageSystem.sendSystemMessage('Interactional', externalMsg, null, excludedIds, 'local', predatorSocket);
-                                io.emit('voreLog', externalMsg);
-                            }
-                        }
+                    // Check for Death Transition
+                    if (result.dead || victim.isDead || (victim.stats && victim.stats.health <= 0)) {
+                        victimsToRemove.push(victimId);
+                        await processDigestionDeath(
+                            victim,
+                            predator,
+                            players,
+                            User,
+                            io,
+                            addCorpse,
+                            messageSystem,
+                            nodeName,
+                            internalFate,
+                            externalOutcome
+                        );
                     }
                 }
             }
@@ -264,9 +211,176 @@ async function processDigestion(players, User, io, addCorpse, messageSystem, del
 
     // Cleanup Stale Entries
     victimsToRemove.forEach(id => {
-        activeDigestions.delete(id);
-        digestionTimers.delete(id);
+        untrackVictim(id);
     });
 }
 
-module.exports = { processDigestion, trackVictim, untrackVictim };
+/**
+ * Processes digestion death and release sequence for a victim player.
+ * Resolves digestionInsideMsgDescrip and digestionOutsideMsgDescrip from the destination node.
+ */
+async function processDigestionDeath(victim, predator, players, User, io, addCorpse, messageSystem, customNodeName = null, customInternalFate = null, customExternalOutcome = null) {
+    if (!victim) return;
+    const victimId = Object.keys(players).find(sid => players[sid] === victim) || victim.playerId;
+    const predatorSocketId = predator ? (Object.keys(players).find(sid => players[sid] === predator) || predator.playerId) : null;
+
+    log.info(`[Digestion] ${victim.firstName || victim.Username} has been digested by ${predator ? (predator.firstName || predator.Username) : 'Predator'}. Processing death release...`);
+
+    // 1. Resolve destination node properties from predator.voreTypes or predator.graphNodes
+    let nodeName = customNodeName;
+    let internalFate = customInternalFate;
+    let externalOutcome = customExternalOutcome;
+
+    const currentNodeId = victim.currentVoreNodeId;
+    let vt = null;
+
+    if (predator && predator.voreTypes && currentNodeId) {
+        vt = predator.voreTypes.find(v => 
+            String(v.graphNodeId) === String(currentNodeId) || 
+            String(v.id) === String(currentNodeId) ||
+            String(v._id) === String(currentNodeId) ||
+            v.destination === currentNodeId ||
+            v.name === currentNodeId
+        );
+    }
+
+    if (!vt && predator && predator.voreTypes) {
+        vt = predator.voreTypes.find(v => v.mode === 'Digest' && (v.type === 'destination' || v.isDestination));
+    }
+
+    if (vt) {
+        if (!nodeName || nodeName === 'Stomach') {
+            nodeName = vt.destination || vt.name || (vt.properties && vt.properties.name) || 'Stomach';
+        }
+        if (!internalFate || internalFate === 'You have been digested.') {
+            internalFate = vt.digestionInsideMsgDescrip || (vt.properties && vt.properties.digestionInsideMsgDescrip) || 'You feel your body softening in the acids...';
+        }
+        if (!externalOutcome) {
+            externalOutcome = vt.digestionOutsideMsgDescrip || (vt.properties && vt.properties.digestionOutsideMsgDescrip) || `<pred>'s ${nodeName} churns as <prey> is fully digested.`;
+        }
+    }
+
+    if (!nodeName) nodeName = 'Stomach';
+    if (!internalFate) internalFate = 'You feel your body softening in the acids...';
+    if (!externalOutcome) externalOutcome = `<pred>'s ${nodeName} churns as <prey> is fully digested.`;
+
+    // Ensure victim is marked dead
+    victim.isDead = true;
+    if (victim.stats) victim.stats.health = 0;
+
+    // Release Spirit to Map at predator's location
+    if (predator && predator.position && victim.position) {
+        victim.position.x = predator.position.x;
+        victim.position.y = predator.position.y;
+    }
+
+    // Clear Consumed / Held State
+    victim.consumedBy = null;
+    victim.voreStage = 0;
+    victim.currentVoreNodeId = null;
+    victim.isHeld = false;
+    victim.heldBy = null;
+    victim.heldBySocketId = null;
+    victim.grippedFirmly = false;
+    victim.grippedBy = null;
+    victim.struggleCount = 0;
+
+    // Predator state update
+    if (predator) {
+        if (predator.holding === victimId || predator.holding === victim.playerId) {
+            predator.holding = null;
+        }
+
+        // Update Predator Contents
+        if (predator.voreTypes) {
+            predator.voreTypes.forEach(nodeItem => {
+                if (nodeItem.contents) {
+                    const tName = victim.Username || (victim.firstName + ' ' + victim.lastName);
+                    const idx = nodeItem.contents.indexOf(tName);
+                    if (idx > -1) nodeItem.contents.splice(idx, 1);
+                }
+            });
+        }
+    }
+
+    // Emit UI updates to close Vore Controls Window
+    if (io) {
+        io.emit('voreStageUpdate', {
+            playerId: victim.playerId,
+            predatorId: predator ? predator.playerId : null,
+            stage: 0,
+            nodeName: null
+        });
+    }
+
+    // Chat Message Formatting & Delivery
+    if (predator) {
+        const predName = (predator.firstName + ' ' + predator.lastName).trim() || predator.Username || 'Predator';
+        const preyName = (victim.firstName + ' ' + victim.lastName).trim() || victim.Username || 'Prey';
+
+        const processTags = (text, isPrey, isPred) => {
+            let processed = text || '';
+            processed = processed
+                .replace(/<pred>/gi, isPred ? 'You' : predName)
+                .replace(/<prey>/gi, isPrey ? 'you' : preyName)
+                .replace(/<node>/gi, nodeName);
+
+            if (isPred) {
+                const nameRegex = new RegExp(`\\b${predName}\\b`, 'gi');
+                processed = processed.replace(nameRegex, 'You');
+                processed = processed.replace(/\btheir\b/gi, 'your');
+                processed = processed.replace(/\btheirs\b/gi, 'yours');
+                processed = processed.replace(/\bYou's\b/gi, 'Your');
+            }
+            if (isPrey) {
+                const nameRegex = new RegExp(`\\b${preyName}\\b`, 'gi');
+                processed = processed.replace(nameRegex, 'you');
+            }
+            return processed;
+        };
+
+        const preyMsg = processTags(internalFate, true, false);
+        const predMsg = processTags(externalOutcome, false, true);
+        const externalMsg = processTags(externalOutcome, false, false);
+
+        const victimSocket = io && victimId && io.sockets.sockets.get(victimId);
+        const predatorSocket = io && predatorSocketId && io.sockets.sockets.get(predatorSocketId);
+
+        if (messageSystem) {
+            if (victimSocket) {
+                messageSystem.sendSystemMessage('Interactional', preyMsg, victimSocket, [], 'local', predatorSocket);
+            }
+            if (predatorSocket) {
+                messageSystem.sendSystemMessage('Interactional', predMsg, predatorSocket, [], 'local', predatorSocket);
+            }
+
+            const excludedIds = [];
+            if (victim._id) excludedIds.push(String(victim._id));
+            if (predator._id) excludedIds.push(String(predator._id));
+
+            if (externalMsg) {
+                messageSystem.sendSystemMessage('Interactional', externalMsg, null, excludedIds, 'local', predatorSocket);
+                if (io) io.emit('voreLog', externalMsg);
+            }
+        } else {
+            // Direct socket chat emission fallback if messageSystem instance is not provided
+            const ts = new Date();
+            if (victimSocket) {
+                victimSocket.emit('chatMessage', { channel: 'Interactional', text: preyMsg, timestamp: ts });
+            }
+            if (predatorSocket) {
+                predatorSocket.emit('chatMessage', { channel: 'Interactional', text: predMsg, timestamp: ts });
+            }
+            if (io) {
+                io.emit('chatMessage', { channel: 'Interactional', text: externalMsg, timestamp: ts });
+                io.emit('voreLog', externalMsg);
+            }
+        }
+    }
+
+    // Untrack victim from active digestion loop
+    untrackVictim(victimId);
+    if (victim.playerId) untrackVictim(victim.playerId);
+}
+
+module.exports = { processDigestion, processDigestionDeath, trackVictim, untrackVictim };

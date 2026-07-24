@@ -1,14 +1,15 @@
 /**
  * health.js
  * 
- * Handles healing and revival of players.
+ * Handles healing and revival of players with support for anatomical limb restoration.
  */
 
 const log = require('../../logger');
 const DatabaseResilience = require('../../classes/DatabaseResilience');
+const { ensureAnatomyStats, recalculateTotalHealth } = require('./anatomyDamage');
 
 /**
- * Heals a player by a specified amount.
+ * Heals a player by a specified amount, distributing healing across body parts.
  * 
  * @param {Object} players - The global players object.
  * @param {Object} User - The Mongoose User model.
@@ -23,27 +24,28 @@ async function healPlayer(players, User, targetId, amount) {
         return { success: false, error: 'Target not found' };
     }
 
-    if (!target.stats) {
-        target.stats = { health: 100, maxHealth: 100 };
+    ensureAnatomyStats(target);
+
+    // Distribute healing across damaged limbs
+    const parts = target.stats.bodyParts;
+    const healPerLimb = amount / 4; // Share healing across damaged parts
+
+    for (const pKey in parts) {
+        const part = parts[pKey];
+        if (part && part.hp < part.maxHp) {
+            part.hp = Math.min(part.maxHp, part.hp + healPerLimb);
+            part.brute = Math.max(0, (part.brute || 0) - healPerLimb);
+            part.burn = Math.max(0, (part.burn || 0) - healPerLimb);
+            part.toxin = Math.max(0, (part.toxin || 0) - healPerLimb);
+            part.suffocation = Math.max(0, (part.suffocation || 0) - healPerLimb);
+        }
     }
 
-    // Default to a sane max health if missing (e.g. legacy data)
-    const maxHealth = target.stats.maxHealth || 100;
+    // Restore blood volume proportional to heal
+    target.stats.bloodVolume = Math.min(target.stats.maxBloodVolume, target.stats.bloodVolume + (amount * 20));
 
-    // Apply Healing
-    target.stats.health += amount;
-
-    // Clamp to Max Health
-    if (target.stats.health > maxHealth) {
-        target.stats.health = maxHealth;
-    }
-
-    // Ensure not negative (just in case amount is negative, though damage.js handles damage)
-    if (target.stats.health < 0) {
-        target.stats.health = 0;
-    }
-
-    log.info(`[Health] ${target.firstName} healed for ${amount}. Health: ${target.stats.health}/${maxHealth}`);
+    const finalHealth = recalculateTotalHealth(target);
+    log.info(`[Health] ${target.firstName || target.Username} healed for ${amount}. Health: ${finalHealth}/${target.stats.maxHealth}`);
 
     // Persist to Database
     try {
@@ -52,7 +54,7 @@ async function healPlayer(players, User, targetId, amount) {
             { 'characters._id': target._id },
             {
                 $set: {
-                    'characters.$.stats.health': target.stats.health
+                    'characters.$.stats': target.stats
                 }
             }
         );
@@ -62,17 +64,18 @@ async function healPlayer(players, User, targetId, amount) {
 
     return {
         success: true,
-        newHealth: target.stats.health
+        newHealth: finalHealth
     };
 }
 
 /**
  * Revives a dead player.
- * Resets health to 1, sets isDead to false, and handles sprite restoration logic (handled by client on state change).
+ * Resets health and body parts to 25%, clears bleeding, and sets isDead to false.
  * 
  * @param {Object} players - The global players object.
  * @param {Object} User - The Mongoose User model.
  * @param {string} targetId - The socket ID of the player to revive.
+ * @param {Object} io - Socket instance.
  * @returns {Object} Result - { success: boolean }
  */
 async function revivePlayer(players, User, targetId, io) {
@@ -83,22 +86,25 @@ async function revivePlayer(players, User, targetId, io) {
     }
 
     if (!target.isDead) {
-        log.warn(`[Revive] Player ${target.firstName} is already alive.`);
+        log.warn(`[Revive] Player ${target.firstName || target.Username} is already alive.`);
         return { success: false, error: 'Player is not dead' };
     }
 
     // Reset State
     target.isDead = false;
+    ensureAnatomyStats(target);
 
-    // Set Health to 1 (or could be configurable)
-    if (!target.stats) target.stats = { health: 100, maxHealth: 100 };
-    target.stats.health = 1;
+    // Restore body parts to at least 25 HP
+    const parts = target.stats.bodyParts;
+    for (const pKey in parts) {
+        if (parts[pKey].hp < 25) parts[pKey].hp = 25;
+        parts[pKey].suffocation = 0;
+    }
+    target.stats.bleedingRate = 0;
+    target.stats.bloodVolume = Math.max(1000, target.stats.bloodVolume);
 
-    // Remove Corpse?
-    // The requirement says "return them to 1 health point... replacing the spiritSprite properties with the normal player character sprite".
-    // Client-side, 'isDead: false' triggers the normal sprite rendering.
-
-    log.info(`[Revive] ${target.firstName} has been revived.`);
+    const finalHealth = recalculateTotalHealth(target);
+    log.info(`[Revive] ${target.firstName || target.Username} has been revived. Health: ${finalHealth}`);
 
     // Persist to Database
     try {
@@ -107,7 +113,7 @@ async function revivePlayer(players, User, targetId, io) {
             { 'characters._id': target._id },
             {
                 $set: {
-                    'characters.$.stats.health': target.stats.health,
+                    'characters.$.stats': target.stats,
                     'characters.$.isDead': false
                 }
             }
@@ -116,12 +122,11 @@ async function revivePlayer(players, User, targetId, io) {
         log.error(`[Revive] Database persistence failed for ${targetId}:`, err);
     }
 
-    // Force a full update or specific event if needed, but standard loop should handle it.
     if (io) {
         io.emit('playerRevived', { playerId: targetId });
     }
 
-    return { success: true };
+    return { success: true, newHealth: finalHealth };
 }
 
 module.exports = { healPlayer, revivePlayer };

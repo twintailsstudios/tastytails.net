@@ -75,6 +75,45 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
         }
     });
 
+    // --- Undress Action Handler (Drop all equipped items at feet) ---
+    socket.on('undressClicked', () => {
+        try {
+            const player = players[socket.id];
+            if (!player || !player.equipment || player.isDead) return;
+
+            let itemsDropped = 0;
+            Object.keys(player.equipment).forEach((slotId) => {
+                const item = player.equipment[slotId];
+                if (item) {
+                    player.equipment[slotId] = null;
+
+                    const jitterX = (Math.random() - 0.5) * 24;
+                    const jitterY = (Math.random() - 0.5) * 16;
+                    item.x = player.position.x + jitterX;
+                    item.y = player.position.y + 20 + jitterY;
+                    delete item.onTable;
+                    delete item.surfaceDepth;
+
+                    if (!item.uid) item.uid = 'item_' + Date.now() + Math.random().toString(36).substr(2, 5);
+
+                    worldItems.push(item);
+                    if (addItemToGrid) addItemToGrid(item);
+
+                    io.emit('itemSpawned', item);
+                    itemsDropped++;
+                }
+            });
+
+            if (itemsDropped > 0) {
+                log.info(`Player ${player.Username} undressed, dropping ${itemsDropped} items.`);
+                io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+                saveCharacter(socket.id);
+            }
+        } catch (e) {
+            log.error(`Error handling undressClicked for ${socket.id}:`, e);
+        }
+    });
+
     // --- Dynamic Storage Logic (Pockets etc) ---
 
     // Move item from Specified Hand -> Pocket

@@ -25,6 +25,7 @@ const DatabaseResilience = require('./classes/DatabaseResilience');
 
 const VisibilityPolygon = require('visibility-polygon'); // New: For shadowcasting
 const { processDigestion, untrackVictim, trackVictim } = require('./server/mechanics/digestion'); // New: Digestion System
+const { ensureAnatomyStats } = require('./server/mechanics/anatomyDamage');
 const monitoring = require('./server/monitoring');
 const { performance } = require('perf_hooks');
 
@@ -1067,6 +1068,57 @@ function checkHillHomeCollision(x, y) {
     return false;
 }
 
+/**
+ * Evaluates whether a player steps on environmental ground hazard items.
+ * Triggers item-defined damageOnStep effects (e.g. feet cuts from shards, feet burns from embers).
+ */
+function checkGroundItemHazards(player, io) {
+    if (!player || player.isDead || !worldItems || worldItems.length === 0) return;
+
+    const now = Date.now();
+    if (!player.hazardCooldowns) player.hazardCooldowns = {};
+
+    for (let i = 0; i < worldItems.length; i++) {
+        const worldItem = worldItems[i];
+        if (!worldItem) continue;
+
+        const def = resolveItemDef(worldItem, itemData);
+        if (def && def.damageOnStep) {
+            const stepConfig = def.damageOnStep;
+            const cooldown = stepConfig.cooldownMs || 1500;
+            const itemKey = worldItem.uid || `${worldItem.x}_${worldItem.y}`;
+
+            // Check distance (within 36px radius of item center)
+            const dx = player.position.x - worldItem.x;
+            const dy = player.position.y - worldItem.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist <= 36) {
+                const lastStepTime = player.hazardCooldowns[itemKey] || 0;
+                if (now - lastStepTime >= cooldown) {
+                    player.hazardCooldowns[itemKey] = now;
+
+                    // Target feet specifically if targetPart is null or 'feet'
+                    let targetPart = stepConfig.targetPart;
+                    if (!targetPart || targetPart === 'feet') {
+                        targetPart = Math.random() < 0.5 ? 'leftFoot' : 'rightFoot';
+                    }
+
+                    const damageType = stepConfig.damageType || 'brute';
+                    const amount = stepConfig.amount || 10;
+
+                    const { applyDamage } = require('./server/mechanics/damage');
+                    applyDamage(players, User, player.playerId, amount, null, damageType, module.exports.addCorpse, io, targetPart);
+
+                    if (stepConfig.stepMessage && messageSystem && io.sockets.sockets.get(player.playerId)) {
+                        messageSystem.sendSystemMessage('Environmental', stepConfig.stepMessage, io.sockets.sockets.get(player.playerId));
+                    }
+                }
+            }
+        }
+    }
+}
+
 // --- MODIFICATION ---
 // This function will now process the stored inputs to move the players.
 function updatePlayers(delta, io) {
@@ -1123,6 +1175,9 @@ function updatePlayers(delta, io) {
 
             player.position.x = newX;
             player.position.y = newY;
+
+            // Check step hazards on ground items
+            checkGroundItemHazards(player, io);
 
             // Update Spatial Grid
             updatePlayerGrid(player);
@@ -2214,6 +2269,7 @@ module.exports.start = (io, _messageSystem) => {
             const clientSnapshot = clientUpdated ? { ...players[socket.id] } : null;
 
             Object.assign(players[socket.id], dbData);
+            ensureAnatomyStats(players[socket.id]);
 
             if (clientUpdated && clientSnapshot) {
                 // Restore cosmetic fields from client snapshot
@@ -2694,80 +2750,160 @@ module.exports.start = (io, _messageSystem) => {
         // --- Use compiled recipes from craftingHandlers ---
         const recipes = craftingHandlers.recipes;
 
-        socket.on('playerHandClicked', (data) => {
+                socket.on('playerHandClicked', (data) => {
             try {
-                const { hand, clickedItem, playerIntent, pointerX, pointerY } = data;
+                const { hand, clickedItem, playerIntent, targetZone, pointerX, pointerY } = data;
                 const player = players[socket.id];
                 if (!player || player.isDead) return;
 
-                log.info(`[playerHandClicked] Hand: ${hand}, Intent: ${playerIntent}, Target: ${clickedItem ? clickedItem.Identifier : 'none'}`);
+                const selectedZone = targetZone || 'torso';
+
+                log.info(`[playerHandClicked] Hand: ${hand}, Intent: ${playerIntent}, TargetZone: ${selectedZone}, Target: ${clickedItem ? clickedItem.Identifier : 'none'}`);
 
                 if (!clickedItem) return;
 
                 // Resolve active item for the clicked hand
                 const activeHand = hand; // 'left' or 'right'
+                if (player.actionHands) {
+                    player.actionHands.activeHand = activeHand;
+                }
                 const activeNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
 
                 // --- Scenario A: Clicked a Player ---
                 if (clickedItem.Identifier === 'player' && players[clickedItem.playerId]) {
                     const targetPlayer = players[clickedItem.playerId];
+                    const interactionHandlers = require('./sockets/interactionHandlers');
                     
                     // Verify reach
                     const distance = Math.sqrt(Math.pow(player.position.x - targetPlayer.position.x, 2) + Math.pow(player.position.y - targetPlayer.position.y, 2));
-                    if (distance > 100) {
+                    if (distance > 120) {
                         if (messageSystem) messageSystem.sendSystemMessage('Interactional', `${targetPlayer.Username || 'Player'} is too far away.`, null, [], 'local', socket);
                         return;
                     }
 
+function getPlayerVoreOptions(player) {
+    if (!player) return [];
+    let voreOptions = [];
+    if (player.anatomyData) {
+        try {
+            const graph = JSON.parse(player.anatomyData);
+            if (graph.nodes) {
+                const entrances = graph.nodes.filter(n => n.type === 'entrance');
+                const links = graph.links || graph.connections || [];
+                if (entrances.length > 0) {
+                    voreOptions = entrances.map(e => {
+                        // Traverse outgoing links down the path to find the node with type === 'destination'
+                        let currentId = String(e.id);
+                        let destNode = null;
+                        let lastOrganNode = null;
+                        const visited = new Set([currentId]);
+
+                        while (currentId) {
+                            const outgoing = links.find(l => String(l.from) === currentId || String(l.source) === currentId);
+                            if (!outgoing) break;
+                            const nextId = String(outgoing.to !== undefined ? outgoing.to : outgoing.target);
+                            if (visited.has(nextId)) break; // Prevent infinite loops
+                            visited.add(nextId);
+
+                            const nextNode = graph.nodes.find(n => String(n.id) === nextId);
+                            if (!nextNode) break;
+
+                            if (nextNode.type === 'destination') {
+                                destNode = nextNode;
+                                break;
+                            }
+
+                            if (nextNode.type !== 'entrance') {
+                                lastOrganNode = nextNode;
+                            }
+
+                            currentId = nextId;
+                        }
+
+                        // Fall back to last organ/path node if no explicit 'destination' node type was found
+                        if (!destNode) {
+                            destNode = lastOrganNode;
+                        }
+
+                        const destNodeIdStr = destNode ? String(destNode.id) : null;
+                        const targetVoreType = player.voreTypes ? 
+                            player.voreTypes.find(v => String(v.graphNodeId) === destNodeIdStr || (destNode && v.destination === destNode.properties?.name)) : null;
+
+                        const entranceVoreType = player.voreTypes ?
+                            player.voreTypes.find(v => String(v.graphNodeId) === String(e.id)) : null;
+
+                        const entranceName = (e.properties && e.properties.name) ? e.properties.name : 'Entrance';
+                        const destName = destNode ? (destNode.properties?.name || 'Stomach') : (targetVoreType ? targetVoreType.destination : 'Stomach');
+
+                        const occupantCount = (targetVoreType && targetVoreType.contents) ? targetVoreType.contents.length : 0;
+                        const maxCap = (destNode && destNode.properties && destNode.properties.maxCapacity !== undefined) ? 
+                            destNode.properties.maxCapacity : 
+                            ((targetVoreType && targetVoreType.maxCapacity !== undefined) ? targetVoreType.maxCapacity : 3);
+                        const power = (destNode && destNode.properties && destNode.properties.digestivePower) ? 
+                            destNode.properties.digestivePower : 
+                            ((targetVoreType && targetVoreType.digestivePower) ? targetVoreType.digestivePower : 'Normal');
+
+                        return {
+                            entranceName: entranceName,
+                            destinationName: destName,
+                            destination: entranceName,
+                            id: e.id,
+                            graphNodeId: String(e.id),
+                            destGraphNodeId: destNodeIdStr,
+                            isEntrance: true,
+                            verb: (e.properties && e.properties.verb) || (entranceVoreType ? entranceVoreType.verb : 'eats'),
+                            occupantCount: occupantCount,
+                            maxCapacity: maxCap,
+                            digestivePower: power,
+                            contents: targetVoreType ? targetVoreType.contents : []
+                        };
+                    });
+                }
+            }
+        } catch (err) {
+            log.warn(`Failed to parse anatomyData for ${player.Username}`);
+        }
+    }
+
+    if (!voreOptions || voreOptions.length === 0) {
+        const rawTypes = player.voreTypes || [];
+        voreOptions = rawTypes.map(v => {
+            const isEnt = v.isEntrance || v.type === 'entrance';
+            return {
+                entranceName: v.entranceName || (isEnt ? v.destination : 'Entrance'),
+                destinationName: v.destinationName || (!isEnt ? v.destination : 'Stomach'),
+                destination: v.destination || 'Vore',
+                id: v.id || v.graphNodeId,
+                graphNodeId: String(v.graphNodeId || v.id || ''),
+                isEntrance: isEnt,
+                verb: v.verb || 'eats',
+                occupantCount: (v.occupantCount !== undefined) ? v.occupantCount : (v.contents ? v.contents.length : 0),
+                maxCapacity: v.maxCapacity !== undefined ? v.maxCapacity : 3,
+                digestivePower: v.digestivePower || 'Normal',
+                contents: v.contents || []
+            };
+        });
+    }
+
+    return voreOptions;
+}
+
                     // Grabbing Intent
                     if (playerIntent === 'grabbing') {
+                        if (targetPlayer.playerId === socket.id || (player._id && targetPlayer._id && player._id.toString() === targetPlayer._id.toString())) {
+                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', 'You cannot grab yourself.', null, [], 'local', socket);
+                            return;
+                        }
+
                         // Empty active hand is required to grab a player
                         if (activeNode) {
                             if (messageSystem) messageSystem.sendSystemMessage('Interactional', `Your ${activeHand} hand must be empty to grab someone.`, null, [], 'local', socket);
                             return;
                         }
 
-                        // Direct progression
-                        if (!targetPlayer.isHeld && targetPlayer.heldBySocketId !== socket.id) {
-                            // Stage 1: Hold (Grab)
-                            targetPlayer.isHeld = true;
-                            targetPlayer.heldBy = player._id;
-                            targetPlayer.heldBySocketId = socket.id;
-                            targetPlayer.grippedFirmly = false;
-                            targetPlayer.struggleCount = 0;
-                            
-                            const msg = `${player.Username} has taken hold of ${targetPlayer.Username}.`;
-                            io.emit('voreLog', msg);
-                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', msg, null, [], 'local', socket);
-                            io.emit('playerStateUpdate', { [targetPlayer.playerId]: getSafePlayerState(targetPlayer) });
-                        } else if (targetPlayer.heldBySocketId === socket.id && !targetPlayer.grippedFirmly) {
-                            // Stage 2: Grip Firmly
-                            targetPlayer.grippedFirmly = true;
-                            targetPlayer.grippedBy = socket.id;
-                            targetPlayer.struggleCount = 0;
-
-                            const msg = `${player.Username} is gripping ${targetPlayer.Username} tightly.`;
-                            io.emit('voreLog', msg);
-                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', msg, null, [], 'local', socket);
-                            io.emit('playerStateUpdate', { [targetPlayer.playerId]: getSafePlayerState(targetPlayer) });
-                        } else if (targetPlayer.heldBySocketId === socket.id && targetPlayer.grippedFirmly) {
+                        if (targetPlayer.heldBySocketId === socket.id && targetPlayer.grippedFirmly) {
                             // Stage 3: Already gripped firmly -> Open Vore radial menu
-                            let voreOptions = player.voreTypes || [];
-                            if (player.anatomyData) {
-                                try {
-                                    const graph = JSON.parse(player.anatomyData);
-                                    if (graph.nodes) {
-                                        const entrances = graph.nodes.filter(n => n.type === 'entrance');
-                                        voreOptions = entrances.map(e => ({
-                                            destination: e.properties.name || 'Unknown Entrance',
-                                            id: e.id,
-                                            graphNodeId: String(e.id),
-                                            isEntrance: true,
-                                            verb: e.properties.verb
-                                        }));
-                                    }
-                                } catch (e) {}
-                            }
+                            const voreOptions = getPlayerVoreOptions(player);
                             const predatorInfo = {
                                 name: player.Username,
                                 voreTypes: voreOptions
@@ -2779,53 +2915,17 @@ module.exports.start = (io, _messageSystem) => {
                                 availableActions: ['Examine', 'Vore', 'Release']
                             }];
                             socket.emit('playerRightClickedResponse', { responseInfo, predatorInfo, pointerX, pointerY });
+                        } else {
+                            interactionHandlers.handleGrabbingAction(socket, player, targetPlayer, messageSystem, selectedZone);
                         }
                     } 
                     // Friendly Intent
                     else if (playerIntent === 'friendly') {
-                        let itemUsed = false;
-                        if (activeNode) {
-                            const def = resolveItemDef(activeNode, itemData);
-                            if (def && (def.isDynamic || (activeNode.properties && activeNode.properties.isDynamic)) && def.playerUse !== false) {
-                                // Try to perform item use on player
-                                const result = performItemUse(io, socket, player, activeNode, itemData, false, null, saveCharacter, def);
-                                if (result) itemUsed = true;
-                            }
-                        }
-
-                        if (!itemUsed) {
-                            // Custom messages based on held items:
-                            if (activeNode && activeNode.itemId === 'tool_pickaxe') {
-                                const msg = `${player.Username} pokes ${targetPlayer.Username} with their pickaxe.`;
-                                io.emit('voreLog', msg);
-                                if (messageSystem) {
-                                    messageSystem.sendSystemMessage('Interactional', `You poke ${targetPlayer.Username} with your pickaxe.`, null, [], 'local', socket);
-                                    messageSystem.sendSystemMessage('Interactional', `${player.Username} pokes you with their pickaxe.`, null, [], 'local', targetPlayer.socket);
-                                }
-                            } else if (activeNode && activeNode.itemId === 'material_wool') {
-                                if (messageSystem) {
-                                    messageSystem.sendSystemMessage('Interactional', `You playfully pat the wool against ${targetPlayer.Username}'s cheek.`, null, [], 'local', socket);
-                                    messageSystem.sendSystemMessage('Interactional', `${player.Username} playfully pats wool against your cheek.`, null, [], 'local', targetPlayer.socket);
-                                }
-                            } else {
-                                // Hug
-                                const msg = `${player.Username} hugged ${targetPlayer.Username}.`;
-                                if (messageSystem) messageSystem.sendSystemMessage('Interactional', msg, null, [], 'local', socket);
-                            }
-                        }
+                        interactionHandlers.handleFriendlyAction(io, socket, player, targetPlayer, itemData, saveCharacter, messageSystem, selectedZone);
                     }
                     // Hostile Intent
                     else if (playerIntent === 'hostile') {
-                        if (activeNode && activeNode.itemId === 'material_wool') {
-                            if (messageSystem) {
-                                messageSystem.sendSystemMessage('Interactional', `You rudely shove the wool in ${targetPlayer.Username}'s face.`, null, [], 'local', socket);
-                                messageSystem.sendSystemMessage('Interactional', `${player.Username} rudely shoves wool in your face.`, null, [], 'local', targetPlayer.socket);
-                            }
-                        } else {
-                            const msg = `${player.Username} punched ${targetPlayer.Username}.`;
-                            io.emit('voreLog', msg);
-                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', msg, null, [], 'local', socket);
-                        }
+                        interactionHandlers.handleHostileAction(io, socket, player, targetPlayer, messageSystem, selectedZone, players);
                     }
                 }
                 
@@ -3009,8 +3109,8 @@ module.exports.start = (io, _messageSystem) => {
                         if (requestingPlayer.isDead) {
                             // Dead players can only examine... AND HAUNT
                             availableActions.push('Haunt');
-                        } else if (targetPlayer !== players[socket.id]) {
-                            if (targetPlayer.grippedBy === socket.id) {
+                        } else if (targetPlayer.playerId !== socket.id && targetPlayer !== requestingPlayer && !(requestingPlayer._id && targetPlayer._id && requestingPlayer._id.toString() === targetPlayer._id.toString())) {
+                            if (targetPlayer.heldBySocketId === socket.id && targetPlayer.grippedFirmly) {
                                 availableActions.push('Release');
                                 availableActions.push('Vore');
                             } else if (targetPlayer.heldBySocketId === socket.id) {
@@ -3068,11 +3168,15 @@ module.exports.start = (io, _messageSystem) => {
                             // Check if it's a gatherable crop world item
                             if (def && def.gatherable && !requestingPlayer.isDead) {
                                 actions.push('Gather');
+                            } else if (!requestingPlayer.isDead && (!def || !def.preventPickup) && !worldItem.preventPickup) {
+                                actions.push('Pick Up');
                             }
 
                             // [FIXED] Use Instance Properties -> Def Properties -> Client Data
                             name = worldItem.name || def.name || name;
                             description = worldItem.description || def.description || description;
+                        } else if (!requestingPlayer.isDead && !craftingStations[clickedItem.uniqueId] && !activeResourceNodes[clickedItem.uniqueId]) {
+                            actions.push('Pick Up');
                         }
 
                         responseInfo.push({
@@ -3141,29 +3245,18 @@ module.exports.start = (io, _messageSystem) => {
                     }
                 }
 
+                // --- Sort responseInfo: push requesting player's own entry to the bottom ---
+                responseInfo.sort((a, b) => {
+                    const aIsSelf = (a.Identifier === 'player' && (a.playerId === requestingPlayer.playerId || a.playerId === socket.id));
+                    const bIsSelf = (b.Identifier === 'player' && (b.playerId === requestingPlayer.playerId || b.playerId === socket.id));
+                    if (aIsSelf && !bIsSelf) return 1;
+                    if (!aIsSelf && bIsSelf) return -1;
+                    return 0;
+                });
+
                 // --- Send response to player to be picked up in play.ejs ---
                 // --- anatomyData Integration ---
-                let voreOptions = requestingPlayer.voreTypes || [];
-                if (requestingPlayer.anatomyData) {
-                    try {
-                        const graph = JSON.parse(requestingPlayer.anatomyData);
-                        if (graph.nodes) {
-                            const entrances = graph.nodes.filter(n => n.type === 'entrance');
-                            if (entrances.length > 0) {
-                                voreOptions = entrances.map(e => ({
-                                    destination: e.properties.name || 'Unknown Entrance', // Client label
-                                    id: e.id,
-                                    graphNodeId: String(e.id),
-                                    isEntrance: true,
-                                    verb: e.properties.verb
-                                    // We don't send the full graph here, just the entry points
-                                }));
-                            }
-                        }
-                    } catch (err) {
-                        log.warn(`Failed to parse anatomyData for ${requestingPlayer.Username}`);
-                    }
-                }
+                const voreOptions = getPlayerVoreOptions(requestingPlayer);
 
                 const predatorInfo = {
                     name: requestingPlayer.Username || (requestingPlayer.firstName + ' ' + requestingPlayer.lastName) || 'Unknown Predator',
@@ -3197,6 +3290,10 @@ module.exports.start = (io, _messageSystem) => {
                     // --- Check if the clicked item is a player ---
                     if (clickedItem.Identifier === 'player' && players[clickedItem.playerId]) {
                         const targetPlayer = players[clickedItem.playerId];
+
+                        if (playerIntent === 'grabbing' && (targetPlayer.playerId === socket.id || (player._id && targetPlayer._id && player._id.toString() === targetPlayer._id.toString()))) {
+                            continue;
+                        }
 
                         // --- SELF-CLICK CHECK removed (Moved to interactionHandlers) --
 
@@ -3439,6 +3536,109 @@ module.exports.start = (io, _messageSystem) => {
             await processDigestion(players, User, io, module.exports.addCorpse, messageSystem, 1.0);
         } catch (e) {
             log.error('Error in Digestion Loop:', e);
+        }
+    }, 1000);
+
+    // --- Anatomical Bleeding & Health Tick Loop (Every 1 Second) ---
+    setInterval(async () => {
+        try {
+            for (const socketId in players) {
+                const p = players[socketId];
+                if (!p || p.isDead || !p.stats) continue;
+
+                let statsChanged = false;
+
+                // 1. Process Bleeding Rate
+                if (p.stats.bleedingRate && p.stats.bleedingRate > 0) {
+                    const bloodLoss = p.stats.bleedingRate * 5; // 5mL per rate point / sec
+                    p.stats.bloodVolume = Math.max(0, (p.stats.bloodVolume || 5000) - bloodLoss);
+                    const { recalculateTotalHealth } = require('./server/mechanics/anatomyDamage');
+                    recalculateTotalHealth(p);
+                    statsChanged = true;
+
+                    if (p.stats.health <= 0 || p.stats.bloodVolume <= 0) {
+                        const { applyDamage } = require('./server/mechanics/damage');
+                        await applyDamage(players, User, socketId, 10, null, 'suffocation', module.exports.addCorpse, io, 'torso', messageSystem);
+                    }
+                }
+
+                // 2. Stamina handling: Active clench drain vs natural stamina recovery
+                if (p.isClenching) {
+                    // Drain 5 stamina per second from predator while actively flexing
+                    p.stats.stamina = Math.max(0, (p.stats.stamina || 100) - 5);
+                    statsChanged = true;
+
+                    // Drain 0.5 stamina per second from target (prey) as well while being clenched
+                    const activePreySocketId = Object.keys(players).find(key => players[key].consumedBy === p.playerId);
+                    const activePrey = players[activePreySocketId];
+                    if (activePrey && activePrey.stats) {
+                        activePrey.stats.stamina = Math.max(0, (activePrey.stats.stamina || 100) - 0.5);
+                        const activePreySocket = io.sockets.sockets.get(activePreySocketId);
+                        if (activePreySocket) {
+                            activePreySocket.emit('anatomyStatsUpdate', {
+                                stats: activePrey.stats,
+                                isDead: activePrey.isDead
+                            });
+                        }
+                    }
+
+                    // Exhaustion check: Auto-relax when stamina hits 0
+                    if (p.stats.stamina <= 0) {
+                        p.isClenching = false;
+
+                        // Find contained prey to unsuppress
+                        const preySocketId = activePreySocketId;
+                        const prey = activePrey;
+
+                        if (prey) {
+                            prey.isClenchSuppressed = false;
+
+                            // Resume struggle cooldown if prey had paused cooldown
+                            const now = Date.now();
+                            if (prey.struggleCooldownRemaining && prey.struggleCooldownRemaining > 0) {
+                                prey.struggleCooldownUntil = now + prey.struggleCooldownRemaining;
+                                prey.struggleCooldownRemaining = null;
+                            }
+
+                            const pSocket = io.sockets.sockets.get(socketId);
+                            const preySocket = io.sockets.sockets.get(preySocketId);
+
+                            const predName = (p.firstName + ' ' + p.lastName);
+
+                            if (messageSystem) {
+                                if (pSocket) {
+                                    messageSystem.sendSystemMessage('Interactional', 'Your stamina runs out and your muscles give way, relaxing automatically.', pSocket, [], 'local', pSocket);
+                                }
+                                if (preySocket) {
+                                    messageSystem.sendSystemMessage('Interactional', `${predName}'s muscles relax as they tire out, giving you room to move.`, preySocket, [], 'local', pSocket);
+                                }
+                            }
+
+                            const { broadcastVoreStageUpdate } = require('./sockets/interactionHandlers');
+                            if (broadcastVoreStageUpdate) {
+                                broadcastVoreStageUpdate(io, prey, p, prey.voreStage || 3, 'Stomach');
+                            }
+                        }
+                    }
+                } else if (p.stats.stamina < p.stats.maxStamina && !p.isClenchSuppressed) {
+                    // Halve natural stamina recovery rate for prey stored inside a destination (consumedBy), unless clenched (isClenchSuppressed stops recovery)
+                    const recoveryRate = p.consumedBy ? 1 : 2;
+                    p.stats.stamina = Math.min(p.stats.maxStamina, p.stats.stamina + recoveryRate);
+                    statsChanged = true;
+                }
+
+                if (statsChanged) {
+                    const socketObj = io.sockets.sockets.get(socketId);
+                    if (socketObj) {
+                        socketObj.emit('anatomyStatsUpdate', {
+                            stats: p.stats,
+                            isDead: p.isDead
+                        });
+                    }
+                }
+            }
+        } catch (e) {
+            log.error('Error in Anatomical Tick Loop:', e);
         }
     }, 1000);
 };

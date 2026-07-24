@@ -85,7 +85,19 @@ export function update(time, delta) {
     // Log the position at the VERY START of the update loop.
     // console.log(`[UPDATE START] Pos: (${this.playerContainer.x.toFixed(2)}, ${this.playerContainer.y.toFixed(2)})`);
 
-    const speed = 100;
+    let speed = 100;
+    
+    // Check for limping status from leg fractures
+    const bodyParts = this.playerContainer.playerInfo && this.playerContainer.playerInfo.stats && this.playerContainer.playerInfo.stats.bodyParts;
+    let isLimping = false;
+    if (bodyParts) {
+        const leftLeg = bodyParts.leftLeg;
+        const rightLeg = bodyParts.rightLeg;
+        if ((leftLeg && leftLeg.fractured && !leftLeg.splinted) || (rightLeg && rightLeg.fractured && !rightLeg.splinted)) {
+            speed = 60; // 40% speed reduction when limping with unsplinted fracture
+            isLimping = true;
+        }
+    }
 
     // Disable movement if consumed
     let inputPayload = {
@@ -100,6 +112,14 @@ export function update(time, delta) {
     const rightPressed = this.cursors.right.isDown || (this.wasdKeys && this.wasdKeys.right.isDown);
     const upPressed = this.cursors.up.isDown || (this.wasdKeys && this.wasdKeys.up.isDown);
     const downPressed = this.cursors.down.isDown || (this.wasdKeys && this.wasdKeys.down.isDown);
+
+    if (isLimping && (leftPressed || rightPressed || upPressed || downPressed)) {
+        // [ANIMATION HOOK PLACEHOLDER] Limping asset placeholder log until drawn limping sprites are added
+        if (!this.lastLimpLog || time - this.lastLimpLog > 3000) {
+            console.log('[LimpingAnimationHook] Character is limping due to unsplinted leg fracture.');
+            this.lastLimpLog = time;
+        }
+    }
 
     // Cancel Smart Walk if the player manually inputs movement
     if (leftPressed || rightPressed || upPressed || downPressed) {

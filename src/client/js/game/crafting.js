@@ -1,4 +1,5 @@
 import { WindowManager } from './utils/WindowManager.js';
+import { DockManager } from './utils/DockManager.js';
 import { SewingModule } from './modules/SewingModule.js';
 
 export class CraftingUI {
@@ -37,6 +38,10 @@ export class CraftingUI {
         this.minimizedTab = document.getElementById('crafting-minimized-tab');
         this.tabStatusText = this.minimizedTab ? this.minimizedTab.querySelector('.tab-title') : null;
         this.tabProgressBar = document.getElementById('crafting-tab-progress');
+
+        if (this.minimizedTab) {
+            DockManager.register(this.minimizedTab, 'left');
+        }
 
         // Satchel
 
@@ -328,7 +333,10 @@ export class CraftingUI {
 
         // Delay display:none to allow transition
         setTimeout(() => {
-            if (!this.isOpen) this.uiContainer.style.display = 'none';
+            if (!this.isOpen) {
+                this.uiContainer.style.display = 'none';
+                if (this.window) this.window.style.display = 'none';
+            }
         }, 200);
     }
 
@@ -866,21 +874,21 @@ export class CraftingUI {
 
         if (this.minimizedTab) {
             this.minimizedTab.onclick = (e) => {
-                this.restore();
+                if (this.minimizedTab.dataset.isDragging !== 'true') {
+                    this.restore();
+                }
             };
         }
     }
 
     minimize() {
         if (!this.isOpen) return;
-        this.uiContainer.style.display = 'none'; // Hide main overlay (but keep isOpen true logically?)
-        // Actually, if we hide overlay, we hide interaction. 
-        // We want to hide just the window?
-        // But the overlay is the container. If it's non-blocking (pointer-events: none), 
-        // we can hide the window and show the tab.
-
+        this.uiContainer.style.display = 'none'; // Hide main overlay
         this.window.style.display = 'none';
-        if (this.minimizedTab) this.minimizedTab.style.display = 'flex';
+        if (this.minimizedTab) {
+            this.minimizedTab.style.display = 'flex';
+            DockManager.updateLayout();
+        }
     }
 
     restore() {

@@ -35,6 +35,19 @@ export class WindowManager {
         let startX, startY, initialX, initialY;
 
         handleEl.onmousedown = (e) => {
+            // Do not initiate drag if user clicked a button or window control inside header
+            if (
+                e.target.closest('button') ||
+                e.target.closest('.window-action-btn') ||
+                e.target.closest('.vore-window-btn') ||
+                e.target.closest('.minimize-btn') ||
+                e.target.closest('.close-btn') ||
+                e.target.closest('.window-controls') ||
+                e.target.closest('.vore-window-controls')
+            ) {
+                return;
+            }
+
             e.preventDefault();
 
             // Bring to front on start drag
@@ -46,10 +59,15 @@ export class WindowManager {
 
             const rect = windowEl.getBoundingClientRect();
 
+            // Ensure window is attached to document.body for 1:1 page coordinate accuracy
+            if (windowEl.parentElement !== document.body) {
+                document.body.appendChild(windowEl);
+            }
+
             // Ensure absolute positioning
+            windowEl.dataset.hasBeenDragged = 'true';
             windowEl.style.position = 'absolute';
-            // If transform exists, we might need to reset or account for it. 
-            // For simplicity, we assume we drive Top/Left directly.
+            windowEl.style.bottom = 'auto';
             windowEl.style.margin = '0';
             windowEl.style.transform = 'none';
 

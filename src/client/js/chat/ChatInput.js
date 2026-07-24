@@ -237,7 +237,7 @@ class ChatInput {
             this.cancelEditing();
         } else {
             // Send New Message
-            const scope = document.getElementById('messages').getAttribute('data-view') || 'global';
+            const scope = document.getElementById('messages').getAttribute('data-view') || 'local';
             const spoilerVal = document.getElementById('spoilers') ? document.getElementById('spoilers').value : 'none';
 
             // Generate temp ID for ghost message

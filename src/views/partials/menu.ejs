@@ -21,18 +21,14 @@
         </div>
 
         <div id="apparelDisplay" class="tabDisplay">
-            <!-- PAPER DOLL COMPONENT -->
-            <div class="paper-doll-wrapper">
-                <!-- Silhouette Hint (CSS Only) -->
-                <div class="paper-doll-bg"></div>
-
-                <!-- The Grid Container -->
-                <div id="equipment-grid" class="equipment-grid">
-                    <!-- Slots will be rendered here by JS -->
-                </div>
+            <div class="paper-note" style="text-align: center; padding: 20px 15px;">
+                <h3 style="margin-top: 0;">Apparel Registry</h3>
+                <i class="fa-solid fa-shirt" style="font-size: 2.5rem; color: var(--wood-light); margin: 15px 0; display: block;"></i>
+                <p>Equipment management has popped out into a dedicated floating window.</p>
+                <button id="reopenApparelWindowBtn" class="btn-primary" style="margin-top: 15px; width: 100%;">
+                    <i class="fa-solid fa-window-restore"></i> Open Apparel Window
+                </button>
             </div>
-
-
         </div>
 
         <div id="spellsDisplay" class="tabDisplay">
@@ -62,10 +58,9 @@
 
         <!-- Vore Tab -->
         <div id="voreDisplay" class="tabDisplay">
-            <!-- VORE DASHBOARD (Restored) -->
-            <div class="vore-dashboard-header"
-                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding: 0 10px;">
-                <h3 style="margin:0; border:none;">Gestalt Status</h3>
+            <!-- VORE DASHBOARD -->
+            <div class="vore-dashboard-header">
+                <h3 class="vore-dashboard-title"><i class="fa-solid fa-compass-drafting"></i> Vore Destinations</h3>
                 <button id="openAnatomyForgeBtn" class="btn btn-primary action-btn"
                     onclick="setTimeout(() => { if(window.AnatomyForge) window.AnatomyForge.refreshLayout() }, 100)">
                     <i class="fa-solid fa-network-wired"></i> Open Forge

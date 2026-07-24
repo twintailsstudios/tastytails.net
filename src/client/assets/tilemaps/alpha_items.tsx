@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.11.2" name="alpha_items" tilewidth="64" tileheight="64" tilecount="12" columns="0" objectalignment="bottom">
+<tileset version="1.10" tiledversion="1.12.2" name="alpha_items" tilewidth="64" tileheight="64" tilecount="16" columns="0" objectalignment="bottom">
  <grid orientation="orthogonal" width="1" height="1"/>
  <tile id="0">
   <properties>
@@ -122,5 +122,17 @@
    <property name="texture" value="sheers"/>
   </properties>
   <image source="sheers.png" width="64" height="64"/>
+ </tile>
+ <tile id="12">
+  <image source="debug_ground_bleedDamage.png" width="64" height="64"/>
+ </tile>
+ <tile id="13">
+  <image source="debug_ground_burnDamage.png" width="64" height="64"/>
+ </tile>
+ <tile id="14">
+  <image source="debug_salve.png" width="64" height="64"/>
+ </tile>
+ <tile id="15">
+  <image source="debug_bandage.png" width="64" height="64"/>
  </tile>
 </tileset>

@@ -245,7 +245,7 @@
     height: 220px !important;
     margin-left: -110px !important;
     margin-top: -110px !important;
-    animation: radialPopIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    animation: radialPopIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
     overflow: visible !important;
     padding: 0 !important;
 }
@@ -253,7 +253,7 @@
 @keyframes radialPopIn {
     from {
         opacity: 0;
-        transform: scale(0.5);
+        transform: scale(0.4);
     }
     to {
         opacity: 1;
@@ -266,129 +266,278 @@
     width: 220px;
     height: 220px;
     border-radius: 50%;
-    background: rgba(46, 34, 28, 0.95);
-    border: 3px solid var(--gold);
-    box-shadow: 0 0 25px rgba(0, 0, 0, 0.85);
+    background: radial-gradient(circle at center, rgba(62, 39, 35, 0.96) 0%, rgba(44, 36, 27, 0.98) 100%);
+    border: 3px solid var(--gold, #ffc107);
+    box-shadow: 0 0 25px rgba(0, 0, 0, 0.85), inset 0 0 15px rgba(62, 39, 35, 0.8);
     display: flex;
     justify-content: center;
     align-items: center;
     box-sizing: border-box;
 }
 
+/* Target Cycle Center Disc */
 .radial-center {
-    width: 70px;
-    height: 70px;
-    background: var(--parchment);
-    border: 3px solid var(--wood-dark);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 76px;
+    height: 76px;
+    background: var(--parchment, #f3e5ab);
+    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    border: 3px solid var(--wood-dark, #3e2723);
     border-radius: 50%;
-    z-index: 5;
+    z-index: 10;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    color: var(--text-dark);
+    color: var(--text-dark, #3e2723);
     font-family: 'Cinzel', serif;
     font-weight: bold;
     font-size: 0.65rem;
     text-align: center;
-    pointer-events: none;
-    box-shadow: inset 0 0 5px rgba(0,0,0,0.3);
-    padding: 2px;
+    box-shadow: inset 0 0 8px rgba(62, 39, 35, 0.4), 0 0 10px rgba(0, 0, 0, 0.5);
+    padding: 4px;
     box-sizing: border-box;
+    user-select: none;
 }
 
-.radial-center span {
+.radial-center .target-name {
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #3e2723;
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.radial-center .target-type {
     font-size: 0.55rem;
-    opacity: 0.8;
+    opacity: 0.85;
+    color: #5d4037;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.radial-item {
+.target-cycle-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.target-cycle-btn {
+    pointer-events: auto;
+    cursor: pointer;
+    background: #5d4037;
+    color: #f3e5ab;
+    border: 1px solid #3e2723;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.55rem;
+    line-height: 1;
+    transition: all 0.15s ease;
+}
+
+.target-cycle-btn:hover {
+    background: #6b8c42;
+    color: #ffffff;
+    transform: scale(1.15);
+}
+
+.target-counter {
+    font-size: 0.5rem;
+    color: #795548;
+    font-weight: bold;
+}
+
+/* SVG Sector Slices */
+.radial-slices-svg {
     position: absolute;
-    width: 66px;
-    height: 66px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 220px;
+    height: 220px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.radial-slice-path {
+    fill: rgba(44, 30, 22, 0.92);
+    stroke: var(--gold, #ffc107);
+    stroke-width: 1.5px;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: fill 0.2s ease, stroke 0.2s ease, filter 0.2s ease;
+}
+
+.radial-slice-path:hover, .radial-slice-path.active {
+    fill: rgba(107, 140, 66, 0.95) !important; /* Entrance Green */
+    stroke: #ffd700 !important;
+    stroke-width: 2.5px;
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.7));
+}
+
+.slice-label-container {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #f3e5ab;
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    font-size: 0.62rem;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.slice-label-container i {
+    font-size: 1.15rem;
+    margin-bottom: 2px;
+    color: #ffc107;
+}
+
+.radial-slice-group:hover .slice-label-container {
+    color: #ffffff;
+    transform: translate(-50%, -50%) scale(1.15);
+}
+
+.radial-slice-group:hover .slice-label-container i {
+    color: #ffffff;
+}
+
+/* Outer Petal Arc (Expanded on Hover over Vore Sector) */
+.radial-outer-arc {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.85);
+    width: 320px;
+    height: 320px;
+    pointer-events: none;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.radial-outer-arc.expanded {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
+}
+
+/* Outer Petal Node (Vore Arc - Round Parchment Keycaps) */
+.radial-item.outer-petal {
+    position: absolute;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    color: #e5d8b8;
-    cursor: pointer;
-    z-index: 2;
-    font-size: 0.65rem;
+    background: var(--parchment, #f3e5ab);
+    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    border: 2px solid var(--wood-dark, #3e2723);
+    box-shadow: 0 4px 0 #3e2723, 0 6px 12px rgba(0, 0, 0, 0.6);
+    color: var(--text-dark, #3e2723);
     font-family: 'Cinzel', serif;
     font-weight: bold;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    background: rgba(62, 39, 35, 0.4);
-    border: 1px solid rgba(255, 193, 7, 0.2);
+    font-size: 0.58rem;
+    text-align: center;
+    cursor: pointer;
+    padding: 2px;
     box-sizing: border-box;
-    text-shadow: 1px 1px 2px black;
+    pointer-events: auto;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.radial-item i {
-    font-size: 1.1rem;
-    margin-bottom: 3px;
+.radial-item.outer-petal i {
+    font-size: 1.05rem;
+    margin-bottom: 2px;
+    color: #5d4037;
+    transition: color 0.15s ease;
 }
 
-/* Position around circle */
-.radial-item.pos-up {
-    top: 10px;
-    left: 77px;
-}
-.radial-item.pos-right {
-    top: 77px;
-    right: 10px;
-}
-.radial-item.pos-down {
-    bottom: 10px;
-    left: 77px;
-}
-.radial-item.pos-left {
-    top: 77px;
-    left: 10px;
+.radial-item.outer-petal span {
+    max-width: 48px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-/* Hover/Active states */
-.radial-item:hover, .radial-item.active {
-    color: var(--gold) !important;
-    background: var(--wood-light) !important;
-    border-color: var(--gold) !important;
-    transform: scale(1.18);
-    box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
-    z-index: 10;
+.radial-item.outer-petal:hover {
+    background: #8b0000 !important; /* Crimson Red for Vore entrance hover */
+    color: #ffffff !important;
+    border-color: #ffd700 !important;
+    transform: scale(1.15) translateY(2px);
+    box-shadow: 0 2px 0 #500000, 0 0 15px rgba(255, 215, 0, 0.6);
+}
+
+.radial-item.outer-petal:hover i {
+    color: #ffffff !important;
 }
 
 /* === CONTEXT HOVER TOOLTIP === */
 .context-tooltip {
     position: fixed;
     pointer-events: none;
-    z-index: 10000;
-    background: rgba(18, 12, 8, 0.95);
-    border: 1px solid var(--wood-light);
-    color: #e6dfd3;
-    padding: 6px 10px;
-    border-radius: 4px;
+    z-index: 50000;
+    background: var(--parchment-light, #faf3e0);
+    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    border: 2px solid var(--wood-dark, #3e2723);
+    color: var(--text-dark, #3e2723);
+    padding: 8px 12px;
+    border-radius: 6px;
     font-family: 'Cinzel', serif;
     font-size: 0.85rem;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(62, 39, 35, 0.15);
     display: none;
-    max-width: 250px;
+    max-width: 260px;
     line-height: 1.4;
     transition: opacity 0.15s ease;
 }
+
 .context-tooltip-title {
     font-weight: bold;
-    color: var(--gold);
-    margin-bottom: 2px;
-}
-.context-tooltip-desc {
-    font-size: 0.75rem;
-    color: #b0bec5;
+    color: #8b0000; /* Crimson Red title */
+    font-size: 0.9rem;
+    border-bottom: 1px dashed rgba(62, 39, 35, 0.3);
+    padding-bottom: 3px;
     margin-bottom: 4px;
 }
-.context-tooltip-action {
+
+.context-tooltip-subtitle {
+    font-family: 'Caveat Brush', cursive;
+    font-size: 0.85rem;
+    color: #5d4037;
+    margin-bottom: 4px;
+}
+
+.context-tooltip-desc {
     font-size: 0.75rem;
-    color: #81d4fa;
-    border-top: 1px solid rgba(255, 193, 7, 0.15);
+    color: #3e2723;
+    margin-bottom: 4px;
+}
+
+.context-tooltip-stat {
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #6b8c42; /* Entrance Green */
+    border-top: 1px solid rgba(62, 39, 35, 0.2);
     padding-top: 4px;
     margin-top: 4px;
 }

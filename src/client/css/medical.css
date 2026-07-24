@@ -1,0 +1,349 @@
+/* medical.css - Medieval Parchment Medical Paper Doll HUD & Sensory Overlays */
+
+/* Sensory Overlays */
+#eye-damage-vignette {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 8888;
+    box-shadow: inset 0 0 100px rgba(0, 0, 0, 0);
+    transition: box-shadow 0.4s ease;
+}
+
+#pain-flash-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 8889;
+    background: rgba(180, 20, 20, 0);
+    transition: background 0.3s ease;
+}
+
+/* Draggable & Resizable Medical Window */
+.medical-window {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 640px;
+    height: 480px;
+    min-width: 520px;
+    min-height: 360px;
+    max-width: 95vw;
+    max-height: 95vh;
+    background: #1e1915;
+    border: 2px solid #5a4835;
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(210, 160, 90, 0.1);
+    color: #e8dcc4;
+    font-family: 'Cinzel', 'Georgia', serif;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* Header & Drag Handle */
+.medical-window .window-header {
+    background: linear-gradient(180deg, #2d241c 0%, #1c1510 100%);
+    padding: 10px 16px;
+    border-bottom: 1px solid #4a3b2c;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.medical-window .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.medical-window .header-icon {
+    color: #f0c987;
+    font-size: 1.1rem;
+}
+
+.medical-window .window-title {
+    margin: 0;
+    font-size: 1.15rem;
+    color: #f0c987;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    letter-spacing: 1px;
+}
+
+/* Window Controls (Minimize & Close) */
+.medical-window .window-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.medical-window .minimize-btn,
+.medical-window .close-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #2b2118;
+    border: 1px solid #4d3b2b;
+    border-radius: 4px;
+    color: #b3a286;
+    font-size: 0.85rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.medical-window .minimize-btn:hover {
+    background: #423325;
+    color: #f0c987;
+    border-color: #7a5f43;
+}
+
+.medical-window .close-btn:hover {
+    background: #6e2424;
+    color: #ffb3b3;
+    border-color: #a83636;
+}
+
+/* Hardware Rivets */
+.medical-window .rivet {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: radial-gradient(circle at 30% 30%, #7a6248, #261c13);
+    border-radius: 50%;
+    box-shadow: inset 0 0 2px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,0.6);
+    z-index: 12;
+    pointer-events: none;
+}
+.medical-window .rivet.tl { top: 6px; left: 6px; }
+.medical-window .rivet.tr { top: 6px; right: 6px; }
+.medical-window .rivet.bl { bottom: 6px; left: 6px; }
+.medical-window .rivet.br { bottom: 6px; right: 6px; }
+
+/* Body Layout */
+.medical-body {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 16px;
+    padding: 16px;
+    background: #17120e;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Paper Doll Graphical Diagram */
+.paper-doll-container {
+    background: #110e0b;
+    border: 1px solid #3d3023;
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.doll-svg-wrapper {
+    width: 180px;
+    height: 250px;
+    position: relative;
+}
+
+.doll-limb-node {
+    cursor: pointer;
+    transition: fill 0.3s ease, stroke 0.3s ease, transform 0.2s;
+}
+
+.doll-limb-node:hover {
+    filter: brightness(1.25);
+}
+
+/* Status Panel */
+.medical-status-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    min-height: 0;
+}
+
+.summary-card {
+    background: #241d17;
+    border: 1px solid #443526;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    flex-shrink: 0;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.summary-row:last-child {
+    margin-bottom: 0;
+}
+
+.summary-label {
+    color: #a89882;
+}
+
+.summary-value {
+    color: #f7e3c3;
+    font-weight: 600;
+}
+
+/* Limb Health Table */
+.limb-list {
+    flex: 1;
+    min-height: 120px;
+    overflow-y: auto;
+    background: #14100c;
+    border: 1px solid #33271b;
+    border-radius: 6px;
+    padding: 6px;
+}
+
+.limb-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    border-bottom: 1px solid #241b12;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.limb-item:hover {
+    background: #271f16;
+}
+
+.limb-item.selected {
+    background: #3b2c1d;
+    border: 1px solid #735334;
+}
+
+.limb-name {
+    color: #d6c6ad;
+    text-transform: capitalize;
+}
+
+.limb-badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.badge-ok { background: #224d28; color: #7fe38a; }
+.badge-hurt { background: #6b5c1a; color: #fae489; }
+.badge-bad { background: #732a1e; color: #fca095; }
+.badge-fractured { background: #4d1818; color: #ff6e6e; border: 1px solid #d63636; }
+
+/* Remedy Action Controls */
+.remedy-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.remedy-btn {
+    flex: 1 1 calc(50% - 8px);
+    background: linear-gradient(180deg, #423223 0%, #291e14 100%);
+    border: 1px solid #6b5239;
+    color: #f5e4cd;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.remedy-btn:hover {
+    background: linear-gradient(180deg, #594532 0%, #3b2c1f 100%);
+    border-color: #a37d57;
+    color: #ffffff;
+    box-shadow: 0 0 8px rgba(163, 125, 87, 0.4);
+}
+
+.remedy-btn:active {
+    transform: translateY(1px);
+}
+
+/* Minimized Dock Pill Tab */
+.medical-tab-dock.minimized-tab {
+    position: fixed;
+    top: 160px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(180deg, #2d2319 0%, #1a130c 100%);
+    border: 1px solid #6b5239;
+    border-radius: 20px;
+    padding: 6px 12px;
+    color: #f0c987;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    z-index: 9998;
+    cursor: grab;
+    user-select: none;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.medical-tab-dock.minimized-tab:hover {
+    border-color: #c99c6b;
+    transform: scale(1.03);
+}
+
+.medical-tab-dock .tab-icon {
+    color: #e65c5c;
+    font-size: 1.1rem;
+}
+
+.medical-tab-dock .tab-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.medical-tab-dock .restore-btn {
+    cursor: pointer;
+    color: #b3a286;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.2s;
+}
+
+.medical-tab-dock .restore-btn:hover {
+    color: #ffffff;
+}

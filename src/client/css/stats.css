@@ -25,6 +25,17 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
+.stat-bar-container.clickable-stat-bar {
+    pointer-events: auto;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-bar-container.clickable-stat-bar:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 12px rgba(255, 76, 76, 0.6), inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
 /* Common Bar Styling */
 .stat-bar-fill {
     height: 100%;

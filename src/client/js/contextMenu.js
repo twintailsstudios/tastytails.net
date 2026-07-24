@@ -43,6 +43,10 @@ function initializeContextMenu(scene, socket) {
             contextMenu.style.display = 'none';
             contextMenu.className = ''; // Reset radial class
         }
+        if (tooltipEl) {
+            tooltipEl.style.display = 'none';
+            tooltipEl.style.opacity = '0';
+        }
         if (document.querySelector("#contextMenu > playermenu")) {
             const toRemove = document.querySelector("#contextMenu > playermenu");
             toRemove.remove();
@@ -90,12 +94,12 @@ function initializeContextMenu(scene, socket) {
             return;
         }
 
-        // Long Press timer (200ms hold)
+        // Long Press timer (400ms hold)
         holdTimer = setTimeout(() => {
             console.log('[ContextMenu] Click-and-Hold detected. Triggering radial menu.');
             didHoldTrigger = true;
             triggerRadialQuery(pointer, currentlyOver);
-        }, 200);
+        }, 400);
     });
 
     scene.input.on('pointermove', function (pointer) {
@@ -115,6 +119,15 @@ function initializeContextMenu(scene, socket) {
             holdTimer = null;
         }
 
+        // If context menu is currently visible on screen, do not trigger ground click
+        const isMenuVisible = contextMenu && contextMenu.style.display === 'block';
+        if (isMenuVisible || !mouseDownPointer) {
+            mouseDownPointer = null;
+            mouseDownCurrentlyOver = null;
+            didHoldTrigger = false;
+            return;
+        }
+
         // If mouse release occurred without triggering long-press, run standard click
         if (!didHoldTrigger && mouseDownPointer) {
             const hand = (mouseDownButton === 2) ? 'right' : 'left';
@@ -127,6 +140,10 @@ function initializeContextMenu(scene, socket) {
     });
 
     function triggerRadialQuery(pointer, currentlyOver) {
+        if (tooltipEl) {
+            tooltipEl.style.display = 'none';
+            tooltipEl.style.opacity = '0';
+        }
         var clickedList = [];
         currentlyOver.forEach(function (gameObject) {
             if (gameObject.playerInfo) {
@@ -192,11 +209,16 @@ function initializeContextMenu(scene, socket) {
             const targetType = (primaryTarget.Identifier === 'player') ? 'player' : 'object';
 
             checkReach(targetId, targetType, pointer.event || { clientX: pointer.x, clientY: pointer.y }, () => {
-                console.log(`[HandClick] Emitting playerHandClicked. Hand: ${hand}, Intent: ${intent}`);
+                if (intent === 'grabbing' && targetType === 'player' && (targetId === socket.id || primaryTarget.playerId === socket.id)) {
+                    console.log('[ContextMenu] Cannot perform Grab action on yourself.');
+                    return;
+                }
+                console.log(`[HandClick] Emitting playerHandClicked. Hand: ${hand}, Intent: ${intent}, targetZone: ${window.currentTargetZone}`);
                 socket.emit('playerHandClicked', {
                     hand: hand,
                     clickedItem: primaryTarget,
                     playerIntent: intent,
+                    targetZone: window.currentTargetZone || 'torso',
                     pointerX: pointer.event ? pointer.event.clientX : pointer.x,
                     pointerY: pointer.event ? pointer.event.clientY : pointer.y
                 });
@@ -285,7 +307,8 @@ function initializeContextMenu(scene, socket) {
                     console.log('Selected target:', target);
                     socket.emit('playerPerformAction', {
                         targetId: target.playerId,
-                        intent: playerIntent
+                        intent: playerIntent,
+                        targetZone: window.currentTargetZone || 'torso'
                     });
                     selectionMenu.style.display = 'none';
                 };
@@ -309,12 +332,12 @@ function initializeContextMenu(scene, socket) {
             const target = responseInfo[0];
             socket.emit('playerPerformAction', {
                 targetId: target.playerId,
-                intent: playerIntent
+                intent: playerIntent,
+                targetZone: window.currentTargetZone || 'torso'
             });
         }
     });
 
-    // --- Helper for Range Check ---
     function checkReach(targetId, targetType, event, onReachCallback) {
         const scene = window.gameScene;
         if (!scene || !scene.playerContainer) {
@@ -329,34 +352,61 @@ function initializeContextMenu(scene, socket) {
         let found = false;
 
         if (targetType === 'player') {
-            targetSprite = scene.otherPlayersGroup.getChildren().find(p => p.playerId === targetId);
-            if (targetSprite) {
-                targetX = targetSprite.x;
-                targetY = targetSprite.y;
-                found = true;
-            }
-        } else if (targetType === 'item') {
-            targetSprite = scene.itemsGroup ? scene.itemsGroup.getChildren().find(i => i.uid === targetId || (i.objectInfo && i.objectInfo.uniqueId === targetId)) : null;
+            targetSprite = scene.otherPlayersGroup ? scene.otherPlayersGroup.getChildren().find(p => p.playerId === targetId) : null;
             if (targetSprite) {
                 targetX = targetSprite.x;
                 targetY = targetSprite.y;
                 found = true;
             }
         } else {
-            // mapObject
-            targetSprite = scene.objectGroup.getChildren().find(o => o.objectInfo && o.objectInfo.uniqueId === targetId);
-            if (targetSprite) {
-                targetX = targetSprite.x;
-                targetY = targetSprite.y;
-                found = true;
+            // 1. Check window.itemManager.items
+            const im = window.itemManager || (scene && scene.itemManager);
+            if (im && im.items && im.items[targetId]) {
+                const itemEntry = im.items[targetId];
+                targetSprite = itemEntry.container || itemEntry.sprite || itemEntry;
+                if (targetSprite) {
+                    targetX = targetSprite.x;
+                    targetY = targetSprite.y;
+                    found = true;
+                }
+            }
+
+            // 2. Check itemManager's itemsGroup
+            if (!found && im && im.itemsGroup) {
+                targetSprite = im.itemsGroup.getChildren().find(i => (i.objectInfo && i.objectInfo.uniqueId === targetId) || i.uid === targetId);
+                if (targetSprite) {
+                    targetX = targetSprite.x;
+                    targetY = targetSprite.y;
+                    found = true;
+                }
+            }
+
+            // 3. Check scene.itemsGroup
+            if (!found && scene.itemsGroup) {
+                targetSprite = scene.itemsGroup.getChildren().find(i => i.uid === targetId || (i.objectInfo && i.objectInfo.uniqueId === targetId));
+                if (targetSprite) {
+                    targetX = targetSprite.x;
+                    targetY = targetSprite.y;
+                    found = true;
+                }
+            }
+
+            // 4. Check scene.objectGroup
+            if (!found && scene.objectGroup) {
+                targetSprite = scene.objectGroup.getChildren().find(o => o.objectInfo && o.objectInfo.uniqueId === targetId || o.uid === targetId);
+                if (targetSprite) {
+                    targetX = targetSprite.x;
+                    targetY = targetSprite.y;
+                    found = true;
+                }
             }
         }
 
-        // Helper to check the actual AABB overlap with a tightened safety buffer (24px instead of 48px)
+        // Helper to check the actual AABB overlap with a safety buffer
         const runCheck = (playerX, playerY) => {
             const pCenterX = playerX + 30;
             const pCenterY = playerY;
-            const reachHalf = 32; // buffer of 32px to prevent network lag rejections while allowing left/right collision overlap (requires > 30px)
+            const reachHalf = 48; // reach buffer of 48px
 
             const playerBox = {
                 left: pCenterX - reachHalf,
@@ -375,15 +425,8 @@ function initializeContextMenu(scene, socket) {
                     top: tY - 165,
                     bottom: tY + 15
                 };
-            } else if (targetType === 'item' && targetSprite) {
-                targetBox = {
-                    left: targetSprite.x - 16,
-                    right: targetSprite.x + 16,
-                    top: targetSprite.y - 32,
-                    bottom: targetSprite.y
-                };
             } else if (targetSprite) {
-                if (targetSprite.body) {
+                if (targetSprite.body && targetSprite.body.width > 0) {
                     targetBox = {
                         left: targetSprite.body.x,
                         right: targetSprite.body.right,
@@ -391,13 +434,19 @@ function initializeContextMenu(scene, socket) {
                         bottom: targetSprite.body.bottom
                     };
                 } else {
-                    const tX = targetSprite.x - (targetSprite.width * targetSprite.originX);
-                    const tY = targetSprite.y - (targetSprite.height * targetSprite.originY);
+                    const width = targetSprite.displayWidth || targetSprite.width || 32;
+                    const height = targetSprite.displayHeight || targetSprite.height || 32;
+                    const oX = (targetSprite.originX !== undefined) ? targetSprite.originX : 0.5;
+                    const oY = (targetSprite.originY !== undefined) ? targetSprite.originY : 1.0;
+
+                    const tX = targetSprite.x;
+                    const tY = targetSprite.y;
+
                     targetBox = {
-                        left: tX,
-                        right: tX + targetSprite.width,
-                        top: tY,
-                        bottom: tY + targetSprite.height
+                        left: tX - (width * oX),
+                        right: tX + (width * (1 - oX)),
+                        top: tY - (height * oY),
+                        bottom: tY + (height * (1 - oY))
                     };
                 }
             }
@@ -414,7 +463,6 @@ function initializeContextMenu(scene, socket) {
 
         // If event is null, we are just querying availability. Don't trigger walking.
         if (event === null) {
-            // Allow actions to show even if slightly out of bounds to trigger smart walk on selection
             return true;
         }
 
@@ -425,10 +473,12 @@ function initializeContextMenu(scene, socket) {
             return true;
         }
 
-        if (found && targetSprite) {
-            console.log(`[ContextMenu] Too far - Initiating Smart Walk for ${targetType}: ${targetId}`);
+        if (found && (targetSprite || targetX !== 0 || targetY !== 0)) {
+            console.log(`[ContextMenu] Too far - Initiating Smart Walk for ${targetType}: ${targetId} at (${targetX}, ${targetY})`);
             scene.smartWalkTarget = {
                 target: targetSprite,
+                x: targetX,
+                y: targetY,
                 checkReach: runCheck,
                 onReach: () => {
                     console.log(`[ContextMenu] Smart Walk reached target: ${targetId}`);
@@ -449,66 +499,56 @@ function initializeContextMenu(scene, socket) {
 
     // --- Radial Menu Rendering & Option Mapping ---
 
-    function createRadialItem(position, label, iconClass, onClick, autoClose = true) {
-        const item = document.createElement('div');
-        item.className = `radial-item pos-${position}`;
-        item.innerHTML = `<i class="${iconClass}"></i><span>${label}</span>`;
-        item.onclick = (e) => {
-            e.stopPropagation();
-            onClick(e);
-            if (autoClose) {
-                hideContextMenu();
-            }
-        };
-        return item;
+    function getVoreIcon(label) {
+        let iconClass = 'fa-solid fa-teeth-open';
+        const nameLower = (label || '').toLowerCase();
+        if (nameLower.includes('oral') || nameLower.includes('stomach') || nameLower.includes('swallow') || nameLower.includes('mouth')) {
+            iconClass = 'fa-solid fa-drumstick-bite';
+        } else if (nameLower.includes('unbirth') || nameLower.includes('womb') || nameLower.includes('heart') || nameLower.includes('breast')) {
+            iconClass = 'fa-solid fa-heart';
+        } else if (nameLower.includes('anal') || nameLower.includes('tail') || nameLower.includes('rear') || nameLower.includes('bowel') || nameLower.includes('cock')) {
+            iconClass = 'fa-solid fa-snake';
+        }
+        return iconClass;
     }
 
-    function renderVoreSubRing(ring, target, predatorInfo, onBack) {
-        // Clear all radial-items
-        const items = ring.querySelectorAll('.radial-item');
-        items.forEach(it => it.remove());
+    function describeAnnularSector(cx, cy, rInner, rOuter, startAngle, endAngle) {
+        let sweepAngle = endAngle - startAngle;
+        if (sweepAngle >= 360) sweepAngle = 359.99;
 
-        const voreTypes = predatorInfo.voreTypes || [];
+        const radStart = startAngle * (Math.PI / 180);
+        const radEnd = (startAngle + sweepAngle) * (Math.PI / 180);
 
-        // We can place up to 3 vore options at 'up', 'right', and 'down' positions
-        const positions = ['up', 'right', 'down'];
-        
-        voreTypes.forEach((vore, index) => {
-            if (index >= positions.length) return; // Limit to 3 options for layout sanity
-            
-            const pos = positions[index];
-            const label = vore.destination || vore.Verb || vore.verb || 'Vore';
-            
-            // Choose an icon based on name
-            let iconClass = 'fa-solid fa-teeth-open';
-            const nameLower = label.toLowerCase();
-            if (nameLower.includes('oral') || nameLower.includes('stomach') || nameLower.includes('swallow') || nameLower.includes('mouth')) {
-                iconClass = 'fa-solid fa-drumstick-bite';
-            } else if (nameLower.includes('unbirth') || nameLower.includes('womb') || nameLower.includes('heart') || nameLower.includes('breast')) {
-                iconClass = 'fa-solid fa-heart';
-            } else if (nameLower.includes('anal') || nameLower.includes('tail') || nameLower.includes('rear') || nameLower.includes('bowel') || nameLower.includes('cock')) {
-                iconClass = 'fa-solid fa-snake';
-            }
+        const x1Out = (cx + rOuter * Math.cos(radStart)).toFixed(2);
+        const y1Out = (cy + rOuter * Math.sin(radStart)).toFixed(2);
+        const x2Out = (cx + rOuter * Math.cos(radEnd)).toFixed(2);
+        const y2Out = (cy + rOuter * Math.sin(radEnd)).toFixed(2);
 
-            const it = createRadialItem(pos, label, iconClass, (e) => {
-                checkReach(target.playerId, 'player', e, () => {
-                    socket.emit('voreAction', { voreType: vore, targetId: target.playerId });
-                });
-            });
-            ring.appendChild(it);
-        });
+        const x2In = (cx + rInner * Math.cos(radEnd)).toFixed(2);
+        const y2In = (cy + rInner * Math.sin(radEnd)).toFixed(2);
+        const x1In = (cx + rInner * Math.cos(radStart)).toFixed(2);
+        const y1In = (cy + rInner * Math.sin(radStart)).toFixed(2);
 
-        // Back Option on the Left (does not auto-close)
-        const backBtn = createRadialItem('left', 'Back', 'fa-solid fa-arrow-left', (e) => {
-            e.stopPropagation();
-            onBack();
-        }, false);
-        ring.appendChild(backBtn);
+        const largeArcFlag = sweepAngle > 180 ? "1" : "0";
+
+        return [
+            `M ${x1In} ${y1In}`,
+            `L ${x1Out} ${y1Out}`,
+            `A ${rOuter} ${rOuter} 0 ${largeArcFlag} 1 ${x2Out} ${y2Out}`,
+            `L ${x2In} ${y2In}`,
+            `A ${rInner} ${rInner} 0 ${largeArcFlag} 0 ${x1In} ${y1In}`,
+            "Z"
+        ].join(" ");
     }
 
     // --- Handle the playerRightClickedResponse event ---
     socket.on('playerRightClickedResponse', function (data) {
         const { responseInfo, predatorInfo, pointerX, pointerY } = data;
+
+        if (tooltipEl) {
+            tooltipEl.style.display = 'none';
+            tooltipEl.style.opacity = '0';
+        }
 
         const contextMenu = document.getElementById('contextMenu');
         if (!contextMenu) return;
@@ -516,132 +556,356 @@ function initializeContextMenu(scene, socket) {
         contextMenu.innerHTML = ''; // Clear existing content
         contextMenu.className = 'radial'; // Add radial styling class
 
-        if (responseInfo.length > 0) {
-            const playerInfo = responseInfo[0];
-            const currentItem = {
-                Identifier: playerInfo.Identifier,
-                playerId: playerInfo.playerId,
-                uniqueId: playerInfo.uniqueId,
-                name: playerInfo.name,
-                description: playerInfo.description,
-                verb: playerInfo.verb,
-                flavor: playerInfo.flavor
-            };
+        if (responseInfo && responseInfo.length > 0) {
+            // Sort responseInfo so the local player's own name is always pushed to the bottom of the list
+            const localId = window.localPlayerInfo ? (window.localPlayerInfo.id || window.localPlayerInfo.playerId) : null;
+            responseInfo.sort((a, b) => {
+                const aIsSelf = (a.Identifier === 'player' && (a.playerId === localId || a.isSelf));
+                const bIsSelf = (b.Identifier === 'player' && (b.playerId === localId || b.isSelf));
+                if (aIsSelf && !bIsSelf) return 1;
+                if (!aIsSelf && bIsSelf) return -1;
+                return 0;
+            });
 
-            const targetId = (currentItem.Identifier === 'player') ? currentItem.playerId : currentItem.uniqueId;
-            const targetType = (currentItem.Identifier === 'player') ? 'player' : 'object';
+            let activeTargetIndex = 0;
 
             const ring = document.createElement('div');
             ring.className = 'radial-ring';
 
-            // Center element naming the target
+            // Center disc (Target Selector)
             const center = document.createElement('div');
             center.className = 'radial-center';
-            center.innerHTML = `${currentItem.name.split(' ')[0]}<br><span>${currentItem.Identifier}</span>`;
             ring.appendChild(center);
 
-            const actions = playerInfo.availableActions || [];
-            const hasHold = actions.includes('Hold');
-            const hasGrip = actions.includes('Grip Firmly');
-            const hasVore = actions.includes('Vore');
-            const hasRelease = actions.includes('Release');
-            const hasCraft = actions.includes('Craft');
-            const hasUse = actions.includes('Use');
-
-            // Render main radial layout
+            // Re-render main radial menu layout whenever target changes
             const drawMainMenu = () => {
-                // Clear any existing radial items
-                const items = ring.querySelectorAll('.radial-item');
-                items.forEach(it => it.remove());
+                // Clear existing SVG slices and outer arc
+                const existingSvg = ring.querySelector('.radial-slices-svg');
+                if (existingSvg) existingSvg.remove();
 
-                // UP: Examine
-                if (actions.includes('Examine')) {
-                    const it = createRadialItem('up', 'Examine', 'fa-solid fa-eye', (e) => {
-                        socket.emit('examineClicked', currentItem);
-                    });
-                    ring.appendChild(it);
-                }
+                const existingLabels = ring.querySelectorAll('.slice-label-container');
+                existingLabels.forEach(el => el.remove());
 
-                // RIGHT: Progression action
-                if (hasHold) {
-                    const it = createRadialItem('right', 'Hold', 'fa-solid fa-hand-back-fist', (e) => {
-                        checkReach(targetId, targetType, e, () => {
-                            socket.emit('playerPerformAction', { targetId: currentItem.playerId, intent: 'grabbing' });
-                        });
-                    });
-                    ring.appendChild(it);
-                } else if (hasGrip) {
-                    const it = createRadialItem('right', 'Grip', 'fa-solid fa-handshake-simple', (e) => {
-                        checkReach(targetId, targetType, e, () => {
-                            socket.emit('gripFirmly', currentItem);
-                        });
-                    });
-                    ring.appendChild(it);
-                } else if (hasVore) {
-                    const it = createRadialItem('right', 'Vore', 'fa-solid fa-teeth-open', (e) => {
-                        e.stopPropagation();
-                        renderVoreSubRing(ring, currentItem, predatorInfo, drawMainMenu);
-                    }, false);
-                    ring.appendChild(it);
-                } else if (hasCraft) {
-                    const it = createRadialItem('right', 'Craft', 'fa-solid fa-hammer', (e) => {
-                        checkReach(targetId, targetType, e, () => {
-                            socket.emit('openCrafting', { 
-                                stationId: currentItem.uniqueId,
-                                hand: (mouseDownButton === 2) ? 'right' : 'left'
-                            });
-                        });
-                    });
-                    ring.appendChild(it);
-                } else if (hasUse) {
-                    const useLabel = currentItem.verb || 'Use';
-                    const it = createRadialItem('right', useLabel, 'fa-solid fa-hand-holding-water', (e) => {
-                        checkReach(targetId, targetType, e, () => {
-                            socket.emit('useItemClicked', { uid: currentItem.uniqueId });
-                        });
-                    });
-                    ring.appendChild(it);
-                } else {
-                    // Check dynamic actions: Chop, Mine, Gather
-                    const harvestAction = actions.find(a => ['chop', 'mine', 'gather'].includes(a.toLowerCase()));
-                    if (harvestAction) {
-                        let icon = 'fa-hammer';
-                        if (harvestAction.toLowerCase() === 'chop') icon = 'fa-axe';
-                        if (harvestAction.toLowerCase() === 'gather') icon = 'fa-hand-holding';
-                        const it = createRadialItem('right', harvestAction, 'fa-solid ' + icon, (e) => {
-                            checkReach(targetId, targetType, e, () => {
-                                socket.emit('objectInteract', { type: 'resourceNode', id: currentItem.uniqueId, action: harvestAction.toLowerCase() });
-                            });
-                        });
-                        ring.appendChild(it);
+                const existingArc = ring.querySelector('.radial-outer-arc');
+                if (existingArc) existingArc.remove();
+
+                const currentItem = responseInfo[activeTargetIndex];
+                if (!currentItem) return;
+
+                const targetId = (currentItem.Identifier === 'player') ? currentItem.playerId : currentItem.uniqueId;
+                const targetType = (currentItem.Identifier === 'player') ? 'player' : 'object';
+
+                // Update center disc HTML with target name and cycle controls
+                const firstName = (currentItem.name || 'Unknown').split(' ')[0];
+                if (responseInfo.length > 1) {
+                    center.innerHTML = `
+                        <div class="target-name">${firstName}</div>
+                        <div class="target-type">${currentItem.Identifier}</div>
+                        <div class="target-cycle-bar">
+                            <div class="target-cycle-btn prev-target">&lt;</div>
+                            <span class="target-counter">${activeTargetIndex + 1}/${responseInfo.length}</span>
+                            <div class="target-cycle-btn next-target">&gt;</div>
+                        </div>
+                    `;
+                    const prevBtn = center.querySelector('.prev-target');
+                    const nextBtn = center.querySelector('.next-target');
+                    if (prevBtn) {
+                        prevBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            activeTargetIndex = (activeTargetIndex - 1 + responseInfo.length) % responseInfo.length;
+                            drawMainMenu();
+                        };
                     }
+                    if (nextBtn) {
+                        nextBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            activeTargetIndex = (activeTargetIndex + 1) % responseInfo.length;
+                            drawMainMenu();
+                        };
+                    }
+                } else {
+                    center.innerHTML = `
+                        <div class="target-name">${firstName}</div>
+                        <div class="target-type">${currentItem.Identifier}</div>
+                    `;
                 }
 
-                // DOWN: Release, Punch, or Haunt
+                const actions = currentItem.availableActions || [];
+                const hasHold = actions.includes('Hold');
+                const hasGrip = actions.includes('Grip Firmly');
+                const hasVore = actions.includes('Vore');
+                const hasRelease = actions.includes('Release');
+                const hasCraft = actions.includes('Craft');
+                const hasUse = actions.includes('Use');
+                const hasPickUp = actions.includes('Pick Up');
+                const harvestAction = actions.find(a => ['chop', 'mine', 'gather'].includes(a.toLowerCase()));
+
+                // Collect list of primary inner ring actions
+                const innerActions = [];
+
+                if (actions.includes('Examine')) {
+                    innerActions.push({
+                        label: 'Examine',
+                        icon: 'fa-solid fa-eye',
+                        onClick: () => socket.emit('examineClicked', currentItem)
+                    });
+                }
+
+                const isSelf = currentItem.playerId === socket.id;
+
+                if (hasHold && !isSelf) {
+                    innerActions.push({
+                        label: 'Hold',
+                        icon: 'fa-solid fa-hand-back-fist',
+                        onClick: (e) => checkReach(targetId, targetType, e, () => {
+                            socket.emit('playerPerformAction', { targetId: currentItem.playerId, intent: 'grabbing', targetZone: window.currentTargetZone || 'torso' });
+                        })
+                    });
+                } else if (hasGrip && !isSelf) {
+                    innerActions.push({
+                        label: 'Grip',
+                        icon: 'fa-solid fa-handshake-simple',
+                        onClick: (e) => checkReach(targetId, targetType, e, () => {
+                            socket.emit('gripFirmly', currentItem);
+                        })
+                    });
+                } else if (hasCraft) {
+                    innerActions.push({
+                        label: 'Craft',
+                        icon: 'fa-solid fa-hammer',
+                        onClick: (e) => checkReach(targetId, targetType, e, () => {
+                            socket.emit('openCrafting', { stationId: currentItem.uniqueId, hand: (mouseDownButton === 2) ? 'right' : 'left' });
+                        })
+                    });
+                } else if (hasUse) {
+                    innerActions.push({
+                        label: currentItem.verb || 'Use',
+                        icon: 'fa-solid fa-hand-holding-water',
+                        onClick: (e) => checkReach(targetId, targetType, e, () => {
+                            socket.emit('useItemClicked', { uid: currentItem.uniqueId });
+                        })
+                    });
+                }
+
+                if (hasPickUp) {
+                    innerActions.push({
+                        label: 'Pick Up',
+                        icon: 'fa-solid fa-hand-holding',
+                        onClick: (e) => checkReach(targetId, targetType, e, () => {
+                            socket.emit('playerHandClicked', {
+                                hand: (mouseDownButton === 2) ? 'right' : 'left',
+                                clickedItem: { Identifier: 'mapObject', uniqueId: currentItem.uniqueId },
+                                playerIntent: window.currentIntent || 'friendly',
+                                pointerX: pointerX,
+                                pointerY: pointerY
+                            });
+                        })
+                    });
+                } else if (harvestAction) {
+                    let icon = 'fa-hammer';
+                    if (harvestAction.toLowerCase() === 'chop') icon = 'fa-axe';
+                    if (harvestAction.toLowerCase() === 'gather') icon = 'fa-hand-holding';
+                    innerActions.push({
+                        label: harvestAction,
+                        icon: 'fa-solid ' + icon,
+                        onClick: (e) => checkReach(targetId, targetType, e, () => {
+                            socket.emit('objectInteract', { type: 'resourceNode', id: currentItem.uniqueId, action: harvestAction.toLowerCase() });
+                        })
+                    });
+                }
+
+                if (hasVore) {
+                    innerActions.push({
+                        label: 'Vore',
+                        icon: 'fa-solid fa-teeth-open',
+                        isVore: true,
+                        onClick: (e) => e.stopPropagation()
+                    });
+                }
+
                 if (hasRelease) {
-                    const it = createRadialItem('down', 'Release', 'fa-solid fa-hand-sparkles', (e) => {
-                        socket.emit('releaseClicked', currentItem);
+                    innerActions.push({
+                        label: 'Release',
+                        icon: 'fa-solid fa-hand-sparkles',
+                        onClick: () => socket.emit('releaseClicked', currentItem)
                     });
-                    ring.appendChild(it);
                 } else if (actions.includes('Punch')) {
-                    const it = createRadialItem('down', 'Punch', 'fa-solid fa-hand-fist', (e) => {
-                        socket.emit('playerPerformAction', { targetId: currentItem.playerId, intent: 'hostile' });
+                    innerActions.push({
+                        label: 'Punch',
+                        icon: 'fa-solid fa-hand-fist',
+                        onClick: () => socket.emit('playerPerformAction', { targetId: currentItem.playerId, intent: 'hostile', targetZone: window.currentTargetZone || 'torso' })
                     });
-                    ring.appendChild(it);
                 } else if (actions.includes('Haunt')) {
-                    const it = createRadialItem('down', 'Haunt', 'fa-solid fa-ghost', (e) => {
-                        checkReach(targetId, targetType, e, () => {
+                    innerActions.push({
+                        label: 'Haunt',
+                        icon: 'fa-solid fa-ghost',
+                        onClick: (e) => checkReach(targetId, targetType, e, () => {
                             socket.emit('hauntClicked', currentItem);
-                        });
+                        })
                     });
-                    ring.appendChild(it);
                 }
 
-                // LEFT: Cancel
-                const cancelBtn = createRadialItem('left', 'Cancel', 'fa-solid fa-xmark', (e) => {
-                    hideContextMenu();
+                // Add Cancel option
+                innerActions.push({
+                    label: 'Cancel',
+                    icon: 'fa-solid fa-xmark',
+                    onClick: () => hideContextMenu()
                 });
-                ring.appendChild(cancelBtn);
+
+                // Create SVG element for annular sector slices
+                const svgNs = 'http://www.w3.org/2000/svg';
+                const svg = document.createElementNS(svgNs, 'svg');
+                svg.setAttribute('class', 'radial-slices-svg');
+                svg.setAttribute('viewBox', '0 0 220 220');
+                ring.appendChild(svg);
+
+                // Create outer arc element if predator has vore types
+                let outerArcEl = null;
+                const voreTypes = predatorInfo ? (predatorInfo.voreTypes || []) : [];
+                if (hasVore && voreTypes.length > 0) {
+                    outerArcEl = document.createElement('div');
+                    outerArcEl.className = 'radial-outer-arc';
+                    ring.appendChild(outerArcEl);
+
+                    // Render outer arc vore entrance nodes
+                    const totalVore = voreTypes.length;
+                    const arcStartDeg = totalVore > 4 ? -150 : -120;
+                    const arcSpanDeg = totalVore > 4 ? 300 : 180;
+                    const angleStep = totalVore > 1 ? arcSpanDeg / (totalVore - 1) : 0;
+                    const outerRadiusPx = 138;
+
+                    voreTypes.forEach((vore, idx) => {
+                        const angleDeg = totalVore === 1 ? -45 : arcStartDeg + (angleStep * idx);
+                        const label = vore.destination || vore.Verb || vore.verb || 'Vore';
+                        const iconClass = getVoreIcon(label);
+
+                        const petal = document.createElement('div');
+                        petal.className = 'radial-item outer-petal';
+                        petal.innerHTML = `<i class="${iconClass}"></i><span>${label}</span>`;
+
+                        // Center of 320px outer-arc container is 160px
+                        const rad = angleDeg * (Math.PI / 180);
+                        const x = Math.round(160 + outerRadiusPx * Math.cos(rad) - 28);
+                        const y = Math.round(160 + outerRadiusPx * Math.sin(rad) - 28);
+                        petal.style.left = `${x}px`;
+                        petal.style.top = `${y}px`;
+
+                        petal.onclick = (e) => {
+                            e.stopPropagation();
+                            if (currentItem.playerId === socket.id) {
+                                hideContextMenu();
+                                return;
+                            }
+                            checkReach(currentItem.playerId, 'player', e, () => {
+                                socket.emit('voreAction', { voreType: vore, targetId: currentItem.playerId });
+                            });
+                            hideContextMenu();
+                        };
+
+                        // Parchment preview tooltip for vore destination
+                        petal.onmouseenter = (e) => {
+                            if (tooltipEl) {
+                                const entranceTitle = vore.entranceName || (vore.isEntrance ? vore.destination : 'Entrance');
+                                const destName = vore.destinationName || (!vore.isEntrance ? vore.destination : 'Stomach');
+                                const occupantCount = (vore.occupantCount !== undefined) ? vore.occupantCount : (vore.contents ? vore.contents.length : 0);
+                                const maxCap = (vore.maxCapacity !== undefined) ? vore.maxCapacity : 3;
+                                const power = vore.digestivePower || 'Normal';
+
+                                tooltipEl.innerHTML = `
+                                    <div class="context-tooltip-title">${entranceTitle}</div>
+                                    <div class="context-tooltip-subtitle">Destination: ${destName}</div>
+                                    <div class="context-tooltip-stat">Capacity: ${occupantCount} / ${maxCap} &bull; Power: ${power}</div>
+                                `;
+                                tooltipEl.style.display = 'block';
+                                tooltipEl.style.opacity = '1';
+                                tooltipEl.style.left = (e.clientX + 15) + 'px';
+                                tooltipEl.style.top = (e.clientY + 15) + 'px';
+                            }
+                        };
+
+                        petal.onmouseleave = () => {
+                            if (tooltipEl) tooltipEl.style.display = 'none';
+                        };
+
+                        outerArcEl.appendChild(petal);
+                    });
+
+                    // Keep outer arc expanded when cursor is over outer arc
+                    outerArcEl.onmouseenter = () => {
+                        outerArcEl.classList.add('expanded');
+                    };
+                    outerArcEl.onmouseleave = () => {
+                        outerArcEl.classList.remove('expanded');
+                    };
+                }
+
+                // Render N SVG pie slices for innerActions
+                const totalInner = innerActions.length;
+                const sliceAngle = 360 / totalInner;
+
+                innerActions.forEach((act, idx) => {
+                    const startAngle = sliceAngle * idx - 90;
+                    const endAngle = startAngle + sliceAngle;
+
+                    const group = document.createElementNS(svgNs, 'g');
+                    group.setAttribute('class', 'radial-slice-group');
+
+                    const path = document.createElementNS(svgNs, 'path');
+                    path.setAttribute('class', 'radial-slice-path');
+                    path.setAttribute('d', describeAnnularSector(110, 110, 43, 101, startAngle, endAngle));
+
+                    path.onclick = (e) => {
+                        e.stopPropagation();
+                        act.onClick(e);
+                        if (!act.isVore) {
+                            hideContextMenu();
+                        }
+                    };
+
+                    // If this is the Vore slice, trigger hover expansion for outer arc
+                    if (act.isVore && outerArcEl) {
+                        path.onmouseenter = () => {
+                            outerArcEl.classList.add('expanded');
+                        };
+                        path.onmouseleave = (e) => {
+                            // Delay check to allow mouse to enter outerArcEl
+                            setTimeout(() => {
+                                if (outerArcEl && !outerArcEl.matches(':hover')) {
+                                    outerArcEl.classList.remove('expanded');
+                                }
+                            }, 50);
+                        };
+                    }
+
+                    group.appendChild(path);
+                    svg.appendChild(group);
+
+                    // Position text and icon label overlay at midpoint of sector
+                    const midAngleRad = (startAngle + endAngle) / 2 * (Math.PI / 180);
+                    const labelR = 72;
+                    const labelX = Math.round(110 + labelR * Math.cos(midAngleRad));
+                    const labelY = Math.round(110 + labelR * Math.sin(midAngleRad));
+
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'slice-label-container';
+                    labelDiv.style.left = `${labelX}px`;
+                    labelDiv.style.top = `${labelY}px`;
+                    labelDiv.innerHTML = `<i class="${act.icon}"></i><span>${act.label}</span>`;
+                    ring.appendChild(labelDiv);
+                });
+            };
+
+            // Mouse wheel scroll to cycle targets when multiple entities are present
+            ring.onwheel = (e) => {
+                if (responseInfo.length > 1) {
+                    e.preventDefault();
+                    if (e.deltaY > 0) {
+                        activeTargetIndex = (activeTargetIndex + 1) % responseInfo.length;
+                    } else if (e.deltaY < 0) {
+                        activeTargetIndex = (activeTargetIndex - 1 + responseInfo.length) % responseInfo.length;
+                    }
+                    drawMainMenu();
+                }
             };
 
             drawMainMenu();

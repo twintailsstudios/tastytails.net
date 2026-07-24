@@ -1,3 +1,5 @@
+import { toggleMedicalModal, updateMedicalStats } from './medicalUI.js';
+
 // Cache last known values to prevent DOM thrashing
 const cache = {
     health: -1,
@@ -8,21 +10,37 @@ const cache = {
     maxMana: -1
 };
 
+let healthClickAttached = false;
+
 export function updateStatsUI(player) {
     if (!player) return;
 
-    // Default values if stats are missing (backward compatibility)
-    // Handle both nested .stats (legacy/full player object) and flat stats object
-    const stats = (player && player.stats) ? player.stats : player;
+    // Attach click listener to health bar container to open paper doll HUD
+    if (!healthClickAttached) {
+        const healthContainer = document.getElementById('health-bar-fill')?.parentElement;
+        if (healthContainer) {
+            healthContainer.style.cursor = 'pointer';
+            healthContainer.title = 'Click to open Medical Paper Doll HUD';
+            healthContainer.addEventListener('click', () => {
+                toggleMedicalModal();
+            });
+            healthClickAttached = true;
+        }
+    }
 
+    // Default values if stats are missing (backward compatibility)
+    const stats = (player && player.stats) ? player.stats : player;
     const { health = 100, maxHealth = 100, stamina = 100, maxStamina = 100, mana = 100, maxMana = 100 } = stats;
+
+    // Forward complete stats to Medical UI manager
+    if (player && player.stats && player.stats.bodyParts) {
+        updateMedicalStats(player.stats);
+    }
 
     // Helper to calculate percentage and update bar
     const updateBar = (id, current, max, cacheKeyCurrent, cacheKeyMax) => {
-        // Check cache
         if (cache[cacheKeyCurrent] === current && cache[cacheKeyMax] === max) return;
 
-        // Update Cache
         cache[cacheKeyCurrent] = current;
         cache[cacheKeyMax] = max;
 

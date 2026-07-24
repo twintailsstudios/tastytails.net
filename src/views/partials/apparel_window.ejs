@@ -1,0 +1,60 @@
+<div id="apparel-overlay" class="apparel-overlay" style="display: none;">
+  <div id="apparel-window" class="apparel-window modal-box">
+    <!-- Hardware Rivets -->
+    <div class="rivet tl"></div>
+    <div class="rivet tr"></div>
+    <div class="rivet bl"></div>
+    <div class="rivet br"></div>
+
+    <!-- Draggable Header -->
+    <div class="window-header" id="apparel-header">
+      <div class="header-left">
+        <i class="fa-solid fa-shirt header-icon"></i>
+        <h2 class="window-title">Apparel & Equipment</h2>
+      </div>
+      <div class="window-controls">
+        <div class="minimize-btn" id="apparel-btn-minimize" title="Minimize Window">_</div>
+        <div class="close-btn" id="apparel-btn-close" title="Close Window">✕</div>
+      </div>
+    </div>
+
+    <!-- Window Body -->
+    <div class="window-body apparel-body">
+      <!-- Top Action Toolbar -->
+      <div class="apparel-toolbar">
+        <div class="toolbar-info">
+          <span class="legend-text"><i class="fa-solid fa-hand-pointer"></i> L-Click: Left Hand | R-Click: Right Hand</span>
+        </div>
+        <button id="apparel-btn-undress" class="btn-danger btn-sm action-btn">
+          <i class="fa-solid fa-person-falling-burst"></i> Undress
+        </button>
+      </div>
+
+      <!-- Main Paper Doll Stage -->
+      <div class="paper-doll-stage">
+        <div class="paper-doll-silhouette"></div>
+        <div id="equipment-grid" class="equipment-grid">
+          <!-- Rendered dynamically by equipmentManager.renderSlots() -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Resize Handles -->
+    <div class="resize-handle top"></div>
+    <div class="resize-handle left"></div>
+    <div class="resize-handle right"></div>
+    <div class="resize-handle bottom"></div>
+    <div class="resize-handle br"></div>
+  </div>
+</div>
+
+<!-- Minimized Floating Dock Tab -->
+<div id="apparel-minimized-tab" class="minimized-tab apparel-tab-dock" style="display: none;">
+  <div class="tab-icon"><i class="fa-solid fa-shirt"></i></div>
+  <div class="tab-content">
+    <div class="tab-title">Apparel (<span id="dock-equipped-count">0</span>/18)</div>
+  </div>
+  <div class="tab-controls">
+    <div class="restore-btn" id="apparel-tab-restore" title="Restore Window">☐</div>
+  </div>
+</div>

@@ -1,0 +1,352 @@
+/* ==========================================================================
+   Apparel & Equipment Floating Window Stylesheet
+   Design System: TastyTails Universal UI (Warm Medieval Tavern & Parchment)
+   ========================================================================== */
+
+/* Non-blocking viewport container - Shifted upwards by default */
+.apparel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1005;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 3vh;
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+/* Draggable & Resizable Window Box */
+.apparel-window {
+    pointer-events: auto;
+    position: absolute;
+    width: 700px;
+    height: 800px;
+    min-width: 580px;
+    min-height: 700px;
+    background: #f3e5ab;
+    background-image: url('/images/cream-paper.png');
+    border: 6px solid #3e2723;
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 60px rgba(62, 39, 35, 0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+    transition: box-shadow 0.2s ease;
+}
+
+/* Header & Drag Handle */
+.apparel-window .window-header {
+    background: #3e2723;
+    color: #ffc107;
+    border-bottom: 2px solid #5d4037;
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+    flex-shrink: 0;
+}
+
+.apparel-window .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.apparel-window .header-icon {
+    font-size: 1.2rem;
+    color: #ffc107;
+}
+
+.apparel-window .window-title {
+    margin: 0;
+    font-family: 'Cinzel', serif;
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #f3e5ab;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 2px #000;
+}
+
+.apparel-window .window-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.apparel-window .minimize-btn,
+.apparel-window .close-btn {
+    width: 26px;
+    height: 26px;
+    background: #5d4037;
+    border: 1px solid #795548;
+    color: #f3e5ab;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.apparel-window .minimize-btn:hover {
+    background: #795548;
+    color: #fff;
+    transform: translateY(1px);
+}
+
+.apparel-window .close-btn:hover {
+    background: #8b0000;
+    border-color: #8b0000;
+    color: #fff;
+    transform: translateY(1px);
+}
+
+/* Window Body */
+.apparel-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Toolbar */
+.apparel-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(62, 39, 35, 0.08);
+    border: 1px dashed rgba(62, 39, 35, 0.3);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.apparel-toolbar .legend-text {
+    font-family: 'Philosopher', sans-serif;
+    font-size: 0.85rem;
+    color: #3e2723;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.apparel-toolbar .legend-text i {
+    color: #795548;
+}
+
+/* Paper Doll Stage Container */
+.paper-doll-stage {
+    flex: 1;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.4) 0%, rgba(62, 39, 35, 0.08) 100%);
+    border: 2px solid #5d4037;
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 20px;
+}
+
+/* Humanoid Paper Doll Silhouette Backdrop */
+.paper-doll-silhouette {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 220px;
+    height: 520px;
+    background: rgba(62, 39, 35, 0.04);
+    border-radius: 100px 100px 40px 40px;
+    pointer-events: none;
+    filter: blur(15px);
+    z-index: 0;
+    box-shadow: inset 0 0 40px rgba(62, 39, 35, 0.1);
+}
+
+/* Equipment Grid Uniform Spacing & Area Overrides */
+.equipment-grid {
+    grid-template-areas:
+        'lear  hair  hair  rear  .'
+        '.     head  head  .     .'
+        '.     neck  neck  .     back'
+        'lwri  inr   outr  rwri  back'
+        'lhand belt  undr  rhand .'
+        '.     legs  legs  .     .'
+        '.     feet  feet  .     .'
+        '.     tbas  ttip  .     .' !important;
+    gap: 8px !important;
+    padding: 10px !important;
+}
+
+.equipment-grid > [data-slot='hair'] {
+    grid-area: hair !important;
+    height: 38px !important;
+    margin-top: 0 !important;
+    border-radius: 18px !important;
+}
+
+.equipment-grid > [data-slot='head'] {
+    grid-area: head !important;
+    height: 58px !important;
+    margin-top: 0 !important;
+    border-radius: 20px 20px 10px 10px !important;
+}
+
+.equipment-grid > [data-slot='neck'] {
+    grid-area: neck !important;
+    height: 38px !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    border-radius: 4px !important;
+}
+
+.equipment-grid > [data-slot='leftEar'],
+.equipment-grid > [data-slot='rightEar'] {
+    align-self: center !important;
+    margin-bottom: 0 !important;
+    height: 42px !important;
+    width: 42px !important;
+}
+
+.equipment-grid > [data-slot='legs'] {
+    height: 65px !important;
+}
+
+.equipment-grid > [data-slot='tailBase'],
+.equipment-grid > [data-slot='tailTip'] {
+    height: 48px !important;
+}
+
+/* Slot Layout & Perfect Icon Centering Overrides */
+.equip-slot {
+    position: relative;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.equip-slot .icon-container {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    pointer-events: none !important;
+    z-index: 4 !important;
+}
+
+.equip-slot .slot-item-icon {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    font-size: 22px !important;
+    color: #f3e5ab !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    text-shadow: 1px 1px 2px #000 !important;
+    pointer-events: none !important;
+}
+
+.equip-slot .slot-item-icon i {
+    font-size: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+}
+
+.equip-slot .ghost-icon {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    font-size: 18px !important;
+    opacity: 0.25 !important;
+    pointer-events: none !important;
+    margin: 0 !important;
+}
+
+/* Minimized Dock Tab - Compact Corner Pill */
+#apparel-minimized-tab {
+    position: fixed !important;
+    width: auto !important;
+    max-width: 240px !important;
+    height: 44px !important;
+    min-width: 0 !important;
+    padding: 6px 14px !important;
+    border-radius: 22px !important;
+    background: #3e2723 !important;
+    border: 2px solid #ffc107 !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6) !important;
+    z-index: 9999 !important;
+    align-items: center !important;
+    gap: 10px !important;
+    cursor: pointer !important;
+    margin: 0 !important;
+    user-select: none !important;
+}
+
+#apparel-minimized-tab:hover {
+    background: #5d4037 !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8) !important;
+}
+
+#apparel-minimized-tab .tab-icon {
+    font-size: 1.1rem !important;
+    color: #ffc107 !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+#apparel-minimized-tab .tab-content {
+    display: flex !important;
+    align-items: center !important;
+    flex: 0 1 auto !important;
+}
+
+#apparel-minimized-tab .tab-title {
+    font-family: 'Cinzel', serif !important;
+    font-size: 0.85rem !important;
+    font-weight: bold !important;
+    color: #f3e5ab !important;
+    white-space: nowrap !important;
+}
+
+#apparel-minimized-tab .restore-btn {
+    width: 22px !important;
+    height: 22px !important;
+    background: #5d4037 !important;
+    border: 1px solid #795548 !important;
+    color: #ffc107 !important;
+    border-radius: 4px !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    font-size: 0.75rem !important;
+    cursor: pointer !important;
+    margin-left: 4px !important;
+}
+
+#apparel-minimized-tab .restore-btn:hover {
+    background: #6b8c42 !important;
+    color: #fff !important;
+}

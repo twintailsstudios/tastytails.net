@@ -48,7 +48,7 @@ The Play Page transitions the application into **"Full-Screen RPG Immersion"**. 
 | **Handwritten Notes (`.paper-note`)**| `'Caveat Brush', cursive`| `1.2rem` | Normal | `#5d4037` | Rotated `-0.5deg` with center pinhead |
 | **HUD Stat Text** | `'Lato', sans-serif` | `0.75rem` | Bold | `#ffffff` | Centered on status bar fill |
 | **Chat Message Log** | `'Crimson Pro', serif` | `1.0rem` | Normal | `#3e2723` | Parchment scroll feel |
-| **Writing Desk Area (`#textarea`)**| `'Lato', sans-serif` | `1.0rem` | Normal | `#3e2723` | Contenteditable parchment pad |
+| **Writing Desk Area (`#textarea`)**| `'Crimson Pro', serif` | `1.15rem` | Normal | `#3e2723` | Contenteditable parchment pad |
 | **Context Menu Items**| `'Cinzel', serif` | `0.95rem` | Normal | `#3e2723` | Slide 5px right on hover |
 | **Radial Menu Items** | `'Cinzel', serif` | `0.65rem` | Bold | `#e5d8b8` | Positioned around circular ring |
 | **Debug Stats** | `'Cinzel', serif` | `0.8rem` | Bold | `#3e2723` | Debug stats readout |
@@ -117,7 +117,7 @@ Nav tabs (`.menuTabs`) use `'Cinzel'` font with FontAwesome icons. Active tab tu
    * Includes **Debug Statistics** (Coordinates, Latency/RTT, Server Distance, Bandwidth, FPS/Entities) and a live canvas graph renderer (`#debug-graph`).
 
 #### B. Bottom Half: Chat & Writing Desk (`#chat` & `partials/chat.ejs`)
-* **Tab Scope**: Switches between `Global` and `Local` chat channels.
+* **Tab Scope**: Switches between `Local` and `Global` chat channels (`Local` is first and selected by default).
 * **Message Log (`#messages`)**: Scrollable Parchment scroll display (`font-family: 'Crimson Pro'`). Supports a floating `"New Messages"` jump button.
 * **Formatting Toolbar**: Dark wood control bar featuring text styling buttons (Bold, Italic, Underline, Strike, Subscript, Superscript).
 * **Magical Spoiler Select (`#spoilers`)**: Dropdown to categorize message spoilers (*No Spoiler*, *General*, *Watersports*, *Scat/Disposal*, *Gore*).

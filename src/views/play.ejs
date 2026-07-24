@@ -8,10 +8,13 @@
   <link rel="stylesheet" type="text/css" href="/css/contextMenu.css" />
   <link rel="stylesheet" type="text/css" href="/css/inventory.css" />
   <link rel="stylesheet" type="text/css" href="/css/crafting.css" />
+  <link rel="stylesheet" type="text/css" href="/css/apparel.css" />
 
   <link rel="stylesheet" type="text/css" href="/css/options.css" />
   <link rel="stylesheet" type="text/css" href="/css/loading.css?v=<%= Date.now() %>" />
   <link rel="stylesheet" type="text/css" href="/css/stats.css?v=<%= Date.now() %>" />
+  <link rel="stylesheet" type="text/css" href="/css/medical.css?v=<%= Date.now() %>" />
+  <link rel="stylesheet" type="text/css" href="/css/voreHUD.css?v=<%= Date.now() %>" />
 
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -46,6 +49,72 @@
 </script>
 
 <div id="game-wrapper">
+  <!-- Sensory Overlays -->
+  <div id="eye-damage-vignette"></div>
+  <div id="pain-flash-overlay"></div>
+
+  <!-- Medical Paper Doll Window -->
+  <div id="medical-window" class="medical-window modal-box" style="display: none;">
+    <!-- Hardware Rivets -->
+    <div class="rivet tl"></div>
+    <div class="rivet tr"></div>
+    <div class="rivet bl"></div>
+    <div class="rivet br"></div>
+
+    <!-- Draggable Header -->
+    <div class="window-header" id="medical-header">
+      <div class="header-left">
+        <i class="fa-solid fa-notes-medical header-icon"></i>
+        <h2 class="window-title">Adventurer Medical Status</h2>
+      </div>
+      <div class="window-controls">
+        <div class="minimize-btn" id="medical-btn-minimize" title="Minimize Window">_</div>
+        <div class="close-btn" id="medical-btn-close" title="Close Window">✕</div>
+      </div>
+    </div>
+
+    <!-- Window Body -->
+    <div class="medical-body">
+      <div class="paper-doll-container">
+        <div id="paper-doll-svg-container"></div>
+      </div>
+      <div class="medical-status-panel">
+        <div class="summary-card">
+          <div class="summary-row"><span class="summary-label">Blood Reserve:</span> <span id="med-blood-volume" class="summary-value">5000 / 5000 mL</span></div>
+          <div class="summary-row"><span class="summary-label">Bleeding Rate:</span> <span id="med-bleed-rate" class="summary-value">0 mL/s</span></div>
+          <div class="summary-row"><span class="summary-label">Total Health:</span> <span id="med-total-health" class="summary-value">100 / 100</span></div>
+        </div>
+        <div id="med-limb-list" class="limb-list"></div>
+        <div class="remedy-actions">
+          <button class="remedy-btn" onclick="window.triggerRemedy('bandage')"><i class="fa-solid fa-bandage"></i> Bandage</button>
+          <button class="remedy-btn" onclick="window.triggerRemedy('splint')"><i class="fa-solid fa-bone"></i> Splint</button>
+          <button class="remedy-btn" onclick="window.triggerRemedy('salve')"><i class="fa-solid fa-jar"></i> Salve</button>
+          <button class="remedy-btn" onclick="window.triggerRemedy('antidote')"><i class="fa-solid fa-flask-vial"></i> Antidote</button>
+          <button class="remedy-btn" onclick="window.triggerRemedy('smellingSalts')"><i class="fa-solid fa-wind"></i> Spirit Salts</button>
+          <button class="remedy-btn" onclick="window.triggerRemedy('bloodElixir')"><i class="fa-solid fa-vial"></i> Blood Elixir</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resize Handles -->
+    <div class="resize-handle top"></div>
+    <div class="resize-handle left"></div>
+    <div class="resize-handle right"></div>
+    <div class="resize-handle bottom"></div>
+    <div class="resize-handle br"></div>
+  </div>
+
+  <!-- Minimized Floating Dock Pill Tab -->
+  <div id="medical-minimized-tab" class="minimized-tab medical-tab-dock" style="display: none;">
+    <div class="tab-icon"><i class="fa-solid fa-notes-medical"></i></div>
+    <div class="tab-content">
+      <div class="tab-title">Medical (<span id="dock-health-text">100 HP</span>)</div>
+    </div>
+    <div class="tab-controls">
+      <div class="restore-btn" id="medical-tab-restore" title="Restore Window">☐</div>
+    </div>
+  </div>
+
   <!-- Crafting UI Modal (Hearthside Forge) -->
 
 
@@ -150,6 +219,9 @@
       <div class="restore-btn" id="crafting-tab-restore">☐</div>
     </div>
   </div>
+
+  <%- include('partials/apparel_window') %>
+
   <div id="navToggle" class="guild-crest-toggle" onclick="toggleNav()" title="Toggle Guild Navigation">
     <div class="crest-plate">
       <i class="fa-solid fa-dragon crest-icon"></i>
@@ -164,7 +236,7 @@
       <!-- Player Stats HUD -->
       <div id="stats-hud">
         <!-- Health -->
-        <div class="stat-bar-container">
+        <div id="health-bar-container" class="stat-bar-container clickable-stat-bar" onclick="if(window.toggleMedicalModal) window.toggleMedicalModal();" title="Click to view Medical Status">
           <div class="stat-icon"><i class="fa-solid fa-heart" style="color: #ff4c4c;"></i></div>
           <div id="health-bar-fill" class="stat-bar-fill" style="width: 100%;"></div>
           <span id="health-text" class="stat-text">100 / 100</span>
@@ -184,23 +256,105 @@
       </div>
 
       <div id="dashboard-cluster">
-        <!-- Vertical Column: Hands HUD + Inventory Drawer -->
+        <!-- Master Adventurer Command Bar & Expanding Pocket Drawer -->
         <div id="dashboard-main-col">
-
-          <div id="hands-hud" class="hands-hud">
-            <div class="hand-slot left-hand" id="leftHandSlot" onclick="window.actionHands.onSlotClick('left')">
-              <span class="hand-label">LEFT</span>
-            </div>
-            <div class="hand-slot right-hand" id="rightHandSlot" onclick="window.actionHands.onSlotClick('right')">
-              <span class="hand-label">RIGHT</span>
-            </div>
-            <button id="drop-btn" class="hand-btn">Drop</button>
-          </div>
+          <!-- Inventory Drawer Slot (Flush on top of Master Command Bar Dock) -->
           <div id="inventory-drawer-slot"></div>
-        </div>
 
-        <!-- Vertical Tabs inject here (Sidecar) -->
-        <div id="inventory-tabs-slot"></div>
+          <!-- Master Adventurer Command Bar Dock -->
+          <div id="hands-hud" class="hands-hud command-bar-dock">
+            <!-- Seam Overlapping Handle Tab -->
+            <div id="pocket-collapse-handle" class="pocket-collapse-handle hidden-hud" title="Toggle Pockets">
+              <span class="handle-icon"><i class="fa-solid fa-chevron-down"></i></span>
+              <span class="handle-text">POCKETS</span>
+            </div>
+
+            <!-- Left Flank: Integrated Intent Controls & Target Paper Doll -->
+            <div class="intent-dock-group">
+              <div class="intent-option active intent-friendly" id="intent-friendly" onclick="setIntent('friendly')" title="Friendly Intent (Default)">
+                <i class="fa-regular fa-face-smile"></i>
+              </div>
+              <div class="intent-option intent-grabbing" id="intent-grabbing" onclick="setIntent('grabbing')" title="Grabbing / Interacting Intent (Shift)">
+                <i class="fa-solid fa-hand-fist"></i>
+              </div>
+              <div class="intent-option intent-hostile" id="intent-hostile" onclick="setIntent('hostile')" title="Hostile Intent (Ctrl)">
+                <i class="fa-solid fa-crosshairs"></i>
+              </div>
+            </div>
+
+            <!-- Target Selection Paper Doll Widget (Option A: Pop-Out Anatomical Target Lens) -->
+            <div class="target-doll-dock-group" id="target-doll-widget" title="Target Zone: Torso">
+              <!-- Mini Status Indicator Bar in HUD Dock -->
+              <div class="target-dock-mini-btn" id="target-dock-mini-btn">
+                <i class="fa-solid fa-bullseye target-dock-icon"></i>
+                <div class="target-zone-label" id="target-zone-label">TORSO</div>
+              </div>
+
+              <!-- Floating Pop-Out Target Lens Card (180px x 240px) -->
+              <div class="target-lens-popout" id="target-lens-popout" style="display: none;">
+                <!-- Rivets -->
+                <div class="rivet tl"></div>
+                <div class="rivet tr"></div>
+                <div class="rivet bl"></div>
+                <div class="rivet br"></div>
+
+                <div class="target-lens-header">
+                  <span class="lens-title"><i class="fa-solid fa-crosshairs"></i> TARGET ANATOMY</span>
+                  <div class="lens-close-btn" id="target-lens-close">✕</div>
+                </div>
+
+                <div class="target-lens-body">
+                  <svg viewBox="0 0 180 240" class="target-lens-svg" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Head -->
+                    <path class="target-zone-node node-head" data-zone="head" d="M 90 18 C 70 18, 70 58, 90 58 C 110 58, 110 18, 90 18 Z" />
+                    <!-- Torso -->
+                    <path class="target-zone-node node-torso active" data-zone="torso" d="M 68 64 L 112 64 L 106 132 L 74 132 Z" />
+                    <!-- Groin -->
+                    <path class="target-zone-node node-groin" data-zone="groin" d="M 74 134 L 106 134 L 90 148 Z" />
+                    <!-- Arms (Left & Right Grouped) -->
+                    <path class="target-zone-node node-arms" data-zone="arms" d="M 40 68 L 64 68 L 56 128 L 36 128 Z" />
+                    <path class="target-zone-node node-arms" data-zone="arms" d="M 116 68 L 140 68 L 144 128 L 124 128 Z" />
+                    <!-- Hands (Left & Right Grouped) -->
+                    <path class="target-zone-node node-hands" data-zone="hands" d="M 34 132 L 54 132 L 50 158 L 30 158 Z" />
+                    <path class="target-zone-node node-hands" data-zone="hands" d="M 126 132 L 146 132 L 150 158 L 130 158 Z" />
+                    <!-- Legs (Left & Right Grouped) -->
+                    <path class="target-zone-node node-legs" data-zone="legs" d="M 73 150 L 87 150 L 84 198 L 70 198 Z" />
+                    <path class="target-zone-node node-legs" data-zone="legs" d="M 93 150 L 107 150 L 110 198 L 96 198 Z" />
+                    <!-- Feet (Left & Right Grouped) -->
+                    <path class="target-zone-node node-feet" data-zone="feet" d="M 64 202 L 82 202 L 78 226 L 60 226 Z" />
+                    <path class="target-zone-node node-feet" data-zone="feet" d="M 98 202 L 116 202 L 120 226 L 102 226 Z" />
+                    <!-- Tail -->
+                    <path class="target-zone-node node-tail" data-zone="tail" d="M 106 128 C 142 138, 142 178, 162 198 C 147 188, 132 158, 102 140 Z" />
+                  </svg>
+                </div>
+
+                <div class="target-lens-footer" id="target-lens-footer">
+                  <div class="lens-zone-title" id="lens-zone-title">TORSO</div>
+                  <div class="lens-action-hint" id="lens-action-hint">HUG / PUNCH</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Center Core: Active Hands & Drop Action -->
+            <div class="hands-dock-group">
+              <div class="hand-slot left-hand" id="leftHandSlot" onclick="window.actionHands.onSlotClick('left')">
+                <span class="hand-label">LEFT</span>
+              </div>
+              <div class="hand-slot right-hand" id="rightHandSlot" onclick="window.actionHands.onSlotClick('right')">
+                <span class="hand-label">RIGHT</span>
+              </div>
+              <button id="drop-btn" class="hand-btn btn-danger">Drop</button>
+            </div>
+
+            <!-- Right Flank: Active Apparel Status Pill -->
+            <div class="tabs-dock-group">
+              <div id="active-apparel-pill" class="active-apparel-pill hidden-hud" title="Apparel Storage Pockets">
+                <span id="pill-icon" class="pill-icon">📦</span>
+                <span id="pill-text" class="pill-text">Pockets</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- Toast Notification (Absolute) -->
         <div id="toast" class="toast"></div>
@@ -376,12 +530,20 @@
       // We pass localPlayerInfo.voreTypes as legacy fallback
       AnatomyForge.init('anatomy-forge-container', initialData, localPlayerInfo.voreTypes, window.saveAnatomyChanges);
 
-      // Hook into tab switching to resize/reset view
+      // Initial render of Vore Destinations list if available
+      if (typeof window.createVoreList === 'function' && localPlayerInfo && localPlayerInfo.voreTypes) {
+        window.createVoreList(localPlayerInfo.voreTypes);
+      }
+
+      // Hook into tab switching to resize/reset view & refresh vore list
       const voreTabBtn = document.getElementById('voreTab');
       if (voreTabBtn) {
         voreTabBtn.addEventListener('click', () => {
+          if (typeof window.createVoreList === 'function' && window.localPlayerInfo && window.localPlayerInfo.voreTypes) {
+            window.createVoreList(window.localPlayerInfo.voreTypes);
+          }
           setTimeout(() => {
-            AnatomyForge.resetView();
+            if (typeof AnatomyForge !== 'undefined' && AnatomyForge.resetView) AnatomyForge.resetView();
           }, 100);
         });
       }

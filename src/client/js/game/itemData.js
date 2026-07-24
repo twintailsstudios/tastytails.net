@@ -49,6 +49,88 @@ export default {
         }
     },
 
+    // Ground Hazard Traps (Environmental Step Damage)
+    'debug_ground_bleedDamage': {
+        size: 1,
+        name: 'Sharp Ground Shards',
+        icon: 'fa-droplet',
+        texture: 'debug_ground_bleedDamage',
+        description: 'Sharp glass shards on the ground that cut the feet of anyone stepping on them.',
+        preventPickup: true,
+        damageOnStep: {
+            amount: 15,
+            damageType: 'slash',
+            targetPart: null, // Auto-selects leftFoot or rightFoot randomly
+            cooldownMs: 1500,
+            stepMessage: 'You stepped on sharp shards and cut your foot!'
+        }
+    },
+    'debug_ground_burnDamage': {
+        size: 1,
+        name: 'Smoldering Embers',
+        icon: 'fa-fire',
+        texture: 'debug_ground_burnDamage',
+        description: 'Smoldering hot embers on the ground that burn the feet of anyone stepping on them.',
+        preventPickup: true,
+        damageOnStep: {
+            amount: 15,
+            damageType: 'burn',
+            targetPart: null, // Auto-selects leftFoot or rightFoot randomly
+            cooldownMs: 1500,
+            stepMessage: 'You stepped on smoldering embers and burned your foot!'
+        }
+    },
+
+    // Remedy Items (Handheld & Interactive Remedies)
+    'debug_bandage': {
+        size: 1,
+        name: 'Linen Bandage',
+        icon: 'fa-bandage',
+        texture: 'debug_bandage',
+        description: 'Clean linen bandages used to seal cuts and stop active bleeding.',
+        verb: 'apply',
+        maxUses: 3,
+        playerUse: true,
+        isDynamic: true,
+        remedyType: 'bandage'
+    },
+    'bandage': {
+        size: 1,
+        name: 'Linen Bandage',
+        icon: 'fa-bandage',
+        texture: 'debug_bandage',
+        description: 'Clean linen bandages used to seal cuts and stop active bleeding.',
+        verb: 'apply',
+        maxUses: 3,
+        playerUse: true,
+        isDynamic: true,
+        remedyType: 'bandage'
+    },
+    'debug_salve': {
+        size: 1,
+        name: 'Sovereign Salve',
+        icon: 'fa-jar',
+        texture: 'debug_salve',
+        description: 'Soothing medicinal salve used to heal thermal burns.',
+        verb: 'apply',
+        maxUses: 3,
+        playerUse: true,
+        isDynamic: true,
+        remedyType: 'salve'
+    },
+    'salve': {
+        size: 1,
+        name: 'Sovereign Salve',
+        icon: 'fa-jar',
+        texture: 'debug_salve',
+        description: 'Soothing medicinal salve used to heal thermal burns.',
+        verb: 'apply',
+        maxUses: 3,
+        playerUse: true,
+        isDynamic: true,
+        remedyType: 'salve'
+    },
+
     // Default
     'default': { size: 1, name: 'Unknown Object' },
 

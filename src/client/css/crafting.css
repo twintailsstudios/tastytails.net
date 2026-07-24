@@ -2497,40 +2497,35 @@
 
 /* --- Base Minimized Tab Structure --- */
 .minimized-tab {
-    /* Positioning: Fixed to screen edge */
+    /* Positioning: Managed by DockManager */
     position: fixed;
-    top: 20px;
+    top: 160px;
     left: 20px;
-    z-index: 2000;
-    /* Above game and overlay */
+    z-index: 9999;
 
     display: flex;
     align-items: center;
-    padding: 0 15px;
-    gap: 15px;
-    min-width: 250px;
-    height: 64px;
+    padding: 6px 14px;
+    gap: 10px;
+    min-width: 0;
+    width: auto;
+    max-width: 240px;
+    height: 44px;
 
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     cursor: pointer;
     user-select: none;
 
     /* Default Base Styles */
-    background: #333;
-    color: #fff;
-    /* Flat Left Edge for docking */
-    border-top-left-radius: 0 !important;
-    border-bottom-left-radius: 0 !important;
-    border-left: none !important;
-
-    border-radius: 0 8px 8px 0;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+    background: #3e2723;
+    border: 2px solid #ffc107;
+    border-radius: 22px !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+    color: #f3e5ab;
 }
 
 .minimized-tab:hover {
-    transform: translateX(10px);
-    /* Slide out animation instead of up */
-    box-shadow: 0 15px 25px rgba(0, 0, 0, 0.6);
+    background: #5d4037;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8);
 }
 
 .minimized-tab .tab-icon {

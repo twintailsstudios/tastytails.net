@@ -392,7 +392,24 @@ router.post('/createcharacter', async (req, res) => {
             "stamina": 100,
             "maxStamina": 100,
             "mana": 100,
-            "maxMana": 100
+            "maxMana": 100,
+            "bloodVolume": 5000,
+            "maxBloodVolume": 5000,
+            "bleedingRate": 0,
+            "sensory": { "eyeDamage": 0, "earDamage": 0 },
+            "bodyParts": {
+              "head": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0, "toxin": 0, "suffocation": 0 },
+              "torso": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0, "toxin": 0, "suffocation": 0 },
+              "leftArm": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0, "fractured": false },
+              "rightArm": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0, "fractured": false },
+              "leftHand": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0 },
+              "rightHand": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0 },
+              "leftLeg": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0, "fractured": false, "splinted": false },
+              "rightLeg": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0, "fractured": false, "splinted": false },
+              "leftFoot": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0 },
+              "rightFoot": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0 },
+              "tail": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0, "fractured": false }
+            }
           },
           "anatomyData": req.body.anatomyData || ""
         }

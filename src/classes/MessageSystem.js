@@ -8,6 +8,7 @@ const SemanticMapper = require('../server/SemanticMapper');
 const DatabaseResilience = require('./DatabaseResilience');
 const { applyDamage } = require('../server/mechanics/damage');
 const { healPlayer, revivePlayer } = require('../server/mechanics/health');
+const { applyRemedy } = require('../server/mechanics/remedies');
 
 const sanitizeHtml = require('sanitize-html');
 
@@ -385,25 +386,47 @@ class MessageSystem {
                 // ... existing tag logic ...
             }
 
-            // 2.6 Damage Command (Verification)
+            // 2.6 Damage Command (Verification & Environmental Simulation)
             if (cleanMessage.startsWith('/damage ')) {
                 const parts = cleanMessage.split(' ');
                 const amount = parseInt(parts[1]);
+                const damageType = parts[2] || 'brute';
+                const bodyPart = parts[3] || null;
+
                 if (!isNaN(amount)) {
                     const players = serverGame.getAllPlayers();
-                    const result = await applyDamage(players, User, socket.id, amount, socket.id, 'admin_command', serverGame.addCorpse, this.io);
+                    const result = await applyDamage(players, User, socket.id, amount, socket.id, damageType, serverGame.addCorpse, this.io, bodyPart);
 
                     if (result.success) {
                         this.sendSystemMessage(
                             'Environmental',
-                            `Applied ${amount} damage to self. New Health: ${result.newHealth}`,
+                            `Took ${amount} ${result.damageType} to ${result.bodyPart}. New Health: ${result.newHealth}`,
                             socket
                         );
-
-                        // Force update broadcast if not handled automatically (stats might need manual push?)
-                        // serverGame.broadcastToVisible(this.io, socket.id, 'playerUpdates', ...); 
-                        // Actually, let's assume gameLoop picks it up, or we can force it here if needed.
                     }
+                }
+                return;
+            }
+
+            // 2.6.5 Remedy Command (First Aid & Healing)
+            if (cleanMessage.startsWith('/remedy ')) {
+                const parts = cleanMessage.split(' ');
+                const remedyType = parts[1] || 'bandage';
+                const bodyPart = parts[2] || 'torso';
+                const players = serverGame.getAllPlayers();
+                const target = players[socket.id];
+
+                if (target) {
+                    const result = applyRemedy(target, remedyType, bodyPart);
+                    this.sendSystemMessage(
+                        'Environmental',
+                        result.message,
+                        socket
+                    );
+                    socket.emit('anatomyStatsUpdate', {
+                        stats: target.stats,
+                        isDead: target.isDead
+                    });
                 }
                 return;
             }

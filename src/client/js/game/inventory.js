@@ -9,40 +9,86 @@ export const inventoryUI = {
     listContainer: null,
     tower: null,
     activeTab: null,
+    isCollapsed: false,
     lastRenderedHash: '',
 
     init: function (socket) {
         this.socket = socket;
 
-        // Target specific slots (New Layout)
+        // Target specific slot
         const drawerSlot = document.getElementById('inventory-drawer-slot');
-        const tabsSlot = document.getElementById('inventory-tabs-slot');
 
-        if (!drawerSlot || !tabsSlot) {
-            console.error('Inventory slots not found!');
+        if (!drawerSlot) {
+            console.error('Inventory drawer slot not found!');
             return;
         }
 
-        // Inject Drawer HTML
+        // Inject Drawer HTML with Top Header Collar Tabs & Collapse Button
         drawerSlot.innerHTML = `
-            <!-- The Sliding Drawer -->
+            <!-- The Sliding Drawer (Expands Upward) -->
             <div id="satchel-drawer">
-                <div class="drawer-header" id="drawer-title"></div>
+                <div class="drawer-header">
+                    <div class="drawer-header-left">
+                        <div id="inventory-tabs-slot">
+                            <div class="clothing-tower" id="clothing-tower"></div>
+                        </div>
+                        <span id="drawer-title" class="drawer-title">Pockets</span>
+                    </div>
+                    <button id="drawer-collapse-btn" class="drawer-collapse-btn" title="Collapse Pockets">
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                </div>
                 <div class="pocket-list" id="pocket-list-container"></div>
             </div>
-        `;
-
-        // Inject Tabs HTML
-        tabsSlot.innerHTML = `
-            <!-- The Connected Tabs -->
-            <div class="clothing-tower" id="clothing-tower"></div>
         `;
 
         this.drawer = document.getElementById('satchel-drawer');
         this.listContainer = document.getElementById('pocket-list-container');
         this.tower = document.getElementById('clothing-tower');
 
-        // console.log('[InventoryUI] Initialized (Split Column Layout)');
+        // Bind Collapse / Toggle Controls (Handle Tab & Dock Pill)
+        const handleTab = document.getElementById('pocket-collapse-handle');
+        if (handleTab) {
+            handleTab.onclick = () => this.toggleCollapse();
+        }
+
+        const activePill = document.getElementById('active-apparel-pill');
+        if (activePill) {
+            activePill.onclick = () => this.toggleCollapse();
+        }
+
+        const collapseBtn = document.getElementById('drawer-collapse-btn');
+        if (collapseBtn) {
+            collapseBtn.onclick = () => this.toggleCollapse(true);
+        }
+    },
+
+    toggleCollapse: function (forceCollapse) {
+        if (typeof forceCollapse === 'boolean') {
+            this.isCollapsed = forceCollapse;
+        } else {
+            this.isCollapsed = !this.isCollapsed;
+        }
+
+        const handleTab = document.getElementById('pocket-collapse-handle');
+
+        if (this.isCollapsed) {
+            this.drawer.classList.remove('open');
+            if (handleTab) {
+                handleTab.classList.add('collapsed');
+                handleTab.title = "Expand Pockets";
+                handleTab.innerHTML = '<span class="handle-icon"><i class="fa-solid fa-chevron-up"></i></span><span class="handle-text">POCKETS</span>';
+            }
+        } else {
+            if (this.activeTab) {
+                this.drawer.classList.add('open');
+            }
+            if (handleTab) {
+                handleTab.classList.remove('collapsed');
+                handleTab.title = "Collapse Pockets";
+                handleTab.innerHTML = '<span class="handle-icon"><i class="fa-solid fa-chevron-down"></i></span><span class="handle-text">POCKETS</span>';
+            }
+        }
     },
 
     update: function (playerInfo) {
@@ -67,7 +113,21 @@ export const inventoryUI = {
             }
         });
 
-        // Render Tower (Sidebar)
+        const handleTab = document.getElementById('pocket-collapse-handle');
+        const activePill = document.getElementById('active-apparel-pill');
+
+        if (storageItems.length > 0) {
+            if (handleTab) handleTab.classList.remove('hidden-hud');
+            if (activePill) activePill.classList.remove('hidden-hud');
+        } else {
+            if (handleTab) handleTab.classList.add('hidden-hud');
+            if (activePill) activePill.classList.add('hidden-hud');
+            this.drawer.classList.remove('open');
+            this.activeTab = null;
+            return;
+        }
+
+        // Render Tower (Collar Tabs)
         this.renderTower(storageItems);
 
         // Render Active Drawer
@@ -75,40 +135,31 @@ export const inventoryUI = {
             const activeItem = storageItems.find(i => i.clothingId === this.activeTab);
             if (activeItem) {
                 this.renderDrawer(activeItem, false);
-                this.drawer.classList.add('open');
+                if (!this.isCollapsed) this.drawer.classList.add('open');
             } else {
                 // Active item unequipped
                 this.activeTab = storageItems.length > 0 ? storageItems[0].clothingId : null;
                 if (this.activeTab) {
                     this.renderDrawer(storageItems[0], true);
-                    this.drawer.classList.add('open');
+                    if (!this.isCollapsed) this.drawer.classList.add('open');
                 } else {
                     this.drawer.classList.remove('open');
                     this.listContainer.innerHTML = '';
-                    // this.container.classList.add('hidden-hud'); // No longer needed with new structure
                 }
             }
         } else if (storageItems.length > 0) {
-            // First time load or auto-select
-            // Don't auto-open on load? Or yes? Demo auto-opened.
             this.activeTab = storageItems[0].clothingId;
             this.renderDrawer(storageItems[0], true);
-            this.drawer.classList.add('open');
-        } else {
-            this.drawer.classList.remove('open');
-            this.listContainer.innerHTML = '';
+            if (!this.isCollapsed) this.drawer.classList.add('open');
         }
     },
 
     renderTower: function (storageItems) {
-        // Simple rebuild for now to keep it synced
-        // Optimize later if click flicker issues
-
         const currentIds = Array.from(this.tower.children).map(el => el.dataset.id);
         const newIds = storageItems.map(i => i.clothingId);
 
         if (JSON.stringify(currentIds) === JSON.stringify(newIds)) {
-            this.updateActiveTabVisuals();
+            this.updateActiveTabVisuals(storageItems);
             return;
         }
 
@@ -123,21 +174,42 @@ export const inventoryUI = {
                 const iconClass = iconHtml.includes('fa-') ? iconHtml : `fa-solid ${iconHtml}`;
                 iconHtml = `<i class="${iconClass}"></i>`;
             }
-            tab.innerHTML = iconHtml;
-            tab.title = entry.def.name; // Tooltip handled by CSS
+
+            // Calculate total load across all pockets for capacity pip
+            let totalLoad = 0;
+            let totalCap = 0;
+            if (entry.def.pockets) {
+                entry.def.pockets.forEach(pDef => {
+                    totalCap += pDef.capacity;
+                    const contents = (entry.item.contents && entry.item.contents[pDef.id]) || [];
+                    totalLoad += contents.reduce((acc, item) => acc + (item.size || 1), 0);
+                });
+            }
+
+            let pipClass = 'pip-empty';
+            if (totalLoad > 0) {
+                const percent = (totalLoad / totalCap) * 100;
+                if (percent >= 100) pipClass = 'pip-crit';
+                else if (percent > 60) pipClass = 'pip-warn';
+                else pipClass = 'pip-ok';
+            }
+
+            tab.innerHTML = `${iconHtml}<span class="tab-capacity-pip ${pipClass}"></span>`;
+            tab.title = `${entry.def.name} (${totalLoad}/${totalCap})`;
 
             if (this.activeTab === entry.clothingId) tab.classList.add('active');
 
-            tab.onclick = () => {
+            tab.onclick = (e) => {
+                e.stopPropagation();
                 if (this.activeTab === entry.clothingId) {
-                    // Toggle Close?
-                    this.activeTab = null;
-                    this.drawer.classList.remove('open');
-                    this.updateActiveTabVisuals();
+                    // Toggle collapse if clicking current active tab
+                    this.toggleCollapse();
+                    this.updateActiveTabVisuals(storageItems);
                     return;
                 }
                 this.activeTab = entry.clothingId;
-                this.updateActiveTabVisuals();
+                this.isCollapsed = false;
+                this.updateActiveTabVisuals(storageItems);
                 this.renderDrawer(entry, true);
                 this.drawer.classList.add('open');
             };
@@ -146,11 +218,57 @@ export const inventoryUI = {
         });
     },
 
-    updateActiveTabVisuals: function () {
-        Array.from(this.tower.children).forEach(tab => {
-            if (tab.dataset.id === this.activeTab) tab.classList.add('active');
-            else tab.classList.remove('active');
+    updateActiveTabVisuals: function (storageItems) {
+        let activeIdx = 0;
+        let activeEntry = null;
+
+        Array.from(this.tower.children).forEach((tab, idx) => {
+            const isTarget = tab.dataset.id === this.activeTab;
+            if (isTarget) {
+                tab.classList.add('active');
+                activeIdx = idx;
+            } else {
+                tab.classList.remove('active');
+            }
+
+            // Update capacity pip dynamically if storageItems provided
+            if (storageItems) {
+                const entry = storageItems.find(i => i.clothingId === tab.dataset.id);
+                if (isTarget) activeEntry = entry;
+
+                if (entry && entry.def.pockets) {
+                    let totalLoad = 0;
+                    let totalCap = 0;
+                    entry.def.pockets.forEach(pDef => {
+                        totalCap += pDef.capacity;
+                        const contents = (entry.item.contents && entry.item.contents[pDef.id]) || [];
+                        totalLoad += contents.reduce((acc, item) => acc + (item.size || 1), 0);
+                    });
+                    const pip = tab.querySelector('.tab-capacity-pip');
+                    if (pip) {
+                        pip.className = 'tab-capacity-pip';
+                        if (totalLoad === 0) pip.classList.add('pip-empty');
+                        else if (totalLoad >= totalCap) pip.classList.add('pip-crit');
+                        else if ((totalLoad / totalCap) > 0.6) pip.classList.add('pip-warn');
+                        else pip.classList.add('pip-ok');
+                    }
+                    tab.title = `${entry.def.name} (${totalLoad}/${totalCap})`;
+                }
+            }
         });
+
+        // Update Dock Active Apparel Pill
+        const pillIcon = document.getElementById('pill-icon');
+        const pillText = document.getElementById('pill-text');
+        if (pillIcon && pillText && activeEntry && storageItems) {
+            let iconHtml = activeEntry.def.icon || '📦';
+            if (iconHtml && !iconHtml.startsWith('<')) {
+                const iconClass = iconHtml.includes('fa-') ? iconHtml : `fa-solid ${iconHtml}`;
+                iconHtml = `<i class="${iconClass}"></i>`;
+            }
+            pillIcon.innerHTML = iconHtml;
+            pillText.textContent = `${activeEntry.def.name} (${activeIdx + 1}/${storageItems.length})`;
+        }
     },
 
     renderDrawer: function (entry, shouldAnimate) {

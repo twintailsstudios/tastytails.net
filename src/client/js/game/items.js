@@ -13,6 +13,7 @@ export const itemManager = {
         this.itemsGroup = scene.add.group(); // Visual group
         this.items = {};
         window.itemData = StaticItemData;
+        window.itemManager = this;
 
         // Bind Socket Events
         socket.on('currentItems', (items) => this.syncItems(items));
@@ -65,22 +66,43 @@ export const itemManager = {
             // If target is container, maybe we attach to children? No, usually handled by caller.
         }
 
+        // Resolve targets to tint (explicit tintTargets, interactiveTarget, or container children)
+        const getTargetsToTint = () => {
+            if (tintTargets && tintTargets.length) {
+                return tintTargets;
+            }
+            if (typeof interactiveTarget.setTint === 'function') {
+                return [interactiveTarget];
+            }
+            if (interactiveTarget.list && Array.isArray(interactiveTarget.list)) {
+                return interactiveTarget.list.filter(t => typeof t.setTint === 'function');
+            }
+            return [];
+        };
+
         // Hover Effects
         interactiveTarget.on('pointerover', () => {
-            tintTargets.length ? tintTargets.forEach(t => t.setTint(0xffeeaa)) : interactiveTarget.setTint(0xffeeaa);
+            const targets = getTargetsToTint();
+            targets.forEach(t => t.setTint(0xffeeaa));
             this.scene.input.setDefaultCursor('pointer');
         });
 
         interactiveTarget.on('pointerout', () => {
-            tintTargets.length ? tintTargets.forEach(t => {
-                if (t.originalTint) t.setTint(t.originalTint);
+            const targets = getTargetsToTint();
+            targets.forEach(t => {
+                if (t.originalTint !== undefined) t.setTint(t.originalTint);
                 else t.clearTint();
-            }) : interactiveTarget.clearTint();
+            });
             this.scene.input.setDefaultCursor('default');
         });
 
         // Click to Pickup
         interactiveTarget.on('pointerdown', (pointer) => {
+            // If spacebar is pressed, allow contextMenu.js to handle opening the context wheel menu
+            if (window.spacebarPressed) {
+                return;
+            }
+
             // If the item cannot be picked up, let the global click handler in contextMenu.js handle it
             if (staticDef.preventPickup || itemData.preventPickup || (itemData.properties && itemData.properties.preventPickup)) {
                 return;
@@ -243,7 +265,8 @@ export const itemManager = {
                 container.setSize(32, 32);
             }
 
-            this.setupItemInteraction(container, itemData, staticDef);
+            const layerSprites = container.list ? container.list.filter(child => typeof child.setTint === 'function') : [];
+            this.setupItemInteraction(container, itemData, staticDef, layerSprites);
 
             this.items[itemData.uid] = container; // Track container instead of single sprite
             this.itemsGroup.add(container);

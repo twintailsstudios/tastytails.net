@@ -40,62 +40,350 @@
 #dashboard-cluster {
     position: absolute;
     bottom: 0;
-    right: 0;
-    /* Anchored to bottom right */
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
-    flex-direction: row;
-    align-items: flex-end;
-    gap: 0;
+    flex-direction: column;
+    align-items: center;
     gap: 0;
     z-index: 2005;
     pointer-events: none;
-    pointer-events: none;
-    /* Let clicks pass through empty areas */
 }
 
-/* Vertical Column: Hands HUD + Inventory Drawer */
-/* #dashboard-main-col {
+#dashboard-main-col {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: center;
     justify-content: flex-end;
     gap: 0;
     margin: 0;
     padding: 0;
-} */
-#dashboard-main-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    /* Or stretch, depending on alignment preference */
-    gap: 0;
-    /* Critical for removing space */
+    position: relative;
 }
 
-/* 1. HANDS HUD (The Lid) 
-   Sits on top of the drawer.
-*/
-.hands-hud {
+/* 1. MASTER ADVENTURER COMMAND BAR DOCK */
+.hands-hud,
+.hands-hud.command-bar-dock {
     position: relative;
-    background: var(--wood-mid);
-    padding: 8px 15px;
-    border: var(--border-style);
+    background: var(--wood-dark);
+    padding: 8px 16px;
+    border: 3px solid var(--wood-dark);
+    border-top: 2px solid var(--wood-mid);
     border-bottom: none;
-    /* Merges visually with drawer */
-    border-radius: 12px 12px 0 0;
+    border-radius: 0 0 8px 8px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
+    width: 540px;
+    max-width: 90vw;
+    box-sizing: border-box;
     z-index: 101;
-    /* Higher than drawer to cast shadow */
-    /* Tower is now separate column */
+    margin-top: 0;
     margin-bottom: 0 !important;
-    /* Pull it down slightly to overlap border */
-    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.5);
     pointer-events: auto;
 }
 
-/* 2. DRAWER ASSEMBLY (The Body) */
+/* Embedded Intent Button Group (Left Flank) */
+.intent-dock-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--wood-mid);
+}
+
+.intent-dock-group .intent-option {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    color: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.intent-dock-group .intent-option:hover {
+    transform: scale(1.08);
+    color: #fff;
+    border-color: #777;
+}
+
+.intent-dock-group .intent-option.active.intent-friendly {
+    background: radial-gradient(circle, #4caf50, #1b5e20);
+    color: #fff;
+    border-color: #81c784;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
+}
+
+.intent-dock-group .intent-option.active.intent-grabbing {
+    background: radial-gradient(circle, #ffc107, #ff6f00);
+    color: #fff;
+    border-color: #ffe082;
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.6);
+}
+
+.intent-dock-group .intent-option.active.intent-hostile {
+    background: radial-gradient(circle, #f44336, #b71c1c);
+    color: #fff;
+    border-color: #e57373;
+    box-shadow: 0 0 10px rgba(244, 67, 54, 0.6);
+}
+
+/* Target Selection Paper Doll Dock Widget (Option A Pop-Out Target Lens) */
+.target-doll-dock-group {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--wood-mid);
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.2s, background-color 0.2s;
+    height: 48px;
+    box-sizing: border-box;
+}
+
+.target-doll-dock-group:hover {
+    border-color: var(--gold-light);
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.target-dock-mini-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.target-dock-icon {
+    font-size: 1.1rem;
+    color: #f0c987;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.target-doll-dock-group:hover .target-dock-icon {
+    color: #ffffff;
+    transform: scale(1.15);
+}
+
+.target-zone-label {
+    font-size: 0.65rem;
+    font-family: 'Cinzel', 'Georgia', serif;
+    color: #f0c987;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Floating Pop-Out Target Lens Card (180px x 240px) */
+.target-lens-popout {
+    position: absolute;
+    bottom: calc(100% + 14px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 270px;
+    background: rgba(18, 14, 11, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 2px solid #5a422d;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.85), 0 0 15px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    pointer-events: auto;
+    animation: lensPopIn 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes lensPopIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(12px) scale(0.92);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+}
+
+.target-lens-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: linear-gradient(180deg, #2d2015 0%, #1a120b 100%);
+    border-bottom: 1px solid #4a3424;
+    border-radius: 6px 6px 0 0;
+}
+
+.lens-title {
+    font-family: 'Cinzel', 'Georgia', serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #e2c08d;
+    letter-spacing: 0.5px;
+}
+
+.lens-close-btn {
+    font-size: 0.85rem;
+    color: #a88a68;
+    cursor: pointer;
+    transition: color 0.15s;
+    line-height: 1;
+}
+
+.lens-close-btn:hover {
+    color: #ff6b6b;
+}
+
+.target-lens-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    background: radial-gradient(circle, rgba(40, 28, 18, 0.6) 0%, rgba(12, 9, 7, 0.9) 100%);
+}
+
+.target-lens-svg {
+    width: 170px;
+    height: 190px;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.7));
+}
+
+.target-zone-node {
+    fill: #2c2219;
+    stroke: #6e543f;
+    stroke-width: 2.0;
+    cursor: pointer;
+    transition: fill 0.18s ease, stroke 0.18s ease, filter 0.18s ease;
+}
+
+.target-zone-node:hover {
+    filter: brightness(1.45) drop-shadow(0 0 5px rgba(240, 201, 135, 0.8));
+}
+
+/* Intent Dynamic Glows on Active Target Zone in Target Lens */
+.target-zone-node.active.theme-friendly,
+.target-doll-dock-group.intent-friendly .target-zone-node.active {
+    fill: #2e5934;
+    stroke: #81c784;
+    stroke-width: 3.0;
+    filter: drop-shadow(0 0 6px rgba(76, 175, 80, 0.95));
+}
+
+.target-zone-node.active.theme-grabbing,
+.target-doll-dock-group.intent-grabbing .target-zone-node.active {
+    fill: #735319;
+    stroke: #ffe082;
+    stroke-width: 3.0;
+    filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.95));
+}
+
+.target-zone-node.active.theme-hostile,
+.target-doll-dock-group.intent-hostile .target-zone-node.active {
+    fill: #6e1e1a;
+    stroke: #e57373;
+    stroke-width: 3.0;
+    filter: drop-shadow(0 0 6px rgba(244, 67, 54, 0.95));
+}
+
+.target-lens-footer {
+    padding: 5px 8px;
+    background: #140e0a;
+    border-top: 1px solid #3d2b1f;
+    border-radius: 0 0 6px 6px;
+    text-align: center;
+}
+
+.lens-zone-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #f0c987;
+    letter-spacing: 0.8px;
+}
+
+.lens-action-hint {
+    font-family: 'Lato', sans-serif;
+    font-size: 0.65rem;
+    color: #a8947d;
+    margin-top: 1px;
+}
+
+/* Hands Group (Center Core) */
+.hands-dock-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Apparel Tabs Group (Right Flank) */
+.tabs-dock-group {
+    display: flex;
+    align-items: center;
+}
+
+#inventory-tabs-slot {
+    position: static;
+    pointer-events: auto;
+}
+
+/* Collapse Handle Tab (Overlaps top edge of Hands HUD and bottom of Pocket Inventory) */
+.pocket-collapse-handle {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--wood-dark);
+    border: 2px solid var(--wood-mid);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    color: var(--parchment);
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    padding: 2px 14px;
+    cursor: pointer;
+    z-index: 105;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 -3px 6px rgba(0, 0, 0, 0.4);
+    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+    pointer-events: auto;
+}
+
+.pocket-collapse-handle:hover {
+    background: var(--wood-mid);
+    color: var(--gold);
+    transform: translateX(-50%) translateY(-1px);
+}
+
+.pocket-collapse-handle.collapsed {
+    border-bottom: 2px solid var(--wood-mid);
+    border-radius: 6px;
+    top: -26px;
+}
+
+/* 2. DRAWER ASSEMBLY (Top-Expanding Parchment Tray - Flush on top of Command Bar) */
 .inventory-hud {
     display: flex;
     align-items: flex-end;
@@ -103,60 +391,90 @@
 }
 
 /* The Sliding Drawer Container */
-#inventory-drawer-slot,
-#inventory-tabs-slot {
+#inventory-drawer-slot {
     pointer-events: auto;
-    display: contents;
+    display: flex;
     flex-direction: column;
+    align-items: center;
     margin: 0;
     padding: 0;
-    /* Ensure no line-height artifacts */
     line-height: 0;
+    width: 100%;
 }
 
 #satchel-drawer {
     background: var(--parchment);
     background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
-    border: var(--border-style);
-    border-top: none;
-    /* Merge with Hands HUD */
-    border-radius: 0 0 0 12px;
-    width: 0;
-    max-width: 0;
-    height: auto;
-    max-height: 220px;
+    border: 3px solid var(--wood-dark);
+    border-bottom: none;
+    border-radius: 10px 10px 0 0;
+    width: 540px;
+    max-width: 90vw;
+    box-sizing: border-box;
+    max-height: 0;
     opacity: 0;
     overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-    transform-origin: top center;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, padding 0.35s ease;
+    transform-origin: bottom center;
     box-shadow: var(--shadow-deep);
     display: flex;
     flex-direction: column;
-    margin-top: 0;
+    margin-bottom: 0;
     pointer-events: auto;
-    /* Restore normal line-height for content */
     line-height: normal;
+    padding: 0 12px;
 }
 
 #satchel-drawer.open {
-    width: auto;
-    min-width: 200px;
-    /* Ensure it matches hand hud width minimum */
-    max-width: 600px;
+    max-height: 260px;
     opacity: 1;
-    padding: 10px;
+    padding: 10px 12px 6px 12px;
 }
 
 .drawer-header {
     font-family: 'Cinzel', serif;
     color: var(--wood-dark);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     font-weight: 700;
-    border-bottom: 2px solid var(--wood-light);
+    border-bottom: 2px dashed var(--wood-mid);
     margin-bottom: 8px;
     padding-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     white-space: nowrap;
     flex-shrink: 0;
+}
+
+.drawer-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+    flex: 1;
+}
+
+.drawer-title {
+    font-family: 'Cinzel', serif;
+    color: var(--wood-dark);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.drawer-collapse-btn {
+    background: transparent;
+    border: none;
+    color: var(--wood-dark);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.drawer-collapse-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: var(--gold);
 }
 
 /* Fluid Horizontal Pocket Layout */
@@ -201,10 +519,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--wood-dark);
     margin-bottom: 4px;
-    font-family: 'Lato', sans-serif;
+    font-family: 'Caveat Brush', cursive, sans-serif;
 }
 
 .pocket-name {
@@ -224,68 +542,113 @@
     transition: background 0.2s;
 }
 
-/*.item-grid:hover { background: rgba(0,0,0,0.03); }*/
-
-/* 3. VERTICAL TABS (The Handle) */
+/* 3. APPAREL TABS (Top Parchment Header Collar Row) */
 .clothing-tower {
     display: flex;
-    flex-direction: column-reverse;
-    /* Bottom up */
-    z-index: 95;
-    background: var(--wood-mid);
-    border: var(--border-style);
-    border-left: none;
-    border-right: none;
-    border-radius: 0 0 0 0;
-    margin-left: -3px;
-    /* Overlap drawer border for seamless look */
-    padding-bottom: 4px;
+    flex-direction: row;
+    gap: 4px;
+    z-index: 100;
+    background: transparent;
+    padding-bottom: 0;
+    overflow-x: auto;
+    max-width: 360px;
+    scrollbar-width: none;
+}
+
+.clothing-tower::-webkit-scrollbar {
+    display: none;
 }
 
 .tower-tab {
-    width: 54px;
-    height: 50px;
-    background: var(--leather);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    width: 30px;
+    height: 30px;
+    background: rgba(62, 39, 35, 0.12);
+    border: 1px solid var(--wood-mid);
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #aaa;
+    color: var(--wood-dark);
     cursor: pointer;
     transition: all 0.2s;
     position: relative;
-    font-size: 1.5rem;
-}
-
-.tower-tab:first-child {
-    border-radius: 0 0 0 0;
+    font-size: 0.85rem;
+    flex-shrink: 0;
 }
 
 .tower-tab:hover {
     background: var(--leather-accent);
-    color: var(--parchment);
-    width: 58px;
+    color: var(--gold);
+    border-color: var(--gold);
+    transform: translateY(-1px);
 }
 
 .tower-tab.active {
-    background: var(--parchment);
-
-    color: var(--wood-dark);
-    width: 58px;
-    border-right: 3px solid var(--parchment);
-    /* Blend hack */
-    z-index: 100;
-    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    background: var(--wood-dark);
+    color: var(--gold);
+    border-color: var(--gold);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
 }
 
-/* Tooltip Logic */
+/* Active Apparel Status Pill (Right Flank of Master Dock Bar) */
+.active-apparel-pill {
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--gold);
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--wood-mid);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.active-apparel-pill:hover {
+    background: var(--wood-light);
+    border-color: var(--gold);
+    transform: translateY(-1px);
+}
+
+/* Capacity Indicator Pip on Apparel Tab */
+.tab-capacity-pip {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.6);
+}
+
+.tab-capacity-pip.pip-empty {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.tab-capacity-pip.pip-ok {
+    background: var(--gauge-ok);
+}
+
+.tab-capacity-pip.pip-warn {
+    background: var(--gauge-warn);
+}
+
+.tab-capacity-pip.pip-crit {
+    background: var(--gauge-crit);
+}
+
+/* Tooltip Logic for Dock Tabs */
 .tower-tab::after {
     content: attr(title);
     position: absolute;
-    right: 65px;
-    top: 50%;
-    transform: translateY(-50%);
+    bottom: 44px;
+    left: 50%;
+    top: auto;
+    transform: translateX(-50%);
     background: var(--wood-dark);
     color: var(--parchment);
     padding: 4px 8px;
@@ -297,7 +660,7 @@
     transition: opacity 0.2s;
     border: 1px solid var(--gold);
     box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
-    font-family: 'Lato', sans-serif;
+    font-family: 'Philosopher', sans-serif;
     z-index: 1000;
 }
 
@@ -314,41 +677,41 @@
 .hand-slot {
     width: 60px;
     height: 60px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 2px inset var(--wood-dark);
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--wood-mid);
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s;
 }
 
-.hand-slot.active {
-    /* Matching existing JS class */
-    background: rgba(255, 193, 7, 0.15);
+.hand-slot:hover {
     border-color: var(--gold);
-    box-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
+    background: rgba(0, 0, 0, 0.5);
 }
 
 .hand-label {
     position: absolute;
     bottom: 2px;
     font-family: 'Cinzel', serif;
-    font-size: 0.55rem;
+    font-size: 0.6rem;
+    font-weight: 700;
     color: var(--gold);
-    background: rgba(0, 0, 0, 0.8);
-    padding: 1px 5px;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 1px 6px;
     border-radius: 3px;
     pointer-events: none;
+    letter-spacing: 0.5px;
 }
 
 .hand-toggle {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: var(--leather);
+    background: var(--wood-mid);
     color: var(--gold);
     display: flex;
     align-items: center;
@@ -362,19 +725,62 @@
     transform: rotate(180deg);
 }
 
-/* Reuse Drop Button */
-.hand-btn {
-    background: var(--leather);
-    color: var(--parchment);
+/* Pocket Toggle Button & Drop Button Keycaps */
+.pocket-toggle-btn {
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    background-color: var(--wood-mid);
+    color: var(--gold);
+    box-shadow: 0 3px 0 var(--wood-dark);
     border: 1px solid var(--gold);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pocket-toggle-btn:hover {
+    background-color: var(--wood-light);
+    transform: translateY(1px);
+    box-shadow: 0 1px 0 var(--wood-dark);
+}
+
+.pocket-toggle-btn.collapsed {
+    background-color: var(--wood-dark);
+    color: var(--parchment-dim);
+    border-color: var(--wood-mid);
+    opacity: 0.85;
+}
+
+.hand-btn {
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    text-transform: uppercase;
+    background-color: #8b0000;
+    color: #ffffff;
+    box-shadow: 0 3px 0 #500000;
+    border: none;
+    padding: 8px 14px;
     border-radius: 4px;
     cursor: pointer;
-    font-family: 'Cinzel', serif;
-    font-size: 0.8rem;
-    padding: 4px 8px;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .hand-btn:hover {
+    background-color: #a80000;
+    transform: translateY(1px);
+    box-shadow: 0 1px 0 #500000;
+}
+
+.hidden-hud {
+    display: none !important;
+}
     background: var(--leather-accent);
 }
 

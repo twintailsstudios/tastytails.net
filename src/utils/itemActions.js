@@ -15,17 +15,87 @@ const log = require('../logger');
  * @param {Object} [preResolvedDef] - Optional: already resolved item definition to avoid lookup
  * @returns {boolean} true if the item was used, false otherwise
  */
-const performItemUse = (io, socket, player, item, itemData, isWorldItem, worldItems, saveCharacter, preResolvedDef = null) => {
+const performItemUse = (io, socket, player, item, itemData, isWorldItem, worldItems, saveCharacter, preResolvedDef = null, targetPlayer = null) => {
     try {
         const def = preResolvedDef || itemData[item.itemId] || { maxUses: 10 };
         const max = def.maxUses || 10;
+        const recipient = targetPlayer || player;
 
         // Initialize count if missing
         if (item.timesUsed === undefined) item.timesUsed = 0;
 
         if (item.timesUsed < max) {
-            item.timesUsed++;
-            log.info(`Player ${player.Username} used item ${item.name} (Uses: ${item.timesUsed}/${max})`);
+            // Apply Remedy Effect if configured on Item Definition
+            if (def.remedyType) {
+                const { applyRemedy } = require('../server/mechanics/remedies');
+                let bodyPart = item.targetBodyPart;
+                if (!bodyPart && recipient.stats && recipient.stats.bodyParts) {
+                    const parts = recipient.stats.bodyParts;
+                    if (def.remedyType === 'bandage' || def.remedyType === 'gauze') {
+                        let worstKey = 'torso';
+                        let worstHp = 100;
+                        for (const [k, p] of Object.entries(parts)) {
+                            if (p.hp < worstHp) {
+                                worstHp = p.hp;
+                                worstKey = k;
+                            }
+                        }
+                        bodyPart = worstKey;
+                    } else if (def.remedyType === 'salve' || def.remedyType === 'ointment') {
+                        let worstKey = 'torso';
+                        let maxBurn = -1;
+                        for (const [k, p] of Object.entries(parts)) {
+                            if ((p.burn || 0) > maxBurn) {
+                                maxBurn = p.burn || 0;
+                                worstKey = k;
+                            }
+                        }
+                        bodyPart = worstKey;
+                    } else {
+                        bodyPart = 'torso';
+                    }
+                }
+
+                const outcome = applyRemedy(recipient, def.remedyType, bodyPart || 'torso');
+                delete item.targetBodyPart;
+
+                // If remedy failed (no relevant injury on target body part), do NOT consume an item use charge!
+                if (outcome && outcome.success === false) {
+                    if (socket) {
+                        socket.emit('chatMessage', { channel: 'System', text: outcome.message, timestamp: new Date() });
+                    }
+                    return false;
+                }
+
+                // Remedy succeeded -> consume use charge
+                item.timesUsed++;
+                log.info(`Player ${player.Username} used item ${item.name} on ${recipient.Username} (${bodyPart}) (Uses: ${item.timesUsed}/${max})`);
+
+                const recipientId = recipient.playerId || recipient.socketId || (socket ? socket.id : null);
+                const healerId = socket ? socket.id : null;
+
+                // Emit real-time anatomy stats updates & system chat to recipient
+                if (io && recipientId && io.sockets.sockets.get(recipientId)) {
+                    io.sockets.sockets.get(recipientId).emit('anatomyStatsUpdate', { stats: recipient.stats });
+                    io.sockets.sockets.get(recipientId).emit('chatMessage', { channel: 'System', text: outcome.message, timestamp: new Date() });
+                }
+
+                // If healer is different from recipient, emit chat message to healer as well
+                if (socket && healerId && healerId !== recipientId) {
+                    socket.emit('chatMessage', { channel: 'System', text: outcome.message, timestamp: new Date() });
+                }
+
+                // Broadcast playerStateUpdate for recipient and persist to DB
+                if (io && recipientId) {
+                    io.emit('playerStateUpdate', { [recipientId]: getSafePlayerState(recipient) });
+                }
+                if (saveCharacter && recipientId) {
+                    saveCharacter(recipientId);
+                }
+            } else {
+                item.timesUsed++;
+                log.info(`Player ${player.Username} used item ${item.name} (Uses: ${item.timesUsed}/${max})`);
+            }
 
             // Check for Exhaustion IMMEDIATELY after use
             if (item.timesUsed >= max) {
@@ -55,8 +125,8 @@ const performItemUse = (io, socket, player, item, itemData, isWorldItem, worldIt
                         if (isWorldItem) {
                             io.emit('itemUpdated', item);
                         } else {
-                            io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
-                            saveCharacter(socket.id);
+                            if (io && socket && socket.id) io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+                            if (saveCharacter && socket && socket.id) saveCharacter(socket.id);
                         }
                     }
                 } else {
@@ -74,17 +144,17 @@ const performItemUse = (io, socket, player, item, itemData, isWorldItem, worldIt
                         if (player.actionHands.leftNode === item) player.actionHands.leftNode = null;
                         if (player.actionHands.rightNode === item) player.actionHands.rightNode = null;
 
-                        io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
-                        saveCharacter(socket.id);
+                        if (io && socket && socket.id) io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+                        if (saveCharacter && socket && socket.id) saveCharacter(socket.id);
                     }
                 }
             } else {
                 // Not yet exhausted - just update
                 if (isWorldItem) {
-                    io.emit('itemUpdated', item);
+                    if (io) io.emit('itemUpdated', item);
                 } else {
-                    io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
-                    saveCharacter(socket.id);
+                    if (io && socket && socket.id) io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+                    if (saveCharacter && socket && socket.id) saveCharacter(socket.id);
                 }
             }
             return true;

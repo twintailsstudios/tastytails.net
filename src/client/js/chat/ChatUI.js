@@ -25,7 +25,7 @@ class ChatUI {
 
         // --- State Handling ---
         this.unreadCounts = { global: 0, local: 0 };
-        this.currentScope = 'global';
+        this.currentScope = 'local';
 
         // Saves scroll state per tab to restore when switching back
         this.tabStates = {
@@ -37,7 +37,7 @@ class ChatUI {
 
         this.bindEvents();
         // Initial set scope
-        this.setScope('global');
+        this.setScope('local');
     }
 
     /**

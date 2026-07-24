@@ -154,9 +154,9 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
      * Evaluates reach, intent (Friendly, Grabbing, Hostile), and triggers effects.
      */
     socket.on('playerPerformAction', (data) => {
-        log.info(`${logPrefix} Received playerPerformAction from ${socket.id} with intent: ${data.intent}`);
+        log.info(`${logPrefix} Received playerPerformAction from ${socket.id} with intent: ${data.intent}, targetZone: ${data.targetZone}`);
         try {
-            const { targetId, intent } = data;
+            const { targetId, intent, targetZone } = data;
             const player = players[socket.id];
             const targetPlayer = players[targetId];
 
@@ -183,11 +183,16 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
             // 2. Handle Intents
             if (sanitizedIntent === 'friendly') {
-                handleFriendlyAction(io, socket, player, targetPlayer, itemData, saveCharacter, messageSystem);
+                handleFriendlyAction(io, socket, player, targetPlayer, itemData, saveCharacter, messageSystem, targetZone || 'torso');
             } else if (sanitizedIntent === 'grabbing') {
-                handleGrabbingAction(socket, player, targetPlayer, messageSystem);
+                if (player.playerId === targetPlayer.playerId || (player._id && targetPlayer._id && player._id.toString() === targetPlayer._id.toString())) {
+                    sendSystemMsg(socket, messageSystem, "You cannot grab yourself.");
+                    require('../server/monitoring').recordAction('grapple', false);
+                    return;
+                }
+                handleGrabbingAction(socket, player, targetPlayer, messageSystem, targetZone || 'torso');
             } else if (sanitizedIntent === 'hostile') {
-                handleHostileAction(socket, player, targetPlayer);
+                handleHostileAction(io, socket, player, targetPlayer, messageSystem, targetZone || 'torso');
             }
 
             require('../server/monitoring').recordAction('grapple', true);
@@ -205,6 +210,11 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
             if (!player || !targetPlayer) return;
             if (player.isDead) return;
+
+            if (targetPlayer.playerId === socket.id || player.playerId === targetPlayer.playerId || (player._id && targetPlayer._id && player._id.toString() === targetPlayer._id.toString())) {
+                sendSystemMsg(socket, messageSystem, "You cannot grip yourself firmly.");
+                return;
+            }
 
             // Only allow if actually holding them
             if (targetPlayer.heldBySocketId === socket.id) {
@@ -536,6 +546,12 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 return;
             }
 
+            if (predator.playerId === prey.playerId || (predator._id && prey._id && predator._id.toString() === prey._id.toString()) || socket.id === preySocketId) {
+                sendSystemMsg(socket, messageSystem, "You cannot perform a vore action on yourself.");
+                require('../server/monitoring').recordAction('vore', false);
+                return;
+            }
+
             const predSocket = socket;
             const preySocket = io.sockets.sockets.get(preySocketId);
 
@@ -851,6 +867,99 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
     });
 
     /**
+     * Triggered when predator toggles "Clench" in Stage 3 Vore Controls.
+     * Flexes destination node muscles, consuming predator's stamina per second.
+     */
+    socket.on('clenchVoreStage', (data) => {
+        try {
+            const { targetId } = data;
+            const predator = players[socket.id];
+            if (!predator) return;
+
+            // Robust Prey Lookup
+            const preySocketId = Object.keys(players).find(key => players[key].playerId === targetId);
+            const prey = players[preySocketId];
+
+            if (!prey || prey.consumedBy !== predator.playerId) return;
+
+            const isTurningOn = !predator.isClenching;
+
+            if (isTurningOn) {
+                // Check Stamina Availability
+                const currentStamina = predator.stats ? (predator.stats.stamina || 0) : 100;
+                if (currentStamina <= 0) {
+                    if (messageSystem) {
+                        messageSystem.sendSystemMessage('Interactional', 'You are too exhausted to clench!', socket, [], 'local', null);
+                    }
+                    return;
+                }
+                predator.isClenching = true;
+                prey.isClenchSuppressed = true;
+
+                // Pause active struggle cooldown if prey is on cooldown
+                const now = Date.now();
+                if (prey.struggleCooldownUntil && now < prey.struggleCooldownUntil) {
+                    prey.struggleCooldownRemaining = prey.struggleCooldownUntil - now;
+                    prey.struggleCooldownUntil = null;
+                }
+            } else {
+                predator.isClenching = false;
+                prey.isClenchSuppressed = false;
+
+                // Resume struggle cooldown if prey had paused cooldown
+                const now = Date.now();
+                if (prey.struggleCooldownRemaining && prey.struggleCooldownRemaining > 0) {
+                    prey.struggleCooldownUntil = now + prey.struggleCooldownRemaining;
+                    prey.struggleCooldownRemaining = null;
+                }
+            }
+
+            const predName = getFullName(predator);
+            const preyName = getFullName(prey);
+
+            const predMsg = isTurningOn 
+                ? `You flex your internal muscles tightly around ${preyName}, pressing against them from all sides.`
+                : `You relax your internal muscles around ${preyName}.`;
+
+            const preyMsg = isTurningOn 
+                ? `${predName}'s body is squeezing too tightly to move!`
+                : `${predName}'s muscles relax, giving you room to move.`;
+
+            const externalMsg = isTurningOn
+                ? `${predName}'s body twitches and squeezes inward around ${preyName}.`
+                : `${predName}'s body relaxes around ${preyName}.`;
+
+            const predSocket = socket;
+            const preySocket = io.sockets.sockets.get(preySocketId);
+
+            if (preySocket && messageSystem) {
+                messageSystem.sendSystemMessage('Interactional', preyMsg, preySocket, [], 'local', predSocket);
+            }
+            if (predSocket && messageSystem) {
+                messageSystem.sendSystemMessage('Interactional', predMsg, predSocket, [], 'local', predSocket);
+            }
+            if (messageSystem && externalMsg) {
+                const excluded = [String(prey._id), String(predator._id)];
+                messageSystem.sendSystemMessage('Interactional', externalMsg, null, excluded, 'local', predSocket);
+                io.emit('voreLog', externalMsg);
+            }
+
+            let nodeName = 'Stomach';
+            if (prey.currentVoreNodeId && predator.anatomyData) {
+                const graph = getParsedAnatomy(predator);
+                const node = graph.nodes ? graph.nodes.find(n => String(n.id) === prey.currentVoreNodeId) : null;
+                if (node) nodeName = node.properties.name || 'Stomach';
+            }
+
+            broadcastVoreStageUpdate(io, prey, predator, prey.voreStage || 3, nodeName);
+            saveState(saveCharacter, socket.id, preySocketId);
+
+        } catch (e) {
+            log.error(`${logPrefix} Error handling clenchVoreStage:`, e);
+        }
+    });
+
+    /**
      * Triggered when a prey player dies from digestion (Health <= 0).
      */
     socket.on('preyDigested', (data) => {
@@ -965,8 +1074,52 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
             if (!predator) return;
 
+            const now = Date.now();
+
+            // Check Authoritative Clench Suppression
+            if (predator.isClenching || prey.isClenchSuppressed) {
+                const preySocket = socket;
+                const pName = getFullName(predator);
+                if (messageSystem && preySocket) {
+                    messageSystem.sendSystemMessage('Interactional', `${pName}'s body is squeezing too tightly to move!`, preySocket, [], 'local', null);
+                }
+                return;
+            }
+
+            // Check Authoritative Struggle Cooldown (10 Seconds)
+            if (prey.struggleCooldownUntil && now < prey.struggleCooldownUntil) {
+                log.info(`${logPrefix} Struggle action on cooldown for prey ${prey.playerId}`);
+                return;
+            }
+
+            // Check Stamina Availability (20 Stamina Cost)
+            const currentStamina = prey.stats ? (prey.stats.stamina || 0) : 100;
+            if (currentStamina < 20) {
+                const preySocket = socket;
+                if (messageSystem && preySocket) {
+                    messageSystem.sendSystemMessage('Interactional', 'You are too exhausted to struggle!', preySocket, [], 'local', null);
+                }
+                return;
+            }
+
+            // Deduct 20 Stamina and Apply 10s Cooldown
+            prey.stats.stamina = Math.max(0, currentStamina - 20);
+            prey.struggleCooldownUntil = now + 10000;
+
             const preySocket = socket;
+            if (preySocket) {
+                preySocket.emit('anatomyStatsUpdate', {
+                    stats: prey.stats,
+                    isDead: prey.isDead
+                });
+            }
+
             const predSocket = io.sockets.sockets.get(predSocketId);
+
+            // Notify predator client of target struggle activity for pulse monitor
+            if (predSocket) {
+                predSocket.emit('targetStruggleActivity', { targetId: prey.playerId });
+            }
 
             // Get Anatomy Info
             let pName = getFullName(predator);
@@ -1054,6 +1207,8 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 messageSystem.sendSystemMessage('Interactional', externalMsg, null, excluded, 'local', predSocket);
             }
 
+            broadcastVoreStageUpdate(io, prey, predator, prey.voreStage || 3, nodeName);
+
         } catch (e) {
             log.error(`${logPrefix} Error handling struggleInside:`, e);
         }
@@ -1137,35 +1292,135 @@ function checkReach(p1, p2) {
     return (pBox.left < tBox.right && pBox.right > tBox.left && pBox.top < tBox.bottom && pBox.bottom > tBox.top);
 }
 
-function handleFriendlyAction(io, socket, player, target, itemData, saveCharacter, messageSystem) {
-    const activeHand = player.actionHands.activeHand;
-    const heldItem = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+/**
+ * Resolves a unified target zone ('arms', 'hands', 'legs', 'feet', 'groin', 'head', 'torso', 'tail')
+ * to a concrete server BODY_PARTS anatomical limb ('leftArm' | 'rightArm', etc.).
+ */
+function resolveTargetLimb(targetPlayer, targetZone = 'torso') {
+    const parts = (targetPlayer && targetPlayer.stats && targetPlayer.stats.bodyParts) ? targetPlayer.stats.bodyParts : null;
+
+    switch (targetZone) {
+        case 'arms': {
+            if (!parts || parts.leftArm.hp === parts.rightArm.hp) {
+                return Math.random() < 0.5 ? 'leftArm' : 'rightArm';
+            }
+            if (parts.leftArm.hp <= 0) return 'rightArm';
+            if (parts.rightArm.hp <= 0) return 'leftArm';
+            return Math.random() < 0.5 ? 'leftArm' : 'rightArm';
+        }
+        case 'hands': {
+            if (!parts || parts.leftHand.hp === parts.rightHand.hp) {
+                return Math.random() < 0.5 ? 'leftHand' : 'rightHand';
+            }
+            if (parts.leftHand.hp <= 0) return 'rightHand';
+            if (parts.rightHand.hp <= 0) return 'leftHand';
+            return Math.random() < 0.5 ? 'leftHand' : 'rightHand';
+        }
+        case 'legs': {
+            if (!parts || parts.leftLeg.hp === parts.rightLeg.hp) {
+                return Math.random() < 0.5 ? 'leftLeg' : 'rightLeg';
+            }
+            if (parts.leftLeg.hp <= 0) return 'rightLeg';
+            if (parts.rightLeg.hp <= 0) return 'leftLeg';
+            return Math.random() < 0.5 ? 'leftLeg' : 'rightLeg';
+        }
+        case 'feet': {
+            if (!parts || parts.leftFoot.hp === parts.rightFoot.hp) {
+                return Math.random() < 0.5 ? 'leftFoot' : 'rightFoot';
+            }
+            if (parts.leftFoot.hp <= 0) return 'rightFoot';
+            if (parts.rightFoot.hp <= 0) return 'leftFoot';
+            return Math.random() < 0.5 ? 'leftFoot' : 'rightFoot';
+        }
+        case 'groin':
+            return 'torso'; // Groin maps to torso for damage tracking with stamina drain
+        case 'head':
+        case 'torso':
+        case 'tail':
+        default:
+            return targetZone || 'torso';
+    }
+}
+
+function handleFriendlyAction(io, socket, player, target, itemData, saveCharacter, messageSystem, targetZone = 'torso') {
+    const activeHand = player.actionHands.activeHand || 'left';
+    let heldItem = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+
+    // Fallback: If active hand item cannot be used or is empty, check the other hand if it holds a usable remedy item
+    if (!heldItem || !heldItem.itemId) {
+        const otherHand = activeHand === 'left' ? 'right' : 'left';
+        const otherItem = otherHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
+        if (otherItem && otherItem.itemId) {
+            const otherDef = resolveItemDef(otherItem, itemData);
+            if (otherDef && (otherDef.remedyType || otherDef.isDynamic || (otherItem.properties && otherItem.properties.isDynamic))) {
+                heldItem = otherItem;
+            }
+        }
+    }
+
     let itemUsed = false;
 
     if (heldItem) {
         // Try to use item
         const def = resolveItemDef(heldItem, itemData);
-        if ((def.isDynamic || (heldItem.properties && heldItem.properties.isDynamic)) && def.playerUse !== false) {
-            log.info(`[Interaction] ${player.firstName} used ${heldItem.name} on ${getFullName(target)}.`);
-            const result = performItemUse(io, socket, player, heldItem, itemData, false, null, saveCharacter, def);
+        if (def && (def.remedyType || def.isDynamic || (heldItem.properties && heldItem.properties.isDynamic)) && def.playerUse !== false) {
+            log.info(`[Interaction] ${player.firstName} used ${heldItem.name || def.name} on ${getFullName(target)}.`);
+            heldItem.targetBodyPart = resolveTargetLimb(target, targetZone);
+            const result = performItemUse(io, socket, player, heldItem, itemData, false, null, saveCharacter, def, target);
             if (result) itemUsed = true;
         }
     }
 
     if (!itemUsed) {
-        log.info(`Player ${player.firstName} hugged ${getFullName(target)}.`);
-        // Note: No system message for hugs? Original code didn't have one, just log. 
-        // Adding one for feedback might be nice, but sticking to legacy behavior:
+        let msg = `${player.firstName} embraced ${getFullName(target)} in a warm embrace.`;
+        switch (targetZone) {
+            case 'head':
+                msg = `${player.firstName} patted ${getFullName(target)}'s head and ruffled their hair.`;
+                break;
+            case 'hands':
+                msg = `${player.firstName} shook ${getFullName(target)}'s hand warmly.`;
+                break;
+            case 'arms':
+                msg = `${player.firstName} linked arms with ${getFullName(target)}.`;
+                break;
+            case 'tail':
+                msg = `${player.firstName} gently petted and fluffed ${getFullName(target)}'s tail.`;
+                break;
+            case 'feet':
+                msg = `${player.firstName} playfully tapped ${getFullName(target)}'s foot.`;
+                break;
+            case 'groin':
+                msg = `${player.firstName} performed friendly intimate contact with ${getFullName(target)}.`;
+                break;
+            case 'torso':
+            default:
+                msg = `${player.firstName} embraced ${getFullName(target)} in a warm embrace.`;
+                break;
+        }
+
+        log.info(`[FriendlyAction] ${player.firstName} -> ${getFullName(target)} (${targetZone}): ${msg}`);
+        sendSystemMsg(socket, messageSystem, msg);
     }
 }
 
-function handleGrabbingAction(socket, player, target, messageSystem) {
+function handleGrabbingAction(socket, player, target, messageSystem, targetZone = 'torso') {
+    if (target.playerId === socket.id || player.playerId === target.playerId || (player._id && target._id && player._id.toString() === target._id.toString())) {
+        sendSystemMsg(socket, messageSystem, "You cannot grab yourself.");
+        return;
+    }
+
+    const resolvedLimb = resolveTargetLimb(target, targetZone);
+    target.grabbedZone = targetZone;
+    target.grabbedLimb = resolvedLimb;
+
     if (target.isHeld && target.heldBySocketId === socket.id) {
         // Upgrade to firm grip
         target.grippedFirmly = true;
+        target.grippedBy = socket.id;
         target.struggleCount = 0;
-        log.info(`Player ${player.firstName} gripped firmly ${getFullName(target)}.`);
-        sendSystemMsg(socket, messageSystem, `${player.firstName} is gripping ${getFullName(target)} tightly.`);
+        const msg = `${player.firstName} is gripping ${getFullName(target)} tightly by their ${targetZone}.`;
+        log.info(`Player ${player.firstName} gripped firmly ${getFullName(target)} (${targetZone}).`);
+        sendSystemMsg(socket, messageSystem, msg);
     } else {
         // First grab
         target.isHeld = true;
@@ -1174,14 +1429,104 @@ function handleGrabbingAction(socket, player, target, messageSystem) {
         target.grippedFirmly = false;
         target.struggleCount = 0;
 
-        log.info(`Player ${player.firstName} grabbed ${getFullName(target)}.`);
-        sendSystemMsg(socket, messageSystem, `${player.firstName} has taken hold of ${getFullName(target)}.`);
+        let msg = `${player.firstName} has taken hold of ${getFullName(target)}.`;
+        switch (targetZone) {
+            case 'head':
+                msg = `${player.firstName} grabbed ${getFullName(target)} by the head and scruff!`;
+                break;
+            case 'arms':
+                msg = `${player.firstName} grabbed ${getFullName(target)} firmly by their arm.`;
+                break;
+            case 'hands':
+                msg = `${player.firstName} grabbed ${getFullName(target)} by the wrist and hand!`;
+                break;
+            case 'legs':
+                msg = `${player.firstName} grabbed ${getFullName(target)} by their leg!`;
+                break;
+            case 'feet':
+                msg = `${player.firstName} grabbed ${getFullName(target)} by their ankle!`;
+                break;
+            case 'tail':
+                msg = `${player.firstName} caught and held ${getFullName(target)} by their tail!`;
+                break;
+            case 'groin':
+                msg = `${player.firstName} grabbed hold of ${getFullName(target)} in a restraint hold!`;
+                break;
+            case 'torso':
+            default:
+                msg = `${player.firstName} took hold of ${getFullName(target)} around their waist and torso.`;
+                break;
+        }
+
+        log.info(`Player ${player.firstName} grabbed ${getFullName(target)} (${targetZone}).`);
+        sendSystemMsg(socket, messageSystem, msg);
     }
 }
 
-function handleHostileAction(socket, player, target) {
-    log.info(`Player ${player.firstName} punched ${getFullName(target)}.`);
-    // TODO: Add damage logic here or system message? Original code just logged.
+function handleHostileAction(io, socket, player, target, messageSystem, targetZone = 'torso', players = null) {
+    const resolvedLimb = resolveTargetLimb(target, targetZone);
+    let amount = 15;
+    let msg = `${player.firstName || player.Username} struck ${getFullName(target)}'s ${targetZone}!`;
+
+    const { applyDamage } = require('../server/mechanics/damage');
+    const User = require('../model/User');
+
+    switch (targetZone) {
+        case 'head':
+            amount = 20;
+            msg = `${player.firstName || player.Username} struck ${getFullName(target)} directly in the head!`;
+            break;
+        case 'torso':
+            amount = 15;
+            msg = `${player.firstName || player.Username} punched ${getFullName(target)} in the chest and ribs!`;
+            break;
+        case 'arms':
+            amount = 15;
+            msg = `${player.firstName || player.Username} struck ${getFullName(target)}'s arm!`;
+            break;
+        case 'hands':
+            amount = 15;
+            msg = `${player.firstName || player.Username} crushed ${getFullName(target)}'s hand!`;
+            break;
+        case 'legs':
+            amount = 15;
+            msg = `${player.firstName || player.Username} kicked ${getFullName(target)}'s leg!`;
+            break;
+        case 'feet':
+            amount = 15;
+            msg = `${player.firstName || player.Username} stomped ${getFullName(target)}'s foot!`;
+            break;
+        case 'tail':
+            amount = 15;
+            msg = `${player.firstName || player.Username} yanked ${getFullName(target)}'s tail hard!`;
+            break;
+        case 'groin':
+            amount = 15;
+            msg = `${player.firstName || player.Username} delivered a low blow to ${getFullName(target)}!`;
+            if (target.stats) {
+                target.stats.stamina = Math.max(0, (target.stats.stamina || 100) - 35);
+            }
+            break;
+        default:
+            msg = `${player.firstName || player.Username} struck ${getFullName(target)} in the ${targetZone}!`;
+            break;
+    }
+
+    const playersDict = players || { [target.playerId]: target, [player.playerId]: player };
+
+    // Apply blunt/brute damage directly to the targeted anatomical area
+    const outcome = applyDamage(playersDict, User, target.playerId, amount, player.playerId, 'brute', null, io, resolvedLimb);
+
+    log.info(`[HostileAction] ${player.firstName} -> ${getFullName(target)} (${targetZone} -> ${resolvedLimb}). Damage: ${amount} brute. New Health: ${outcome.newHealth}`);
+    sendSystemMsg(socket, messageSystem, msg);
+
+    // Broadcast Real-Time Anatomy Stats Updates to both attacker & victim sockets
+    if (socket) {
+        socket.emit('anatomyStatsUpdate', { stats: player.stats });
+    }
+    if (io.sockets.sockets.get(target.playerId)) {
+        io.sockets.sockets.get(target.playerId).emit('anatomyStatsUpdate', { stats: target.stats });
+    }
 }
 
 function handleRelease(io, socket, players, messageSystem, saveCharacter, data) {
@@ -1332,11 +1677,37 @@ function resetVoreState(p) {
 }
 
 function broadcastVoreStageUpdate(io, prey, predator, stage, nodeName) {
+    let destinationMode = 'Hold';
+    let nodeVoreTypeId = null;
+
+    if (predator && predator.voreTypes && prey && prey.currentVoreNodeId) {
+        const vt = predator.voreTypes.find(v => String(v.graphNodeId) === String(prey.currentVoreNodeId) || String(v._id) === String(prey.currentVoreNodeId) || String(v.id) === String(prey.currentVoreNodeId));
+        if (vt) {
+            destinationMode = vt.mode || 'Hold';
+            nodeVoreTypeId = vt._id ? String(vt._id) : (vt.id ? String(vt.id) : String(vt.graphNodeId));
+        }
+    }
+
+    const targetName = getFullName(prey);
+    const predatorName = getFullName(predator);
+
     io.emit('voreStageUpdate', {
         playerId: prey.playerId,
         predatorId: predator.playerId,
+        predatorName: predatorName,
         stage: stage,
-        nodeName: nodeName
+        nodeName: nodeName,
+        targetName: targetName,
+        targetHp: prey.stats ? Math.round(prey.stats.health) : 100,
+        targetMaxHp: prey.stats ? Math.round(prey.stats.maxHealth) : 100,
+        targetStamina: prey.stats ? Math.round(prey.stats.stamina) : 100,
+        predatorStamina: predator.stats ? Math.round(predator.stats.stamina) : 100,
+        destinationMode: destinationMode,
+        nodeVoreTypeId: nodeVoreTypeId,
+        isClenching: predator.isClenching || false,
+        isClenchSuppressed: prey.isClenchSuppressed || false,
+        struggleCooldownUntil: prey.struggleCooldownUntil || 0,
+        struggleCooldownRemaining: prey.struggleCooldownRemaining || 0
     });
 }
 
@@ -1391,3 +1762,9 @@ function getParsedAnatomy(player) {
         return {};
     }
 }
+
+module.exports.handleFriendlyAction = handleFriendlyAction;
+module.exports.handleGrabbingAction = handleGrabbingAction;
+module.exports.handleHostileAction = handleHostileAction;
+module.exports.resolveTargetLimb = resolveTargetLimb;
+module.exports.broadcastVoreStageUpdate = broadcastVoreStageUpdate;

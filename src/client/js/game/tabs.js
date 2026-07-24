@@ -17,6 +17,11 @@ export function initializeTabs() {
                 // Update active tab style
                 document.querySelectorAll('.menuTabs').forEach(el => el.classList.remove('active'));
                 btn.classList.add('active');
+
+                // Pop-out floating window action for Apparel tab
+                if (tab === 'apparel' && window.equipmentManager) {
+                    window.equipmentManager.open();
+                }
             });
         }
     });

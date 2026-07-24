@@ -653,6 +653,28 @@ h3 {
     flex-direction: column;
 }
 
+.vore-dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 4px 6px;
+    border-bottom: 1px solid rgba(243, 229, 171, 0.15);
+}
+
+.vore-dashboard-title {
+    margin: 0;
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold-light, #f3e5ab);
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: none !important;
+}
+
 /* === EXTRACTED INLINE STYLES === */
 .menu-container {
     flex: 1;

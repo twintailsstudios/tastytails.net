@@ -114,7 +114,7 @@ export const actionHands = {
             return;
         }
 
-        // Update Active Class
+        // Both hands are equal action slots (no single active hand)
         leftSlot.classList.remove('active');
         rightSlot.classList.remove('active');
 
