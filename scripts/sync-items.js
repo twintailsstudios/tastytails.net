@@ -14,6 +14,24 @@ const filesToSync = [
     }
 ];
 
+function safeWriteFileSync(targetPath, data) {
+    const maxRetries = 5;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            // Remove existing file if locked or read-only before overwrite
+            if (attempt > 1 && fs.existsSync(targetPath)) {
+                try { fs.chmodSync(targetPath, 0o666); } catch (e) {}
+            }
+            fs.writeFileSync(targetPath, data, 'utf8');
+            return;
+        } catch (err) {
+            if (attempt === maxRetries) throw err;
+            const start = Date.now();
+            while (Date.now() - start < 150) {} // Wait 150ms before retry
+        }
+    }
+}
+
 filesToSync.forEach(file => {
     const sourcePath = path.join(__dirname, file.source);
     const destPath = path.join(__dirname, file.dest);
@@ -22,8 +40,9 @@ filesToSync.forEach(file => {
         console.log(`[Sync] Reading ${file.name} from:`, sourcePath);
         let content = fs.readFileSync(sourcePath, 'utf8');
 
-        // Convert CommonJS to ES Module
-        content = content.replace(/module\.exports\s*=\s*/, 'export default ');
+        // Convert CommonJS to ES Module with Object.freeze
+        content = content.replace(/module\.exports\s*=\s*/, 'export default Object.freeze(');
+        content = content.trim().replace(/;?$/, ');\n');
 
         // Add Auto-Generation Header
         const header = `/**
@@ -38,7 +57,7 @@ filesToSync.forEach(file => {
         const finalContent = header + content;
 
         console.log(`[Sync] Writing ${file.name} to:`, destPath);
-        fs.writeFileSync(destPath, finalContent, 'utf8');
+        safeWriteFileSync(destPath, finalContent);
         console.log(`[Sync] Synchronization of ${file.name} complete.`);
 
     } catch (err) {

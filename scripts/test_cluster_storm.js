@@ -1,9 +1,9 @@
 /**
- * TastyTails Cluster Storm Stress Test
+ * @fileoverview TastyTails Cluster Storm Stress Test
  * 
- * Objective:
- *   Force high-density player concentrations to stress the spatial partitioning hash grid
- *   and verify that narrow-phase collision calculations and shadowcasting stay within limits.
+ * @description
+ * Force high-density player concentrations to stress the spatial partitioning hash grid
+ * and verify that narrow-phase collision calculations and shadowcasting stay within limits.
  * 
  * Target Thresholds:
  *   - Physics Scaling: average physics tick duration <= 10.0ms (at 150 clustered bots)
@@ -14,10 +14,7 @@
  *   2. Centers all bot coordinates at a single hub point (3300, 4300) with minor random jitter.
  *   3. Programs bots to send high-frequency direction inputs, forcing continuous collisions.
  *   4. Runs for 10 seconds to collect stats, then disconnects all bots.
- *   5. Submits physics and shadowcasting status reports via Socket.io.
- * 
- * Recommended Execution Duration:
- *   - Approximately 25 seconds.
+ *   5. Submits physics and shadowcasting status reports via Socket.IO to Server Health Dashboard.
  * 
  * Usage:
  *   Ensure the game server is running, then execute:
@@ -26,13 +23,22 @@
 const io = require('socket.io-client');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const http = require('http');
 
 dotenv.config();
 
-const SERVER_URL = 'http://localhost:3000';
+// OPTIMIZATION: Dynamic SERVER_URL fallback with trailing-slash sanitization to support custom PORT/SERVER_URL env configs
+const BASE_URL = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
+const SERVER_URL = BASE_URL.replace(/\/$/, '');
 const TOKEN_SECRET = process.env.TOKEN_SECRET || 'testsecret';
 
+/**
+ * Simulates an active player client connected via Socket.IO inside the high-density cluster zone.
+ */
 class BotClient {
+    /**
+     * @param {number} id - Bot numerical index (0 to 149)
+     */
     constructor(id) {
         this.id = id;
         this.name = `ClusterBot_${id}`;
@@ -41,6 +47,10 @@ class BotClient {
         this.interval = null;
     }
 
+    /**
+     * Authenticates, connects, places bot in cluster, and starts high-frequency movement input loop.
+     * @returns {Promise<void>} Resolves when connection handshake and initial positioning complete.
+     */
     async connect() {
         return new Promise((resolve, reject) => {
             const token = jwt.sign(
@@ -57,12 +67,19 @@ class BotClient {
             });
 
             const timeoutId = setTimeout(() => {
-                this.socket.disconnect();
+                if (this.socket) this.socket.disconnect();
                 reject(new Error(`[${this.name}] Connection Handshake Timeout`));
             }, 12000);
 
             this.socket.on('connect', () => {
                 clearTimeout(timeoutId);
+
+                // Attach error & disconnect safeguards to clean up intervals if socket drops mid-test
+                this.socket.on('error', (err) => console.error(`[${this.name}] Socket error:`, err));
+                this.socket.on('disconnect', () => {
+                    if (this.interval) clearInterval(this.interval);
+                });
+
                 // Cluster tightly around (3300, 4300) inside the pub/blacksmith area
                 const spawnX = 3300 + Math.floor(Math.random() * 100 - 50);
                 const spawnY = 4300 + Math.floor(Math.random() * 100 - 50);
@@ -107,17 +124,24 @@ class BotClient {
         });
     }
 
+    /**
+     * Safely disconnects the socket and clears the input interval.
+     */
     disconnect() {
         if (this.interval) clearInterval(this.interval);
         if (this.socket) {
+            this.socket.removeAllListeners();
             this.socket.disconnect();
         }
     }
 }
 
+/**
+ * Fetches engine performance metrics JSON from the game server's /stats endpoint.
+ * @returns {Promise<Object>} Engine stats including tick breakdown metrics.
+ */
 function getStats() {
     return new Promise((resolve, reject) => {
-        const http = require('http');
         http.get(`${SERVER_URL}/stats`, (res) => {
             let data = '';
             res.on('data', (chunk) => { data += chunk; });
@@ -134,14 +158,23 @@ function getStats() {
     });
 }
 
+/**
+ * Promisified timer delay helper.
+ * @param {number} ms - Delay in milliseconds.
+ * @returns {Promise<void>}
+ */
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * Main async stress test orchestrator.
+ */
 async function run() {
     console.log("=== Starting Cluster Storm (Spatial & Collision) Stress Test ===");
     console.log("Goal: Spawn 150 bots tightly clustered at (3300, 4300) to stress broad/narrow collisions.");
     const bots = [];
+    let reporterSocket = null;
 
     try {
         console.log("\nSpawning 150 bots in a cluster...");
@@ -196,7 +229,7 @@ async function run() {
 
         // Connect reporter client to report outcomes to dashboard
         console.log("\nReporting test results to Server Health Dashboard...");
-        const reporterSocket = io(SERVER_URL, {
+        reporterSocket = io(SERVER_URL, {
             query: { charId: '000000000000000000000001', isBot: true },
             transports: ['websocket'],
             forceNew: true
@@ -219,8 +252,10 @@ async function run() {
     } catch (err) {
         console.error("❌ Stress test failure:", err);
         bots.forEach(bot => bot.disconnect());
+        if (reporterSocket) reporterSocket.disconnect();
         process.exit(1);
     }
 }
 
 run();
+

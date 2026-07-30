@@ -1,6 +1,25 @@
+/**
+ * @fileoverview update.js - Central Game Client Frame Tick Engine
+ * 
+ * @description
+ * Primary per-frame update loop for Phaser 3 game client. Handles local player
+ * physics, WASD/Arrow input sampling, limping speed penalties, autopathing, target-side
+ * character carrying attachment, 30Hz network input throttling, HUD dirty-flag UI updates,
+ * crafting station range checks, remote player interpolation, and debug graphics overlays.
+ * 
+ * Triggered by: Phaser.Scene update lifecycle loop every frame (60Hz+).
+ */
+
 import { updateCraftingBar } from './player.js';
 import { updateStatsUI } from './stats.js';
 
+/**
+ * Calculates spatial position along a trailing movement history queue at a target distance.
+ * 
+ * @param {Array<{x: number, y: number, rotation: number, isMoving: boolean}>} history - Trajectory history queue.
+ * @param {number} targetDistance - Distance in pixels behind leader (e.g. 20 for firm grip, 64 for loose carry).
+ * @returns {{x: number, y: number, rotation: number, isMoving: boolean}|null} Interpolated spatial snapshot.
+ */
 function getPositionAtDistance(history, targetDistance) {
     if (!history || history.length === 0) return null;
     if (history.length === 1) return { x: history[0].x, y: history[0].y, rotation: history[0].rotation, isMoving: history[0].isMoving };
@@ -23,7 +42,7 @@ function getPositionAtDistance(history, targetDistance) {
             const rotation = pNext.rotation;
             const isMoving = pNext.isMoving;
 
-            // Prune old history that is no longer needed
+            // OPTIMIZATION: Prune old trajectory history beyond current interpolation point
             history.splice(i + 2); 
 
             return { x, y, rotation, isMoving };
@@ -36,6 +55,94 @@ function getPositionAtDistance(history, targetDistance) {
     return { x: oldest.x, y: oldest.y, rotation: oldest.rotation, isMoving: oldest.isMoving };
 }
 
+/**
+ * Attaches a held character entity to its holder's spatial history queue without latency desync.
+ * 
+ * @param {Phaser.GameObjects.Container} entity - The held player/object container.
+ * @param {Map<string, Phaser.GameObjects.Container>} [holderMap] - Map of active remote players for O(1) lookups.
+ * @param {Phaser.GameObjects.Group} [otherPlayersGroup] - Fallback Phaser group for player objects.
+ * @param {Phaser.GameObjects.Container} localPlayerContainer - Local player container instance.
+ * @param {string|null} socketId - Local client socket ID.
+ */
+function processHeldAttachment(entity, holderMap, otherPlayersGroup, localPlayerContainer, socketId) {
+    if (!entity || !entity.playerInfo || !entity.playerInfo.isHeld || !entity.playerInfo.heldBySocketId) {
+        return;
+    }
+
+    const holderId = entity.playerInfo.heldBySocketId;
+    let holder = null;
+
+    if (socketId && socketId === holderId) {
+        holder = localPlayerContainer;
+    } else if (holderMap) {
+        holder = holderMap.get(holderId);
+    } else if (otherPlayersGroup) {
+        holder = otherPlayersGroup.getChildren().find(p => p.playerInfo && p.playerInfo.playerId === holderId);
+    }
+
+    if (!holder) return;
+
+    const holdDist = entity.playerInfo.grippedFirmly ? 20 : 64;
+
+    if (!entity.holderPositionHistory) {
+        entity.holderPositionHistory = [
+            { x: holder.x, y: holder.y, rotation: holder.playerInfo ? holder.playerInfo.rotation : 0, isMoving: holder.playerInfo ? holder.playerInfo.isMoving : false },
+            { x: entity.x, y: entity.y, rotation: entity.playerInfo ? entity.playerInfo.rotation : 0, isMoving: entity.playerInfo ? entity.playerInfo.isMoving : false }
+        ];
+    }
+
+    const history = entity.holderPositionHistory;
+    const lastHistory = history[0];
+    const currentRot = holder.playerInfo ? holder.playerInfo.rotation : 0;
+    const currentIsMoving = (holder === localPlayerContainer)
+        ? (holder.body && holder.body.velocity ? holder.body.velocity.length() > 5 : false)
+        : (holder.playerInfo ? holder.playerInfo.isMoving : false);
+
+    if (!lastHistory || lastHistory.x !== holder.x || lastHistory.y !== holder.y || lastHistory.rotation !== currentRot || lastHistory.isMoving !== currentIsMoving) {
+        history.unshift({
+            x: holder.x,
+            y: holder.y,
+            rotation: currentRot,
+            isMoving: currentIsMoving
+        });
+        // OPTIMIZATION: Cap trajectory history queue size to 25 items for O(1) memory bound
+        if (history.length > 25) {
+            history.pop();
+        }
+    }
+
+    const prevX = entity.x;
+    const prevY = entity.y;
+
+    const targetPos = getPositionAtDistance(history, holdDist);
+    if (targetPos) {
+        if (typeof entity.setPosition === 'function') {
+            entity.setPosition(targetPos.x, targetPos.y);
+        } else {
+            entity.x = targetPos.x;
+            entity.y = targetPos.y;
+        }
+        entity.depth = entity.y;
+        if (entity.playerInfo) {
+            entity.playerInfo.rotation = targetPos.rotation;
+            const dx = targetPos.x - prevX;
+            const dy = targetPos.y - prevY;
+            const distMoved = Math.sqrt(dx * dx + dy * dy);
+            entity.playerInfo.isMoving = distMoved > 0.1;
+        }
+    }
+
+    if (entity.body && typeof entity.body.setVelocity === 'function') {
+        entity.body.setVelocity(0);
+    }
+}
+
+/**
+ * Main Phaser.Scene frame update loop callback.
+ * 
+ * @param {number} time - Total elapsed game time in milliseconds.
+ * @param {number} delta - Frame delta time in milliseconds.
+ */
 export function update(time, delta) {
     const chatFocused = window.chatFocused;
     const showDebug = this.showDebug;
@@ -200,60 +307,7 @@ export function update(time, delta) {
 
     // --- TARGET SIDE ATTACHMENT (Fix Latency) ---
     // If we are held, we ignore our own physics/inputs and attach to the holder's sprite.
-    if (this.playerContainer.playerInfo && this.playerContainer.playerInfo.isHeld && this.playerContainer.playerInfo.heldBySocketId) {
-        const holderId = this.playerContainer.playerInfo.heldBySocketId;
-
-        // Find holder in map (O(1)) or group
-        let holder = null;
-        if (this.otherPlayersMap) {
-            holder = this.otherPlayersMap.get(holderId);
-        } else {
-            holder = this.otherPlayersGroup.getChildren().find(p => p.playerInfo && p.playerInfo.playerId === holderId);
-        }
-
-        if (holder) {
-            const holdDist = this.playerContainer.playerInfo.grippedFirmly ? 20 : 64;
-
-            // Initialize holder position history queue on local player if not present
-            if (!this.playerContainer.holderPositionHistory) {
-                this.playerContainer.holderPositionHistory = [
-                    { x: holder.x, y: holder.y, rotation: holder.playerInfo ? holder.playerInfo.rotation : 0, isMoving: holder.playerInfo ? holder.playerInfo.isMoving : false },
-                    { x: this.playerContainer.x, y: this.playerContainer.y, rotation: this.playerContainer.playerInfo ? this.playerContainer.playerInfo.rotation : 0, isMoving: this.playerContainer.playerInfo ? this.playerContainer.playerInfo.isMoving : false }
-                ];
-            }
-
-            // Push holder's position if it changed
-            const lastHistory = this.playerContainer.holderPositionHistory[0];
-            const currentRot = holder.playerInfo ? holder.playerInfo.rotation : 0;
-            const currentIsMoving = holder.playerInfo ? holder.playerInfo.isMoving : false;
-            if (!lastHistory || lastHistory.x !== holder.x || lastHistory.y !== holder.y || lastHistory.rotation !== currentRot || lastHistory.isMoving !== currentIsMoving) {
-                this.playerContainer.holderPositionHistory.unshift({
-                    x: holder.x,
-                    y: holder.y,
-                    rotation: currentRot,
-                    isMoving: currentIsMoving
-                });
-            }
-
-            const prevX = this.playerContainer.x;
-            const prevY = this.playerContainer.y;
-
-            const targetPos = getPositionAtDistance(this.playerContainer.holderPositionHistory, holdDist);
-            if (targetPos) {
-                this.playerContainer.setPosition(targetPos.x, targetPos.y);
-                if (this.playerContainer.playerInfo) {
-                    this.playerContainer.playerInfo.rotation = targetPos.rotation;
-                    const dx = targetPos.x - prevX;
-                    const dy = targetPos.y - prevY;
-                    const distMoved = Math.sqrt(dx * dx + dy * dy);
-                    this.playerContainer.playerInfo.isMoving = distMoved > 0.1;
-                }
-            }
-
-            // Stop Physics Velocity so we don't fight
-            this.playerContainer.body.setVelocity(0);
-        }
-    }
+    processHeldAttachment(this.playerContainer, this.otherPlayersMap, this.otherPlayersGroup, this.playerContainer, this.socket ? this.socket.id : null);
 
     // --- INPUT THROTTLING (30Hz Network Rate) ---
     // We update local physics every frame (60Hz+) for smoothness.
@@ -267,19 +321,34 @@ export function update(time, delta) {
     if (this.inputAccumulator >= 33) {
         // Increment sequence number
         this.playerContainer.inputSequenceNumber++;
-        inputPayload.sequence = this.playerContainer.inputSequenceNumber;
-        inputPayload.clientTimestamp = Date.now();
-        inputPayload.delta = this.inputAccumulator / 1000; // Send accumulated delta in seconds
+        const currentTimestamp = Date.now();
+        const deltaSec = this.inputAccumulator / 1000;
+
+        // Create immutable snapshot for socket & pendingInputs queue
+        const inputSnapshot = {
+            left: inputPayload.left,
+            right: inputPayload.right,
+            up: inputPayload.up,
+            down: inputPayload.down,
+            sequence: this.playerContainer.inputSequenceNumber,
+            clientTimestamp: currentTimestamp,
+            delta: deltaSec
+        };
 
         // Store input for reconciliation
         this.playerContainer.pendingInputs.push({
-            sequence: inputPayload.sequence,
-            input: inputPayload,
-            delta: this.inputAccumulator / 1000,
-            clientTimestamp: Date.now()
+            sequence: inputSnapshot.sequence,
+            input: inputSnapshot,
+            delta: deltaSec,
+            clientTimestamp: currentTimestamp
         });
 
-        this.socket.emit('playerInput', inputPayload);
+        // Cap pending inputs queue size to prevent memory leaks during high latency
+        if (this.playerContainer.pendingInputs.length > 120) {
+            this.playerContainer.pendingInputs.shift();
+        }
+
+        this.socket.emit('playerInput', inputSnapshot);
         this.inputAccumulator = 0;
     }
 
@@ -491,13 +560,13 @@ export function update(time, delta) {
         // OPTIMIZATION: Cache station object in craftingUI or locally
         // We shouldn't search an array of 2000+ objects every frame.
 
-        // Strategy: We'll assume craftingUI.currentStationObject is set, or we find it ONCE.
-        if (!window.craftingUI.currentStationObject) {
+        let station = window.craftingUI.currentStationObject;
+        if (!station || !station.active || !station.scene) {
             const stationId = window.craftingUI.currentStationId;
-            window.craftingUI.currentStationObject = this.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === stationId);
+            station = (this.objectsMap && this.objectsMap.get(stationId)) ||
+                this.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === stationId) || null;
+            window.craftingUI.currentStationObject = station;
         }
-
-        const station = window.craftingUI.currentStationObject;
 
         if (station) {
             // Optimization: Use distanceSq
@@ -532,85 +601,37 @@ export function update(time, delta) {
 
     if (this.otherPlayersMap) { // Use Map if valid (create.js initialized it)
         for (const otherPlayer of this.otherPlayersMap.values()) {
-            if (otherPlayer.playerInfo) {
-                // --- CLIENT SIDE PREDICTION FOR HOLDING (Fix Latency) ---
-                if (otherPlayer.playerInfo.isHeld && otherPlayer.playerInfo.heldBySocketId) {
-                    const holderId = otherPlayer.playerInfo.heldBySocketId;
-                    let holder = null;
-
-                    // 1. Check if held by Local Player
-                    if (this.socket && this.socket.id === holderId) {
-                        holder = this.playerContainer;
+            try {
+                if (otherPlayer.playerInfo) {
+                    // --- CLIENT SIDE PREDICTION FOR HOLDING (Fix Latency) ---
+                    if (otherPlayer.playerInfo.isHeld && otherPlayer.playerInfo.heldBySocketId) {
+                        processHeldAttachment(otherPlayer, this.otherPlayersMap, this.otherPlayersGroup, this.playerContainer, this.socket ? this.socket.id : null);
                     }
-                    // 2. Check if held by another Visible Player (O(1) Lookup)
-                    else {
-                        holder = this.otherPlayersMap.get(holderId);
-                    }
+                    // --- GENERIC REMOTE INTERPOLATION ---
+                    else if (typeof otherPlayer.targetX !== 'undefined') {
+                        // OPTIMIZATION: Snap to target if very close to stop per-frame Float updates and Depth sorting
+                        const dx = otherPlayer.targetX - otherPlayer.x;
+                        const dy = otherPlayer.targetY - otherPlayer.y;
 
-                    if (holder) {
-                        const holdDist = otherPlayer.playerInfo.grippedFirmly ? 20 : 64;
-
-                        // Initialize holder position history queue on other player if not present
-                        if (!otherPlayer.holderPositionHistory) {
-                            otherPlayer.holderPositionHistory = [
-                                { x: holder.x, y: holder.y, rotation: holder.playerInfo ? holder.playerInfo.rotation : 0, isMoving: holder.playerInfo ? holder.playerInfo.isMoving : false },
-                                { x: otherPlayer.x, y: otherPlayer.y, rotation: otherPlayer.playerInfo ? otherPlayer.playerInfo.rotation : 0, isMoving: otherPlayer.playerInfo ? otherPlayer.playerInfo.isMoving : false }
-                            ];
-                        }
-
-                        // Push holder's position if it changed
-                        const lastHistory = otherPlayer.holderPositionHistory[0];
-                        const currentRot = holder.playerInfo ? holder.playerInfo.rotation : 0;
-                        const currentIsMoving = (holder === this.playerContainer) ? (holder.body.velocity.length() > 5) : (holder.playerInfo ? holder.playerInfo.isMoving : false);
-                        if (!lastHistory || lastHistory.x !== holder.x || lastHistory.y !== holder.y || lastHistory.rotation !== currentRot || lastHistory.isMoving !== currentIsMoving) {
-                            otherPlayer.holderPositionHistory.unshift({
-                                x: holder.x,
-                                y: holder.y,
-                                rotation: currentRot,
-                                isMoving: currentIsMoving
-                            });
-                        }
-
-                        const prevX = otherPlayer.x;
-                        const prevY = otherPlayer.y;
-
-                        const targetPos = getPositionAtDistance(otherPlayer.holderPositionHistory, holdDist);
-                        if (targetPos) {
-                            otherPlayer.x = targetPos.x;
-                            otherPlayer.y = targetPos.y;
-                            otherPlayer.depth = otherPlayer.y;
-                            if (otherPlayer.playerInfo) {
-                                otherPlayer.playerInfo.rotation = targetPos.rotation;
-                                const dx = targetPos.x - prevX;
-                                const dy = targetPos.y - prevY;
-                                const distMoved = Math.sqrt(dx * dx + dy * dy);
-                                otherPlayer.playerInfo.isMoving = distMoved > 0.1;
+                        // If within 1 pixel (distanceSq < 1), snap
+                        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+                            if (otherPlayer.x !== otherPlayer.targetX || otherPlayer.y !== otherPlayer.targetY) {
+                                otherPlayer.x = otherPlayer.targetX;
+                                otherPlayer.y = otherPlayer.targetY;
+                                otherPlayer.depth = otherPlayer.y;
                             }
-                        }
-                    }
-                }
-                // --- GENERIC REMOTE INTERPOLATION ---
-                else if (typeof otherPlayer.targetX !== 'undefined') {
-                    // OPTIMIZATION: Snap to target if very close to stop per-frame Float updates and Depth sorting
-                    const dx = otherPlayer.targetX - otherPlayer.x;
-                    const dy = otherPlayer.targetY - otherPlayer.y;
-
-                    // If within 1 pixel (distanceSq < 1), snap
-                    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
-                        if (otherPlayer.x !== otherPlayer.targetX || otherPlayer.y !== otherPlayer.targetY) {
-                            otherPlayer.x = otherPlayer.targetX;
-                            otherPlayer.y = otherPlayer.targetY;
+                        } else {
+                            // Use pre-calculated t
+                            otherPlayer.x += dx * lerpT;
+                            otherPlayer.y += dy * lerpT;
                             otherPlayer.depth = otherPlayer.y;
                         }
-                    } else {
-                        // Use pre-calculated t
-                        otherPlayer.x += dx * lerpT;
-                        otherPlayer.y += dy * lerpT;
-                        otherPlayer.depth = otherPlayer.y;
                     }
-                }
 
-                updateCraftingBar(otherPlayer, otherPlayer.playerInfo, this);
+                    updateCraftingBar(otherPlayer, otherPlayer.playerInfo, this);
+                }
+            } catch (err) {
+                console.error('[UpdateLoop] Error processing remote player:', err);
             }
         }
     } else if (this.otherPlayersGroup) {

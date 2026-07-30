@@ -1,3 +1,22 @@
+/**
+ * @fileoverview contextMenu.js - Context Menu & Interactive Pointer Input System
+ * 
+ * @description
+ * Manages player mouse and touch gestures, short-click hand action dispatching (left/right hand),
+ * long-press / spacebar radial context menu queries, target reach verification with automated smart walking,
+ * multi-target grab selection modals, and GPU-accelerated contextual hover tooltips.
+ * 
+ * Triggered by:
+ * - Phaser scene lifecycle: initializeContextMenu(scene, socket) called in create.js
+ * - Phaser pointer events: pointerdown, pointermove, pointerup, gameobjectover, gameobjectout
+ * - Socket events: playerLeftClickedResponse, playerRightClickedResponse
+ */
+
+/**
+ * Initializes context menu input handlers, socket listeners, and UI overlays for a Phaser scene.
+ * @param {Phaser.Scene} scene - Active Phaser game scene
+ * @param {SocketIO.Socket} socket - Client WebSocket connection
+ */
 function initializeContextMenu(scene, socket) {
     // --- Global Variables & Setup ---
     var contextMenu = document.getElementById('contextMenu');
@@ -36,11 +55,18 @@ function initializeContextMenu(scene, socket) {
         return false;
     };
 
+    /**
+     * Hides the active radial context menu and resets tooltip RAF state.
+     * @param {Event} [event] - Optional click event to check target containment
+     */
     function hideContextMenu(event) {
         if (event && contextMenu && contextMenu.contains(event.target)) {
             return;
         }
         isPendingRadialQuery = false;
+        if (typeof cancelPendingTooltip === 'function') {
+            cancelPendingTooltip();
+        }
         if (contextMenu) {
             contextMenu.style.display = 'none';
             contextMenu.className = ''; // Reset radial class
@@ -76,7 +102,54 @@ function initializeContextMenu(scene, socket) {
     // Prevent browser default context menu
     window.addEventListener('contextmenu', (e) => e.preventDefault());
 
+    /**
+     * Mouse Interaction & Context Menu Event Listeners
+     * - Left Click (button 0): Executes Left Hand action ('left').
+     * - Right Click (button 2): Executes Right Hand action ('right').
+     * - Radial Context Menu: Only triggered via Spacebar + Click or Long-Press (>350ms hold).
+     */
+    function isClickOnUI(pointer) {
+        if (window.isPointerDownOnUI) return true;
+        if (!pointer) return false;
+        const evt = pointer.event;
+
+        // 1. Direct target check from native browser event
+        if (evt && evt.target && evt.target.tagName !== 'CANVAS') {
+            return true;
+        }
+
+        // 2. Viewport clientX/clientY check with document.elementFromPoint
+        let clientX = null;
+        let clientY = null;
+
+        if (evt) {
+            if (evt.clientX !== undefined) {
+                clientX = evt.clientX;
+                clientY = evt.clientY;
+            } else if (evt.touches && evt.touches.length > 0) {
+                clientX = evt.touches[0].clientX;
+                clientY = evt.touches[0].clientY;
+            } else if (evt.changedTouches && evt.changedTouches.length > 0) {
+                clientX = evt.changedTouches[0].clientX;
+                clientY = evt.changedTouches[0].clientY;
+            }
+        }
+
+        if (clientX !== null && clientY !== null) {
+            const el = document.elementFromPoint(clientX, clientY);
+            if (el && el.tagName !== 'CANVAS') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     scene.input.on('pointerdown', function (pointer, currentlyOver) {
+        if (isClickOnUI(pointer)) {
+            return;
+        }
+
         if (pointer.interactionHandled) {
             console.log('Interaction handled by item/other, skipping Context Menu logic.');
             return;
@@ -89,15 +162,15 @@ function initializeContextMenu(scene, socket) {
         startY = pointer.y;
         mouseDownButton = pointer.button; // Capture mouse button: 0=Left, 1=Middle, 2=Right
 
-        // Right-Click OR Spacebar + click triggers radial menu instantly
-        if (pointer.button === 2 || pointer.rightButtonDown() || window.spacebarPressed) {
-            console.log('[ContextMenu] Right-click or Spacebar + click detected. Triggering radial menu.');
+        // Spacebar + click triggers radial menu instantly
+        if (window.spacebarPressed) {
+            console.log('[ContextMenu] Spacebar + click detected. Triggering radial menu.');
             didHoldTrigger = true;
             triggerRadialQuery(pointer, currentlyOver);
             return;
         }
 
-        // Long Press timer (350ms hold)
+        // Long Press timer (350ms hold triggers radial menu)
         holdTimer = setTimeout(() => {
             console.log('[ContextMenu] Click-and-Hold detected. Triggering radial menu.');
             didHoldTrigger = true;
@@ -122,6 +195,13 @@ function initializeContextMenu(scene, socket) {
             holdTimer = null;
         }
 
+        if (isClickOnUI(pointer)) {
+            mouseDownPointer = null;
+            mouseDownCurrentlyOver = null;
+            didHoldTrigger = false;
+            return;
+        }
+
         // If context menu is currently visible on screen or pending a radial socket response, do not trigger ground click
         const isMenuVisible = (contextMenu && contextMenu.style.display === 'block') || isPendingRadialQuery;
         if (isMenuVisible || !mouseDownPointer) {
@@ -131,7 +211,7 @@ function initializeContextMenu(scene, socket) {
             return;
         }
 
-        // If mouse release occurred without triggering long-press, run standard click
+        // Standard Click: Left Click (Button 0) = Left Hand | Right Click (Button 2) = Right Hand
         if (!didHoldTrigger && mouseDownPointer) {
             const hand = (mouseDownButton === 2) ? 'right' : 'left';
             executeHandClick(pointer, mouseDownCurrentlyOver, hand);
@@ -142,11 +222,13 @@ function initializeContextMenu(scene, socket) {
         didHoldTrigger = false;
     });
 
-    function triggerRadialQuery(pointer, currentlyOver) {
-        if (tooltipEl) {
-            tooltipEl.style.display = 'none';
-            tooltipEl.style.opacity = '0';
-        }
+    /**
+     * OPTIMIZATION: Consolidated helper function to parse clicked Phaser game objects into standardized target DTOs.
+     * Avoids duplicate object iteration loops across triggerRadialQuery and executeHandClick.
+     * @param {Array<Phaser.GameObjects.GameObject>} currentlyOver - Objects under pointer
+     * @returns {Array<Object>} List of target entities ({ Identifier, playerId/uniqueId, name })
+     */
+    function extractTargetList(currentlyOver) {
         var clickedList = [];
         (currentlyOver || []).forEach(function (gameObject) {
             if (gameObject.playerInfo) {
@@ -154,7 +236,7 @@ function initializeContextMenu(scene, socket) {
                     Identifier: 'player',
                     playerId: gameObject.playerInfo.playerId,
                     name: gameObject.playerInfo.Username || (gameObject.playerInfo.firstName + ' ' + gameObject.playerInfo.lastName) || 'Unknown'
-                }
+                };
                 clickedList.push(playerClicked);
             } else if (gameObject.objectInfo) {
                 var objectClicked = {
@@ -162,10 +244,24 @@ function initializeContextMenu(scene, socket) {
                     uniqueId: gameObject.objectInfo.uniqueId,
                     name: gameObject.objectInfo.name,
                     description: gameObject.objectInfo.description
-                }
+                };
                 clickedList.push(objectClicked);
             }
         });
+        return clickedList;
+    }
+
+    /**
+     * Triggers radial context menu query over WebSocket for entities under pointer (or fallback ground/self).
+     * @param {Phaser.Input.Pointer} pointer - Active Phaser pointer
+     * @param {Array<Phaser.GameObjects.GameObject>} currentlyOver - Objects under pointer
+     */
+    function triggerRadialQuery(pointer, currentlyOver) {
+        if (tooltipEl) {
+            tooltipEl.style.display = 'none';
+            tooltipEl.style.opacity = '0';
+        }
+        var clickedList = extractTargetList(currentlyOver);
 
         // Ground / Self Fallback: If no interactive player or object was directly clicked
         if (clickedList.length === 0) {
@@ -217,26 +313,15 @@ function initializeContextMenu(scene, socket) {
         }
     }
 
+    /**
+     * Executes direct short-click hand interaction (Left Hand = Button 0, Right Hand = Button 2).
+     * Enforces reach checks via checkReach() prior to emitting playerHandClicked over WebSocket.
+     * @param {Phaser.Input.Pointer} pointer - Active Phaser pointer
+     * @param {Array<Phaser.GameObjects.GameObject>} currentlyOver - Objects under pointer
+     * @param {string} hand - Active hand ('left' or 'right')
+     */
     function executeHandClick(pointer, currentlyOver, hand) {
-        var clickedList = [];
-        (currentlyOver || []).forEach(function (gameObject) {
-            if (gameObject.playerInfo) {
-                var playerClicked = {
-                    Identifier: 'player',
-                    playerId: gameObject.playerInfo.playerId,
-                    name: gameObject.playerInfo.Username || (gameObject.playerInfo.firstName + ' ' + gameObject.playerInfo.lastName) || 'Unknown'
-                }
-                clickedList.push(playerClicked);
-            } else if (gameObject.objectInfo) {
-                var objectClicked = {
-                    Identifier: 'mapObject',
-                    uniqueId: gameObject.objectInfo.uniqueId,
-                    name: gameObject.objectInfo.name,
-                    description: gameObject.objectInfo.description
-                }
-                clickedList.push(objectClicked);
-            }
-        });
+        var clickedList = extractTargetList(currentlyOver);
 
         if (clickedList.length > 0) {
             var intent = window.currentIntent || 'friendly';
@@ -263,6 +348,10 @@ function initializeContextMenu(scene, socket) {
                     if (window.completeTutorialTask) {
                         window.completeTutorialTask('grab');
                     }
+                } else if (targetType === 'object') {
+                    if (window.completeTutorialTask) {
+                        window.completeTutorialTask(hand === 'left' ? 'left_pickup' : 'right_pickup');
+                    }
                 }
 
                 if (window.onActionExecuted) {
@@ -288,10 +377,28 @@ function initializeContextMenu(scene, socket) {
 
     // --- Socket Event Listeners ---
 
+    let currentSelectionCloseHandler = null;
+
+    /**
+     * OPTIMIZATION / SAFETY: Encapsulates targetSelectionMenu destruction and listener removal.
+     * Prevents document mousedown event listener leaks across target selection cycles.
+     */
+    function destroySelectionMenu() {
+        if (currentSelectionCloseHandler) {
+            document.removeEventListener('mousedown', currentSelectionCloseHandler);
+            currentSelectionCloseHandler = null;
+        }
+        const selectionMenu = document.getElementById('targetSelectionMenu');
+        if (selectionMenu) {
+            selectionMenu.style.display = 'none';
+        }
+    }
+
     // --- Handle the playerLeftClickedResponse event ---
     socket.on('playerLeftClickedResponse', function (data) {
         const { responseInfo, playerIntent, pointerX, pointerY } = data;
         console.log('Received playerLeftClickedResponse:', responseInfo);
+        destroySelectionMenu();
 
         if (responseInfo.length > 1 && playerIntent === 'grabbing') {
             // Multi-target selection for grabbing
@@ -346,21 +453,22 @@ function initializeContextMenu(scene, socket) {
                         intent: playerIntent,
                         targetZone: window.currentTargetZone || 'torso'
                     });
-                    selectionMenu.style.display = 'none';
+                    destroySelectionMenu();
                 };
                 selectionMenu.appendChild(btn);
             });
 
             // Close menu if clicked outside (simple implementation)
-            const closeHandler = function (e) {
-                if (!selectionMenu.contains(e.target)) {
-                    selectionMenu.style.display = 'none';
-                    document.removeEventListener('mousedown', closeHandler);
+            currentSelectionCloseHandler = function (e) {
+                if (selectionMenu && !selectionMenu.contains(e.target)) {
+                    destroySelectionMenu();
                 }
             };
             // Timeout to avoid immediate closing from the current click
             setTimeout(() => {
-                document.addEventListener('mousedown', closeHandler);
+                if (currentSelectionCloseHandler) {
+                    document.addEventListener('mousedown', currentSelectionCloseHandler);
+                }
             }, 100);
 
         } else if (responseInfo.length > 0) {
@@ -374,6 +482,55 @@ function initializeContextMenu(scene, socket) {
         }
     });
 
+    // Reusable bounding box structures to eliminate Garbage Collection allocations in hot checks
+    // OPTIMIZATION: Static pool objects prevent GC pauses during continuous movement checks.
+    const _playerBox = { left: 0, right: 0, top: 0, bottom: 0 };
+    const _targetBox = { left: 0, right: 0, top: 0, bottom: 0 };
+
+    /**
+     * OPTIMIZATION: Resolves target game object sprites via O(1) spatial index or item manager lookup.
+     * Enforces sprite active validation and falls back to group scanning if un-indexed.
+     * @param {string} targetId - Unique entity identifier or player ID
+     * @param {string} targetType - Entity type ('player' or 'object')
+     * @returns {Phaser.GameObjects.GameObject|null} Active sprite or null
+     */
+    function findTargetSprite(targetId, targetType) {
+        const scene = window.gameScene;
+        if (!scene) return null;
+
+        if (targetType === 'player') {
+            const player = scene.otherPlayersGroup ? scene.otherPlayersGroup.getChildren().find(p => p.playerId === targetId) : null;
+            return (player && player.active !== false) ? player : null;
+        }
+
+        // 1. Direct itemManager map lookup (O(1))
+        const im = window.itemManager || scene.itemManager;
+        const itemEntry = im?.items?.[targetId];
+        let sprite = itemEntry?.container || itemEntry?.sprite || itemEntry;
+        if (sprite && sprite.active !== false) return sprite;
+
+        // 2. Spatial Index lookup with active state check (O(1))
+        if (scene.objectsById && scene.objectsById.has(targetId)) {
+            sprite = scene.objectsById.get(targetId);
+            if (sprite && sprite.active !== false) return sprite;
+        }
+
+        // 3. Fallback: Group scan for unindexed or legacy tiled objects
+        const searchGroup = (group) => group?.getChildren().find(i =>
+            (i.active !== false) && ((i.objectInfo && i.objectInfo.uniqueId === targetId) || i.uid === targetId)
+        );
+        return searchGroup(im?.itemsGroup) || searchGroup(scene.itemsGroup) || searchGroup(scene.objectGroup) || null;
+    }
+
+    /**
+     * Evaluates spatial reach between local player container and target sprite box (48px buffer).
+     * If out of range, configures scene.smartWalkTarget to pathfind player to target before executing callback.
+     * @param {string} targetId - Target identifier
+     * @param {string} targetType - Target type ('player' or 'object')
+     * @param {Event|null} event - Triggering browser event or null for availability query
+     * @param {Function} onReachCallback - Action callback executed when target is reached
+     * @returns {boolean} True if in reach or querying, false if smart walking initiated
+     */
     function checkReach(targetId, targetType, event, onReachCallback) {
         const scene = window.gameScene;
         if (!scene || !scene.playerContainer) {
@@ -381,61 +538,15 @@ function initializeContextMenu(scene, socket) {
             return true; // Safety
         }
 
-        // Get the target object/player
-        let targetSprite = null;
+        const targetSprite = findTargetSprite(targetId, targetType);
         let targetX = 0;
         let targetY = 0;
         let found = false;
 
-        if (targetType === 'player') {
-            targetSprite = scene.otherPlayersGroup ? scene.otherPlayersGroup.getChildren().find(p => p.playerId === targetId) : null;
-            if (targetSprite) {
-                targetX = targetSprite.x;
-                targetY = targetSprite.y;
-                found = true;
-            }
-        } else {
-            // 1. Check window.itemManager.items
-            const im = window.itemManager || (scene && scene.itemManager);
-            if (im && im.items && im.items[targetId]) {
-                const itemEntry = im.items[targetId];
-                targetSprite = itemEntry.container || itemEntry.sprite || itemEntry;
-                if (targetSprite) {
-                    targetX = targetSprite.x;
-                    targetY = targetSprite.y;
-                    found = true;
-                }
-            }
-
-            // 2. Check itemManager's itemsGroup
-            if (!found && im && im.itemsGroup) {
-                targetSprite = im.itemsGroup.getChildren().find(i => (i.objectInfo && i.objectInfo.uniqueId === targetId) || i.uid === targetId);
-                if (targetSprite) {
-                    targetX = targetSprite.x;
-                    targetY = targetSprite.y;
-                    found = true;
-                }
-            }
-
-            // 3. Check scene.itemsGroup
-            if (!found && scene.itemsGroup) {
-                targetSprite = scene.itemsGroup.getChildren().find(i => i.uid === targetId || (i.objectInfo && i.objectInfo.uniqueId === targetId));
-                if (targetSprite) {
-                    targetX = targetSprite.x;
-                    targetY = targetSprite.y;
-                    found = true;
-                }
-            }
-
-            // 4. Check scene.objectGroup
-            if (!found && scene.objectGroup) {
-                targetSprite = scene.objectGroup.getChildren().find(o => o.objectInfo && o.objectInfo.uniqueId === targetId || o.uid === targetId);
-                if (targetSprite) {
-                    targetX = targetSprite.x;
-                    targetY = targetSprite.y;
-                    found = true;
-                }
-            }
+        if (targetSprite) {
+            targetX = targetSprite.x;
+            targetY = targetSprite.y;
+            found = true;
         }
 
         // Helper to check the actual AABB overlap with a safety buffer
@@ -444,31 +555,27 @@ function initializeContextMenu(scene, socket) {
             const pCenterY = playerY;
             const reachHalf = 48; // reach buffer of 48px
 
-            const playerBox = {
-                left: pCenterX - reachHalf,
-                right: pCenterX + reachHalf,
-                top: pCenterY - reachHalf,
-                bottom: pCenterY + reachHalf
-            };
+            _playerBox.left = pCenterX - reachHalf;
+            _playerBox.right = pCenterX + reachHalf;
+            _playerBox.top = pCenterY - reachHalf;
+            _playerBox.bottom = pCenterY + reachHalf;
 
-            let targetBox = null;
+            let hasTargetBox = false;
             if (targetType === 'player' && targetSprite) {
                 const tX = targetSprite.x + 30;
                 const tY = targetSprite.y;
-                targetBox = {
-                    left: tX - 30,
-                    right: tX + 30,
-                    top: tY - 165,
-                    bottom: tY + 15
-                };
+                _targetBox.left = tX - 30;
+                _targetBox.right = tX + 30;
+                _targetBox.top = tY - 165;
+                _targetBox.bottom = tY + 15;
+                hasTargetBox = true;
             } else if (targetSprite) {
                 if (targetSprite.body && targetSprite.body.width > 0) {
-                    targetBox = {
-                        left: targetSprite.body.x,
-                        right: targetSprite.body.right,
-                        top: targetSprite.body.y,
-                        bottom: targetSprite.body.bottom
-                    };
+                    _targetBox.left = targetSprite.body.x;
+                    _targetBox.right = targetSprite.body.right;
+                    _targetBox.top = targetSprite.body.y;
+                    _targetBox.bottom = targetSprite.body.bottom;
+                    hasTargetBox = true;
                 } else {
                     const width = targetSprite.displayWidth || targetSprite.width || 32;
                     const height = targetSprite.displayHeight || targetSprite.height || 32;
@@ -478,22 +585,21 @@ function initializeContextMenu(scene, socket) {
                     const tX = targetSprite.x;
                     const tY = targetSprite.y;
 
-                    targetBox = {
-                        left: tX - (width * oX),
-                        right: tX + (width * (1 - oX)),
-                        top: tY - (height * oY),
-                        bottom: tY + (height * (1 - oY))
-                    };
+                    _targetBox.left = tX - (width * oX);
+                    _targetBox.right = tX + (width * (1 - oX));
+                    _targetBox.top = tY - (height * oY);
+                    _targetBox.bottom = tY + (height * (1 - oY));
+                    hasTargetBox = true;
                 }
             }
 
-            if (!targetBox) return true;
+            if (!hasTargetBox) return true;
 
             return (
-                playerBox.left < targetBox.right &&
-                playerBox.right > targetBox.left &&
-                playerBox.top < targetBox.bottom &&
-                playerBox.bottom > targetBox.top
+                _playerBox.left < _targetBox.right &&
+                _playerBox.right > _targetBox.left &&
+                _playerBox.top < _targetBox.bottom &&
+                _playerBox.bottom > _targetBox.top
             );
         };
 
@@ -729,13 +835,17 @@ function initializeContextMenu(scene, socket) {
                         label: 'Pick Up',
                         icon: 'fa-solid fa-hand-holding',
                         onClick: (e) => checkReach(targetId, targetType, e, () => {
+                            const targetHand = (mouseDownButton === 2) ? 'right' : 'left';
                             socket.emit('playerHandClicked', {
-                                hand: (mouseDownButton === 2) ? 'right' : 'left',
+                                hand: targetHand,
                                 clickedItem: { Identifier: 'mapObject', uniqueId: currentItem.uniqueId },
                                 playerIntent: window.currentIntent || 'friendly',
                                 pointerX: pointerX,
                                 pointerY: pointerY
                             });
+                            if (window.completeTutorialTask) {
+                                window.completeTutorialTask(targetHand === 'left' ? 'left_pickup' : 'right_pickup');
+                            }
                         })
                     });
                 } else if (harvestAction) {
@@ -746,7 +856,15 @@ function initializeContextMenu(scene, socket) {
                         label: harvestAction,
                         icon: 'fa-solid ' + icon,
                         onClick: (e) => checkReach(targetId, targetType, e, () => {
-                            socket.emit('objectInteract', { type: 'resourceNode', id: currentItem.uniqueId, action: harvestAction.toLowerCase() });
+                            const targetHand = (mouseDownButton === 2) ? 'right' : 'left';
+                            const uid = currentItem.uniqueId || '';
+                            const isAnim = uid.toLowerCase().includes('animal') || uid.toLowerCase().includes('sheep');
+                            socket.emit('objectInteract', { 
+                                type: isAnim ? 'animal' : 'resourceNode', 
+                                id: uid, 
+                                action: harvestAction.toLowerCase(),
+                                hand: targetHand
+                            });
                         })
                     });
                 }
@@ -988,9 +1106,6 @@ function initializeContextMenu(scene, socket) {
             }
             contextMenu.style.visibility = 'visible'; // Show after positioning
         }
-
-        if (document.getElementById("voreDisplay")) document.getElementById("voreDisplay").style.display = "none";
-        if (document.getElementById("optionsDisplay")) document.getElementById("optionsDisplay").style.display = "none";
     });
 
     // --- Contextual Hover Tooltip ---
@@ -1002,17 +1117,35 @@ function initializeContextMenu(scene, socket) {
         document.body.appendChild(tooltipEl);
     }
 
-    function isIngredientForStation(itemId, stationType) {
-        if (!itemId || !stationType || !window.itemData) return false;
-        for (const [resItemId, itemDef] of Object.entries(window.itemData)) {
-            if (itemDef.recipe && itemDef.recipe.station === stationType) {
-                if (itemDef.recipe.ingredients.some(ing => ing.itemId === itemId)) {
-                    return true;
-                }
+    let cachedIngredientMap = null;
+    let cachedItemDataRef = null;
+
+    function getStationIngredientSet(stationType) {
+        if (!cachedIngredientMap || cachedItemDataRef !== window.itemData) {
+            cachedItemDataRef = window.itemData;
+            cachedIngredientMap = {};
+            if (window.itemData) {
+                Object.values(window.itemData).forEach(def => {
+                    if (def?.recipe?.station && Array.isArray(def.recipe.ingredients)) {
+                        if (!cachedIngredientMap[def.recipe.station]) {
+                            cachedIngredientMap[def.recipe.station] = new Set();
+                        }
+                        def.recipe.ingredients.forEach(ing => {
+                            if (ing.itemId) cachedIngredientMap[def.recipe.station].add(ing.itemId);
+                        });
+                    }
+                });
             }
         }
-        return false;
+        return cachedIngredientMap[stationType];
     }
+
+    function isIngredientForStation(itemId, stationType) {
+        if (!itemId || !stationType || !window.itemData) return false;
+        const stationSet = getStationIngredientSet(stationType);
+        return stationSet ? stationSet.has(itemId) : false;
+    }
+
 
     scene.input.on('gameobjectover', function (pointer, gameObject) {
         // Prevent tooltip while radial/context menu is open
@@ -1095,14 +1228,32 @@ function initializeContextMenu(scene, socket) {
         }
     });
 
+    let pendingTooltipFrame = null;
+
+    function cancelPendingTooltip() {
+        if (pendingTooltipFrame !== null) {
+            cancelAnimationFrame(pendingTooltipFrame);
+            pendingTooltipFrame = null;
+        }
+    }
+
     scene.input.on('pointermove', function (pointer) {
         if (tooltipEl && tooltipEl.style.display === 'block') {
-            tooltipEl.style.left = (pointer.event ? pointer.event.clientX : pointer.x) + 15 + 'px';
-            tooltipEl.style.top = (pointer.event ? pointer.event.clientY : pointer.y) + 15 + 'px';
+            const clientX = (pointer.event ? pointer.event.clientX : pointer.x) + 15;
+            const clientY = (pointer.event ? pointer.event.clientY : pointer.y) + 15;
+            if (!pendingTooltipFrame) {
+                pendingTooltipFrame = requestAnimationFrame(() => {
+                    tooltipEl.style.left = '0px';
+                    tooltipEl.style.top = '0px';
+                    tooltipEl.style.transform = `translate3d(${clientX}px, ${clientY}px, 0)`;
+                    pendingTooltipFrame = null;
+                });
+            }
         }
     });
 
     scene.input.on('gameobjectout', function (pointer, gameObject) {
+        cancelPendingTooltip();
         if (tooltipEl) {
             tooltipEl.style.display = 'none';
         }

@@ -1,3 +1,15 @@
+/**
+ * @fileoverview chat-archives.js - Interactive Chat Archives & Log Inspector Client Component
+ * 
+ * @description
+ * Client-side presentation and interaction layer for the TastyTails.net Chat Archives UI (`/chat-archives`).
+ * Enables historical roleplay log searching by character, message content, location zone, date range, and vore tags.
+ * Supports dynamic client-side partner include/exclude filtering, context jump navigation, single message selection,
+ * and multi-page timestamp-bounded Range Mode log saving.
+ * 
+ * Triggered by: `src/views/chat-archives.ejs` layout inclusion (`<script src="/js/chat-archives.js">`).
+ */
+
 document.addEventListener('DOMContentLoaded', async () => {
     const charSelect = document.getElementById('charSelect');
     const searchBtn = document.getElementById('searchBtn');
@@ -28,8 +40,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let rangeEndTime = null;
     const rangeExcludedIds = new Set();
 
-    // Context Jump State
+    // Context Jump & Network State
     let targetJumpId = null;
+    /** @type {AbortController|null} OPTIMIZATION: Pending search request abort controller to prevent out-of-order race conditions */
+    let activeSearchController = null;
 
     // Load User Characters
 
@@ -168,9 +182,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    /**
+     * Aggregates active filter criteria and dispatches asynchronous AJAX query to /api/chat-archives/search.
+     * Cancels any pending search request via AbortController to guarantee strict out-of-order resolution safety.
+     * 
+     * @async
+     * @returns {Promise<void>}
+     */
     async function performSearch() {
         const charId = charSelect.value;
         if (!charId) return;
+
+        // OPTIMIZATION: Cancel prior pending fetch request if user clicked search or pagination rapidly
+        if (activeSearchController) {
+            activeSearchController.abort();
+        }
+        activeSearchController = new AbortController();
 
         // Reset Partner Search Input Only (keep the tags/selection)
         partnerInput.value = '';
@@ -186,20 +213,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('partnerList').innerHTML = ''; // Clear datalist
         document.getElementById('excludePartnerList').innerHTML = ''; // Clear datalist
 
-        // selectedPartners and tags are preserved unless this is a new search (handled above)
-        // Need to handle selectedExcludedPartners persistence too if not cleared above.
-        // If it's a new search, we should clear it.
-
-
-
         const payload = {
             characterId: charId,
             page: currentPage,
             limit: currentLimit,
             filters: {
                 content: searchInput.value,
-                // Partner Name is CLIENT SIDE ONLY now.
-                // partnerName: partnerInput.value, 
                 location: locationInput.value,
                 startDate: startDate.value,
                 endDate: endDate.value,
@@ -213,7 +232,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = await fetch('/api/chat-archives/search', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
+                signal: activeSearchController.signal
             });
 
             const result = await res.json();
@@ -225,13 +245,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             renderResults(result.data);
-            populatePartnerFilter(result.data); // NEW: Populate dynamic filter
+            populatePartnerFilter(result.data); // Populate dynamic partner datalists
 
-            // Re-apply Client-Side Filters
-            // Re-apply Client-Side Filters
+            // Re-apply Client-Side Partner Filters
             renderPartnerTags(selectedPartners, 'partnerTags');
             renderPartnerTags(selectedExcludedPartners, 'excludePartnerTags', true);
-            filterMessages();
             filterMessages();
 
             updatePagination(result.pagination);
@@ -252,30 +270,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
         } catch (err) {
+            // Silently ignore aborts triggered by fast user navigation
+            if (err.name === 'AbortError') return;
             console.error(err);
             chatResults.innerHTML = '<div class="placeholder-msg error">Network Error</div>';
         }
     }
 
+    /**
+     * Dynamically builds and renders chat message rows inside the #chatResults container.
+     * OPTIMIZATION: Uses DocumentFragment batching to eliminate row-by-row layout reflow thrashing.
+     * Sets dataset properties (data-id, data-sender-name, data-time) for O(1) filtering and event delegation.
+     * 
+     * @param {Array<Object>} messages - Array of chat message objects from backend search query
+     */
     function renderResults(messages) {
         if (!messages || messages.length === 0) {
             chatResults.innerHTML = '<div class="placeholder-msg">No messages found.</div>';
-            // Only disable save if set is also empty
             if (selectedMessageIds.size === 0 && !isRangeMode) saveBtn.disabled = true;
             return;
         }
 
         chatResults.innerHTML = '';
-        // In range mode, save button is always enabled if we have points, or disabled if not?
-        // Actually save button logic should update based on mode.
         updateSaveButtonState();
 
+        // OPTIMIZATION: DocumentFragment batches all row appends to prevent layout reflow thrashing inside loop
+        const fragment = document.createDocumentFragment();
         const checkboxes = [];
 
         messages.forEach((msg, index) => {
             const row = document.createElement('div');
             row.className = 'chat-message-row';
-            row.dataset.id = msg._id; // Store ID on row for range clicking
+            row.dataset.id = msg._id; // Store ID on row for range clicking & selection
+            row.dataset.senderName = msg.name || ''; // OPTIMIZATION: Fast data attribute for O(1) client filtering
 
             const msgTime = new Date(msg.createdAt || msg.message[0].time).getTime();
             row.dataset.time = msgTime;
@@ -302,13 +329,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             checkbox.dataset.index = index; // For shift-click
 
             // Restore selection state
-            // Normal Mode: from selectedMessageIds
-            // Range Mode: Checked if In-Range AND NOT Excluded
             if (isRangeMode) {
                 if (isInRange && !rangeExcludedIds.has(msg._id)) {
                     checkbox.checked = true;
                 } else if (msg._id === rangeStartId || msg._id === rangeEndId) {
-                    checkbox.checked = true; // Start/End always checked effectively
+                    checkbox.checked = true;
                 }
             } else {
                 if (selectedMessageIds.has(msg._id)) {
@@ -318,20 +343,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Click Listener for Row (Range Mode)
             row.addEventListener('click', (e) => {
-                // If clicking checkbox, don't trigger row logic unless we need to
                 if (e.target === checkbox) return;
-
                 if (isRangeMode) {
                     handleRangeClick(msg._id, msgTime);
-                } else {
-                    // Optional: Clicking row toggles checkbox?
-                    // checkbox.click(); // Standard behavior often likes this
                 }
             });
 
             // Listen for changes (Standard & Shift-Click)
             checkbox.addEventListener('click', (e) => {
-                // Use 'click' instead of 'change' to catch shift key cleanly on the event
                 const isChecked = e.target.checked;
                 const currentId = msg._id;
                 const currentIndex = index;
@@ -340,24 +359,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const start = Math.min(lastCheckedCheckbox, currentIndex);
                     const end = Math.max(lastCheckedCheckbox, currentIndex);
 
-                    // Check all in range
                     for (let i = start; i <= end; i++) {
                         const cb = checkboxes[i];
-                        cb.checked = isChecked; // Follow the leader
+                        cb.checked = isChecked;
                         if (isChecked) selectedMessageIds.add(cb.dataset.id);
                         else selectedMessageIds.delete(cb.dataset.id);
                     }
                 } else if (isRangeMode) {
-                    // Range Mode Checkbox Logic
-                    // Unchecking an in-range item -> Exclude
-                    // Checking an excluded item -> Re-include
                     if (!isChecked) {
                         rangeExcludedIds.add(currentId);
                     } else {
                         rangeExcludedIds.delete(currentId);
                     }
                 } else {
-                    // Normal Click
                     if (isChecked) selectedMessageIds.add(currentId);
                     else selectedMessageIds.delete(currentId);
                 }
@@ -374,41 +388,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             const timeParams = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const dateParams = date.toLocaleDateString();
 
-            // Construct HTML similar to chat.js
+            // Construct HTML string (uses data attributes for event delegation instead of inline onclick)
+            const rawContent = msg.message[0] ? msg.message[0].content : '';
             let html = `
                 <div class="msg-header">
                     <span class="msg-time">[${dateParams} ${timeParams}]</span>
                     <span class="msg-name ${msg.type}">${msg.name}:</span>
                     <div class="msg-header-actions">
-                        <button class="btn-icon" title="Jump to Context" onclick="window.jumpToContext('${msg._id}', '${msg.createdAt || msg.message[0].time}')">
+                        <button class="btn-icon btn-jump-context" title="Jump to Context" data-id="${msg._id}" data-time="${msg.createdAt || msg.message[0].time}">
                             <i class="fa-solid fa-turn-up"></i>
                         </button>
                     </div>
                 </div>
                 <div class="msg-body">
-                    ${msg.message[0].content} 
+                    ${rawContent} 
                 </div>
             `;
             contentWrapper.innerHTML = html;
 
             row.appendChild(checkbox);
             row.appendChild(contentWrapper);
-            chatResults.appendChild(row);
+            fragment.appendChild(row);
 
-            checkboxes.push(checkbox); // Track for shift-click
+            checkboxes.push(checkbox);
         });
+
+        // Single DOM append operation for optimal rendering throughput
+        chatResults.appendChild(fragment);
     }
 
-    function handleRangeClick(id) {
-        // Find element to get time
-        // Note: We might click a row on a page where we don't have the object in 'messages' scope here easily?
-        // renderResults creates the closure, so 'messages' is available inside renderResults, 
-        // but handleRangeClick is outside.
-        // We need to pass the time or find it.
-        // Let's modify handleRangeClick signature or look it up from DOM?
-        // DOM .chat-message-row might not have time.
-        // Better: Pass timestamp from renderResults.
-    }
+    // Event Delegation: Handle Jump to Context clicks on chatResults container
+    chatResults.addEventListener('click', (e) => {
+        const jumpBtn = e.target.closest('.btn-jump-context');
+        if (jumpBtn) {
+            e.preventDefault();
+            const msgId = jumpBtn.dataset.id;
+            const dateStr = jumpBtn.dataset.time;
+            window.jumpToContext(msgId, dateStr);
+        }
+    });
 
     // Redefine handleRangeClick to accept time
     function handleRangeClick(id, timestamp) {
@@ -666,27 +684,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    /**
+     * Client-Side Partner Filter Evaluator.
+     * OPTIMIZATION: Reads row.dataset.senderName directly for O(1) attribute lookup instead of querying child DOM nodes.
+     * Hides rows matching excluded partner tags or non-matching included tags.
+     */
     function filterMessages() {
         const rows = document.querySelectorAll('.chat-message-row');
 
         rows.forEach(row => {
-            const nameEl = row.querySelector('.msg-name');
-            if (nameEl) {
-                const name = nameEl.textContent.replace(':', '').trim();
+            const name = row.dataset.senderName;
+            if (!name) return;
 
-                // 1. Exclude Logic (Hard Filter)
-                if (selectedExcludedPartners.has(name)) {
-                    row.style.display = 'none';
-                    return;
-                }
+            // 1. Exclude Logic (Hard Filter)
+            if (selectedExcludedPartners.has(name)) {
+                row.style.display = 'none';
+                return;
+            }
 
-                // 2. Include Logic (Soft Filter)
-                // Show if NO tags selected OR name matches one of the tags
-                if (selectedPartners.size === 0 || selectedPartners.has(name)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
+            // 2. Include Logic (Soft Filter)
+            if (selectedPartners.size === 0 || selectedPartners.has(name)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
             }
         });
     }
@@ -725,7 +745,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Expose Jump function to global scope so onclick works
+    /**
+     * Context Jump Handler exposed on the global window object.
+     * Triggered by jump button clicks on chat message rows. Sets UTC date bounds matching MongoDB server time,
+     * clears text/partner filters, expands page limit to 1000 items, and executes search to navigate directly to message context.
+     * 
+     * @param {string} msgId - Target message ID to scroll to and highlight
+     * @param {string|number} dateStr - Raw ISO date string or numeric timestamp of target message
+     */
     window.jumpToContext = function (msgId, dateStr) {
         const date = new Date(dateStr);
         // Format YYYY-MM-DD using UTC to match Server (which queries by UTC day)
@@ -770,7 +797,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         targetJumpId = msgId;
 
         // Reset Page & Increase Limit to capture full context
-        // If we only load 50, we might miss the message if it's deep in the day.
         currentPage = 1;
         currentLimit = 1000; // Force a large limit for "Context View"
 

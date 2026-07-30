@@ -61,7 +61,10 @@
     };
 
     // Override the legacy onclick function
-    window.setIntent = function(val) {
+    window.setIntent = function(val, e) {
+        if (e && typeof e.stopPropagation === 'function') {
+            e.stopPropagation();
+        }
         // If clicking friendly, make it persistent. Grabbing/Hostile clicks are one-shot
         const isOneShotOverride = (val !== 'friendly');
         window.setIntentManually(val, isOneShotOverride);

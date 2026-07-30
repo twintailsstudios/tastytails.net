@@ -1,4 +1,86 @@
+/**
+ * @fileoverview animations.js - Client-Side Animation Engine
+ *
+ * @description
+ * Manages standard 8-directional frame animation generation, emote animations, and real-time
+ * execution / depth re-ordering for multi-layered player character containers and equipment overlays.
+ *
+ * Triggered by:
+ * - Scene initialization (create.js)
+ * - Movement reconciliation tick (reconcile.js)
+ * - Network player state updates (create.js)
+ */
+
+/**
+ * Static configuration map of anatomical sprite layers.
+ * Pre-defined outside hot loops to prevent per-tick closure allocations.
+ */
+const ANATOMY_LAYERS = [
+    { name: 'tail', getKey: s => s.tail?.sprite },
+    { name: 'secondaryTail', getKey: s => s.tail?.secondarySprite },
+    { name: 'accentTail', getKey: s => s.tail?.accentSprite },
+    { name: 'body', getKey: s => s.body?.sprite },
+    { name: 'secondaryBody', getKey: s => s.body?.secondarySprite },
+    { name: 'accentBody', getKey: s => s.body?.accentSprite },
+    { name: 'genitals', getKey: s => (s.genitals?.sprite || s.genitles?.sprite) },
+    { name: 'hands', getKey: s => s.hands?.sprite },
+    { name: 'feet', getKey: s => s.feet?.sprite },
+    { name: 'head', getKey: s => s.head?.sprite },
+    { name: 'secondaryHead', getKey: s => s.head?.secondarySprite },
+    { name: 'accentHead', getKey: s => s.head?.accentSprite },
+    { name: 'beak', getKey: s => s.beak?.sprite },
+    { name: 'eyes', getKey: s => s.eyes?.outer },
+    { name: 'iris', getKey: s => s.eyes?.iris },
+    { name: 'hair', getKey: s => s.hair?.sprite },
+    { name: 'outerEar', getKey: s => s.ear?.outerSprite },
+    { name: 'innerEar', getKey: s => s.ear?.innerSprite },
+    { name: 'headAccessories', getKey: s => s.headAccessories?.sprite }
+];
+
+/**
+ * Retrieves a child sprite from a container by name using a cached Map.
+ * OPTIMIZATION: Replaces linear O(N) getByName() calls with an O(1) map read.
+ * Automatically invalidates the cache when the container's list length changes.
+ *
+ * @param {Phaser.GameObjects.Container} playerSprite - Player container object
+ * @param {string} name - Name of child sprite to retrieve
+ * @returns {Phaser.GameObjects.GameObject|null} Child game object or null
+ */
+function getNamedChild(playerSprite, name) {
+    if (!playerSprite || !playerSprite.list) return null;
+    const currentLength = playerSprite.list.length;
+    let cache = playerSprite._namedChildCache;
+
+    // Cache invalidation: rebuild map if list length changed or cache uninitialized
+    if (!cache || playerSprite._lastListLength !== currentLength) {
+        cache = new Map();
+        for (let i = 0; i < currentLength; i++) {
+            const child = playerSprite.list[i];
+            if (child && child.name) {
+                cache.set(child.name, child);
+            }
+        }
+        playerSprite._namedChildCache = cache;
+        playerSprite._lastListLength = currentLength;
+    }
+
+    const child = cache.get(name);
+    return (child && child.active !== false) ? child : null;
+}
+
+/**
+ * Dynamically updates played animation keys and Z-index depth ordering for all
+ * body layers and equipped item overlays contained within a player container sprite.
+ *
+ * @param {Phaser.GameObjects.Container} playerSprite - Player character container
+ * @param {Object} playerState - State snapshot containing rotation, motion, and layer keys
+ */
 export function updatePlayerAnimations(playerSprite, playerState) {
+    if (!playerSprite || !playerState) return;
+
+    // Check optional scene/anims availability for defensive null safety
+    const animsManager = playerSprite.scene?.anims;
+
     let direction = null;
     let animationSuffix = null;
 
@@ -12,195 +94,167 @@ export function updatePlayerAnimations(playerSprite, playerState) {
     } else if (direction) {
         animationSuffix = 'Stop' + direction;
     } else {
-        // Default to a standing down animation if no direction
         animationSuffix = 'StopDown';
     }
 
-    // Helper to safely get sprite by name
-    const get = (name) => playerSprite.getByName(name);
+    // OPTIMIZATION: State-diffing check short-circuits idle tick execution
+    const eqHash = playerState.equipmentVersion || playerState.cosmeticVersion || '';
+    const animStateKey = `${playerState.rotation || 4}_${playerState.isMoving ? 1 : 0}_${animationSuffix}_${eqHash}`;
 
-    // Z-Ordering Logic
+    if (playerSprite._lastAnimStateKey === animStateKey) {
+        return;
+    }
+    playerSprite._lastAnimStateKey = animStateKey;
+
+    // Z-Ordering Logic using cached child lookups
     if (direction === 'Up') {
-        // Tail to Top
-        const tail = get('tail');
-        const secondaryTail = get('secondaryTail');
-        const accentTail = get('accentTail');
+        const tail = getNamedChild(playerSprite, 'tail');
+        const secondaryTail = getNamedChild(playerSprite, 'secondaryTail');
+        const accentTail = getNamedChild(playerSprite, 'accentTail');
         if (tail) playerSprite.bringToTop(tail);
         if (secondaryTail) playerSprite.bringToTop(secondaryTail);
         if (accentTail) playerSprite.bringToTop(accentTail);
 
-        // Head Accessories to Bottom
-        const headAccessories = get('headAccessories');
+        const headAccessories = getNamedChild(playerSprite, 'headAccessories');
         if (headAccessories) playerSprite.sendToBack(headAccessories);
     } else if (direction === 'Down') {
-        // Head Accessories to Top
-        const headAccessories = get('headAccessories');
+        const headAccessories = getNamedChild(playerSprite, 'headAccessories');
         if (headAccessories) playerSprite.bringToTop(headAccessories);
 
-        // Tail to Bottom
-        const tail = get('tail');
-        const secondaryTail = get('secondaryTail');
-        const accentTail = get('accentTail');
+        const tail = getNamedChild(playerSprite, 'tail');
+        const secondaryTail = getNamedChild(playerSprite, 'secondaryTail');
+        const accentTail = getNamedChild(playerSprite, 'accentTail');
         if (accentTail) playerSprite.sendToBack(accentTail);
         if (secondaryTail) playerSprite.sendToBack(secondaryTail);
         if (tail) playerSprite.sendToBack(tail);
     }
 
-    if (playerSprite && playerSprite.list) {
-        // Safe play helper
-        const safePlay = (spriteName, keyFunc) => {
-            const sprite = get(spriteName);
-            const keyBase = keyFunc();
-            if (sprite && keyBase && keyBase !== 'undefined' && keyBase !== 'null' && keyBase !== 'empty') {
-                const animKey = keyBase + animationSuffix;
-                // Check if animation exists to avoid console warnings
-                if (playerSprite.scene.anims.exists(animKey)) {
-                    sprite.play(animKey, true);
-                    sprite.setVisible(true);
-                } else {
-                    // console.warn(`Animation missing: ${animKey}`);
-                }
-            } else if (sprite) {
-                // If key is invalid (empty/null), make sure we don't play anything or hide it?
-                // Usually 'empty' sprites shouldn't be played.
-                // sprite.stop(); // Optional
-                if (keyBase === 'empty') {
-                    // Keep visible but maybe static? Or hide? 
-                    // Usually 'empty' is a valid sprite sheet but maybe no animation needed?
-                    // The 'empty' sheet has frames, so we CAN play 'emptyDown'.
-                    // But if keyBase is undefined/null, we must skip.
-                }
+    if (playerSprite.list && animsManager) {
+        // OPTIMIZATION: Update anatomical layers via static configuration table (no per-tick closures)
+        for (let i = 0; i < ANATOMY_LAYERS.length; i++) {
+            const layer = ANATOMY_LAYERS[i];
+            const sprite = getNamedChild(playerSprite, layer.name);
+            if (!sprite) continue;
 
-                // If it IS 'empty', we might want to play 'emptyDown' if it exists.
-                if (keyBase === 'empty') {
-                    const animKey = 'empty' + animationSuffix;
-                    if (playerSprite.scene.anims.exists(animKey)) {
+            const keyBase = layer.getKey(playerState);
+            if (keyBase && keyBase !== 'undefined' && keyBase !== 'null' && keyBase !== 'empty') {
+                const animKey = keyBase + animationSuffix;
+                if (animsManager.exists(animKey)) {
+                    if (sprite.anims?.currentAnim?.key !== animKey || !sprite.anims?.isPlaying) {
+                        sprite.play(animKey, true);
+                    }
+                    if (!sprite.visible) sprite.setVisible(true);
+                }
+            } else if (keyBase === 'empty') {
+                const animKey = 'empty' + animationSuffix;
+                if (animsManager.exists(animKey)) {
+                    if (sprite.anims?.currentAnim?.key !== animKey || !sprite.anims?.isPlaying) {
                         sprite.play(animKey, true);
                     }
                 }
             }
-        };
-
-        // Play animations using named sprites with safety checks
-        safePlay('tail', () => playerState.tail?.sprite);
-        safePlay('secondaryTail', () => playerState.tail?.secondarySprite);
-        safePlay('accentTail', () => playerState.tail?.accentSprite);
-
-        safePlay('body', () => playerState.body?.sprite);
-        safePlay('secondaryBody', () => playerState.body?.secondarySprite);
-        safePlay('accentBody', () => playerState.body?.accentSprite);
-
-        safePlay('genitles', () => playerState.genitles?.sprite);
-        safePlay('hands', () => playerState.hands?.sprite);
-        safePlay('feet', () => playerState.feet?.sprite);
-
-        safePlay('head', () => playerState.head?.sprite);
-        safePlay('secondaryHead', () => playerState.head?.secondarySprite);
-        safePlay('accentHead', () => playerState.head?.accentSprite);
-
-        safePlay('beak', () => playerState.beak?.sprite);
-        safePlay('eyes', () => playerState.eyes?.outer);
-        safePlay('iris', () => playerState.eyes?.iris);
-        safePlay('hair', () => playerState.hair?.sprite);
-        safePlay('outerEar', () => playerState.ear?.outerSprite);
-        safePlay('innerEar', () => playerState.ear?.innerSprite);
-        safePlay('headAccessories', () => playerState.headAccessories?.sprite);
+        }
 
         // --- Equipment Animations ---
-        if (playerSprite.list) {
-            playerSprite.list.forEach(child => {
-                // Check if it's an equipment sprite (starts with equip_)
-                if (child.name.startsWith('equip_')) {
-                    if (!child.visible) return; // Skip invisible items
+        for (let i = 0; i < playerSprite.list.length; i++) {
+            const child = playerSprite.list[i];
+            if (child && child.name && child.name.startsWith('equip_')) {
+                if (!child.visible) continue;
 
-                    // console.log('[Anim] Found equipment sprite:', child.name, child.visualConfig);
-                    if (child.visualConfig || child.texture) {
-                        // Use the actual texture key of the sprite if possible (supports layers)
-                        // Fallback to visualConfig for base items if texture is generic
-                        const atlasKey = child.texture ? child.texture.key : child.visualConfig.atlas;
-
-                        const animKey = atlasKey + animationSuffix;
-                        // console.log('[Anim] Playing:', animKey);
+                if (child.visualConfig || child.texture) {
+                    const atlasKey = child.texture ? child.texture.key : child.visualConfig.atlas;
+                    const animKey = atlasKey + animationSuffix;
+                    if (animsManager.exists(animKey) && (child.anims?.currentAnim?.key !== animKey || !child.anims?.isPlaying)) {
                         child.play(animKey, true);
-                    } else {
-                        console.warn('[Anim] Equipment sprite missing visualConfig:', child.name);
                     }
                 }
-            });
+            }
         }
     }
 }
 
+/**
+ * Bulk-registers 8-directional frame animation sequences (Down, Right, Left, Up, and Stop states)
+ * into Phaser's global AnimationManager (scene.anims) for a list of texture keys.
+ *
+ * @param {Phaser.Scene} scene - Phaser scene instance
+ * @param {Array<string>} spriteKeys - Array of texture asset keys to generate animations for
+ */
 export function createAnimations(scene, spriteKeys) {
-    // console.log('spriteKeys = ', spriteKeys);
-    // console.log('spriteKeys.length = ', spriteKeys.length);
+    if (!scene || !scene.anims || !spriteKeys) return;
+
     spriteKeys.forEach(key => {
-        // console.log('key = ',key)
         scene.anims.create({
-            key: `${key}Down`, // Example animation key naming convention
-            frames: scene.anims.generateFrameNumbers(key, { start: 1, end: 8 }), // Adjust frame numbers as needed
+            key: `${key}Down`,
+            frames: scene.anims.generateFrameNumbers(key, { start: 1, end: 8 }),
             frameRate: 8,
-            repeat: -1 // Loop the animation
+            repeat: -1
         });
 
         scene.anims.create({
-            key: `${key}Right`, // Example animation key naming convention
-            frames: scene.anims.generateFrameNumbers(key, { start: 10, end: 17 }), // Adjust frame numbers as needed
+            key: `${key}Right`,
+            frames: scene.anims.generateFrameNumbers(key, { start: 10, end: 17 }),
             frameRate: 8,
-            repeat: -1 // Loop the animation
+            repeat: -1
         });
 
         scene.anims.create({
-            key: `${key}Left`, // Example animation key naming convention
-            frames: scene.anims.generateFrameNumbers(key, { start: 19, end: 26 }), // Adjust frame numbers as needed
+            key: `${key}Left`,
+            frames: scene.anims.generateFrameNumbers(key, { start: 19, end: 26 }),
             frameRate: 8,
-            repeat: -1 // Loop the animation
+            repeat: -1
         });
 
         scene.anims.create({
-            key: `${key}Up`, // Example animation key naming convention
-            frames: scene.anims.generateFrameNumbers(key, { start: 28, end: 35 }), // Adjust frame numbers as needed
+            key: `${key}Up`,
+            frames: scene.anims.generateFrameNumbers(key, { start: 28, end: 35 }),
             frameRate: 8,
-            repeat: -1 // Loop the animation
+            repeat: -1
         });
 
         scene.anims.create({
-            key: `${key}StopDown`, // Example animation key naming convention
-            frames: scene.anims.generateFrameNumbers(key, { start: 0, end: 0 }), // Adjust frame numbers as needed
+            key: `${key}StopDown`,
+            frames: scene.anims.generateFrameNumbers(key, { start: 0, end: 0 }),
             frameRate: 1,
-            repeat: -1 // Loop the animation
+            repeat: -1
         });
 
         scene.anims.create({
-            key: `${key}StopRight`, // Example animation key naming convention
-            frames: scene.anims.generateFrameNumbers(key, { start: 9, end: 9 }), // Adjust frame numbers as needed
+            key: `${key}StopRight`,
+            frames: scene.anims.generateFrameNumbers(key, { start: 9, end: 9 }),
             frameRate: 1,
-            repeat: -1 // Loop the animation
+            repeat: -1
         });
 
         scene.anims.create({
-            key: `${key}StopLeft`, // Example animation key naming convention
-            frames: scene.anims.generateFrameNumbers(key, { start: 18, end: 18 }), // Adjust frame numbers as needed
+            key: `${key}StopLeft`,
+            frames: scene.anims.generateFrameNumbers(key, { start: 18, end: 18 }),
             frameRate: 1,
-            repeat: -1 // Loop the animation
+            repeat: -1
         });
 
         scene.anims.create({
-            key: `${key}StopUp`, // Example animation key naming convention
-            frames: scene.anims.generateFrameNumbers(key, { start: 27, end: 27 }), // Adjust frame numbers as needed
+            key: `${key}StopUp`,
+            frames: scene.anims.generateFrameNumbers(key, { start: 27, end: 27 }),
             frameRate: 1,
-            repeat: -1 // Loop the animation
+            repeat: -1
         });
     });
 }
 
+/**
+ * Registers 3-frame looping animations for chat and status emotes into scene.anims.
+ *
+ * @param {Phaser.Scene} scene - Phaser scene instance
+ * @param {Array<string>} emoteKeys - Array of emote texture asset keys
+ */
 export function createEmoteAnimations(scene, emoteKeys) {
-    if (!emoteKeys) return;
+    if (!scene || !scene.anims || !emoteKeys) return;
 
     emoteKeys.forEach(key => {
         scene.anims.create({
             key: key,
-            frames: scene.anims.generateFrameNumbers(key, { start: 0, end: 2 }), // 3 frames: 0, 1, 2
+            frames: scene.anims.generateFrameNumbers(key, { start: 0, end: 2 }),
             frameRate: 8,
             repeat: -1
         });

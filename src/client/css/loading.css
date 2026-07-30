@@ -1,5 +1,13 @@
-/* === LOADING SCREEN STYLES === */
-/* Royal Fantasy Theme - Pinned Parchment */
+/**
+ * @fileoverview loading.css - Royal Fantasy Loading Overlay Design System
+ * 
+ * @description
+ * Defines visual presentation and animation behaviors for the full-screen loading screen.
+ * Implements skeuomorphic wood and parchment aesthetics, hardware-accelerated progress fill,
+ * synchronized backdrop blur transitions, and mobile responsive adaptations.
+ * 
+ * Triggered by: EJS views (play.ejs, create.ejs) and DOM updaters (preload.js, create.js, CharacterPreviewScene.js).
+ */
 
 #loading-overlay {
     position: fixed;
@@ -8,16 +16,19 @@
     width: 100%;
     height: 100%;
     background-color: #1a1512;
+    /* Local texture asset with gradient overlay */
     background-image:
         linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
-        url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+        var(--texture-wood-pattern, url('https://www.transparenttextures.com/patterns/wood-pattern.png'));
     z-index: 100000;
     display: flex;
     justify-content: center;
     align-items: center;
     flex-direction: column;
-    transition: opacity 0.5s ease-out;
+    /* OPTIMIZATION: Synchronized opacity and blur transition eliminates snap-pop on reveal */
+    transition: opacity 0.5s ease-out, backdrop-filter 0.5s ease-out;
     backdrop-filter: blur(5px);
+    will-change: opacity, backdrop-filter;
 }
 
 #loading-board {
@@ -25,7 +36,7 @@
     flex-direction: column;
     align-items: center;
     background-color: var(--wood-dark, #3e2723);
-    background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+    background-image: var(--texture-wood-pattern, url('https://www.transparenttextures.com/patterns/wood-pattern.png'));
     padding: 40px 60px 60px;
     /* More padding at bottom for balance */
     border: 8px solid var(--wood-light, #5d4037);
@@ -57,8 +68,10 @@
 
 #loading-paper {
     position: relative;
+    /* OPTIMIZATION: Solid fallback color prevents flash of unstyled content before pattern loads */
+    background-color: #f3e5ab;
     background-color: var(--parchment, #f3e5ab);
-    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    background-image: url('/assets/images/patterns/cream-paper.png');
     padding: 30px 50px;
     width: 90%;
     box-shadow:
@@ -122,14 +135,14 @@
 #loading-bar-fill {
     width: 0%;
     height: 100%;
-    background: linear-gradient(90deg, #d32f2f, #b71c1c);
-    /* Red wax or potion liquid */
-    /* Alternatively Gold: linear-gradient(90deg, #c5a059, #ffd700); */
     background: linear-gradient(90deg, #ff8f00, #ff6f00);
     /* Amber/Honey liquid */
     box-shadow: 0 0 10px rgba(255, 111, 0, 0.6);
     transition: width 0.3s ease-out;
     position: relative;
+    /* OPTIMIZATION: GPU layer promotion isolates high-frequency JS width updates from layout repaints */
+    transform: translateZ(0);
+    will-change: width;
 }
 
 /* Bubbles/Liquid effect overlay */
@@ -160,4 +173,17 @@
 #loading-overlay.hidden {
     opacity: 0;
     pointer-events: none;
+    backdrop-filter: blur(0px);
+}
+
+/* Responsive adjustments for smaller viewports */
+@media (max-width: 600px) {
+    #loading-board {
+        min-width: 90vw;
+        padding: 20px 25px 35px;
+    }
+    #loading-title {
+        font-size: 2.5rem;
+        letter-spacing: 3px;
+    }
 }

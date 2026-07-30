@@ -42,39 +42,79 @@
   </div>
 </div>
 
-<% if (charList !==null) { %>
+<% if (charList !== null) { %>
+  <!-- Hardened JSON container tag preventing </script> breakout -->
+  <script id="char-data" type="application/json">
+    <%- JSON.stringify(charList).replace(/</g, '\\u003c') %>
+  </script>
   <script>
+    /**
+     * @fileoverview Character Bank View Hydration & Grid Controller (character-bank.ejs)
+     * 
+     * @description
+     * Server-rendered EJS view controller that hydrates the player's character roster
+     * from MongoDB, renders character cards dynamically via client-side JS, and handles
+     * context menus and character soft-deletion confirmation modals.
+     * 
+     * @trigger GET /character-bank (Express route handler in src/routes/index.js)
+     */
+
     /* ===========================================
        DATA & CONFIGURATION
        ===========================================
     */
 
-    // Escape and parse the charList variable safely
-    var rawCharList = `<%- JSON.stringify(charList)
-    .replace(/\\/g, '\\\\')
-    .replace(/'/g, '\\\'')
-    .replace(/"/g, '&quot;')
-    .replace(/\n/g, '\\n')
-    .replace(/\r/g, '\\r')
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029') %>`;
-    var charList = JSON.parse(rawCharList.replace(/&quot;/g, '"'));
+    // SAFE HYDRATION: Read serialized character payload from application/json script container
+    let charList = [];
+    try {
+      const dataContainer = document.getElementById('char-data');
+      if (dataContainer && dataContainer.textContent.trim()) {
+        charList = JSON.parse(dataContainer.textContent);
+      }
+    } catch (err) {
+      console.error('Failed to parse character registry JSON:', err);
+      charList = [];
+    }
 
-    // DOM Elements
+    // DOM Element References
     const grid = document.getElementById('bankUl');
     const modal = document.getElementById('deleteModal');
     const modalTitle = document.getElementById('modalTitle');
     const deleteInputId = document.getElementById('deleteInputId');
     const confirmCheck = document.getElementById('confirmDeleteCheck');
     const finalDeleteBtn = document.getElementById('finalDeleteBtn');
+    const deleteForm = document.getElementById('deleteForm');
 
-    // Helper: Convert 0x hex to # hex for CSS
+    /**
+     * Helper: Escapes unsafe HTML characters to prevent DOM-based Cross-Site Scripting (XSS).
+     * @param {string} str - Raw input string
+     * @returns {string} Sanitized string safe for HTML text node insertion
+     */
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    /**
+     * Helper: Converts MongoDB hex format (0xRRGGBB) to CSS hex format (#RRGGBB).
+     * @param {string} hexString - Hex color code string (e.g., '0x636363')
+     * @returns {string} CSS compatible hex color string (e.g., '#636363')
+     */
     function formatColor(hexString) {
       if (!hexString) return '#ccc';
       return hexString.replace('0x', '#');
     }
 
-    // Helper: Map pronoun codes to strings
+    /**
+     * Helper: Maps numeric pronoun codes stored in DB to human-readable strings.
+     * @param {number} pCode - Numeric pronoun code (1=She/Her, 2=He/Him, 3=They/Them)
+     * @returns {string} Formatted pronoun label
+     */
     function getPronouns(pCode) {
       if (pCode === 1) return "She/Her";
       if (pCode === 2) return "He/Him";
@@ -85,12 +125,17 @@
     /* ===========================================
        RENDER LOGIC
        ===========================================
-       Generates the HTML for each card and injects it into the grid.
     */
+
+    /**
+     * OPTIMIZATION: Generates character cards and appends them in a single DocumentFragment batch.
+     * Reduces DOM layout reflows from N iterations to 1 atomic paint frame.
+     */
     function renderCharacters() {
       grid.innerHTML = ''; // Clear existing content
+      const fragment = document.createDocumentFragment();
 
-      charList.forEach((char, index) => {
+      charList.forEach((char) => {
         const charId = char._id;
         const displayName = char.nickName || char.firstName || "Unknown";
         const fullName = (char.firstName && char.lastName) ? `${char.firstName} ${char.lastName}` : "Unknown Identity";
@@ -99,32 +144,39 @@
         const desc = char.icDescrip || "No description provided.";
         const headColor = formatColor(char.head?.color);
 
+        // Sanitize string variables before string interpolation
+        const safeDisplayName = escapeHtml(displayName);
+        const safeFullName = escapeHtml(fullName);
+        const safeSpecies = escapeHtml(species);
+        const safePronouns = escapeHtml(pronouns);
+        const safeDesc = escapeHtml(desc);
+
         // Create Card Container
         const card = document.createElement('div');
         card.className = 'char-card';
 
-        // Use Template Literal for readable HTML structure
+        // SECURITY: Attributes use data-id and data-name to avoid inline JS quote escaping issues
         card.innerHTML = `
                 <div class="card-header">
                     <div class="card-pin"></div>
-                    <h3 class="nickname">${displayName}</h3>
-                    <div class="fullname">${fullName}</div>
+                    <h3 class="nickname">${safeDisplayName}</h3>
+                    <div class="fullname">${safeFullName}</div>
                     
                     <!-- Settings Gear Icon -->
-                    <button class="card-options-btn" onclick="toggleMenu('${charId}')">
+                    <button class="card-options-btn" data-id="${charId}">
                         <i class="fa-solid fa-gear"></i>
                     </button>
                     
                     <!-- Context Menu (Hidden by default) -->
                     <div id="menu-${charId}" class="context-menu">
                         <ul>
-                            <li><a href="#" onclick="openDeleteModal('${charId}', '${displayName}')"><i class="fa-solid fa-trash"></i> Delete</a></li>
+                            <li><a href="#" class="btn-delete-card" data-id="${charId}" data-name="${safeDisplayName}"><i class="fa-solid fa-trash"></i> Delete</a></li>
                         </ul>
                     </div>
                 </div>
                 
                 <div class="card-body">
-                    <div class="species-badge">${species}</div>
+                    <div class="species-badge">${safeSpecies}</div>
                     
                     <!-- Avatar Placeholder: Uses data color for background -->
                     <div class="avatar-placeholder" style="background-color: ${headColor}">
@@ -134,10 +186,10 @@
                     <div class="stats">
                         <div class="stat-row">
                             <i class="fa-solid fa-venus-mars" style="font-size: 0.8rem; margin-top:3px;"></i> 
-                            <span>${pronouns}</span>
+                            <span>${safePronouns}</span>
                         </div>
                     </div>
-                    <div class="description-preview">"${desc}"</div>
+                    <div class="description-preview">"${safeDesc}"</div>
                 </div>
                 
                 <div class="card-footer">
@@ -146,7 +198,7 @@
                 </div>
             `;
 
-        grid.appendChild(card);
+        fragment.appendChild(card);
       });
 
       // "Add New" Card (Always at the end)
@@ -157,7 +209,10 @@
             <div class="add-icon"><i class="fa-solid fa-circle-plus"></i></div>
             <div class="add-text">Register New</div>
         `;
-      grid.appendChild(addCard);
+      fragment.appendChild(addCard);
+
+      // Single-batch DOM insertion
+      grid.appendChild(fragment);
     }
 
     /* ===========================================
@@ -165,42 +220,75 @@
        ===========================================
     */
 
-    // Toggle the dropdown menu for a specific card
-    window.toggleMenu = function (id) {
+    /**
+     * Toggles visibility of the card context menu dropdown.
+     * @param {string} id - Character MongoDB object ID
+     */
+    function toggleMenu(id) {
       const menu = document.getElementById(`menu-${id}`);
-      // Safety: Close all other open menus first
+      // Close all other open context menus first
       document.querySelectorAll('.context-menu').forEach(m => {
         if (m.id !== `menu-${id}`) m.classList.remove('visible');
       });
-      menu.classList.toggle('visible');
+      if (menu) menu.classList.toggle('visible');
     }
 
-    // Global Click Listener: Close menus when clicking outside
+    /**
+     * Opens the shared character deletion modal dialog.
+     * @param {string} id - Character MongoDB object ID
+     * @param {string} name - Display name of character to delete
+     */
+    function openDeleteModal(id, name) {
+      modalTitle.innerText = `Delete ${name}?`;
+      deleteInputId.value = id;
+
+      // Reset modal state and submit button label
+      confirmCheck.checked = false;
+      finalDeleteBtn.disabled = true;
+      finalDeleteBtn.classList.remove('active');
+      finalDeleteBtn.innerText = 'Yes, Delete';
+
+      modal.classList.add('active');
+    }
+
+    /**
+     * Closes the character deletion modal overlay.
+     */
+    function closeModal() {
+      modal.classList.remove('active');
+    }
+
+    /**
+     * OPTIMIZATION & DELEGATION: Single event listener on container grid (#bankUl).
+     * Uses .closest() to correctly identify targets when clicking child icon <i> tags.
+     */
+    grid.addEventListener('click', function (event) {
+      const optionsBtn = event.target.closest('.card-options-btn');
+      if (optionsBtn) {
+        event.preventDefault();
+        const charId = optionsBtn.dataset.id;
+        toggleMenu(charId);
+        return;
+      }
+
+      const deleteBtn = event.target.closest('.btn-delete-card');
+      if (deleteBtn) {
+        event.preventDefault();
+        const charId = deleteBtn.dataset.id;
+        const charName = deleteBtn.dataset.name;
+        openDeleteModal(charId, charName);
+        return;
+      }
+    });
+
+    // Global Click Listener: Close open context menus when clicking outside options buttons
     document.addEventListener('click', function (event) {
       if (!event.target.closest('.card-options-btn')) {
         document.querySelectorAll('.context-menu').forEach(m => m.classList.remove('visible'));
       }
     });
 
-    // Open the shared Delete Modal
-    window.openDeleteModal = function (id, name) {
-      modalTitle.innerText = `Delete ${name}?`;
-      deleteInputId.value = id; // Set the hidden input for the form
-
-      // Reset modal state
-      confirmCheck.checked = false;
-      finalDeleteBtn.disabled = true;
-      finalDeleteBtn.classList.remove('active');
-
-      modal.classList.add('active');
-    }
-
-    // Close Modal
-    window.closeModal = function () {
-      modal.classList.remove('active');
-    }
-
-    // Enable Delete Button only when checkbox is checked
+    // Enable Delete Button only when confirmation checkbox is explicitly checked
     confirmCheck.addEventListener('change', function () {
       if (this.checked) {
         finalDeleteBtn.disabled = false;
@@ -210,6 +298,19 @@
         finalDeleteBtn.classList.remove('active');
       }
     });
+
+    // Double-submit protection: Lock submit button on post request submission
+    if (deleteForm) {
+      deleteForm.addEventListener('submit', function () {
+        finalDeleteBtn.disabled = true;
+        finalDeleteBtn.innerText = 'Deleting...';
+      });
+    }
+
+    // Expose global wrappers for legacy/backward compatibility
+    window.toggleMenu = toggleMenu;
+    window.openDeleteModal = openDeleteModal;
+    window.closeModal = closeModal;
 
     // Initialize Page
     renderCharacters();

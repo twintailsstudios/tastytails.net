@@ -1,6 +1,43 @@
-/* medical.css - Medieval Parchment Medical Paper Doll HUD & Sensory Overlays */
+/**
+ * @fileoverview medical.css - Medieval Parchment Medical Paper Doll HUD & Sensory Overlays
+ * 
+ * @description
+ * Defines the visual design system, viewport sensory overlays (eye damage darkness & combat pain flashes),
+ * draggable/resizable paper doll modal HUD framing, limb health state matrix badges, fluid remedy action grid,
+ * and floating minimized tab dock for the medical/health system in TastyTails.net.
+ * 
+ * Invoked by: src/views/play.ejs via stylesheet link tag.
+ * Controlled by: src/client/js/game/medicalUI.js and src/client/js/game/stats.js.
+ */
 
-/* Sensory Overlays */
+/* Scoped Design System Tokens for Medical HUD */
+:root {
+    --medical-bg-main: #1e1915;
+    --medical-bg-dark: #17120e;
+    --medical-bg-card: #241d17;
+    --medical-bg-container: #110e0b;
+    --medical-bg-header-start: #2d241c;
+    --medical-bg-header-end: #1c1510;
+    --medical-bg-control: #2b2118;
+    --medical-bg-control-hover: #423325;
+    --medical-bg-close-hover: #6e2424;
+    --medical-border-primary: #5a4835;
+    --medical-border-header: #4a3b2c;
+    --medical-border-card: #443526;
+    --medical-border-subtle: #3d3023;
+    --medical-border-list: #33271b;
+    --medical-gold-accent: #f0c987;
+    --medical-text-primary: #e8dcc4;
+    --medical-text-muted: #a89882;
+    --medical-text-bright: #f7e3c3;
+    --medical-text-control: #b3a286;
+}
+
+/* 
+ * Sensory Overlays
+ * OPTIMIZATION: GPU-accelerated layer promotion via will-change: opacity, transform and transform: translateZ(0).
+ * Prevents CPU rasterization and repaint thrashing during high-frequency combat damage flashes.
+ */
 #eye-damage-vignette {
     position: fixed;
     top: 0;
@@ -10,7 +47,10 @@
     pointer-events: none;
     z-index: 8888;
     box-shadow: inset 0 0 100px rgba(0, 0, 0, 0);
-    transition: box-shadow 0.4s ease;
+    transition: box-shadow 0.4s ease, opacity 0.4s ease;
+    will-change: opacity, transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 #pain-flash-overlay {
@@ -22,7 +62,10 @@
     pointer-events: none;
     z-index: 8889;
     background: rgba(180, 20, 20, 0);
-    transition: background 0.3s ease;
+    transition: background 0.3s ease, opacity 0.3s ease;
+    will-change: opacity, transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 /* Draggable & Resizable Medical Window */
@@ -37,11 +80,11 @@
     min-height: 360px;
     max-width: 95vw;
     max-height: 95vh;
-    background: #1e1915;
-    border: 2px solid #5a4835;
+    background: var(--medical-bg-main);
+    border: 2px solid var(--medical-border-primary);
     border-radius: 10px;
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(210, 160, 90, 0.1);
-    color: #e8dcc4;
+    color: var(--medical-text-primary);
     font-family: 'Cinzel', 'Georgia', serif;
     z-index: 9999;
     display: flex;
@@ -52,9 +95,9 @@
 
 /* Header & Drag Handle */
 .medical-window .window-header {
-    background: linear-gradient(180deg, #2d241c 0%, #1c1510 100%);
+    background: linear-gradient(180deg, var(--medical-bg-header-start) 0%, var(--medical-bg-header-end) 100%);
     padding: 10px 16px;
-    border-bottom: 1px solid #4a3b2c;
+    border-bottom: 1px solid var(--medical-border-header);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -70,14 +113,14 @@
 }
 
 .medical-window .header-icon {
-    color: #f0c987;
+    color: var(--medical-gold-accent);
     font-size: 1.1rem;
 }
 
 .medical-window .window-title {
     margin: 0;
     font-size: 1.15rem;
-    color: #f0c987;
+    color: var(--medical-gold-accent);
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
     letter-spacing: 1px;
 }
@@ -96,10 +139,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #2b2118;
-    border: 1px solid #4d3b2b;
+    background: var(--medical-bg-control);
+    border: 1px solid var(--medical-border-header);
     border-radius: 4px;
-    color: #b3a286;
+    color: var(--medical-text-control);
     font-size: 0.85rem;
     font-weight: bold;
     cursor: pointer;
@@ -108,13 +151,13 @@
 }
 
 .medical-window .minimize-btn:hover {
-    background: #423325;
-    color: #f0c987;
+    background: var(--medical-bg-control-hover);
+    color: var(--medical-gold-accent);
     border-color: #7a5f43;
 }
 
 .medical-window .close-btn:hover {
-    background: #6e2424;
+    background: var(--medical-bg-close-hover);
     color: #ffb3b3;
     border-color: #a83636;
 }
@@ -141,16 +184,27 @@
     grid-template-columns: 240px 1fr;
     gap: 16px;
     padding: 16px;
-    background: #17120e;
+    background: var(--medical-bg-dark);
     flex: 1;
     min-height: 0;
     overflow: hidden;
 }
 
+/* Responsive Layout Stacking for Narrow Viewports */
+@media (max-width: 580px) {
+    .medical-body {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+    }
+    .paper-doll-container {
+        min-height: 250px;
+    }
+}
+
 /* Paper Doll Graphical Diagram */
 .paper-doll-container {
-    background: #110e0b;
-    border: 1px solid #3d3023;
+    background: var(--medical-bg-container);
+    border: 1px solid var(--medical-border-subtle);
     border-radius: 8px;
     padding: 14px;
     display: flex;
@@ -187,8 +241,8 @@
 }
 
 .summary-card {
-    background: #241d17;
-    border: 1px solid #443526;
+    background: var(--medical-bg-card);
+    border: 1px solid var(--medical-border-card);
     border-radius: 6px;
     padding: 10px 14px;
     font-size: 0.88rem;
@@ -207,11 +261,11 @@
 }
 
 .summary-label {
-    color: #a89882;
+    color: var(--medical-text-muted);
 }
 
 .summary-value {
-    color: #f7e3c3;
+    color: var(--medical-text-bright);
     font-weight: 600;
 }
 
@@ -221,7 +275,7 @@
     min-height: 120px;
     overflow-y: auto;
     background: #14100c;
-    border: 1px solid #33271b;
+    border: 1px solid var(--medical-border-list);
     border-radius: 6px;
     padding: 6px;
 }
@@ -264,16 +318,16 @@
 .badge-bad { background: #732a1e; color: #fca095; }
 .badge-fractured { background: #4d1818; color: #ff6e6e; border: 1px solid #d63636; }
 
-/* Remedy Action Controls */
+/* Remedy Action Controls (Fluid CSS Grid Layout) */
 .remedy-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(95px, 1fr));
+    gap: 6px;
     margin-top: 4px;
 }
 
 .remedy-btn {
-    flex: 1 1 calc(50% - 8px);
+    width: 100%;
     background: linear-gradient(180deg, #423223 0%, #291e14 100%);
     border: 1px solid #6b5239;
     color: #f5e4cd;
@@ -312,7 +366,7 @@
     border: 1px solid #6b5239;
     border-radius: 20px;
     padding: 6px 12px;
-    color: #f0c987;
+    color: var(--medical-gold-accent);
     box-shadow: 0 4px 12px rgba(0,0,0,0.6);
     z-index: 9998;
     cursor: grab;
@@ -338,7 +392,7 @@
 
 .medical-tab-dock .restore-btn {
     cursor: pointer;
-    color: #b3a286;
+    color: var(--medical-text-control);
     padding: 2px 6px;
     border-radius: 4px;
     transition: color 0.2s;

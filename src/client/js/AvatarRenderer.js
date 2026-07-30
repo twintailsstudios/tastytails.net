@@ -1,82 +1,119 @@
 /**
- * AvatarRenderer.js
+ * @fileoverview AvatarRenderer.js - Dynamic Avatar Sprite Compositor & Cache
  * 
- * Handles the generation of dynamic avatar sprites for the chat interface.
- * Implements a "composite" rendering approach where separate body part layers
- * (head, eyes, ears, etc.) are drawn onto a single canvas, tinted, and combined.
+ * @description
+ * Handles the dynamic rendering of multi-layer character avatar sprite sheets
+ * for the chat interface. Uses off-screen HTML5 canvases to stack, tint, and scale
+ * body parts (head, eyes, ears, markings, accessories) from master texture atlases.
  * 
- * Features:
- * - LRU (Least Recently Used) Caching to prevent re-rendering common avatars
- * - Reusable "Work Canvas" objects to minimize Garbage Collection
- * - Asynchronous Atlas Loading
+ * Triggered by:
+ * - ChatMessage.js (ChatMessage.prototype.renderAvatar) during chat message rendering.
+ * - chat.js.old (Legacy chat interface rendering).
  */
+
+// OPTIMIZATION: Top-level pre-compiled regex patterns avoid inline regex compilation overhead in hot loop
+const REGEX_SECONDARY = /secondary(?:Head)?_0?(\d+)/i;
+const REGEX_EAR_OUTER = /ears_0?(\d+)-outer/i;
+const REGEX_EAR_INNER = /ears_0?(\d+)-inner/i;
+const REGEX_HEAD_ACC = /headAccessories_0?(\d+)/i;
+
 class AvatarRenderer {
+    /**
+     * Initializes state maps, configuration parameters, and reusable canvas contexts.
+     */
     constructor() {
-        this.cache = new Map(); // Key: profileHash -> DataURL
-        this.atlasImage = null;
-        this.atlasPath = '/assets/avatar/head_01_default.png'; // Fallback or dynamic
-        this.frameWidth = 100; // Source dimensions (Atlas is 1000px wide / 10 cols)
-        this.frameHeight = 100; // Source dimensions (Atlas is 3600px high / 36 rows)
+        /** @type {Map<string, string>} LRU Cache storing profileHash -> base64 PNG DataURL */
+        this.cache = new Map();
+        
+        /** @type {Map<string, HTMLImageElement>} Loaded master atlas image cache */
+        this.atlasCache = new Map();
+        
+        /** @type {Map<string, Promise<HTMLImageElement>>} In-flight atlas network request deduplication map */
+        this.atlasPromises = new Map();
+        
+        /** @type {number} Maximum number of master atlas images retained in memory */
+        this.maxAtlasCacheSize = 50;
+
+        this.atlasPath = '/assets/avatar/head_01_default.png'; // Default fallback atlas
+        this.frameWidth = 100; // Source slice width (Atlas: 1000px / 10 cols)
+        this.frameHeight = 100; // Source slice height (Atlas: 3600px / 36 rows)
         this.rows = 36;
         this.cols = 10;
 
         this.isReady = false;
-        this.pendingRequests = []; // Callbacks waiting for load
 
-        // --- Performance: Reusable Canvases ---
-        // We reuse these canvas elements for every render operation to avoid 
-        // the overhead of creating DOM elements and getting contexts repeatedly.
+        // --- PERFORMANCE: Reusable Off-screen Canvases ---
+        // OPTIMIZATION: Reusing work and temp canvas contexts keeps Garbage Collection (GC) allocations near zero per render operation.
         this.workCanvas = document.createElement('canvas');
-        this.workCanvas.width = 640;
+        this.workCanvas.width = 640; // 10 animation frames * 64px width
         this.workCanvas.height = 64;
         this.workCtx = this.workCanvas.getContext('2d', { willReadFrequently: true });
 
         this.tempCanvas = document.createElement('canvas');
-        // Initial size, will resize if needed but usually 100x100
         this.tempCanvas.width = 100;
         this.tempCanvas.height = 100;
         this.tempCtx = this.tempCanvas.getContext('2d', { willReadFrequently: true });
     }
 
     /**
-     * Loads the master texture atlas required for rendering.
-     * Handles singleton-like loading state to prevent duplicate network requests.
-     * @param {string} url - The URL of the atlas image
-     * @returns {Promise<HTMLImageElement>}
+     * Asynchronously loads a master texture atlas required for rendering.
+     * Implements Map-based caching and request deduplication.
+     * 
+     * @param {string} url - Relative asset path of the atlas PNG
+     * @returns {Promise<HTMLImageElement>} Resolves when atlas is loaded and ready for pixel reading
      */
     async loadAtlas(url) {
-        if (this.atlasImage && this.atlasImage.src.endsWith(url)) return this.atlasImage;
-        if (this.currentAtlasUrl === url && this.atlasPromise) return this.atlasPromise;
+        if (this.atlasCache.has(url)) return this.atlasCache.get(url);
+        if (this.atlasPromises.has(url)) return this.atlasPromises.get(url);
 
-        this.currentAtlasUrl = url;
-        this.atlasPromise = new Promise((resolve, reject) => {
+        const promise = new Promise((resolve, reject) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
             img.onload = () => {
-                this.atlasImage = img;
+                // OPTIMIZATION: Enforce LRU eviction cap on raw atlas images to bound memory usage
+                if (this.atlasCache.size >= this.maxAtlasCacheSize) {
+                    const oldestUrl = this.atlasCache.keys().next().value;
+                    this.atlasCache.delete(oldestUrl);
+                }
+                this.atlasCache.set(url, img);
+                this.atlasPromises.delete(url);
                 this.isReady = true;
                 resolve(img);
             };
-            img.onerror = reject;
+            img.onerror = (err) => {
+                // RELIABILITY: Clean up rejected promise so future retries are not blocked
+                this.atlasPromises.delete(url);
+                reject(err);
+            };
             img.src = url;
         });
-        return this.atlasPromise;
+
+        this.atlasPromises.set(url, promise);
+        return promise;
     }
 
     /**
-     * Generates a unique key for the profile configuration.
-     * Used for the LRU Cache lookups.
+     * Generates a unique, deterministic cache key from parsed layer configurations.
+     * 
+     * @param {Array<{row: number, color: string}>} layers - Array of parsed layer row and color objects
+     * @param {string} atlasUrl - Source atlas URL
+     * @returns {string} Deterministic cache key string
      */
     generateKey(layers, atlasUrl) {
-        // Simple hash of the layers + atlas
-        return atlasUrl + '::' + JSON.stringify(layers);
+        // OPTIMIZATION: Fast string concatenation avoids JSON.stringify overhead and short-lived allocations
+        let key = atlasUrl;
+        for (let i = 0; i < layers.length; i++) {
+            key += `|${layers[i].row}:${layers[i].color}`;
+        }
+        return key;
     }
 
     /**
-     * Synchronously check if a profile is already cached.
-     * Use this to avoid async overhead/flicker for instant-render cases.
-     * @param {Object} profile - The visual profile object
-     * @returns {string|null} DataURL of cached image or null
+     * Synchronously checks if a profile visual configuration is already compiled in cache.
+     * Promotes the entry to the end of the LRU Map order on access.
+     * 
+     * @param {Object} profile - Visual profile metadata object
+     * @returns {string|null} Base64 PNG DataURL if cached, or null
      */
     getCached(profile) {
         if (!profile || !profile.head || !profile.head.sprite) return null;
@@ -85,14 +122,22 @@ class AvatarRenderer {
         const atlasUrl = `${ATLAS_PATH}${headSprite}_default.png`;
         const layers = this.parseLayers(profile);
         const key = this.generateKey(layers, atlasUrl);
-        return this.cache.get(key) || null;
+        
+        if (!this.cache.has(key)) return null;
+
+        const val = this.cache.get(key);
+        // OPTIMIZATION: LRU Map key promotion on synchronous read prevents active avatars from premature eviction
+        this.cache.delete(key);
+        this.cache.set(key, val);
+        return val;
     }
 
     /**
-     * Main render method. 
-     * Composes the avatar layers into a single animated sprite sheet (640x64).
-     * @param {Object} profile - The visual profile object
-     * @returns {Promise<string|null>} Resolves to a DataURL (image string).
+     * Main composition render method.
+     * Stacks, tints, and composes body part layers into a single 640x64 animated sprite sheet.
+     * 
+     * @param {Object} profile - Visual profile configuration
+     * @returns {Promise<string|null>} Base64 PNG DataURL of composite sprite sheet
      */
     async render(profile) {
         if (!profile || !profile.head || !profile.head.sprite) return null;
@@ -107,7 +152,7 @@ class AvatarRenderer {
         // 2. Check Cache
         const cacheKey = this.generateKey(layers, atlasUrl);
         if (this.cache.has(cacheKey)) {
-            // Access bump (LRU-ish behavior: remove and re-add to end)
+            // OPTIMIZATION: Access bump (LRU behavior: move to end of Map)
             const val = this.cache.get(cacheKey);
             this.cache.delete(cacheKey);
             this.cache.set(cacheKey, val);
@@ -179,7 +224,7 @@ class AvatarRenderer {
         const dataUrl = this.workCanvas.toDataURL('image/png');
 
         // Cache Management (Max 500 items)
-        if (this.cache.size > 500) {
+        if (this.cache.size >= 500) {
             const firstKey = this.cache.keys().next().value;
             this.cache.delete(firstKey);
         }
@@ -189,22 +234,31 @@ class AvatarRenderer {
     }
 
     /**
-     * Converts the high-level profile object into a list of specific Atlas Rows and Colors.
-     * This mapping is specific to the "TastyTails" avatar sprite sheet layout.
-     * @param {Object} profile 
-     * @returns {Array} List of {row, color} objects
+     * Converts a profile object into a list of specific Atlas Row indices and CSS hex colors.
+     * 
+     * @param {Object} profile - Visual profile metadata
+     * @returns {Array<{row: number, color: string}>} Ordered array of layer specifications
      */
     parseLayers(profile) {
         const layers = [];
         const addLayer = (row, color) => {
             if (row !== undefined && row !== null && color) {
                 let cssColor = color;
-                if (typeof color === 'string' && color.startsWith('0x')) {
-                    cssColor = '#' + color.substring(2);
+                if (typeof color === 'string') {
+                    if (color.startsWith('0x')) {
+                        cssColor = '#' + color.substring(2);
+                    }
+                } else if (typeof color === 'number') {
+                    cssColor = '#' + color.toString(16).padStart(6, '0');
+                } else {
+                    return;
                 }
                 layers.push({ row, color: cssColor });
             }
         };
+
+        // RELIABILITY: Helper for type-safe regex extraction on potential non-string values
+        const safeMatch = (val, regex) => (typeof val === 'string' ? val.match(regex) : null);
 
         // 1. Base Head (Row 0)
         addLayer(0, profile.head.color || '#fff');
@@ -217,10 +271,9 @@ class AvatarRenderer {
             addLayer(2, profile.eyes.color);
         }
 
-        // ... Body markings logic ...
         // 4. Secondary Markings
         if (profile.head.secondarySprite) {
-            const match = profile.head.secondarySprite.match(/secondary(?:Head)?_0?(\d+)/i);
+            const match = safeMatch(profile.head.secondarySprite, REGEX_SECONDARY);
             if (match) {
                 const idx = parseInt(match[1], 10);
                 const row = 3 + (idx - 1);
@@ -230,7 +283,7 @@ class AvatarRenderer {
 
         // 5. Accent Markings
         if (profile.head.accentSprite) {
-            const match = profile.head.accentSprite.match(/secondary(?:Head)?_0?(\d+)/i);
+            const match = safeMatch(profile.head.accentSprite, REGEX_SECONDARY);
             if (match) {
                 const idx = parseInt(match[1], 10);
                 const row = 3 + (idx - 1);
@@ -241,7 +294,7 @@ class AvatarRenderer {
         // 6. Ears
         if (profile.ear) {
             if (profile.ear.outerSprite) {
-                const match = profile.ear.outerSprite.match(/ears_0?(\d+)-outer/i);
+                const match = safeMatch(profile.ear.outerSprite, REGEX_EAR_OUTER);
                 if (match) {
                     const idx = parseInt(match[1], 10);
                     const row = 9 + (idx - 1) * 2;
@@ -249,7 +302,7 @@ class AvatarRenderer {
                 }
             }
             if (profile.ear.innerSprite) {
-                const match = profile.ear.innerSprite.match(/ears_0?(\d+)-inner/i);
+                const match = safeMatch(profile.ear.innerSprite, REGEX_EAR_INNER);
                 if (match) {
                     const idx = parseInt(match[1], 10);
                     const row = 8 + (idx - 1) * 2;
@@ -261,14 +314,12 @@ class AvatarRenderer {
         // 7. Head Accessories
         if (profile.headAccessories) {
             const spriteName = profile.headAccessories.sprite || profile.headAccessories;
-            if (typeof spriteName === 'string') {
-                const match = spriteName.match(/headAccessories_0?(\d+)/i);
-                if (match) {
-                    const idx = parseInt(match[1], 10);
-                    const row = 30 + (idx - 1);
-                    const color = profile.headAccessories.color || '#fff';
-                    addLayer(row, color);
-                }
+            const match = safeMatch(spriteName, REGEX_HEAD_ACC);
+            if (match) {
+                const idx = parseInt(match[1], 10);
+                const row = 30 + (idx - 1);
+                const color = profile.headAccessories.color || '#fff';
+                addLayer(row, color);
             }
         }
 
@@ -278,3 +329,5 @@ class AvatarRenderer {
 
 // Global Instance
 window.avatarRenderer = new AvatarRenderer();
+
+

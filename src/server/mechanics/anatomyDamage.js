@@ -1,41 +1,68 @@
 /**
- * anatomyDamage.js
+ * @fileoverview anatomyDamage.js - Multi-Typed Anatomical Limb & Health Simulation Engine
  * 
- * Server-side engine for multi-typed anatomical damage in TastyTails.net.
- * Supports 4 primary damage domains: Brute, Burn, Toxin, Suffocation.
- * Target zones: head, torso, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftFoot, rightFoot, tail.
+ * @description
+ * Primary server-side mechanics module for multi-typed anatomical damage calculation,
+ * limb condition management (fractures, open wound bleeding, item drop checks, sensory damage),
+ * and composite player health evaluation (80% limb health + 20% blood volume).
+ * 
+ * Triggered by: Combat attacks (damage.js), medical remedies (remedies.js), healing spells (health.js), and server tick loops (server-loop.js).
  */
 
 const log = require('../../logger');
 
-// Available external body parts
+/**
+ * List of valid external anatomical body parts.
+ * @type {string[]}
+ */
 const BODY_PARTS = [
     'head', 'torso', 'leftArm', 'rightArm', 'leftHand', 'rightHand',
     'leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'tail'
 ];
 
 /**
- * Creates default bodyParts state object.
+ * Creates default bodyParts state object with base HP and domain damage tracking buckets.
+ * @returns {Object.<string, {hp: number, maxHp: number, brute: number, burn: number, toxin: number, suffocation: number, bleeding: number, fractured?: boolean, splinted?: boolean}>}
  */
 function createDefaultBodyParts() {
     return {
-        head: { hp: 100, maxHp: 100, brute: 0, burn: 0, toxin: 0, suffocation: 0 },
-        torso: { hp: 100, maxHp: 100, brute: 0, burn: 0, toxin: 0, suffocation: 0 },
-        leftArm: { hp: 100, maxHp: 100, brute: 0, burn: 0, fractured: false },
-        rightArm: { hp: 100, maxHp: 100, brute: 0, burn: 0, fractured: false },
-        leftHand: { hp: 100, maxHp: 100, brute: 0, burn: 0 },
-        rightHand: { hp: 100, maxHp: 100, brute: 0, burn: 0 },
-        leftLeg: { hp: 100, maxHp: 100, brute: 0, burn: 0, fractured: false, splinted: false },
-        rightLeg: { hp: 100, maxHp: 100, brute: 0, burn: 0, fractured: false, splinted: false },
-        leftFoot: { hp: 100, maxHp: 100, brute: 0, burn: 0 },
-        rightFoot: { hp: 100, maxHp: 100, brute: 0, burn: 0 },
-        tail: { hp: 100, maxHp: 100, brute: 0, burn: 0, fractured: false }
+        head: { hp: 100, maxHp: 100, brute: 0, burn: 0, toxin: 0, suffocation: 0, bleeding: 0 },
+        torso: { hp: 100, maxHp: 100, brute: 0, burn: 0, toxin: 0, suffocation: 0, bleeding: 0 },
+        leftArm: { hp: 100, maxHp: 100, brute: 0, burn: 0, fractured: false, bleeding: 0 },
+        rightArm: { hp: 100, maxHp: 100, brute: 0, burn: 0, fractured: false, bleeding: 0 },
+        leftHand: { hp: 100, maxHp: 100, brute: 0, burn: 0, bleeding: 0 },
+        rightHand: { hp: 100, maxHp: 100, brute: 0, burn: 0, bleeding: 0 },
+        leftLeg: { hp: 100, maxHp: 100, brute: 0, burn: 0, fractured: false, splinted: false, bleeding: 0 },
+        rightLeg: { hp: 100, maxHp: 100, brute: 0, burn: 0, fractured: false, splinted: false, bleeding: 0 },
+        leftFoot: { hp: 100, maxHp: 100, brute: 0, burn: 0, bleeding: 0 },
+        rightFoot: { hp: 100, maxHp: 100, brute: 0, burn: 0, bleeding: 0 },
+        tail: { hp: 100, maxHp: 100, brute: 0, burn: 0, fractured: false, bleeding: 0 }
     };
 }
+
+// OPTIMIZATION: Frozen static default body parts template prevents heap object re-allocations during lazy migration checks.
+const STATIC_DEFAULT_BODY_PARTS = Object.freeze(createDefaultBodyParts());
+
+// OPTIMIZATION: Pre-allocated weighted selection table avoids dynamic object and 2D array allocations in hot combat paths.
+const WEIGHTED_BODY_PARTS = [
+    { part: 'torso', weight: 35 },
+    { part: 'leftLeg', weight: 12 }, { part: 'rightLeg', weight: 12 },
+    { part: 'leftArm', weight: 10 }, { part: 'rightArm', weight: 10 },
+    { part: 'leftFoot', weight: 5 }, { part: 'rightFoot', weight: 5 },
+    { part: 'leftHand', weight: 4 }, { part: 'rightHand', weight: 4 },
+    { part: 'head', weight: 2 }, { part: 'tail', weight: 1 }
+];
+
+// OPTIMIZATION: Pre-compiled RegExp normalizers for zero-allocation domain mapping.
+const BURN_REGEX = /burn|fire|frost|cold|acid|plasma|lightning/i;
+const TOXIN_REGEX = /toxin|poison|venom|spores|chemical/i;
+const SUFFOCATION_REGEX = /suffocation|drowning|asphyxiation|choking|void/i;
 
 /**
  * Ensures player stats object has complete anatomical fields initialized.
  * Handles lazy migration of legacy character records.
+ * 
+ * @param {Object} target - The player character object reference.
  */
 function ensureAnatomyStats(target) {
     if (!target) return;
@@ -55,11 +82,10 @@ function ensureAnatomyStats(target) {
     if (!target.stats.bodyParts) {
         target.stats.bodyParts = createDefaultBodyParts();
     } else {
-        // Guard against any missing individual part
-        const defaults = createDefaultBodyParts();
+        // OPTIMIZATION: Guard against missing individual parts without allocating full template object
         for (const part of BODY_PARTS) {
             if (!target.stats.bodyParts[part]) {
-                target.stats.bodyParts[part] = defaults[part];
+                target.stats.bodyParts[part] = { ...STATIC_DEFAULT_BODY_PARTS[part] };
             }
         }
     }
@@ -68,41 +94,35 @@ function ensureAnatomyStats(target) {
 /**
  * Maps raw damage type strings to one of the 4 primary domains:
  * 'brute', 'burn', 'toxin', 'suffocation'.
+ * 
+ * @param {string} [type='brute'] - Raw incoming damage classification.
+ * @returns {string} Normalized domain ('brute'|'burn'|'toxin'|'suffocation').
  */
 function normalizeDamageType(type = 'brute') {
     const lower = String(type).toLowerCase();
-    if (['burn', 'fire', 'frost', 'cold', 'acid', 'plasma', 'lightning'].some(k => lower.includes(k))) return 'burn';
-    if (['toxin', 'poison', 'venom', 'spores', 'chemical'].some(k => lower.includes(k))) return 'toxin';
-    if (['suffocation', 'drowning', 'asphyxiation', 'choking', 'void'].some(k => lower.includes(k))) return 'suffocation';
+    if (BURN_REGEX.test(lower)) return 'burn';
+    if (TOXIN_REGEX.test(lower)) return 'toxin';
+    if (SUFFOCATION_REGEX.test(lower)) return 'suffocation';
     return 'brute'; // Default domain
 }
 
 /**
  * Selects a random external body part weighted by natural exposure.
+ * @returns {string} Target body part key.
  */
 function getRandomBodyPart() {
-    const weights = {
-        torso: 35,
-        leftLeg: 12, rightLeg: 12,
-        leftArm: 10, rightArm: 10,
-        leftFoot: 5, rightFoot: 5,
-        leftHand: 4, rightHand: 4,
-        head: 2, tail: 1
-    };
     let roll = Math.random() * 100;
-    for (const [part, weight] of Object.entries(weights)) {
-        if (roll < weight) return part;
-        roll -= weight;
+    for (let i = 0; i < WEIGHTED_BODY_PARTS.length; i++) {
+        const entry = WEIGHTED_BODY_PARTS[i];
+        if (roll < entry.weight) return entry.part;
+        roll -= entry.weight;
     }
     return 'torso';
 }
 
 /**
  * Recalculates composite total health percentage based on body parts & blood volume.
- */
-/**
- * Recalculates composite total health percentage based on body parts & blood volume.
- * Dynamically computes cumulative bleeding rate from all limbs with HP <= 50.
+ * Dynamically computes cumulative bleeding rate from all limbs with HP <= 50 and open wounds.
  */
 function recalculateTotalHealth(target) {
     ensureAnatomyStats(target);
@@ -123,6 +143,11 @@ function recalculateTotalHealth(target) {
                 const limbDeficitRatio = (50 - currentHp) / 50; // 0.0 at 50 HP -> 1.0 at 0 HP
                 const limbBleedRate = limbDeficitRatio * 0.8; // Up to 0.8 mL/s per destroyed limb
                 cumulativeLimbBleed += limbBleedRate;
+            }
+
+            // Per-Limb Open Cut Wound Bleeding
+            if (part.bleeding && part.bleeding > 0) {
+                cumulativeLimbBleed += part.bleeding;
             }
         }
     }
@@ -161,8 +186,13 @@ function applyAnatomyDamage(target, amount, rawDamageType = 'brute', targetPart 
         if (damageType === 'suffocation') {
             bodyPart = 'torso';
         } else if (rawDamageType.includes('acid') || rawDamageType.includes('digestion')) {
-            const activeLimbs = BODY_PARTS.filter(p => target.stats && target.stats.bodyParts && target.stats.bodyParts[p] && target.stats.bodyParts[p].hp > 0);
-            bodyPart = activeLimbs.length > 0 ? activeLimbs[Math.floor(Math.random() * activeLimbs.length)] : BODY_PARTS[Math.floor(Math.random() * BODY_PARTS.length)];
+            const bParts = target.stats.bodyParts;
+            const candidates = [];
+            for (let i = 0; i < BODY_PARTS.length; i++) {
+                const pName = BODY_PARTS[i];
+                if (bParts[pName] && bParts[pName].hp > 0) candidates.push(pName);
+            }
+            bodyPart = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : BODY_PARTS[Math.floor(Math.random() * BODY_PARTS.length)];
         } else if (rawDamageType.includes('glass') || rawDamageType.includes('step')) {
             bodyPart = Math.random() < 0.5 ? 'leftFoot' : 'rightFoot';
         } else {
@@ -195,6 +225,7 @@ function applyAnatomyDamage(target, amount, rawDamageType = 'brute', targetPart 
     // 1. Slashing/Sharp brute hit triggers bonus bleeding
     if (damageType === 'brute' && (rawDamageType.includes('slash') || rawDamageType.includes('cut') || rawDamageType.includes('glass') || Math.random() < 0.35)) {
         bleedingTriggered = true;
+        part.bleeding = Math.min(3.0, (part.bleeding || 0) + 0.5); // Add 0.5 mL/s bleed per cut (max 3.0 mL/s per limb)
     }
 
     // 2. Bone Fracture check on Arms/Legs/Tail

@@ -1,13 +1,39 @@
 /**
- * damage.js
+ * @fileoverview High-Level Damage Processing & Player Death Facade Module
  * 
- * Handles damage calculation and application for players (and potentially NPCs).
- * Integrates multi-typed anatomical limb damage and updates server state.
+ * @description
+ * Primary server-side damage dispatcher for TastyTails.net.
+ * Orchestrates multi-typed anatomical body part calculations, player death state transitions,
+ * digestion release hooks, immutable corpse appearance snapshot creation, resilient database queueing,
+ * and Socket.IO client updates.
+ * 
+ * Triggered by:
+ * - Melee / Combat interactions (`src/sockets/interactionHandlers.js`)
+ * - Environment / Hazard ticks (`src/server-loop.js`)
+ * - Combat / System chat commands (`src/classes/MessageSystem.js`)
+ * - Predator stomach acid digestion ticks (`src/server/mechanics/digestion.js`)
  */
 
 const log = require('../../logger');
 const DatabaseResilience = require('../../classes/DatabaseResilience');
 const { applyAnatomyDamage } = require('./anatomyDamage');
+
+/**
+ * OPTIMIZATION: Safely deep-clones an object using structuredClone when available,
+ * falling back to JSON serialization on error or environment incompatibility.
+ * Prevents V8 Garbage Collection spikes from repeated stringify cycles.
+ * 
+ * @param {Object|null|undefined} obj - Object to clone.
+ * @returns {Object} Deep clone of the object, or empty object if null/undefined.
+ */
+function safeClone(obj) {
+    if (!obj) return {};
+    try {
+        return typeof structuredClone === 'function' ? structuredClone(obj) : JSON.parse(JSON.stringify(obj));
+    } catch (err) {
+        return JSON.parse(JSON.stringify(obj));
+    }
+}
 
 /**
  * Applies damage to a player.
@@ -39,21 +65,28 @@ async function applyDamage(players, User, targetId, amount, sourceId = null, dam
     const isVictimDead = dead || (target.stats && target.stats.health <= 0);
 
     if (isVictimDead) {
+        const wasAlreadyDead = target.isDead;
+        target.isDead = true;
+
         // If victim is consumed by a predator, trigger digestion death & UI release pipeline
         if (target.consumedBy) {
             try {
                 const { processDigestionDeath } = require('./digestion');
-                const predatorSocketId = Object.keys(players).find(sid => players[sid].playerId === target.consumedBy);
-                const predator = players[predatorSocketId];
+                // OPTIMIZATION: Prefer direct O(1) socket ID reference before falling back to O(N) players array scan
+                let predatorSocketId = target.consumedBySocketId;
+                let predator = predatorSocketId ? players[predatorSocketId] : null;
+                if (!predator || predator.playerId !== target.consumedBy) {
+                    predatorSocketId = Object.keys(players).find(sid => players[sid] && players[sid].playerId === target.consumedBy);
+                    predator = predatorSocketId ? players[predatorSocketId] : null;
+                }
                 await processDigestionDeath(target, predator, players, User, io, addCorpse, messageSystem);
             } catch (err) {
                 log.error(`[Damage] Error processing digestion death for ${target.Username}:`, err);
+                if (!wasAlreadyDead) target.isDead = false;
             }
         }
 
-        if (!target.isDead) { // Only trigger corpse spawn on first death frame
-            target.isDead = true;
-
+        if (!wasAlreadyDead) { // Only trigger corpse spawn on first death frame
             // Spawn Corpse
             if (addCorpse) {
                 const corpseData = {
@@ -64,19 +97,19 @@ async function applyDamage(players, User, targetId, amount, sourceId = null, dam
                     firstName: target.firstName,
                     lastName: target.lastName,
                     // Appearance Snapshot
-                    head: target.head ? JSON.parse(JSON.stringify(target.head)) : {},
-                    body: target.body ? JSON.parse(JSON.stringify(target.body)) : {},
-                    hands: target.hands ? JSON.parse(JSON.stringify(target.hands)) : {},
-                    feet: target.feet ? JSON.parse(JSON.stringify(target.feet)) : {},
-                    tail: target.tail ? JSON.parse(JSON.stringify(target.tail)) : {},
-                    eyes: target.eyes ? JSON.parse(JSON.stringify(target.eyes)) : {},
-                    hair: target.hair ? JSON.parse(JSON.stringify(target.hair)) : {},
-                    ear: target.ear ? JSON.parse(JSON.stringify(target.ear)) : {},
-                    genitles: target.genitles ? JSON.parse(JSON.stringify(target.genitles)) : {},
-                    beak: target.beak ? JSON.parse(JSON.stringify(target.beak)) : {},
-                    headAccessories: target.headAccessories ? JSON.parse(JSON.stringify(target.headAccessories)) : {},
+                    head: safeClone(target.head),
+                    body: safeClone(target.body),
+                    hands: safeClone(target.hands),
+                    feet: safeClone(target.feet),
+                    tail: safeClone(target.tail),
+                    eyes: safeClone(target.eyes),
+                    hair: safeClone(target.hair),
+                    ear: safeClone(target.ear),
+                    genitals: safeClone(target.genitals || target.genitles),
+                    beak: safeClone(target.beak),
+                    headAccessories: safeClone(target.headAccessories),
                     // Equipment
-                    equipment: target.equipment ? JSON.parse(JSON.stringify(target.equipment)) : {}
+                    equipment: safeClone(target.equipment)
                 };
 
                 const corpseId = addCorpse(corpseData);

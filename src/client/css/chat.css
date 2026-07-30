@@ -1,4 +1,16 @@
-/* === COLOR PALETTE === */
+/**
+ * @fileoverview chat.css - Diegetic Chat User Interface Stylesheet
+ * 
+ * @description
+ * Complete styling rules for TastyTails.net's real-time chat interface, message feeds,
+ * chat archives, custom dropdowns, spoiler ink overlays, reaction pills, context menus,
+ * and 64x64px character avatar step animations.
+ * 
+ * Target views: src/views/play.ejs, src/views/chat-archives.ejs
+ * Mounted at: /css/chat.css via Express static middleware from src/client
+ */
+
+/* === COLOR PALETTE & DESIGN SYSTEM TOKENS === */
 :root {
     --wood-dark: #3e2723;
     --wood-light: #5d4037;
@@ -35,7 +47,8 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    /* OPTIMIZATION: Uses design system token --texture-cream-paper with CDN fallback to prevent network bottlenecks */
+    background-image: var(--texture-cream-paper, url('https://www.transparenttextures.com/patterns/cream-paper.png'));
     overflow: hidden;
     overflow-x: hidden;
 }
@@ -98,7 +111,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-family: 'Cinzel', serif;
+    font-family: 'Cinzel', 'Georgia', serif;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     padding-bottom: 2px;
 }
@@ -107,7 +120,7 @@
     font-size: 0.75rem;
     color: #a1887f;
     font-style: italic;
-    font-family: 'Lato';
+    font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;
 }
 
 .msgUsername strong {
@@ -118,7 +131,7 @@
 
 /* Message Content */
 .message-content {
-    font-family: 'Crimson Pro', serif;
+    font-family: 'Crimson Pro', 'Times New Roman', serif;
     font-size: 1.05rem;
     line-height: 1.5;
     color: var(--text-dark);
@@ -232,14 +245,15 @@
 
 
 /* --- NEW MESSAGES INDICATOR --- */
+/* OPTIMIZATION: Uses GPU-accelerated opacity compositor keyframes (pulseBlueOpacity) instead of CPU text-shadow repaints */
 .new-messages-divider {
     display: flex;
     align-items: center;
     color: var(--accent-blue);
-    font-family: 'Cinzel', serif;
+    font-family: 'Cinzel', 'Georgia', serif;
     font-size: 0.85rem;
     margin: 15px 0;
-    animation: pulseGold 2s infinite;
+    animation: pulseBlueOpacity 2s infinite ease-in-out;
 }
 
 .new-messages-divider::before,
@@ -250,15 +264,15 @@
     margin: 0 10px;
 }
 
-@keyframes pulseGold {
+@keyframes pulseBlueOpacity {
 
     0%,
     100% {
-        text-shadow: 0 0 2px rgba(40, 53, 147, 0);
+        opacity: 0.7;
     }
 
     50% {
-        text-shadow: 0 0 8px rgba(40, 53, 147, 0.5);
+        opacity: 1.0;
     }
 }
 
@@ -556,19 +570,27 @@
 }
 
 /* --- "TOO MANY CHARS" DIALOGUE --- */
+/* OPTIMIZATION: Hardware-accelerated backdrop blur with solid rgba fallback for legacy/unsupported GPUs */
 .dialogue-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(3px);
+    background: rgba(0, 0, 0, 0.75);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 2000;
     animation: fadeIn 0.2s;
+}
+
+@supports (backdrop-filter: blur(3px)) or (-webkit-backdrop-filter: blur(3px)) {
+    .dialogue-overlay {
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
+    }
 }
 
 .avatar-container {
@@ -580,15 +602,16 @@
     border-radius: 4px;
     overflow: hidden;
     background-color: transparent;
+    animation: play-emote-v2 2s steps(10) 1;
+}
+
+/* Continuously loop avatar animation when hovering over its associated message */
+.chat-message:hover .avatar-container {
     animation: play-emote-v2 2s steps(10) infinite;
 }
 
 /* .avatar-layer removed - Flattened to single element */
 
-/* Animation Keyframes - Shifts X position through 10 frames */
-/* Animation Keyframes - Shifts X position through 10 frames */
-/* Note: Container is 64px. Atlas row is 10 frames (640px width). 
-   We shift left by 640px over 10 steps to show each frame. */
 /* Animation Keyframes - Shifts X position through 10 frames */
 /* Note: Container is 64px. Atlas row is 10 frames (640px width). 
    We shift left by 640px over 10 steps to show each frame. */
@@ -611,7 +634,7 @@
     background-repeat: no-repeat;
     background-position: 0 0;
     background-size: 640px 64px;
-    animation: play-emote-v2 2s steps(10) infinite;
+    animation: play-emote-v2 2s steps(10) 1;
 }
 
 /* Animation for flattening <img> tags (uses object-position) */
@@ -623,7 +646,6 @@
     to {
         object-position: -640px 0;
     }
-}
 }
 
 .dialogue-box {
@@ -986,4 +1008,31 @@
     width: 16px;
     height: 16px;
     cursor: pointer;
+}
+
+/* === WEBKIT CUSTOM SCROLLBAR PARITY === */
+/* OPTIMIZATION: Chromium/Safari custom scrollbar parity matching Gecko/Firefox scrollbar-color design tokens */
+#chat::-webkit-scrollbar,
+#messages::-webkit-scrollbar,
+.custom-options::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+#chat::-webkit-scrollbar-track,
+#messages::-webkit-scrollbar-track,
+.custom-options::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#chat::-webkit-scrollbar-thumb,
+#messages::-webkit-scrollbar-thumb,
+.custom-options::-webkit-scrollbar-thumb {
+    background-color: var(--wood-light);
+    border-radius: 3px;
+}
+
+#chat::-webkit-scrollbar-thumb:hover,
+#messages::-webkit-scrollbar-thumb:hover {
+    background-color: var(--wood-dark);
 }

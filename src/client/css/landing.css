@@ -1,4 +1,15 @@
-/* --- Home Page (Notice Board) --- */
+/**
+ * @fileoverview landing.css - Primary Landing Page & Auth Modal Design System
+ * 
+ * @description
+ * Implements the "Warm Medieval Tavern & Guild Registry" visual theme for the TastyTails landing page (/),
+ * styling the skeuomorphic Notice Board card, entrance keycaps, and dual-column authentication modal.
+ * 
+ * @design-tokens Consumes palette variables defined in master.css (--palette-parchment, --palette-wood-dark, --btn-primary-bg, etc.)
+ * @performance Hardware-accelerated property transitions, zero-latency client-side modal toggle, cross-browser WebKit backdrop blur.
+ */
+
+/* --- Home Page (Notice Board Layout) --- */
 main {
     flex: 1;
     display: flex;
@@ -10,7 +21,7 @@ main {
 
 .notice-board {
     background-color: var(--palette-parchment);
-    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    background-image: var(--texture-cream-paper, url('/assets/images/patterns/cream-paper.png'));
     border: 8px solid var(--palette-wood-dark);
     border-radius: 4px;
     /* Slightly rounded corners */
@@ -26,6 +37,7 @@ main {
     position: relative;
     transform: rotate(-1deg);
     /* Slight tilt for "pinned to wall" feel */
+    z-index: 1;
 }
 
 /* Decorative "Nails" in corners */
@@ -104,7 +116,7 @@ main {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     box-shadow: 0 4px 0 var(--btn-primary-shadow); /* #3e5527 */
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .cta-btn:hover {
@@ -130,7 +142,7 @@ main {
     max-width: 100%;
     height: auto;
     display: block;
-    min-width: 600px;
+    width: 100%;
 }
 
 /* Fallback icon if image fails or isn't present */
@@ -151,16 +163,21 @@ main {
     height: 100%;
     background: rgba(0, 0, 0, 0.75);
     backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
     z-index: 2000;
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
+.registrationBox.hide {
+    display: none !important;
+}
+
 /* Standardized 6px Dark Wood Modal Box Frame */
 .popUpContainer {
     background-color: var(--palette-parchment);
-    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    background-image: var(--texture-cream-paper, url('/assets/images/patterns/cream-paper.png'));
     width: 900px;
     max-width: 95%;
     border: 6px solid var(--palette-wood-dark);
@@ -203,7 +220,7 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
     font-family: 'Cinzel', serif;
 }
 
@@ -288,7 +305,7 @@ main {
     font-weight: bold;
     font-size: 1.1rem;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.2s ease, box-shadow 0.2s ease;
     box-shadow: 0 4px 0 var(--btn-primary-shadow); /* #3e5527 */
     text-transform: uppercase;
 }
@@ -297,6 +314,29 @@ main {
     transform: translateY(2px);
     box-shadow: 0 2px 0 var(--btn-primary-shadow);
     background-color: var(--btn-primary-hover); /* #7ea34f */
+}
+
+/* Keyboard Accessibility Focus Indicators */
+.cta-btn:focus-visible,
+.button:focus-visible {
+    outline: 3px solid var(--palette-gold);
+    outline-offset: 3px;
+}
+
+.close button:focus-visible {
+    outline: 3px solid var(--palette-gold);
+    outline-offset: 2px;
+}
+
+.popUpContainer input:focus-visible {
+    outline: 2px solid var(--palette-gold);
+}
+
+/* Desktop Image Sizing */
+@media (min-width: 769px) {
+    .construction-img-container img {
+        min-width: 550px;
+    }
 }
 
 /* Responsive Popup */
@@ -312,8 +352,4 @@ main {
         height: 2px;
         margin: 20px 0;
     }
-}
-
-.notice-board {
-    z-index: 1;
 }

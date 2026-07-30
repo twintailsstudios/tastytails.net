@@ -1,3 +1,10 @@
+<!-- 
+  @fileoverview layout.ejs - Master HTML Shell & Layout Template
+  @description
+  Provides the global HTML container, font/CSS asset links, header navigation,
+  user authentication controls, connection alert banner, and sticky footer.
+  Child view templates are injected into the body slot via express-ejs-layouts.
+-->
 <!DOCTYPE html>
 <html>
 
@@ -7,11 +14,11 @@
   <meta name="keywords"
     content="vore, game, vore game, unbirth, anal vore, tail vore, transformation, TF, tasty, tails, tastytails, tasty tails, furry, yiff, role-playing, role-play, role play, RP, lewd, OwO,">
   <meta name="author" content="Kimberly Tilson">
-  <title>TastyTails | Home</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css" />
-  <!-- 'classic' theme -->
-  <link rel="stylesheet" href="./../css/master.css">
-  <link rel="stylesheet" href="./../css/style.css">
+  <title><%= typeof title !== 'undefined' ? title : 'TastyTails | Home' %></title>
+  <!-- OPTIMIZATION: Preconnect to Font CDNs for Fast Layout Paint -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/css/master.css?v=<%= Date.now() %>">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Caveat+Brush&family=Crimson+Pro:ital,wght@0,400;0,700;1,400&family=Philosopher:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -28,6 +35,8 @@
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    background-color: var(--palette-bg, #2c241b);
+    background-image: var(--texture-wood-pattern, url('https://www.transparenttextures.com/patterns/wood-pattern.png'));
   }
 
   /* Ensure footer sticks to bottom */
@@ -49,11 +58,7 @@
       </div>
     </div>
   </header>
-  <% if (loginForm==1) { %>
-    <div id="smoke">
-
-    </div>
-    <% } %>
+  <div id="smoke" class="<%= (typeof loginForm !== 'undefined' && loginForm == 1) ? '' : 'hide' %>"></div>
       <nav>
         <div class="container nav-container">
           <ul class="nav-links">
@@ -79,9 +84,7 @@
                 <button type="submit" class="btn btn-outline">Logout</button>
               </form>
               <% } else { %>
-                <form action="/api/user/loginForm" method="POST">
-                  <button type="submit" onClick="hideFunction()" class="btn btn-outline">Login</button>
-                </form>
+                <button type="button" onClick="hideFunction()" class="btn btn-outline" aria-label="Open Login Window">Login</button>
                 <% } %>
                   <div class="loggedIn">
                     <% if (token !==null) { %>
@@ -101,11 +104,21 @@
         </footer>
 
         <script>
+          /**
+           * Toggles visibility of registration modal and smoke backdrop.
+           * DEFENSIVE GUARD: Checks if elements exist before accessing classList
+           * to prevent client-side JS TypeError exceptions on pages missing these elements.
+           */
           function hideFunction() {
-            var element = document.getElementsByClassName("registrationBox");
-            element[0].classList.toggle("hide");
-            element = document.getElementById("smoke");
-            element.classList.toggle("hide");
+            var regBox = document.getElementsByClassName("registrationBox")[0];
+            if (regBox) {
+              var isHidden = regBox.classList.toggle("hide");
+              regBox.setAttribute("aria-hidden", isHidden ? "true" : "false");
+            }
+            var smokeEl = document.getElementById("smoke");
+            if (smokeEl) {
+              smokeEl.classList.toggle("hide");
+            }
           }
         </script>
 </body>

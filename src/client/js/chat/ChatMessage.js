@@ -1,37 +1,63 @@
 /**
- * ChatMessage.js
+ * @fileoverview ChatMessage.js - HTML Template Renderer for Individual Chat Messages
  * 
- * Responsible for generating the HTML structure of individual chat messages.
- * This class takes raw message data and produces the DOM string string used by ChatUI.
- * It handles:
- * - Message type variance (Say, OOC, Environmental, etc.)
- * - Timestamp formatting
- * - Avatar creation logic
- * - Reaction bar rendering
+ * @description
+ * Responsible for generating the HTML structure of individual chat message rows in TastyTails.net.
+ * Acts as a pure client-side View Template Generator in the chat subsystem architecture.
+ * Takes raw server message data models and produces sanitized DOM HTML strings for ChatUI.
+ * 
+ * Triggered by:
+ * - WebSocket `message-output` broadcasts (via `ChatSystem.onMessageOutput`)
+ * - WebSocket `reactions-output` updates (via `ChatSystem.onReactionUpdate`)
+ * - WebSocket `older-chats-output` history hydration (via `ChatSystem.onOlderChatsOutput`)
+ * - Local optimistic ghost message creation (via `ChatSystem.renderGhostMessage`)
  */
+
+/**
+ * OPTIMIZATION: Static frozen map of reaction keys to emojis.
+ * Prevents transient object allocations on hot-loop message rendering.
+ */
+const REACTION_MAP = Object.freeze({
+    heart: '❤️',
+    blush: '😳',
+    laugh: '😂',
+    thumbsup: '👍',
+    thumbsdown: '👎'
+});
+
 class ChatMessage {
     constructor() {
+        /** @private {string} Track last URL location to invalidate character ID cache when switching characters */
+        this._lastHref = '';
+        /** @private {string} Cached character ID parsed from current URL */
+        this._cachedCharId = '';
     }
 
     /**
-     * Main render method. Converts a message object into an HTML string.
-     * @param {Object} msg - The message data object from the server.
-     * @returns {string} The HTML string representing the message row.
+     * Main render method. Converts a server message object into a structured HTML string.
+     * @param {Object} msg - The raw message data object from the server or ghost system.
+     * @returns {string} The HTML string representing the complete message row.
      */
     render(msg) {
-        const rawTime = msg.message[msg.message.length - 1].time;
+        // RELIABILITY: Guard against null or non-object payloads to avoid throwing uncaught errors
+        if (!msg || typeof msg !== 'object') return '';
+
+        // RELIABILITY: Safely extract message revisions and fallback to safe defaults if payload is malformed
+        const msgChain = Array.isArray(msg.message) ? msg.message : [];
+        const latestMsg = msgChain.length > 0 ? msgChain[msgChain.length - 1] : { time: Date.now(), content: '' };
+        const rawTime = latestMsg.time || Date.now();
         const time = ChatFormatter.formatTime(rawTime);
-        const username = msg.name;
-        const content = msg.message[msg.message.length - 1].content;
-        const spoilerStatus = msg.spoiler.status;
-        const msgId = msg._id;
-        const identifier = msg.identifier;
+        const username = msg.name || 'Anonymous';
+        const content = latestMsg.content || '';
+        const spoilerStatus = msg.spoiler?.status || 'none';
+        const msgId = msg._id || `temp-fallback-${Math.random().toString(36).substring(2, 11)}`;
+        const identifier = msg.identifier || '';
         const type = msg.type || 'Default';
         const scope = msg.scope || 'global';
         const senderProfile = msg.senderProfile || {};
         const reactions = msg.reactions || {};
 
-        // Environmental Message (Special Formatting)
+        // Environmental Message (Special Full-Width Formatting)
         if (username === 'Environment' || type === 'Environmental') {
             return `
                 <div id="${msgId}" class="chat-message environmental-message" data-timestamp="${rawTime}">
@@ -55,11 +81,10 @@ class ChatMessage {
         if (type === 'Interactional') messageClasses += " interactional-message";
         if (type === 'OOC') messageClasses += " ooc-message";
 
-
-        // Avatars
+        // Render Avatar HTML Container
         const avatarHtml = this.renderAvatar(senderProfile, msgId);
 
-        // Reactions
+        // Render Interactive Reactions Bar
         const reactionsHtml = this.renderReactions(reactions, msgId);
 
         return `
@@ -80,19 +105,21 @@ class ChatMessage {
     }
 
     /**
-     * Renders the reaction bar with pill counts.
-     * @param {Object} reactions - Map of reaction types to array of userIds
-     * @param {string} msgId - The ID of the message
+     * Renders the reaction bar with pill counts and active status.
+     * @param {Object.<string, Array.<string>>} reactions - Map of reaction types to array of user IDs
+     * @param {string} msgId - The unique ID of the message
+     * @returns {string} HTML string representing the reaction bar
      */
     renderReactions(reactions, msgId) {
         let html = '<div class="reaction-bar">';
-        const reactionMap = { heart: '❤️', blush: '😳', laugh: '😂', thumbsup: '👍', thumbsdown: '👎' };
         const myCharId = this.getMyCharId();
 
         for (const [type, users] of Object.entries(reactions)) {
             if (users && users.length > 0) {
                 const isActive = users.includes(myCharId) ? 'active' : '';
-                html += `<div class="reaction-pill ${isActive}" data-reaction-toggle="${type}" data-msg-id="${msgId}">${reactionMap[type]} <span class="count">${users.length}</span></div>`;
+                // OPTIMIZATION: Read from static frozen REACTION_MAP dictionary
+                const emoji = REACTION_MAP[type] || type;
+                html += `<div class="reaction-pill ${isActive}" data-reaction-toggle="${type}" data-msg-id="${msgId}">${emoji} <span class="count">${users.length}</span></div>`;
             }
         }
 
@@ -106,6 +133,9 @@ class ChatMessage {
     /**
      * Generates the avatar container HTML.
      * Includes logic for synchronous cache checking vs async loading placeholder.
+     * @param {Object} profile - Character profile object containing sprite data
+     * @param {string} msgId - Unique message ID
+     * @returns {string} HTML snippet for the avatar container
      */
     renderAvatar(profile, msgId) {
         if (!profile || !profile.head || !profile.head.sprite) return '';
@@ -113,21 +143,28 @@ class ChatMessage {
         let style = '';
         let className = 'avatar-container pixel-art avatar-placeholder'; // Default to placeholder
 
-        // Try synchronous cache first to avoid flicker
+        // Try synchronous cache first to avoid UI flicker
         if (window.avatarRenderer) {
             const cachedUrl = window.avatarRenderer.getCached(profile);
             if (cachedUrl) {
                 style = `background-image: url('${cachedUrl}');`;
                 className = 'avatar-container pixel-art'; // Remove placeholder animation if ready
             } else {
-                // Queue Async Render
+                // Queue Async Canvas Render
                 window.avatarRenderer.render(profile).then(url => {
                     const el = document.getElementById(`avatar-${msgId}`);
-                    // Only update if element exists exists and URL is valid
+                    // RELIABILITY: Only update if element is still connected to DOM and URL is valid
                     if (el && url) {
                         el.style.backgroundImage = `url('${url}')`;
                         el.classList.remove('avatar-placeholder');
+                        // Re-trigger 1-play animation cleanly when image arrives
+                        el.style.animation = 'none';
+                        void el.offsetHeight; // Force DOM reflow
+                        el.style.animation = '';
                     }
+                }).catch(err => {
+                    // RELIABILITY: Catch canvas render failures without crashing
+                    console.warn(`[ChatMessage] Avatar render failed for message ${msgId}:`, err);
                 });
             }
         }
@@ -140,10 +177,26 @@ class ChatMessage {
         `;
     }
 
+    /**
+     * Parses the current character ID from the page URL.
+     * OPTIMIZATION: Caches result and invalidates if document.location.href changes (e.g. character switch).
+     * @returns {string} Active character ID or empty string
+     */
     getMyCharId() {
-        const parts = document.location.href.split('play/');
-        return parts.length > 1 ? parts[1] : '';
+        const currentHref = document.location ? document.location.href : '';
+        if (this._lastHref === currentHref && this._cachedCharId) {
+            return this._cachedCharId;
+        }
+        this._lastHref = currentHref;
+        const parts = currentHref.split('play/');
+        this._cachedCharId = parts.length > 1 ? parts[1].split('/')[0].split('?')[0] : '';
+        return this._cachedCharId;
     }
 }
 
+/**
+ * Cross-Module Export: Expose REACTION_MAP on ChatMessage static property
+ * so dependent modules (e.g. ChatContextMenu.js) can share the dictionary.
+ */
+ChatMessage.REACTION_MAP = REACTION_MAP;
 window.ChatMessage = ChatMessage;

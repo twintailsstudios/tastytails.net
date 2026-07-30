@@ -1,18 +1,31 @@
-/* --- Character Grid --- */
+/**
+ * @fileoverview character-bank.css - Character Registry Dossier Layout & Component Stylesheet
+ * 
+ * @description
+ * Implements the Warm Medieval Tavern & Guild Registry design system for the Character Bank view (/character-bank).
+ * Renders parchment dossier sheets (.char-card) with paper textures, 3D tilt hover mechanics, hardware-accelerated
+ * animations, responsive auto-fill grids, context menus, and dark-wood framed modal dialogs.
+ * 
+ * Target Route: GET /character-bank (src/views/character-bank.ejs)
+ * Design Tokens: Defined in src/client/css/master.css
+ */
+
+/* --- Character Grid Container --- */
 .character-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 30px;
-    perspective: 1000px;
+    perspective: 1000px; /* Establishes 3D depth field for card hover tilt */
     padding: 0 40px;
     max-width: 1600px;
     margin: 0 auto;
 }
 
-/* --- Character Card Design --- */
+/* --- Character Card Design (Guild Dossier Sheet) --- */
 .char-card {
     background-color: var(--palette-parchment);
-    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    /* OPTIMIZATION: Localized design token with CDN fallback safeguard */
+    background-image: var(--texture-cream-paper, url('https://www.transparenttextures.com/patterns/cream-paper.png'));
     border-radius: 8px;
     position: relative;
     display: flex;
@@ -22,6 +35,14 @@
     height: 600px;
     overflow: hidden;
     border: 2px solid var(--palette-wood-dark);
+
+    /* OPTIMIZATION: GPU compositor hardware acceleration hints */
+    will-change: transform;
+    backface-visibility: hidden;
+
+    /* OPTIMIZATION: Off-screen rendering containment for large rosters */
+    content-visibility: auto;
+    contain-intrinsic-size: 300px 600px;
 }
 
 .char-card:hover {
@@ -75,7 +96,7 @@
 
 .fullname {
     font-family: 'Caveat Brush', cursive;
-    color: #6d4c41;
+    color: var(--palette-text-dark);
     font-size: 1.2rem;
     margin-top: 5px;
     width: 100%;
@@ -271,7 +292,7 @@
     top: 40px;
     right: 10px;
     background: var(--palette-parchment);
-    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    background-image: var(--texture-cream-paper, url('https://www.transparenttextures.com/patterns/cream-paper.png'));
     border: 2px solid var(--palette-wood-dark);
     border-radius: 4px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -330,7 +351,7 @@
 /* Standardized 6px Dark Wood Modal Box Frame */
 .modal-box {
     background: var(--palette-parchment);
-    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    background-image: var(--texture-cream-paper, url('https://www.transparenttextures.com/patterns/cream-paper.png'));
     padding: 30px;
     border-radius: 8px;
     max-width: 500px;
@@ -392,13 +413,6 @@
     color: var(--palette-parchment);
     box-shadow: 0 4px 0 var(--btn-secondary-shadow); /* #3e2723 */
     padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: 'Cinzel', serif;
-    font-weight: bold;
-    text-transform: uppercase;
-    transition: all 0.2s;
 }
 
 .btn-cancel:hover {
@@ -412,14 +426,8 @@
     color: white;
     box-shadow: 0 4px 0 var(--btn-danger-shadow); /* #500000 */
     padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
     cursor: not-allowed;
-    font-family: 'Cinzel', serif;
-    font-weight: bold;
-    text-transform: uppercase;
     opacity: 0.5;
-    transition: all 0.2s;
 }
 
 .btn-delete.active {
@@ -431,4 +439,22 @@
     background-color: #a80000;
     transform: translateY(2px);
     box-shadow: 0 2px 0 var(--btn-danger-shadow);
+}
+
+/* --- Responsive Viewport Breakpoints --- */
+@media (max-width: 600px) {
+    .character-grid {
+        grid-template-columns: 1fr;
+        padding: 0 16px;
+        gap: 20px;
+    }
+
+    .char-card {
+        height: auto;
+        min-height: 560px;
+    }
+
+    .card-header {
+        padding: 20px 10px 10px 10px;
+    }
 }

@@ -1,5 +1,16 @@
-/* === CHAT ARCHIVES STYLESHEET (UNIVERSAL STYLE GUIDE STANDARD) === */
+/**
+ * @fileoverview chat-archives.css - Skeuomorphic Parchment & Wood Binder Stylesheet
+ * 
+ * @description
+ * Primary stylesheet for the TastyTails.net Chat Archives & Log Inspector interface (`/chat-archives`).
+ * Establishes a warm, fantasy parchment-and-wood binder aesthetic using `--palette-*` design tokens,
+ * custom font families ('Cinzel', 'Philosopher', 'Caveat Brush'), scrollable log viewport controls,
+ * dynamic range selection highlights, tag pills, and responsive layout collapse.
+ * 
+ * Triggered by: `src/views/chat-archives.ejs` stylesheet inclusion (`<link rel="stylesheet" href="/css/chat-archives.css">`).
+ */
 
+/* === MAIN LAYOUT & HEADER === */
 .main-content {
     padding-top: 100px;
     padding-bottom: 50px;
@@ -37,17 +48,24 @@
     align-items: flex-start;
 }
 
+/* === PARCHMENT & WOOD BINDER PANELS (SHARED DRY COMPONENT) === */
+.filters-panel,
+.results-panel {
+    background-color: var(--palette-parchment, #f3e5ab);
+    /* OPTIMIZATION: Use design system custom property for texture asset with transparenttextures fallback */
+    background-image: var(--texture-cream-paper, url('https://www.transparenttextures.com/patterns/cream-paper.png'));
+    border: 10px solid var(--palette-wood-dark, #3e2723);
+    border-radius: 8px;
+    /* OPTIMIZATION: Reduced inset blur radius (40px) to lower GPU rasterization overhead during scrolling */
+    box-shadow: inset 0 0 40px rgba(62, 39, 35, 0.2), 0 10px 30px rgba(0, 0, 0, 0.5);
+    padding: 25px;
+    color: var(--palette-text-dark, #3e2723);
+}
+
 /* === SIDEBAR FILTERS (THE BINDER) === */
 .filters-panel {
     width: 320px;
-    background-color: var(--palette-parchment, #f3e5ab);
-    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
-    border: 10px solid var(--palette-wood-dark, #3e2723);
-    border-radius: 8px;
-    box-shadow: inset 0 0 60px rgba(62, 39, 35, 0.2), 0 10px 30px rgba(0, 0, 0, 0.5);
-    padding: 25px;
     flex-shrink: 0;
-    color: var(--palette-text-dark, #3e2723);
 }
 
 .filter-group {
@@ -73,7 +91,8 @@
     color: var(--palette-text-dark, #3e2723);
     padding: 6px 10px;
     outline: none;
-    transition: all 0.3s ease;
+    /* OPTIMIZATION: Scoped transitions prevent layout reflow tracking on main thread */
+    transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
     border-radius: 0;
 }
 
@@ -135,16 +154,9 @@ summary:hover {
 /* === RESULTS AREA (THE LOG VIEWER) === */
 .results-panel {
     flex: 1;
-    background-color: var(--palette-parchment, #f3e5ab);
-    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
-    border: 10px solid var(--palette-wood-dark, #3e2723);
-    border-radius: 8px;
-    box-shadow: inset 0 0 60px rgba(62, 39, 35, 0.2), 0 10px 30px rgba(0, 0, 0, 0.5);
     min-height: 600px;
-    padding: 25px;
     display: flex;
     flex-direction: column;
-    color: var(--palette-text-dark, #3e2723);
 }
 
 .results-header {
@@ -178,6 +190,10 @@ summary:hover {
     padding: 10px;
     scrollbar-width: thin;
     scrollbar-color: var(--palette-wood-light, #5d4037) transparent;
+    /* OPTIMIZATION: Layout style containment & off-screen rendering optimization for 50-100+ log rows without popover clipping */
+    contain: layout style;
+    content-visibility: auto;
+    contain-intrinsic-size: 60px;
 }
 
 .placeholder-msg {
@@ -199,7 +215,7 @@ summary:hover {
     border-bottom: 1px dashed rgba(62, 39, 35, 0.15);
     border-radius: 4px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s ease;
 }
 
 .chat-message-row:hover {
@@ -308,7 +324,8 @@ summary:hover {
     border-radius: 4px;
     cursor: pointer;
     box-shadow: 0 3px 0 var(--palette-wood-dark, #3e2723);
-    transition: all 0.2s;
+    /* OPTIMIZATION: Scoped composite transitions for button hover effects */
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .pagination-controls button:hover {

@@ -51,7 +51,7 @@ var localPlayerInfo = {
     sprite: 'empty',
     color: '0xe0e0e0'
   },
-  genitles:{
+  genitals:{
     sprite: 'empty',
     secondarySprite: 'empty'
   },
@@ -196,7 +196,7 @@ var create = new Phaser.Class({
           self.ear.play(localPlayerInfo.ear.sprite + 'Stop');
           self.eyes.play(localPlayerInfo.eyes.outer + 'Stop');
           self.iris.play(localPlayerInfo.eyes.iris + 'Stop');
-          self.genitles.play(localPlayerInfo.genitles.sprite + 'Stop');
+          self.genitals.play((localPlayerInfo.genitals?.sprite || localPlayerInfo.genitles?.sprite || 'empty') + 'Stop');
         }
         if (playerInfo.rotation == 1) {
           //console.log('animations are being called');
@@ -213,7 +213,7 @@ var create = new Phaser.Class({
           self.ear.play(localPlayerInfo.ear.sprite + 'Down', true);
           self.eyes.play(localPlayerInfo.eyes.outer + 'Down', true);
           self.iris.play(localPlayerInfo.eyes.iris + 'Down', true);
-          self.genitles.play(localPlayerInfo.genitles.sprite + 'Down', true);
+          self.genitals.play((localPlayerInfo.genitals?.sprite || localPlayerInfo.genitles?.sprite || 'empty') + 'Down', true);
           self.container.sendToBack(self.accentTail);
           self.container.sendToBack(self.secondaryTail);
           self.container.sendToBack(self.tail);
@@ -232,7 +232,7 @@ var create = new Phaser.Class({
           self.ear.play(localPlayerInfo.ear.sprite + 'Right', true);
           self.eyes.play(localPlayerInfo.eyes.outer + 'Right', true);
           self.iris.play(localPlayerInfo.eyes.iris + 'Right', true);
-          self.genitles.play(localPlayerInfo.genitles.sprite + 'Right', true);
+          self.genitals.play((localPlayerInfo.genitals?.sprite || localPlayerInfo.genitles?.sprite || 'empty') + 'Right', true);
           self.container.sendToBack(self.accentTail);
           self.container.sendToBack(self.secondaryTail);
           self.container.sendToBack(self.tail);
@@ -251,7 +251,7 @@ var create = new Phaser.Class({
           self.ear.play(localPlayerInfo.ear.sprite + 'Up', true);
           self.eyes.play(localPlayerInfo.eyes.outer + 'Up', true);
           self.iris.play(localPlayerInfo.eyes.iris + 'Up', true);
-          self.genitles.play(localPlayerInfo.genitles.sprite + 'Up', true);
+          self.genitals.play((localPlayerInfo.genitals?.sprite || localPlayerInfo.genitles?.sprite || 'empty') + 'Up', true);
           self.container.sendToBack(self.hair);
           self.container.sendToBack(self.eyes);
           self.container.sendToBack(self.iris);
@@ -277,7 +277,7 @@ var create = new Phaser.Class({
           self.ear.play(localPlayerInfo.ear.sprite + 'Left', true);
           self.eyes.play(localPlayerInfo.eyes.outer + 'Left', true);
           self.iris.play(localPlayerInfo.eyes.iris + 'Left', true);
-          self.genitles.play(localPlayerInfo.genitles.sprite + 'Left', true);
+          self.genitals.play((localPlayerInfo.genitals?.sprite || localPlayerInfo.genitles?.sprite || 'empty') + 'Left', true);
           self.container.sendToBack(self.accentTail);
           self.container.sendToBack(self.secondaryTail);
           self.container.sendToBack(self.tail);
@@ -1074,7 +1074,7 @@ var create = new Phaser.Class({
         'Set outer eyes sprite to:', playerInfo.eyes.outer, '\n',
         'Set irises to:', playerInfo.eyes.iris, '\n',
         'Set eye color to:', playerInfo.eyes.color, '\n',
-        'Set genitles to:', playerInfo.genitles.sprite
+        'Set genitals to:', (playerInfo.genitals?.sprite || playerInfo.genitles?.sprite)
       );
 
       //self.container = self.add.container(0, 0).setSize(109, 220).setInteractive();
@@ -1111,8 +1111,8 @@ var create = new Phaser.Class({
       self.iris = self.physics.add.sprite(0, 0, playerInfo.eyes.iris).setInteractive();
       self.iris.setTint(playerInfo.eyes.color);
 
-      self.genitles = self.physics.add.sprite(0, 0, playerInfo.genitles.sprite).setInteractive();
-      //self.genitles.setTint(playerInfo.genitles.color);
+      self.genitals = self.physics.add.sprite(0, 0, (playerInfo.genitals?.sprite || playerInfo.genitles?.sprite || 'empty')).setInteractive();
+      //self.genitals.setTint(playerInfo.genitals.color);
 
 
       self.container.add([
@@ -1129,7 +1129,7 @@ var create = new Phaser.Class({
         self.body,
         self.secondaryBody,
         self.accentBody,
-        self.genitles
+        self.genitals
       ]);
       self.container.sendToBack(self.tail);
 
@@ -1206,8 +1206,8 @@ var create = new Phaser.Class({
       const otherPlayeriris = self.add.sprite(0, 0, playerInfo.eyes.iris).setInteractive();
       otherPlayeriris.setTint(playerInfo.eyes.color);
 
-      const otherPlayergenitles = self.add.sprite(0, 0, playerInfo.genitles.sprite).setInteractive();
-      //otherPlayergenitles.setTint(playerInfo.genitles.color);
+      const otherPlayergenitals = self.add.sprite(0, 0, (playerInfo.genitals?.sprite || playerInfo.genitles?.sprite || 'empty')).setInteractive();
+      //otherPlayergenitals.setTint(playerInfo.genitals.color);
 
 
       otherContainer.add([
@@ -1224,7 +1224,7 @@ var create = new Phaser.Class({
         otherPlayerbody,
         otherPlayersecondaryBody,
         otherPlayeraccentBody,
-        otherPlayergenitles
+        otherPlayergenitals
       ]);
       otherContainer.sendToBack(otherPlayertail);
 

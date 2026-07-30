@@ -1,3 +1,18 @@
+/**
+ * @fileoverview AnatomyForge - Client-Side Interactive Organ Topology & Vore Graph Editor
+ * 
+ * @description
+ * Provides a node-based visual flowchart editor for defining character organ pathways,
+ * vore mechanics, sensory text descriptions, struggle triggers, and audio loops.
+ * 
+ * Performance & Security Highlights:
+ * - rAF-batched pointer interaction loop preventing DOM layout thrashing.
+ * - Dynamic node dimension caching (_width/_height) for SVG Bezier edge rendering.
+ * - DocumentFragment connector updates for high-performance canvas redrawing.
+ * - HTML string sanitization (escapeHTML) protecting against DOM-XSS attacks.
+ * 
+ * Triggered by: Character Creation (/create), In-Game Anatomy Customization Modal (/play).
+ */
 const AnatomyForge = (function () {
 
     // ==========================================
@@ -71,6 +86,21 @@ const AnatomyForge = (function () {
     let connectionStartNodeId = null;
     let tempLineEnd = { x: 0, y: 0 };
 
+    let mouseRafId = null;
+    let lastMousePos = { x: 0, y: 0 };
+
+    /**
+     * Sanitizes user-provided string input to prevent DOM-XSS attacks when rendering HTML labels.
+     * @SECURITY Replaces dangerous HTML characters (&, <, >, ", ') with safe entity codes.
+     * @param {string} str - Raw input string
+     * @returns {string} Sanitized HTML entity string
+     */
+    function escapeHTML(str) {
+        return String(str || '').replace(/[&<>"']/g, match => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[match]));
+    }
+
     // DOM Elements - to be fetched in init
     let container, canvasContainer, world, svgLayer, inspector, inspectorTitle, inspectorSubtitle, inspectorContent;
     let ghostNode, confirmModal, modalBox, btnConfirmDelete, modalTitle, modalMsg, modalCheckboxContainer, modalCheck;
@@ -81,6 +111,13 @@ const AnatomyForge = (function () {
     // 2. INITIALIZATION
     // ==========================================
 
+    /**
+     * Initializes the AnatomyForge canvas, fetches DOM elements, loads initial data, and binds event handlers.
+     * @param {string} domContainerId - ID of parent container element
+     * @param {string} initialAnatomyData - JSON string of stored visual graph layout
+     * @param {Array<Object>} legacyVoreList - Runtime vore profiles array for property hydration
+     * @param {Function|null} onSave - Callback invoked when changes are saved
+     */
     function init(domContainerId, initialAnatomyData, legacyVoreList, onSave = null) {
         // console.log("AnatomyForge: Init started for container", domContainerId);
         try {
@@ -230,6 +267,10 @@ const AnatomyForge = (function () {
         }
     }
 
+    /**
+     * Serializes current graph state and invokes external save callback.
+     * @OPTIMIZATION Separates visual graph layout (anatomyData) from rich runtime profiles (voreTypes) to minimize JSON payload size.
+     */
     function triggerSave() {
         if (typeof onSaveCallback === 'function') {
             // --- COMPRESSION STEP (Optimization) ---
@@ -346,148 +387,209 @@ const AnatomyForge = (function () {
         });
     }
 
+    // =========================================================================================================
+    // CRITICAL: DO NOT MODIFY, TRUNCATE, OR SUMMARIZE THE TEXT AND DESCRIPTIONS IN THIS FUNCTION WITHOUT
+    // EXPLICIT USER INSTRUCTIONS. THE EXACT STRINGS AND DESCRIPTIONS MUST BE PRESERVED.
+    // =========================================================================================================
     function setupDefaultAnatomy() {
         nodes = [];
         connections = [];
         nextId = 1;
 
         // --- 1. ORAL VORE CHAIN ---
-        // Mouth (1) -> Throat (2) -> Stomach (3) -> Bowels (4) -> Anus (5)
-        const mouth = createNode('entrance', 100, 50, {
+        const maw = createNode('entrance', 25, 100, {
             id: 1,
-            name: 'Mouth',
+            name: 'Maw',
             icon: 'tooth',
-            verb: 'swallows',
-            mode: 'Hold'
+            verb: 'shoves',
+            mode: 'Hold',
+            destinationDescrip: "You are pulled between <pred>'s lips...",
+            examineMsgDescrip: "<pred>'s cheeks are swollen with <prey>...",
+            struggleInsideMsgDescrip: "You pry at the jaws...",
+            struggleOutsideMsgDescrip: "<pred>'s cheeks puff out..."
         }, false);
 
-        const throat = createNode('path', 300, 50, {
-            id: 2,
-            name: 'Throat',
-            icon: 'waves'
-        }, false);
-
-        const stomach = createNode('destination', 500, 50, {
+        const gullet = createNode('path', 165, 100, {
             id: 3,
+            name: 'Gullet',
+            icon: 'waves',
+            destinationDescrip: "The tight tube squeezes you down...",
+            examineMsgDescrip: "A bulge is working it's way down <pred>'s throat...",
+            struggleInsideMsgDescrip: "The walls constrict tightly...",
+            struggleOutsideMsgDescrip: "A bulge travels down <pred>'s throat..."
+        }, false);
+
+        const stomach = createNode('destination', 305, 100, {
+            id: 5,
             name: 'Stomach',
             icon: 'spiral',
             verb: 'digests',
             digestivePower: 'Normal',
             mode: 'Stomach',
-            destinationDescrip: "You slide into the hot, churning stomach.",
+            destinationDescrip: "TThe walls feel hot and slimy as they constrict around you.",
             examineMsgDescrip: "<pred>'s belly looks as though something inside is moving...",
-            struggleInsideMsgDescrip: "You push against the slimy walls of the stomach.",
-            struggleOutsideMsgDescrip: "<pred>'s gut bulges as you struggle.",
-            digestionInsideMsgDescrip: "You feel your body softening in the acids...",
-            digestionOutsideMsgDescrip: "<pred> lets out a satisfied belch.",
+            struggleInsideMsgDescrip: "Pressing against the slimy walls doesn't seem to get much of a reaction from <pred>.",
+            struggleOutsideMsgDescrip: "<pred>'s belly bulges out with the outline of a hand print for a moment before returning to it's distended shape.",
+            digestionInsideMsgDescrip: "The constant liquid churning inside<pred>'s stomach causes your form to contort and squirm uncomfortably until you can no longer recognize your own shape and your mind melts away into nothingness.",
+            digestionOutsideMsgDescrip: "The constant movement inside <pred>'s middle finally goes still as a soft gurgling sound comes from their belly.",
+            releaseMsgDescrip: "<pred> leans forward and heaves, forcing you back out into the light.",
             audioEntry: 'swallow',
             audioAmbient: 'gurgle_loud',
             audioStruggle: 'squish',
             audioExit: 'belch'
         }, false);
 
-        // --- 2. ANAL VORE CHAIN ---
-        // Anus (5) -> Bowels (4) -> Stomach (3) [Reverse flow?] 
-        // OR Separate: Anus (Exit/Entrance) -> Bowels (Destination/Path)
-        // User requested: "destinations for that path". 
-        // Standard setup: Anus -> Bowels (Destination).
+        const anusExit = createNode('exit', 445, 100, {
+            id: 6,
+            name: 'Anus',
+            icon: 'door',
+            destinationDescrip: "You are squeezed into the lower intestines...",
+            examineMsgDescrip: "<pred>'s anus bulges outward...",
+            struggleInsideMsgDescrip: "There is little room to move...",
+            struggleOutsideMsgDescrip: "<pred>'s lower belly churns..."
+        }, false);
 
-        const bowels = createNode('destination', 700, 50, {
+        // --- 2. ANAL VORE CHAIN ---
+        const anusEntrance = createNode('entrance', 25, 240, {
+            id: 2,
+            name: 'Anus',
+            icon: 'door',
+            verb: 'squelches',
+            mode: 'Hold',
+            destinationDescrip: "You can feel the slimy walls of <pred>'s anal canal rippling around you...",
+            examineMsgDescrip: "<prey> is slowly being worked up into <pred>'s tight ass...",
+            struggleInsideMsgDescrip: "You push against the tight ring...",
+            struggleOutsideMsgDescrip: "<pred> groans as their ass tightens around the intruding prey..."
+        }, false);
+
+        const bowels = createNode('path', 165, 240, {
             id: 4,
             name: 'Bowels',
             icon: 'waves',
-            verb: 'clenchant',
-            mode: 'Bowels',
-            digestivePower: 'Normal',
-            destinationDescrip: "You are squeezed into the tight, winding bowels.",
-            struggleOutsideMsgDescrip: "<pred>'s rear shifts as you struggle."
+            destinationDescrip: "You feel the musky walls of <pred>'s digestive tract undulating around you as you are shoved up their ass.",
+            examineMsgDescrip: "<pred>'s lower abdomen seems to be swollen out quite a lot...did something just move?",
+            struggleInsideMsgDescrip: "Wriggling about only seems to make that tight fleshy tube squeeze tighter around your body.",
+            struggleOutsideMsgDescrip: "The outline of a footprint forms against the surface of <pred>'s lower belly"
         }, false);
-
-        const anus = createNode('entrance', 900, 50, {
-            id: 5,
-            name: 'Anus',
-            icon: 'door',
-            verb: 'inserts',
-            mode: 'Hold'
-        }, false);
-        // Note: Anus can be Entrance AND Exit types? 
-        // Current logic splits types. Let's keep it 'entrance' for vore entry.
-        // It can also serves as exit for Digestion if linked from Bowels?
-        // For simplicity: Anus is Entrance -> Bowels. 
 
         // --- 3. UNBIRTH CHAIN ---
-        // Slit (6) -> Vaginal Canal (7) -> Womb (8)
-        const slit = createNode('entrance', 100, 250, {
-            id: 6,
+        const slitEntrance = createNode('entrance', 25, 380, {
+            id: 7,
             name: 'Slit',
             icon: 'droplet',
-            verb: 'absorbs',
-            mode: 'Hold'
+            verb: 'presses',
+            mode: 'Hold',
+            destinationDescrip: "You are pulled past <pred>'s soft outer lips...",
+            examineMsgDescrip: "<pred> is working <prey> in and out of their pussy...",
+            struggleInsideMsgDescrip: "You struggle against the slick folds...",
+            struggleOutsideMsgDescrip: "<pred>'s hips twitch as <prey> pushes from inside..."
         }, false);
 
-        const vcanal = createNode('path', 300, 250, {
-            id: 7,
-            name: 'Vaginal Canal',
-            icon: 'waves'
-        }, false);
-
-        const womb = createNode('destination', 500, 250, {
+        const canal = createNode('path', 165, 380, {
             id: 8,
+            name: 'Canal',
+            icon: 'waves',
+            destinationDescrip: "The tight, ribbed canal squeezes tightly around you...",
+            examineMsgDescrip: "<pred>'s lower tummy is distended with the shape of <prey> sliding in deeper...",
+            struggleInsideMsgDescrip: "The fleshy passage grips you firmly...",
+            struggleOutsideMsgDescrip: "A visible bulge shifts along <pred>'s pelvis..."
+        }, false);
+
+        const womb = createNode('destination', 305, 380, {
+            id: 9,
             name: 'Womb',
             icon: 'heart',
-            verb: 'birthing', // or unbirthing
+            verb: 'birthing',
             mode: 'Womb',
-            digestivePower: 'Normal', // Womb usually safe?
-            destinationDescrip: "You are pushed into the warm, pulsing womb.",
-            struggleOutsideMsgDescrip: "<pred>'s womb kicks with life."
+            digestivePower: 'Normal',
+            destinationDescrip: "You are wholly enveloped in a humid heat as you are deposited into a wet and slimy chamber. The air is filled with the scent of <pred>'s arousal and their heart can be heard beating just above.",
+            examineMsgDescrip: "<pred>'s lower belly bulges warmly with life...",
+            struggleInsideMsgDescrip: "Struggling seems to do little good, but you do feel the gentle rubbing of <pred>'s hand over your shape as they press the bulges you make back into their core.",
+            struggleOutsideMsgDescrip: "<pred>'s distended belly seems to rock and sway on it's own, they coo softly and seem to rub over their middle affectionately.",
+            digestionInsideMsgDescrip: "Your body seems to feel soggy and wet as the heat surrounding you grows more intense. The walls seem to flex down harder and harder until finally... splorsh! You succumb to <pred>'s arousal and are reduced to a pool of fem-cum.",
+            digestionOutsideMsgDescrip: "<pred>'s middle suddenly compacts down noticeably and their face flushes red as they bite their lower lip. A muffled sloshing sound could be heard seemingly coming from their belly!",
+            releaseMsgDescrip: "<pred>'s body convulses as they push you back out through their canal, birthing you back into freedom."
+        }, false);
+
+        const slitExit = createNode('exit', 445, 380, {
+            id: 10,
+            name: 'Slit',
+            icon: 'droplet',
+            destinationDescrip: "You are birthed out through the slick slit...",
+            examineMsgDescrip: "",
+            struggleInsideMsgDescrip: "You press outward toward freedom...",
+            struggleOutsideMsgDescrip: "<pred>'s slit widens as you push..."
         }, false);
 
         // --- 4. COCK VORE CHAIN ---
-        // Cock (9) -> Urethra (10) -> Balls (11)
-        const cock = createNode('entrance', 100, 450, {
-            id: 9,
-            name: 'Cock',
-            icon: 'tail', // close enough shape?
-            verb: 'sounds',
-            mode: 'Hold'
-        }, false);
-
-        const urethra = createNode('path', 300, 450, {
-            id: 10,
-            name: 'Urethra',
-            icon: 'waves'
-        }, false);
-
-        const balls = createNode('destination', 500, 450, {
+        const cockEntrance = createNode('entrance', 25, 520, {
             id: 11,
+            name: 'Cock',
+            icon: 'tail',
+            verb: 'forces',
+            mode: 'Hold',
+            destinationDescrip: "You are forced into the tip of <pred>'s cock...",
+            examineMsgDescrip: "<prey> is sliding inside the tip of <pred>'s cock...",
+            struggleInsideMsgDescrip: "You squirm against the narrow opening...",
+            struggleOutsideMsgDescrip: "<pred>'s cock twitches as <prey> slides in..."
+        }, false);
+
+        const shaft = createNode('path', 165, 520, {
+            id: 12,
+            name: 'Shaft',
+            icon: 'waves',
+            destinationDescrip: "The tight, throbbing shaft constricts around you...",
+            examineMsgDescrip: "<prey> is sliding deeper into <pred>'s cock, making a visible bulge along it's length...",
+            struggleInsideMsgDescrip: "The slick inner walls clamp tight...",
+            struggleOutsideMsgDescrip: "A distinct bulge squirms along the underside of <pred>'s girth..."
+        }, false);
+
+        const balls = createNode('destination', 305, 520, {
+            id: 13,
             name: 'Balls',
             icon: 'droplet',
             verb: 'stores',
             mode: 'Balls',
-            digestivePower: 'Normal', // Cum transfo?
-            destinationDescrip: "You splash down into the sticky balls.",
-            struggleOutsideMsgDescrip: "<pred>'s balls churn around you."
+            digestivePower: 'Normal',
+            destinationDescrip: "You fall down into a thick, musky puddle of jizz that immediately starts coating your body as the wrinkly walls of <pred>'s scrotum tighten up to welcome you~",
+            examineMsgDescrip: "A large bulge between <pred>'s thighs seems to shift and sway on it's own.",
+            struggleInsideMsgDescrip: "The walls of your prison seem to give easily when you push out against them, but they always clench right back down the moment you relax...",
+            struggleOutsideMsgDescrip: "A very clear imprint of someone's face bulges out from the side of <pred>'s nutsack.",
+            digestionInsideMsgDescrip: "The walls around you suddenly cinch up tightly submerging your head completely in <pred>'s sperm before you finally melt, becoming one with the pool of seed you had been bathing in.",
+            digestionOutsideMsgDescrip: "There are a few frantic garbled sounds seeming to come up from <pred>'s crotch before there was a sudden, thick sounding, GLORP and those frantic sounds were reduced to a soft sloshing.",
+            releaseMsgDescrip: "With a powerful thrust, <pred> expels you from their sack, sending you sliding out into the world."
         }, false);
 
+        const cockExit = createNode('exit', 445, 520, {
+            id: 14,
+            name: 'Cock',
+            icon: 'tail',
+            destinationDescrip: "You are ejaculated out from <pred>'s cock...",
+            struggleInsideMsgDescrip: "You push outward down the shaft...",
+            struggleOutsideMsgDescrip: "<pred>'s shaft throbs as you move..."
+        }, false);
 
         // --- CONNECTIONS ---
-        // Oral
-        connections.push({ from: 1, to: 2 }); // Mouth -> Throat
-        connections.push({ from: 2, to: 3 }); // Throat -> Stomach
-        connections.push({ from: 3, to: 4 }); // Stomach -> Bowels (Digestion path)
+        // Oral: Maw (1) -> Gullet (3) -> Stomach (5) -> Anus (6)
+        connections.push({ from: 1, to: 3 });
+        connections.push({ from: 3, to: 5 });
+        connections.push({ from: 5, to: 6 });
 
-        // Anal
-        connections.push({ from: 5, to: 4 }); // Anus -> Bowels
+        // Anal: Anus (2) -> Bowels (4) -> Stomach (5)
+        connections.push({ from: 2, to: 4 });
+        connections.push({ from: 4, to: 5 });
 
-        // Unbirth
-        connections.push({ from: 6, to: 7 }); // Slit -> Canal
-        connections.push({ from: 7, to: 8 }); // Canal -> Womb
+        // Unbirth: Slit (7) -> Canal (8) -> Womb (9) -> Slit (10)
+        connections.push({ from: 7, to: 8 });
+        connections.push({ from: 8, to: 9 });
+        connections.push({ from: 9, to: 10 });
 
-        // Cock
-        connections.push({ from: 9, to: 10 }); // Cock -> Urethra
-        connections.push({ from: 10, to: 11 }); // Urethra -> Balls
+        // Cock Vore: Cock (11) -> Shaft (12) -> Balls (13) -> Cock (14)
+        connections.push({ from: 11, to: 12 });
+        connections.push({ from: 12, to: 13 });
+        connections.push({ from: 13, to: 14 });
 
-        nextId = 100; // Jump ID to avoid conflict with manual additions
+        nextId = 100;
 
         rebuildWorld();
     }
@@ -585,6 +687,45 @@ const AnatomyForge = (function () {
         };
     }
 
+    /**
+     * Synchronously processes pending mouse movement updates for canvas pan, node drag, or connection drawing.
+     * @OPTIMIZATION Decouples raw mouse event frequency from rendering loop to prevent layout thrashing.
+     * @param {number} clientX - Current mouse X coordinate
+     * @param {number} clientY - Current mouse Y coordinate
+     */
+    function updateMouseMove(clientX, clientY) {
+        if (view.isPanning) {
+            view.x = clientX - view.panStartX;
+            view.y = clientY - view.panStartY;
+            updateTransform();
+            return;
+        }
+        if (isDraggingNode && draggedNodeId) {
+            const worldPos = screenToWorld(clientX, clientY);
+            const node = nodes.find(n => n.id === draggedNodeId);
+            if (node) {
+                node.x = worldPos.x - dragOffset.x;
+                node.y = worldPos.y - dragOffset.y;
+                const el = document.querySelector(`.af-node[data-id="${draggedNodeId}"]`);
+                if (el) {
+                    el.style.left = `${node.x}px`;
+                    el.style.top = `${node.y}px`;
+                }
+            }
+            updateConnections();
+            serializeSystem();
+        }
+        if (isDrawingLine) {
+            const worldPos = screenToWorld(clientX, clientY);
+            tempLineEnd = worldPos;
+            updateConnections();
+        }
+        if (isDraggingNewNode && ghostNode) {
+            ghostNode.style.left = `${clientX}px`;
+            ghostNode.style.top = `${clientY}px`;
+        }
+    }
+
     function setupViewportEvents() {
         window.addEventListener('resize', () => {
             updateTransform();
@@ -625,37 +766,26 @@ const AnatomyForge = (function () {
         });
 
         window.addEventListener('mousemove', (e) => {
-            if (view.isPanning) {
-                view.x = e.clientX - view.panStartX;
-                view.y = e.clientY - view.panStartY;
-                updateTransform();
-                return;
-            }
-            if (isDraggingNode && draggedNodeId) {
-                const worldPos = screenToWorld(e.clientX, e.clientY);
-                const node = nodes.find(n => n.id === draggedNodeId);
-                node.x = worldPos.x - dragOffset.x;
-                node.y = worldPos.y - dragOffset.y;
-                const el = document.querySelector(`.af-node[data-id="${draggedNodeId}"]`);
-                if (el) {
-                    el.style.left = `${node.x}px`;
-                    el.style.top = `${node.y}px`;
+            lastMousePos.x = e.clientX;
+            lastMousePos.y = e.clientY;
+
+            if (view.isPanning || isDraggingNode || isDrawingLine || isDraggingNewNode) {
+                if (!mouseRafId) {
+                    mouseRafId = requestAnimationFrame(() => {
+                        mouseRafId = null;
+                        updateMouseMove(lastMousePos.x, lastMousePos.y);
+                    });
                 }
-                updateConnections();
-                serializeSystem(); // Live update hidden inputs? maybe too heavy.
-            }
-            if (isDrawingLine) {
-                const worldPos = screenToWorld(e.clientX, e.clientY);
-                tempLineEnd = worldPos;
-                updateConnections();
-            }
-            if (isDraggingNewNode && ghostNode) {
-                ghostNode.style.left = `${e.clientX}px`;
-                ghostNode.style.top = `${e.clientY}px`;
             }
         });
 
         window.addEventListener('mouseup', (e) => {
+            if (mouseRafId) {
+                cancelAnimationFrame(mouseRafId);
+                mouseRafId = null;
+                updateMouseMove(e.clientX, e.clientY);
+            }
+
             view.isPanning = false;
             container.style.cursor = 'grab';
 
@@ -759,6 +889,12 @@ const AnatomyForge = (function () {
         return nodeData;
     }
 
+    /**
+     * Renders a graph node element in the DOM and caches dynamic dimensions.
+     * @SECURITY Uses escapeHTML to sanitize node types and user labels.
+     * @OPTIMIZATION Caches node offsetWidth/offsetHeight in nodeData._width and nodeData._height to avoid layout thrashing during connection updates.
+     * @param {Object} nodeData - Node state object
+     */
     function renderNodeDOM(nodeData) {
         const el = document.createElement('div');
         el.className = 'af-node';
@@ -770,10 +906,10 @@ const AnatomyForge = (function () {
         const iconSvg = ICONS[nodeData.properties.icon] || ICONS['generic'];
 
         el.innerHTML = `
-            <div class="af-node-type">${nodeData.type}</div>
+            <div class="af-node-type">${escapeHTML(nodeData.type)}</div>
             <div class="af-node-icon"><svg viewBox="0 0 24 24">${iconSvg}</svg></div>
             <button type="button" class="af-node-edit-btn" title="Edit Properties">✒</button>
-            <div class="af-node-label">${nodeData.properties.name}</div>
+            <div class="af-node-label">${escapeHTML(nodeData.properties.name)}</div>
             ${nodeData.type !== 'entrance' ? '<div class="af-socket input"></div>' : ''}
             ${nodeData.type !== 'exit' ? '<div class="af-socket output"></div>' : ''}
         `;
@@ -841,6 +977,9 @@ const AnatomyForge = (function () {
         }
 
         world.appendChild(el);
+        // Measure and cache node dimensions to prevent layout thrashing during connection rendering
+        nodeData._width = el.offsetWidth || 140;
+        nodeData._height = el.offsetHeight || 100;
     }
 
     // ==========================================
@@ -855,7 +994,7 @@ const AnatomyForge = (function () {
 
     function finishConnection(targetNodeId) {
         const targetNode = nodes.find(n => n.id === targetNodeId);
-        if (targetNode.type === 'entrance') return;
+        if (!targetNode || targetNode.type === 'entrance') return;
 
         if (isDrawingLine && connectionStartNodeId && connectionStartNodeId !== targetNodeId) {
             const sourceNode = nodes.find(n => n.id === connectionStartNodeId);
@@ -878,20 +1017,21 @@ const AnatomyForge = (function () {
         updateConnections(); // clear draft line
     }
 
+    /**
+     * Re-calculates and updates all SVG Bezier curve connection splines.
+     * @OPTIMIZATION Uses DocumentFragment and Element.replaceChildren to batch DOM mutations off-screen and avoid reflow thrashing.
+     */
     function updateConnections() {
-        svgLayer.innerHTML = '';
+        const frag = document.createDocumentFragment();
+
         connections.forEach((conn, index) => {
             const nodeA = nodes.find(n => n.id === conn.from);
             const nodeB = nodes.find(n => n.id === conn.to);
-            const elA = document.querySelector(`.af-node[data-id="${conn.from}"]`);
-            const elB = document.querySelector(`.af-node[data-id="${conn.to}"]`);
-            if (!elA || !elB) return;
+            if (!nodeA || !nodeB) return;
 
-            // Fallback dimensions if element is hidden/unrendered
-            const widthA = elA.offsetWidth || 140;
-            const heightA = elA.offsetHeight || 100;
-            const widthB = elB.offsetWidth || 140;
-            // const heightB = elB.offsetHeight || 100; // Not used for target Y
+            const widthA = nodeA._width || 140;
+            const heightA = nodeA._height || 100;
+            const widthB = nodeB._width || 140;
 
             const x1 = nodeA.x + widthA / 2;
             const y1 = nodeA.y + heightA; // Output at bottom
@@ -899,31 +1039,31 @@ const AnatomyForge = (function () {
             const y2 = nodeB.y; // Input at top
 
             // 1. Halo (visual outline/contrast)
-            drawBezier(x1, y1, x2, y2, 'af-connector-halo');
+            drawBezierToContainer(frag, x1, y1, x2, y2, 'af-connector-halo');
 
             // 2. Invisible wide hit area (for easier selection)
-            // Drawn BEFORE visible line so we can use CSS sibling selector (.hit:hover + .visible)
-            drawBezier(x1, y1, x2, y2, 'af-connector-hit', index);
+            drawBezierToContainer(frag, x1, y1, x2, y2, 'af-connector-hit', index);
 
             // 3. Main visible line
-            // Pointer events should be none in CSS so clicks pass to hit area (or handled by hit area)
-            drawBezier(x1, y1, x2, y2, 'af-connector', index);
+            drawBezierToContainer(frag, x1, y1, x2, y2, 'af-connector', index);
         });
 
         if (isDrawingLine && connectionStartNodeId) {
             const nodeA = nodes.find(n => n.id === connectionStartNodeId);
-            const elA = document.querySelector(`.af-node[data-id="${connectionStartNodeId}"]`);
+            if (nodeA) {
+                const widthA = nodeA._width || 140;
+                const heightA = nodeA._height || 100;
 
-            const widthA = elA.offsetWidth || 140;
-            const heightA = elA.offsetHeight || 100;
-
-            const x1 = nodeA.x + widthA / 2;
-            const y1 = nodeA.y + heightA;
-            drawBezier(x1, y1, tempLineEnd.x, tempLineEnd.y, 'af-connector af-connector-draft');
+                const x1 = nodeA.x + widthA / 2;
+                const y1 = nodeA.y + heightA;
+                drawBezierToContainer(frag, x1, y1, tempLineEnd.x, tempLineEnd.y, 'af-connector af-connector-draft');
+            }
         }
+
+        svgLayer.replaceChildren(frag);
     }
 
-    function drawBezier(x1, y1, x2, y2, className, connectionIndex = null) {
+    function drawBezierToContainer(targetContainer, x1, y1, x2, y2, className, connectionIndex = null) {
         const svgOffsetX = 5000;
         const svgOffsetY = 5000;
         const sx = x1 + svgOffsetX;
@@ -948,22 +1088,26 @@ const AnatomyForge = (function () {
                 connections.splice(connectionIndex, 1);
                 updateConnections();
                 serializeSystem();
-                tooltip.style.display = 'none';
+                if (tooltip) tooltip.style.display = 'none';
             });
             path.addEventListener('mouseenter', (e) => {
-                tooltip.style.display = 'block';
-                tooltip.style.left = (e.clientX + 15) + 'px';
-                tooltip.style.top = (e.clientY + 15) + 'px';
+                if (tooltip) {
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = (e.clientX + 15) + 'px';
+                    tooltip.style.top = (e.clientY + 15) + 'px';
+                }
             });
             path.addEventListener('mousemove', (e) => {
-                tooltip.style.left = (e.clientX + 15) + 'px';
-                tooltip.style.top = (e.clientY + 15) + 'px';
+                if (tooltip) {
+                    tooltip.style.left = (e.clientX + 15) + 'px';
+                    tooltip.style.top = (e.clientY + 15) + 'px';
+                }
             });
             path.addEventListener('mouseleave', () => {
-                tooltip.style.display = 'none';
+                if (tooltip) tooltip.style.display = 'none';
             });
         }
-        svgLayer.appendChild(path);
+        targetContainer.appendChild(path);
     }
 
     // ==========================================
@@ -1090,6 +1234,11 @@ const AnatomyForge = (function () {
             elem.addEventListener('input', (e) => {
                 const nodeEl = document.querySelector(`.af-node[data-id="${node.id}"] .af-node-label`);
                 if (nodeEl) nodeEl.innerText = e.target.value;
+                const parentEl = document.querySelector(`.af-node[data-id="${node.id}"]`);
+                if (parentEl) {
+                    node._width = parentEl.offsetWidth || 140;
+                    node._height = parentEl.offsetHeight || 100;
+                }
             });
         }
 
@@ -1167,6 +1316,10 @@ const AnatomyForge = (function () {
         serializeSystem();
     }
 
+    /**
+     * Centers and scales the canvas viewport to frame all graph nodes.
+     * @OPTIMIZATION Clamps content dimensions to a minimum of 1px to prevent division-by-zero Infinity scale calculations.
+     */
     function resetView() {
         if (!world) return;
         if (nodes.length === 0) {
@@ -1192,8 +1345,8 @@ const AnatomyForge = (function () {
             maxX += NODE_W;
             maxY += NODE_H;
 
-            const contentW = maxX - minX;
-            const contentH = maxY - minY;
+            const contentW = Math.max(maxX - minX, 1);
+            const contentH = Math.max(maxY - minY, 1);
             const centerX = minX + contentW / 2;
             const centerY = minY + contentH / 2;
 

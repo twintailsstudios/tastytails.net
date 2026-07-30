@@ -1,5 +1,20 @@
 
+/**
+ * @fileoverview Client-side Animal Entity Sprite
+ * @description Phaser Arcade Sprite implementation for rendering animal entities,
+ * smooth network position catch-up, directional animations, depth sorting, and click interaction.
+ * Triggered by: Map loading (map.js), socket network updates (create.js), and user clicks.
+ */
 export class Animal extends Phaser.Physics.Arcade.Sprite {
+    /**
+     * Creates a new client-side Animal sprite entity.
+     * @param {Phaser.Scene} scene - Active Phaser game scene
+     * @param {number} x - Spawn X coordinate in pixels
+     * @param {number} y - Spawn Y coordinate in pixels
+     * @param {string} texture - Loaded texture key (e.g. 'sheep')
+     * @param {string|number} frame - Initial frame identifier
+     * @param {Object} properties - Merged Tiled object layer properties
+     */
     constructor(scene, x, y, texture, frame, properties) {
         super(scene, x, y, texture, frame);
 
@@ -10,8 +25,7 @@ export class Animal extends Phaser.Physics.Arcade.Sprite {
         scene.add.existing(this);
         scene.physics.add.existing(this);
 
-        // Set an appropriate body size (smaller than the visual sprite usually)
-        // Default to a reasonable size if not defined in properties
+        // Bounding Box Setup (anchored to feet level)
         const bodyWidth = properties.bodyWidth || 80;
         const bodyHeight = properties.bodyHeight || 15;
         this.body.setSize(bodyWidth, bodyHeight);
@@ -19,155 +33,198 @@ export class Animal extends Phaser.Physics.Arcade.Sprite {
 
         this.body.setCollideWorldBounds(true);
         this.body.pushable = false; // Cannot be pushed by players
-        this.body.immovable = false; // Can move
+        this.body.immovable = true; // Controlled via server network lerp
+        this.body.moves = false;     // Disable Arcade Physics internal velocity integration
 
         // Logic Properties
-        this.moveSpeed = properties.moveSpeed || 30; // Slower than players
+        this.moveSpeed = properties.moveSpeed || 30;
         this.wanderRange = 99999;
         this.idleTimer = 0;
         this.state = 'IDLE';
+        this.lastDirection = 'Down';
 
-        // Context Menu Compatibility
+        // Context Menu & Interaction Payload
         this.objectInfo = {
             uniqueId: properties.id || `animal_${Date.now()}_${Math.random()}`,
             name: properties.name || 'Animal',
             description: `A wild ${properties.species || 'creature'}.`,
-            Identifier: 'mapObject' // Ensure Identifier matches one of the cases in server-loop RightClick logic?
-            // "mapObject" case in server-loop expects clickedItem.uniqueId
-            // "player" case expects clickedItem.playerId
+            Identifier: 'mapObject'
         };
-        // NOTE: if Identifier is missing, contextMenu might assume something?
-        // Let's check contextMenu.js line 100+.
-        // It pushes `objectClicked` to `clickedList`.
-        // Then sends to server.
-        // Server handles based on Identifier?
-        // Let's assume generic mapObject structure.
 
         this.spawnOrigin = { x: x, y: y };
-        this.targetPostion = null;
+        this.targetPosition = null;
+        
+        // OPTIMIZATION: Allocation pooling for target vector to prevent GC churn on packet receipt
+        this._targetVector = new Phaser.Math.Vector2();
 
-        // Visuals
+        // OPTIMIZATION: Pre-cached animation key strings to avoid per-frame string concatenation
+        const key = texture;
+        this.animKeys = {
+            right: `${key}Right`,
+            left: `${key}Left`,
+            down: `${key}Down`,
+            up: `${key}Up`,
+            stopRight: `${key}StopRight`,
+            stopLeft: `${key}StopLeft`,
+            stopDown: `${key}StopDown`,
+            stopUp: `${key}StopUp`
+        };
+
+        // OPTIMIZATION: Y-Depth throttle state (guarantees first frame depth execution)
+        this.lastDepthY = -999999;
+
+        // Visual Depth Initialization
         this.setDepth(this.y + (this.height / 2));
 
-        // Input
+        // Interaction Handler
         if (properties.interactType === 'gather') {
             this.setInteractive({ cursor: 'pointer' });
             this.on('pointerdown', this.onInteract, this);
         }
-
-        // Initialize State
-        // this.enterIdleState(); // Removing local state control
     }
 
-    // --- Server Reconciliation ---
+    /**
+     * Processes server position and state snapshot updates.
+     * @param {Object} data - Snapshot payload { x, y, state, isSheared }
+     */
     serverUpdate(data) {
-        // data contains: x, y, state
-        this.targetPosition = new Phaser.Math.Vector2(data.x, data.y);
+        if (!this.active || !this.scene) return;
 
-        // Visual State (Sheared)
+        this.targetX = data.x;
+        this.targetY = data.y;
+        this.serverState = data.state;
+
+        // Visual Sheared State (Grey Tint)
         if (data.isSheared) {
-            this.setTint(0xaaaaaa); // Greyed out to look meaningless/naked
+            this.setTint(0xaaaaaa);
         } else {
             this.clearTint();
         }
 
-        // Move visual
-        if (this.scene) {
-            const dist = Phaser.Math.Distance.Between(this.x, this.y, data.x, data.y);
-
-            // If very far (teleport), snap immediately
-            if (dist > 150) {
-                this.body.reset(data.x, data.y);
-                this.targetPosition = null;
-            } else if (dist > 2) {
-                // Move towards target smoothly
-                // moveSpeed * 1.5 to catch up
-                // We do NOT snap here. We let physics move us.
-                this.scene.physics.moveTo(this, data.x, data.y, this.moveSpeed * 1.5);
-            } else {
-                // Close enough to snap
-                this.body.reset(data.x, data.y);
-                this.targetPosition = null;
-                this.setVelocity(0, 0);
-            }
-        }
-
-        // Anim state
-        if (data.state === 'IDLE') {
-            // Stop anims?
-            // Only if fully stopped? Or Server says IDLE so we should be IDLE.
-            // But valid lag might mean we are still catching up.
-            // We prioritize catching up (targetPosition != null).
-            // If we are moving to catch up, we want Walk anim even if Server says Idle.
+        // Large displacement / Teleport check
+        const dist = Phaser.Math.Distance.Between(this.x, this.y, data.x, data.y);
+        if (dist > 150) {
+            this.setPosition(data.x, data.y);
+            this.targetX = data.x;
+            this.targetY = data.y;
+            if (this.body) this.body.reset(data.x, data.y);
         }
     }
 
+    /**
+     * Pre-render frame update lifecycle hook.
+     * @param {number} time - Current game time in ms
+     * @param {number} delta - Frame delta time in ms
+     */
     preUpdate(time, delta) {
         super.preUpdate(time, delta);
-        // [FIX] Depth Sorting: Use the bottom of the hitbox (feet)
-        this.setDepth(this.y + (this.height * 0.5));
+        
+        // OPTIMIZATION: Throttled Depth Sorting (only re-sort when Y position moves > 0.5px)
+        if (Math.abs(this.y - this.lastDepthY) > 0.5) {
+            this.setDepth(this.y + (this.height * 0.5));
+            this.lastDepthY = this.y;
+        }
 
-        // If we represent a remote object, we rely on physics moving us to target
-        if (this.targetPosition) {
-            const dist = Phaser.Math.Distance.Between(this.x, this.y, this.targetPosition.x, this.targetPosition.y);
-            if (dist < 4) { // Snap threshold
-                this.body.reset(this.targetPosition.x, this.targetPosition.y);
-                this.targetPosition = null;
-                this.setVelocity(0, 0);
+        // Smooth Position Catch-Up Interpolation
+        let moveX = 0;
+        let moveY = 0;
+        if (typeof this.targetX === 'number' && typeof this.targetY === 'number') {
+            const dx = this.targetX - this.x;
+            const dy = this.targetY - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > 150) {
+                this.setPosition(this.targetX, this.targetY);
+                if (this.body) this.body.updateFromGameObject();
+            } else if (dist > 0.5) {
+                // Smooth Lerp Catch-Up towards target
+                const lerpFactor = Math.min(1.0, (delta / 1000) * 10);
+                moveX = dx * lerpFactor;
+                moveY = dy * lerpFactor;
+                this.x += moveX;
+                this.y += moveY;
+                if (this.body) this.body.updateFromGameObject();
+            } else {
+                this.x = this.targetX;
+                this.y = this.targetY;
+                if (this.body) this.body.updateFromGameObject();
             }
         }
 
-        // Just ensure anim matches velocity.
-        // We do NOT check data.state here, we check implicit physical state.
-
-        const isIdle = this.body.speed < 5;
-        this.updateAnimation(isIdle);
+        // Directional Animation Update
+        this.updateAnimation(moveX, moveY);
     }
 
-    updateAnimation(isIdle) {
-        const v = this.body.velocity;
-        const textureKey = this.texture.key;
+    /**
+     * Updates directional Phaser animations based on active frame movement vector.
+     * @param {number} moveX - Delta X movement in current frame
+     * @param {number} moveY - Delta Y movement in current frame
+     */
+    updateAnimation(moveX, moveY) {
+        const isIdle = Math.abs(moveX) < 0.05 && Math.abs(moveY) < 0.05;
 
-        if (isIdle) {
-            // ... (keep idle logic)
-            // Just use current frame or stop
-            this.anims.stop(); // simplified
+        if (isIdle || this.serverState === 'IDLE') {
+            const stopKey = this.animKeys[`stop${this.lastDirection}`];
+            if (stopKey && this.scene.anims && this.scene.anims.exists(stopKey)) {
+                this.play(stopKey, true);
+            } else {
+                this.anims.stop();
+            }
             return;
         }
 
-        if (Math.abs(v.x) > Math.abs(v.y)) {
-            if (v.x > 0) this.play(textureKey + 'Right', true);
-            else this.play(textureKey + 'Left', true);
+        // OPTIMIZATION: Use pre-cached animKeys strings to prevent string concatenation GC overhead
+        if (Math.abs(moveX) > Math.abs(moveY)) {
+            if (moveX > 0) {
+                this.lastDirection = 'Right';
+                this.play(this.animKeys.right, true);
+            } else {
+                this.lastDirection = 'Left';
+                this.play(this.animKeys.left, true);
+            }
         } else {
-            if (v.y > 0) this.play(textureKey + 'Down', true);
-            else this.play(textureKey + 'Up', true);
+            if (moveY > 0) {
+                this.lastDirection = 'Down';
+                this.play(this.animKeys.down, true);
+            } else {
+                this.lastDirection = 'Up';
+                this.play(this.animKeys.up, true);
+            }
         }
     }
 
+    /**
+     * Handles pointer click events on the animal.
+     * @param {Phaser.Input.Pointer} pointer - Input pointer object
+     */
     onInteract(pointer) {
-        // Only accept Primary (Left) Click (0)
-        // If Right Click (2), we do nothing so it bubbles to Context Menu
-        if (pointer.button !== 0) return;
+        // Defer to contextMenu.js when spacebar is pressed to trigger Space+Click radial context wheel
+        if (window.spacebarPressed) return;
+
+        // Accept Primary (Left: 0) and Secondary (Right: 2) Click
+        if (pointer.button !== 0 && pointer.button !== 2) return;
 
         pointer.interactionHandled = true;
 
-        // Distance Check
         const player = this.scene.playerContainer;
         if (!player) return;
 
+        const targetAnimalId = this.objectInfo?.uniqueId || this.properties?.id || 'unknown';
+        const activeHand = pointer.button === 2 ? 'right' : 'left';
+
         const dist = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
         if (dist > 100) {
-            console.log(`[Animal] Too far - Smart Walking towards ${this.properties.name}`);
+            // Trigger Smart Walk pathing towards animal before interaction
             this.scene.smartWalkTarget = {
                 target: this,
                 range: 75,
                 onReach: () => {
-                    console.log(`[Animal] Smart Walk reached animal: ${this.properties.name}`);
                     if (this.scene.socket) {
                         this.scene.socket.emit('objectInteract', {
                             type: 'animal',
-                            id: this.properties.id || 'unknown',
-                            action: this.properties.interactType
+                            id: targetAnimalId,
+                            action: this.properties.interactType || 'gather',
+                            hand: activeHand
                         });
                     }
                 }
@@ -175,15 +232,13 @@ export class Animal extends Phaser.Physics.Arcade.Sprite {
             return;
         }
 
-        // Trigger Event
-        console.log(`[Animal] Interacted with ${this.properties.name}`);
-
-        // We will emit a socket event for the server to handle the inventory logic
+        // Direct interaction emit
         if (this.scene.socket) {
             this.scene.socket.emit('objectInteract', {
                 type: 'animal',
-                id: this.properties.id || 'unknown',
-                action: this.properties.interactType
+                id: targetAnimalId,
+                action: this.properties.interactType || 'gather',
+                hand: activeHand
             });
         }
     }

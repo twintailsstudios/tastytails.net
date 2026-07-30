@@ -2,7 +2,7 @@
   <meta charset="UTF-8">
   <title>TastyTails | Play</title>
 
-  <link rel="stylesheet" type="text/css" href="/css/play.css?v=<%= Date.now() %>" />
+  <link rel="stylesheet" type="text/css" href="/css/play.css" />
 
   <link rel="stylesheet" type="text/css" href="/css/chat.css" />
   <link rel="stylesheet" type="text/css" href="/css/contextMenu.css" />
@@ -11,10 +11,10 @@
   <link rel="stylesheet" type="text/css" href="/css/apparel.css" />
 
   <link rel="stylesheet" type="text/css" href="/css/options.css" />
-  <link rel="stylesheet" type="text/css" href="/css/loading.css?v=<%= Date.now() %>" />
-  <link rel="stylesheet" type="text/css" href="/css/stats.css?v=<%= Date.now() %>" />
-  <link rel="stylesheet" type="text/css" href="/css/medical.css?v=<%= Date.now() %>" />
-  <link rel="stylesheet" type="text/css" href="/css/voreHUD.css?v=<%= Date.now() %>" />
+  <link rel="stylesheet" type="text/css" href="/css/loading.css" />
+  <link rel="stylesheet" type="text/css" href="/css/stats.css" />
+  <link rel="stylesheet" type="text/css" href="/css/medical.css" />
+  <link rel="stylesheet" type="text/css" href="/css/voreHUD.css" />
 
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,18 +34,6 @@
   document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('play-mode');
   });
-
-  function toggleNav() {
-    document.body.classList.toggle('nav-visible');
-    const chevron = document.querySelector('#navToggle .chevron-icon');
-    if (chevron) {
-      if (document.body.classList.contains('nav-visible')) {
-        chevron.style.transform = 'rotate(180deg)';
-      } else {
-        chevron.style.transform = 'rotate(0deg)';
-      }
-    }
-  }
 </script>
 
 <div id="game-wrapper">
@@ -238,20 +226,26 @@
         <!-- Health -->
         <div id="health-bar-container" class="stat-bar-container clickable-stat-bar" onclick="if(window.toggleMedicalModal) window.toggleMedicalModal();" title="Click to view Medical Status">
           <div class="stat-icon"><i class="fa-solid fa-heart" style="color: #ff4c4c;"></i></div>
-          <div id="health-bar-fill" class="stat-bar-fill" style="width: 100%;"></div>
-          <span id="health-text" class="stat-text">100 / 100</span>
+          <div class="stat-bar-track">
+            <div id="health-bar-fill" class="stat-bar-fill" style="width: 100%;"></div>
+            <span id="health-text" class="stat-text">100 / 100</span>
+          </div>
         </div>
         <!-- Stamina -->
         <div class="stat-bar-container">
           <div class="stat-icon"><i class="fa-solid fa-bolt" style="color: #ffd700;"></i></div>
-          <div id="stamina-bar-fill" class="stat-bar-fill" style="width: 100%;"></div>
-          <span id="stamina-text" class="stat-text">100 / 100</span>
+          <div class="stat-bar-track">
+            <div id="stamina-bar-fill" class="stat-bar-fill" style="width: 100%;"></div>
+            <span id="stamina-text" class="stat-text">100 / 100</span>
+          </div>
         </div>
         <!-- Mana -->
         <div class="stat-bar-container">
           <div class="stat-icon"><i class="fa-solid fa-star" style="color: #4169e1;"></i></div>
-          <div id="mana-bar-fill" class="stat-bar-fill" style="width: 100%;"></div>
-          <span id="mana-text" class="stat-text">100 / 100</span>
+          <div class="stat-bar-track">
+            <div id="mana-bar-fill" class="stat-bar-fill" style="width: 100%;"></div>
+            <span id="mana-text" class="stat-text">100 / 100</span>
+          </div>
         </div>
       </div>
 
@@ -271,13 +265,13 @@
 
             <!-- Left Flank: Integrated Intent Controls & Target Paper Doll -->
             <div class="intent-dock-group">
-              <div class="intent-option active intent-friendly" id="intent-friendly" onclick="setIntent('friendly')" title="Friendly Intent (Default)">
+              <div class="intent-option active intent-friendly" id="intent-friendly" onclick="setIntent('friendly', event)" title="Friendly Intent (Default)">
                 <i class="fa-regular fa-face-smile"></i>
               </div>
-              <div class="intent-option intent-grabbing" id="intent-grabbing" onclick="setIntent('grabbing')" title="Grabbing / Interacting Intent (Shift)">
+              <div class="intent-option intent-grabbing" id="intent-grabbing" onclick="setIntent('grabbing', event)" title="Grabbing / Interacting Intent (Shift)">
                 <i class="fa-solid fa-hand-fist"></i>
               </div>
-              <div class="intent-option intent-hostile" id="intent-hostile" onclick="setIntent('hostile')" title="Hostile Intent (Ctrl)">
+              <div class="intent-option intent-hostile" id="intent-hostile" onclick="setIntent('hostile', event)" title="Hostile Intent (Ctrl)">
                 <i class="fa-solid fa-crosshairs"></i>
               </div>
             </div>
@@ -337,10 +331,10 @@
 
             <!-- Center Core: Active Hands & Drop Action -->
             <div class="hands-dock-group">
-              <div class="hand-slot left-hand" id="leftHandSlot" onclick="window.actionHands.onSlotClick('left')">
+              <div class="hand-slot left-hand" id="leftHandSlot" onclick="window.actionHands.onSlotClick('left', event)">
                 <span class="hand-label">LEFT</span>
               </div>
-              <div class="hand-slot right-hand" id="rightHandSlot" onclick="window.actionHands.onSlotClick('right')">
+              <div class="hand-slot right-hand" id="rightHandSlot" onclick="window.actionHands.onSlotClick('right', event)">
                 <span class="hand-label">RIGHT</span>
               </div>
               <button id="drop-btn" class="hand-btn btn-danger">Drop</button>
@@ -350,7 +344,10 @@
             <div class="tabs-dock-group">
               <div id="active-apparel-pill" class="active-apparel-pill hidden-hud" title="Apparel Storage Pockets">
                 <span id="pill-icon" class="pill-icon">📦</span>
-                <span id="pill-text" class="pill-text">Pockets</span>
+                <span id="pill-text" class="pill-text">
+                  <span class="pill-name">Pockets</span>
+                  <span class="pill-count">(0/0)</span>
+                </span>
               </div>
             </div>
           </div>
@@ -376,90 +373,36 @@
   </div>
 </div>
 
+<!-- Server State Hydration Block -->
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    // --- Phase 1: Horizontal Resizing ---
-    const resizer = document.getElementById('resize-handler');
-    const leftSide = document.getElementById('phaserApp');
-    const rightSide = document.getElementById('sidePanel');
-    const container = document.getElementById('game-wrapper');
+  (function () {
+    try {
+      var rawCharList = `<%- JSON.stringify(charList)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, '\\\'')
+        .replace(/"/g, '&quot;')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\u2028/g, '\\u2028')
+        .replace(/\u2029/g, '\\u2029') %>`;
+      var charList = JSON.parse(rawCharList.replace(/&quot;/g, '"'));
 
-    let x = 0;
-    let leftWidth = 0;
+      window.tastytailsData = {
+        charList: charList,
+        mapFilename: "<%= mapFilename %>"
+      };
 
-    const mouseDownHandler = function (e) {
-      x = e.clientX;
-      leftWidth = leftSide.getBoundingClientRect().width;
-      document.addEventListener('mousemove', mouseMoveHandler);
-      document.addEventListener('mouseup', mouseUpHandler);
-      document.body.classList.add('resizing');
-    };
-
-    const mouseMoveHandler = function (e) {
-      const dx = e.clientX - x;
-      const newLeftWidth = ((leftWidth + dx) * 100) / container.getBoundingClientRect().width;
-      if (newLeftWidth < 20 || newLeftWidth > 80) return;
-      leftSide.style.flex = `0 0 ${newLeftWidth}%`;
-      window.dispatchEvent(new Event('resize'));
-    };
-
-    const mouseUpHandler = function () {
-      document.removeEventListener('mousemove', mouseMoveHandler);
-      document.removeEventListener('mouseup', mouseUpHandler);
-      document.body.classList.remove('resizing');
-      window.dispatchEvent(new Event('resize'));
-    };
-
-    if (resizer) resizer.addEventListener('mousedown', mouseDownHandler);
-
-    // --- Phase 2: Vertical Resizing ---
-    const vResizer = document.getElementById('vertical-resize-handler');
-    const topPanel = document.getElementById('menu');
-    const bottomPanel = document.getElementById('chat');
-    const sidePanel = document.getElementById('sidePanel');
-
-    let y = 0;
-    let topHeight = 0;
-
-    const vMouseDownHandler = function (e) {
-      y = e.clientY;
-      // Use getBoundingClientRect for accuracy
-      topHeight = topPanel.getBoundingClientRect().height;
-
-      document.addEventListener('mousemove', vMouseMoveHandler);
-      document.addEventListener('mouseup', vMouseUpHandler);
-      document.body.classList.add('resizing-v');
-    };
-
-    const vMouseMoveHandler = function (e) {
-      const dy = e.clientY - y;
-      const sidePanelHeight = sidePanel.getBoundingClientRect().height;
-
-      // Calculate new percentage height
-      const newTopHeightPct = ((topHeight + dy) * 100) / sidePanelHeight;
-
-      // Constraints: Keep top between 20% and 80% (approx)
-      if (newTopHeightPct < 10 || newTopHeightPct > 90) return;
-
-      // Apply flex basis to top panel. 
-      // IMPORTANT: Ensure topPanel has flex properties enabled in CSS or set here
-      topPanel.style.flex = `0 0 ${newTopHeightPct}%`;
-      // bottomPanel typically has flex: 1, so it fills the rest
-
-      window.dispatchEvent(new Event('resize'));
-    };
-
-    const vMouseUpHandler = function () {
-      document.removeEventListener('mousemove', vMouseMoveHandler);
-      document.removeEventListener('mouseup', vMouseUpHandler);
-      document.body.classList.remove('resizing-v');
-    };
-
-    if (vResizer) vResizer.addEventListener('mousedown', vMouseDownHandler);
-  });
+      window.localPlayerInfo = charList;
+      window.localPlayerInfo.rotation = 0;
+      window.localPlayerInfo.isMoving = false;
+      window.mapFilename = window.tastytailsData.mapFilename;
+    } catch (e) {
+      console.error("Failed to parse initial player configuration:", e);
+    }
+  })();
 </script>
 
-<!--Right Click Custom Menu (Moved to body to avoid clipping)-->
+<!-- Right Click Custom Menu (Moved to body to avoid clipping) -->
 <div id="contextMenu" class="context-menu">
   <div class="normalMenu">
     <ul>
@@ -474,7 +417,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.90.0/phaser.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
-<!-- <script type="module" src="/js/index.js"></script> -->
 <script src="/js/AvatarRenderer.js"></script>
 <script src="/js/chat/ChatFormatter.js"></script>
 <script src="/js/chat/ChatNetwork.js"></script>
@@ -485,152 +427,7 @@
 <script src="/js/chat/ChatSystem.js"></script>
 <script src="/js/contextMenu.js"></script>
 <script src="/js/anatomy_forge.js"></script>
-<!-- <script type="module">
-    const serverPlayerInfo = <% charList %>
-    console.log('serverPlayerInfo = ', serverPlayerInfo);
-    export serverPlayerInfo;
-  </script> -->
-<script>
-  // --- Anatomy Forge Integration ---
-  // --- Anatomy Forge Integration ---
-  window.saveAnatomyChanges = function (showToastMsg = true) {
-    if (typeof AnatomyForge === 'undefined') return;
-
-    // Use window.gameSocket if available
-    // Do NOT call io() here as it creates a new connection every save!
-    const targetSocket = window.gameSocket;
-
-    if (targetSocket) {
-      // Ensure we capture the latest data either from the hidden field or direct serialization
-      const serialized = document.getElementById('anatomyData') ? document.getElementById('anatomyData').value : AnatomyForge.serialize();
-
-      targetSocket.emit('updateVoreSettings', { anatomyData: serialized });
-
-      if (showToastMsg) {
-        if (typeof showToast === 'function') showToast("Anatomy Saved!", "success");
-        else console.log("Anatomy Saved");
-      }
-    } else {
-      console.warn("saveAnatomyChanges: No socket connection available.");
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    if (typeof AnatomyForge !== 'undefined' && localPlayerInfo) {
-      // We need to inject the hidden input 'anatomyData' because AnatomyForge expects it for serialization
-      if (!document.getElementById('anatomyData')) {
-        const inp = document.createElement('input');
-        inp.type = 'hidden';
-        inp.id = 'anatomyData';
-        inp.name = 'anatomyData';
-        document.body.appendChild(inp);
-      }
-
-      const initialData = localPlayerInfo.anatomyData || null;
-      // We pass localPlayerInfo.voreTypes as legacy fallback
-      AnatomyForge.init('anatomy-forge-container', initialData, localPlayerInfo.voreTypes, window.saveAnatomyChanges);
-
-      // Initial render of Vore Destinations list if available
-      if (typeof window.createVoreList === 'function' && localPlayerInfo && localPlayerInfo.voreTypes) {
-        window.createVoreList(localPlayerInfo.voreTypes);
-      }
-
-      // Hook into tab switching to resize/reset view & refresh vore list
-      const voreTabBtn = document.getElementById('voreTab');
-      if (voreTabBtn) {
-        voreTabBtn.addEventListener('click', () => {
-          if (typeof window.createVoreList === 'function' && window.localPlayerInfo && window.localPlayerInfo.voreTypes) {
-            window.createVoreList(window.localPlayerInfo.voreTypes);
-          }
-          setTimeout(() => {
-            if (typeof AnatomyForge !== 'undefined' && AnatomyForge.resetView) AnatomyForge.resetView();
-          }, 100);
-        });
-      }
-    }
-  });
-</script>
-<!--Checks if the game is focused or the chat is focused-->
-<script>
-  var chatFocused = true;
-
-  var avatarSelected = false;
-
-  let avatarInfo = {
-    head: "emptyplayer",
-    body: "emptyplayer"
-  };
-
-  var rawCharList = `<%- JSON.stringify(charList)
-    .replace(/\\/g, '\\\\')
-    .replace(/'/g, '\\\'')
-    .replace(/"/g, '&quot;')
-    .replace(/\n/g, '\\n')
-    .replace(/\r/g, '\\r')
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029') %>`;
-  var charList = JSON.parse(rawCharList.replace(/&quot;/g, '"'));
-
-  var localPlayerInfo = charList
-  window.mapFilename = "<%= mapFilename %>"; // Injected from server logic
-  // localPlayerInfo.position.x = 3291;
-  // localPlayerInfo.position.y = 4287;
-  // localPlayerInfo.consumedBy = null;
-  localPlayerInfo.rotation = 0;
-  localPlayerInfo.isMoving = false;
-  // localPlayerInfo.Identifier = "player";
-  // localPlayerInfo.input = {
-  //   left: false,
-  //   right: false,
-  //   up: false,
-  //   down: false
-  // };
-
-  var currentIntent = 'friendly';
-  document.querySelectorAll('input[name="intent"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      currentIntent = e.target.value;
-      console.log('Intent changed to:', currentIntent);
-    });
-  });
-
-  var voreTypes = [];
-  var clicked = { Identifier: '' };
-  var toDestroy = '';
-  var container = null;
-  var cam1 = null;
-  var arrows = 0;
-
-  // --- Focus Handling ---
-  document.addEventListener('DOMContentLoaded', () => {
-    const phaserApp = document.getElementById('phaserApp');
-    const chatInput = document.getElementById('textarea');
-
-    if (phaserApp) {
-      phaserApp.setAttribute('tabindex', '0');
-      phaserApp.addEventListener('click', () => {
-        chatFocused = false;
-        if (chatInput) chatInput.blur();
-        phaserApp.focus();
-        // console.log('Game Focused');
-      });
-      phaserApp.addEventListener('focus', () => {
-        chatFocused = false;
-        if (chatInput) chatInput.blur();
-      });
-    }
-
-    if (chatInput) {
-      chatInput.addEventListener('focus', () => {
-        chatFocused = true;
-        // console.log('Chat Focused');
-      });
-      chatInput.addEventListener('click', () => {
-        chatFocused = true;
-      });
-    }
-  });
-</script>
+<script src="/js/playView.js"></script>
 
 <div id="loading-overlay">
   <div id="loading-board">

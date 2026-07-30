@@ -1,13 +1,35 @@
 
+/**
+ * @fileoverview test_chat.js - Automated End-to-End Chat Subsystem Diagnostic Suite
+ * 
+ * @description
+ * Simulates multiple headless Socket.IO bot clients to conduct automated integration testing
+ * for TastyTails.net real-time chat features, including global/local spatial scoping, Markdown
+ * parsing, HTML sanitization, spoiler flags, message editing, and emoji reaction toggles.
+ * 
+ * Triggered by: Manual CLI execution (`node scripts/test_chat.js`) or automated test scripts.
+ */
+
 const io = require('socket.io-client');
+const jwt = require('jsonwebtoken');
+const dotenv = require('dotenv');
+dotenv.config();
 
 // Configuration
-const SERVER_URL = 'http://localhost:3000';
+const SERVER_URL = process.env.TEST_SERVER_URL || process.env.SERVER_URL || 'http://localhost:3000';
 
 // Latency & Timeout Config
-const TIMEOUT_MS = 5000;
+const TIMEOUT_MS = parseInt(process.env.TEST_TIMEOUT_MS, 10) || 5000;
 
+/**
+ * Headless Socket.IO Bot Client wrapper for automated chat verification.
+ */
 class Bot {
+    /**
+     * Constructs a new Bot instance with initial spatial coordinates.
+     * @param {string} name - Human-readable name for logging & identification.
+     * @param {{x: number, y: number}} startPos - Initial world position coordinates.
+     */
     constructor(name, startPos) {
         this.name = name;
         this.socket = null;
@@ -20,6 +42,11 @@ class Bot {
         this.chatHistory = [];
     }
 
+    /**
+     * Establishes a WebSocket connection to the game server, registers the bot in the spatial grid,
+     * and sets up wildcard event listeners and buffer pruning.
+     * @returns {Promise<void>} Resolves when connection and initial spawn packet registration complete.
+     */
     async connect() {
         return new Promise((resolve, reject) => {
             // Generate random Char ID (Mongodb ObjectId-ish)
@@ -68,7 +95,14 @@ class Bot {
             });
 
             this.socket.onAny((eventName, ...args) => {
-                this.events.push({ name: eventName, args, time: Date.now() });
+                const now = Date.now();
+                this.events.push({ name: eventName, args, time: now });
+
+                // OPTIMIZATION: Event Buffer Pruning (500-item cap & 10s TTL to prevent memory leaks while preserving lookbacks)
+                if (this.events.length > 500) {
+                    const cutoff = now - 10000;
+                    this.events = this.events.filter(e => e.time > cutoff);
+                }
 
                 // Check expectations
                 if (this.expectedEvents[eventName]) {
@@ -106,21 +140,27 @@ class Bot {
         });
     }
 
+    /**
+     * Gracefully disconnects the bot's Socket.IO socket instance.
+     */
     disconnect() {
         if (this.socket) this.socket.disconnect();
     }
 
+    /**
+     * Asynchronously awaits an incoming socket event matching eventName and an optional predicate filter.
+     * @param {string} eventName - Name of the expected socket event (e.g. 'output', 'editOutput').
+     * @param {number} [timeout=TIMEOUT_MS] - Timeout duration in milliseconds before rejecting.
+     * @param {Function|null} [predicate=null] - Optional filter function returning boolean when args match.
+     * @returns {Promise<Array>} Resolves with the event arguments array when matched.
+     */
     async waitForEvent(eventName, timeout = TIMEOUT_MS, predicate = null) {
         return new Promise((resolve, reject) => {
-            // Check if already happened recently (last 1 second?)
-            // For chat tests, it's safer to wait for NEW events usually, 
-            // but let's allow checking recent history to avoid race conditions.
             const startCheckTime = Date.now();
 
-            // Check existing buffer first
+            // SAFEGUARD: Check existing event buffer first to eliminate race condition misses
             const checkBuffer = () => {
                 const recent = this.events.filter(e => e.name === eventName && e.time > startCheckTime - 100);
-                // -100ms tolerance if event came just before call
                 if (recent.length > 0) {
                     const last = recent[recent.length - 1];
                     if (!predicate || predicate(last.args)) {
@@ -155,29 +195,26 @@ class Bot {
         });
     }
 
+    /**
+     * Emits an arbitrary socket event with args directly over the WebSocket connection.
+     * @param {string} event - Event name to emit.
+     * @param {...*} args - Payload arguments.
+     */
     emit(event, ...args) {
         this.socket.emit(event, ...args);
     }
 
+    /**
+     * Sends a chat message payload to the server.
+     * @param {string} content - Raw text content of the message.
+     * @param {string} [scope='global'] - Chat scope ('global' or 'local').
+     * @param {string} [type='Default'] - Message classification type.
+     */
     sendMessage(content, scope = 'global', type = 'Default') {
-        // Message structure based on ChatInput.js logic
-        // We typically emit: 'input', { message: rawText, scope: 'global'|'local', token: ... }
-        // BUT we need a token. The automated test usually bypasses auth or mocks it?
-        // Wait, MessageSystem.js verify(data.token).
-        // The robots don't have real tokens! 
-        // We might need to generate a fake signed token if the server requires it.
-        // User rules: "The USER will send you requests...".
-        // Checking MessageSystem.js: `const verified = jwt.verify(data.token, process.env.TOKEN_SECRET);`
-        // We need a way to generate a valid token for the test bots.
-        // OR we can make the server accept a debug token?
-        // No, let's try to sign one. We need the secret.
-        // The secret is in .env. We can read .env in this script since it runs on the server Node environment.
         return this.socket.emit('input', {
             message: content,
             scope: scope,
-            type: type, // 'input' event usually just takes message/scope, type inferred? 
-            // MessageSystem classifyMessage: /ooc, /me, /w determine type. 
-            // So if we want 'Default', just send text.
+            type: type,
             token: this.generateToken(),
             charId: this.charId,
             name: this.name,
@@ -185,6 +222,11 @@ class Bot {
         });
     }
 
+    /**
+     * Sends a chat message flagged as a spoiler.
+     * @param {string} content - Content of the spoiler message.
+     * @param {string} [scope='global'] - Chat scope ('global' or 'local').
+     */
     sendSpoiler(content, scope = 'global') {
         return this.socket.emit('input', {
             message: content,
@@ -192,11 +234,15 @@ class Bot {
             token: this.generateToken(),
             charId: this.charId,
             name: this.name,
-            spoiler: 'warning' // or 'content' ? ChatUI uses 'spoiled-warning' etc. 
-            // MessageSystem: spoiler: { status: data.spoiler || 'none' }
+            spoiler: 'warning'
         });
     }
 
+    /**
+     * Emits an edit payload for an existing message.
+     * @param {string} msgId - Database ID (_id) of the target message.
+     * @param {string} newContent - Replacement message text.
+     */
     editMessage(msgId, newContent) {
         this.socket.emit('inputEdit', {
             _id: msgId,
@@ -206,20 +252,24 @@ class Bot {
         });
     }
 
+    /**
+     * Generates a signed JWT token using TOKEN_SECRET for bot socket authentication.
+     * @returns {string} Signed JWT token string.
+     */
     generateToken() {
-        const jwt = require('jsonwebtoken'); // Assuming installed
-        const dotenv = require('dotenv');
-        dotenv.config();
-
-        // Mock User Object
         const payload = {
-            _id: 'TEST_ACCOUNT_ID_' + this.name, // Account ID
+            _id: 'TEST_ACCOUNT_ID_' + this.name,
             username: this.name
         };
         return jwt.sign(payload, process.env.TOKEN_SECRET || 'testsecret');
     }
 }
 
+/**
+ * Utility helper returning a promise that resolves after the specified delay.
+ * @param {number} ms - Milliseconds to sleep.
+ * @returns {Promise<void>}
+ */
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -228,8 +278,19 @@ function sleep(ms) {
 // TEST SUITE
 // ==========================================
 
+/**
+ * Main async test suite execution function orchestrating 6 chat feature tests:
+ * 1. Global message delivery
+ * 2. Local message spatial range limits
+ * 3. Markdown bold formatting & HTML sanitization
+ * 4. Spoiler flags & warning status
+ * 5. In-place message editing via inputEdit
+ * 6. Emoji reaction addition and removal via toggleReaction
+ * @returns {Promise<void>} Exits process with code 0 on clean pass or 1 on failure.
+ */
 async function runTests() {
     console.log("=== Starting Message System Tests ===");
+    let testFailed = false;
 
     // Position Setup
     // Center: 3300, 4300
@@ -262,19 +323,27 @@ async function runTests() {
         let farSaw = false;
         try {
             const [msgs] = await Receiver.waitForEvent('output', 3000, (args) => {
-                return args[0][0].message[0].content.includes(globalMsg);
+                const content = args?.[0]?.[0]?.message?.[0]?.content;
+                return content && content.includes(globalMsg);
             });
             console.log("✅ Receiver saw Global message.");
             receiverSaw = true;
-        } catch (e) { console.error("❌ Receiver failed to see Global message", e); }
+        } catch (e) {
+            console.error("❌ Receiver failed to see Global message", e);
+            testFailed = true;
+        }
 
         try {
             const [msgs] = await FarBot.waitForEvent('output', 3000, (args) => {
-                return args[0][0].message[0].content.includes(globalMsg);
+                const content = args?.[0]?.[0]?.message?.[0]?.content;
+                return content && content.includes(globalMsg);
             });
             console.log("✅ FarBot saw Global message.");
             farSaw = true;
-        } catch (e) { console.error("❌ FarBot failed to see Global message", e); }
+        } catch (e) {
+            console.error("❌ FarBot failed to see Global message", e);
+            testFailed = true;
+        }
         globalSuccess = receiverSaw && farSaw;
         Sender.emit('reportAction', { actionType: 'test: chat global delivery', success: globalSuccess });
 
@@ -294,16 +363,21 @@ async function runTests() {
         let farLocalSaw = false;
         try {
             const [msgs] = await Receiver.waitForEvent('output', 3000, (args) => {
-                return args[0][0].scope === 'local' && args[0][0].message[0].content.includes(localMsg);
+                const content = args?.[0]?.[0]?.message?.[0]?.content;
+                return args?.[0]?.[0]?.scope === 'local' && content && content.includes(localMsg);
             });
             console.log("✅ Receiver saw Local message.");
             receiverLocalSaw = true;
-        } catch (e) { console.error("❌ Receiver failed to see Local message", e); }
+        } catch (e) {
+            console.error("❌ Receiver failed to see Local message", e);
+            testFailed = true;
+        }
 
         let farSawIt = false;
         try {
             await FarBot.waitForEvent('output', 1000, (args) => {
-                return args[0][0].scope === 'local' && args[0][0].message[0].content.includes(localMsg);
+                const content = args?.[0]?.[0]?.message?.[0]?.content;
+                return args?.[0]?.[0]?.scope === 'local' && content && content.includes(localMsg);
             });
             farSawIt = true;
         } catch (e) { /* Expected Timeout */ }
@@ -330,16 +404,21 @@ async function runTests() {
         let formattingSuccess = false;
         try {
             const [msgs] = await Receiver.waitForEvent('output', 3000, (args) => {
-                return args[0][0].message[0].content.includes('<strong>Bold Text</strong>');
+                const content = args?.[0]?.[0]?.message?.[0]?.content;
+                return content && content.includes('<strong>Bold Text</strong>');
             });
-            const content = msgs[0].message[0].content;
+            const content = msgs?.[0]?.[0]?.message?.[0]?.content || '';
             if (content.includes('<strong>Bold Text</strong>')) {
                 console.log("✅ Bold formatting verified.");
                 formattingSuccess = true;
             } else {
                 console.error(`❌ Formatting mismatch. Got: ${content}`);
+                testFailed = true;
             }
-        } catch (e) { console.error("❌ Formatting test timed out", e); }
+        } catch (e) {
+            console.error("❌ Formatting test timed out", e);
+            testFailed = true;
+        }
         Sender.emit('reportAction', { actionType: 'test: chat md bold formatting', success: formattingSuccess });
 
         await sleep(2000); // Wait for Rate Limit
@@ -450,12 +529,13 @@ async function runTests() {
 
     } catch (err) {
         console.error("CRITICAL TEST FAILURE:", err);
+        testFailed = true;
     } finally {
         console.log("Cleaning up...");
         Sender.disconnect();
         Receiver.disconnect();
         FarBot.disconnect();
-        process.exit(0);
+        process.exit(testFailed ? 1 : 0);
     }
 }
 

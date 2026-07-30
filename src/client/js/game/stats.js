@@ -1,6 +1,17 @@
+/**
+ * @fileoverview stats.js - Client-Side HUD Vitality Stats & Medical Modal Gateway
+ * 
+ * @description
+ * Controls the rendering and state caching for the player's core vitality bars (Health, Stamina, Mana).
+ * Features Flyweight value caching to prevent DOM layout thrashing during frame ticks and provides
+ * a lazy interactive entry point to toggle the Medical Paper Doll HUD.
+ * 
+ * Triggered by: Main engine update loop in update.js when player stats change.
+ */
+
 import { toggleMedicalModal, updateMedicalStats } from './medicalUI.js';
 
-// Cache last known values to prevent DOM thrashing
+// OPTIMIZATION: Module-scoped value cache to prevent layout thrashing and redundant DOM mutations on identical frames
 const cache = {
     health: -1,
     maxHealth: -1,
@@ -10,49 +21,96 @@ const cache = {
     maxMana: -1
 };
 
-let healthClickAttached = false;
+// OPTIMIZATION: DOM Element cache with .isConnected validation to eliminate repeated document.getElementById lookups
+const domCache = new Map();
 
+/**
+ * Retrieves a cached DOM element by ID, querying the document if un-cached or detached.
+ * @param {string} id - DOM element ID
+ * @returns {HTMLElement|null} Valid DOM element reference
+ */
+function getCachedElement(id) {
+    const cached = domCache.get(id);
+    if (cached && cached.isConnected) {
+        return cached;
+    }
+    const fresh = document.getElementById(id);
+    if (fresh) {
+        domCache.set(id, fresh);
+    }
+    return fresh;
+}
+
+/**
+ * Extracted helper to calculate fill percentage and update bar width and text labels.
+ * Extracted out of updateStatsUI to avoid closure allocation per tick call.
+ * 
+ * @param {string} id - Stat bar prefix ('health', 'stamina', 'mana')
+ * @param {number} current - Current stat value
+ * @param {number} max - Maximum stat value
+ * @param {string} cacheKeyCurrent - Cache key for current value
+ * @param {string} cacheKeyMax - Cache key for max value
+ */
+function updateBar(id, current, max, cacheKeyCurrent, cacheKeyMax) {
+    // Early exit if stat values haven't changed since last tick
+    if (cache[cacheKeyCurrent] === current && cache[cacheKeyMax] === max) {
+        return;
+    }
+
+    cache[cacheKeyCurrent] = current;
+    cache[cacheKeyMax] = max;
+
+    // Safety guards against negative stats or division by zero
+    const safeMax = Math.max(0, max);
+    const safeCurrent = Math.max(0, current);
+    const percent = safeMax > 0 ? Math.max(0, Math.min(100, (safeCurrent / safeMax) * 100)) : 0;
+
+    const bar = getCachedElement(`${id}-bar-fill`);
+    const text = getCachedElement(`${id}-text`);
+
+    if (bar) {
+        bar.style.width = `${percent}%`;
+    }
+    if (text) {
+        text.innerText = `${Math.floor(safeCurrent)} / ${Math.floor(safeMax)}`;
+    }
+}
+
+/**
+ * Main export for updating client HUD vitality stats.
+ * 
+ * @param {Object} player - Player entity or player info object containing stat data
+ */
 export function updateStatsUI(player) {
     if (!player) return;
 
-    // Attach click listener to health bar container to open paper doll HUD
-    if (!healthClickAttached) {
-        const healthContainer = document.getElementById('health-bar-fill')?.parentElement;
-        if (healthContainer) {
-            healthContainer.style.cursor = 'pointer';
-            healthContainer.title = 'Click to open Medical Paper Doll HUD';
-            healthContainer.addEventListener('click', () => {
-                toggleMedicalModal();
-            });
-            healthClickAttached = true;
-        }
+    // Lazily attach click listener to health bar parent container (resilient to DOM re-renders via dataset attribute)
+    const healthContainer = getCachedElement('health-bar-container') || document.getElementById('health-bar-fill')?.closest('.stat-bar-container');
+    if (healthContainer && !healthContainer.dataset.medicalClickAttached) {
+        healthContainer.style.cursor = 'pointer';
+        healthContainer.title = 'Click to open Medical Paper Doll HUD';
+        healthContainer.addEventListener('click', toggleMedicalModal);
+        healthContainer.dataset.medicalClickAttached = 'true';
     }
 
-    // Default values if stats are missing (backward compatibility)
+    // Defensive fallback extraction for backward compatibility
     const stats = (player && player.stats) ? player.stats : player;
-    const { health = 100, maxHealth = 100, stamina = 100, maxStamina = 100, mana = 100, maxMana = 100 } = stats;
+    const {
+        health = 100,
+        maxHealth = 100,
+        stamina = 100,
+        maxStamina = 100,
+        mana = 100,
+        maxMana = 100
+    } = stats;
 
-    // Forward complete stats to Medical UI manager
+    // Forward detailed anatomical stats to Medical UI manager
     if (player && player.stats && player.stats.bodyParts) {
         updateMedicalStats(player.stats);
     }
-
-    // Helper to calculate percentage and update bar
-    const updateBar = (id, current, max, cacheKeyCurrent, cacheKeyMax) => {
-        if (cache[cacheKeyCurrent] === current && cache[cacheKeyMax] === max) return;
-
-        cache[cacheKeyCurrent] = current;
-        cache[cacheKeyMax] = max;
-
-        const percent = Math.max(0, Math.min(100, (current / max) * 100));
-        const bar = document.getElementById(`${id}-bar-fill`);
-        const text = document.getElementById(`${id}-text`);
-
-        if (bar) bar.style.width = `${percent}%`;
-        if (text) text.innerText = `${Math.floor(current)} / ${Math.floor(max)}`;
-    };
 
     updateBar('health', health, maxHealth, 'health', 'maxHealth');
     updateBar('stamina', stamina, maxStamina, 'stamina', 'maxStamina');
     updateBar('mana', mana, maxMana, 'mana', 'maxMana');
 }
+

@@ -1,26 +1,78 @@
+/**
+ * @fileoverview inventoryHandlers.js - Server-side inventory and equipment socket event handlers.
+ * 
+ * @description
+ * Manages real-time equipment changes, pocket stash/retrieval operations, ground item dropping,
+ * undressing, and item consumption logic for player entities. Encapsulates state mutations,
+ * spatial grid synchronization, action telemetry recording, database persistence, and client broadcasts.
+ * 
+ * Triggered by client socket events:
+ * - 'equipItemClicked'
+ * - 'undressClicked'
+ * - 'stashItemClicked'
+ * - 'retrieveItemClicked'
+ * - 'dropItemClicked'
+ * - 'useItemClicked'
+ */
+
 const log = require('../logger');
+const monitoring = require('../server/monitoring');
 const { performItemUse, getSafePlayerState } = require('../utils/itemActions');
 const { resolveHand, getHandItem, setHandItem, clearHandItem } = require('./utils/handUtils');
 
-module.exports = function (io, socket, players, worldItems, saveCharacter, clothingData, itemData, addItemToGrid, removeItemFromGrid) {
+/**
+ * Initializes inventory socket event listeners for a newly connected player client socket.
+ * 
+ * @param {Object} io - Socket.IO server instance.
+ * @param {Object} socket - Active player client socket connection instance.
+ * @param {Object} players - In-memory map of active player entities keyed by socket ID.
+ * @param {Array<Object>} worldItems - Global array of items currently present in the world.
+ * @param {Function} saveCharacter - Function to persist player character state to database.
+ * @param {Object} itemData - Global item definition directory keyed by item template ID.
+ * @param {Function} [addItemToGrid] - Optional helper to register an item in the spatial grid.
+ * @param {Function} [removeItemFromGrid] - Optional helper to remove an item from the spatial grid.
+ */
+module.exports = function (io, socket, players, worldItems, saveCharacter, itemData, addItemToGrid, removeItemFromGrid) {
     const logPrefix = `[Inventory:${socket.id}]`;
 
+    /**
+     * OPTIMIZATION: Broadcasts sanitized player state payload directly to the acting player socket
+     * and broadcasts to other connected client sockets, ensuring instant local feedback while
+     * avoiding server-wide io.emit overhead where appropriate.
+     * 
+     * @param {Object} player - The acting player entity.
+     */
+    const broadcastPlayerState = (player) => {
+        const safeState = getSafePlayerState(player);
+        const payload = { [socket.id]: safeState };
+        socket.emit('playerStateUpdate', payload);
+        socket.broadcast.emit('playerStateUpdate', payload);
+    };
+
     // --- Equip Item Handlers ---
+
+    /**
+     * Handles equipping, swapping, or un-equipping items between player hand nodes and equipment slots.
+     * 
+     * @event equipItemClicked
+     * @param {Object|string} data - Equipment slot ID or payload object containing { slotId, hand }.
+     */
     socket.on('equipItemClicked', (data) => {
         try {
+            const player = players[socket.id];
             const slotId = (typeof data === 'object' && data !== null) ? data.slotId : data;
-            const targetHand = (typeof data === 'object' && data !== null && data.hand) ? resolveHand(data.hand) : resolveHand(player?.actionHands?.activeHand);
+            const handArg = (typeof data === 'object' && data !== null) ? data.hand : null;
+            const targetHand = resolveHand(handArg, player);
 
             log.debug(`${logPrefix} Received 'equipItemClicked' with slot ${slotId}, Hand: ${targetHand}`);
-            const player = players[socket.id];
             if (!player) {
                 log.debug(`${logPrefix} Player not found`);
-                require('../server/monitoring').recordAction('equip', false);
+                monitoring.recordAction('equip', false);
                 return;
             }
             if (!player.equipment) {
                 log.debug(`${logPrefix} Player has no equipment object`);
-                require('../server/monitoring').recordAction('equip', false);
+                monitoring.recordAction('equip', false);
                 return;
             }
             if (player.isDead) return;
@@ -63,25 +115,33 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
                 }
             }
 
-            // Force immediate update to all clients
-            io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+            // OPTIMIZATION: Send state update directly to acting socket & broadcast to surrounding clients
+            broadcastPlayerState(player);
 
             // Save changes to DB immediately
             saveCharacter(socket.id);
-            require('../server/monitoring').recordAction('equip', true);
+            monitoring.recordAction('equip', true);
         } catch (e) {
             log.error(`Error handling equipItemClicked for ${socket.id}:`, e);
-            require('../server/monitoring').recordAction('equip', false);
+            monitoring.recordAction('equip', false);
         }
     });
 
     // --- Undress Action Handler (Drop all equipped items at feet) ---
+
+    /**
+     * Handles un-equipping all items from equipment slots and dropping them onto the ground.
+     * 
+     * @event undressClicked
+     */
     socket.on('undressClicked', () => {
         try {
             const player = players[socket.id];
             if (!player || !player.equipment || player.isDead) return;
 
-            let itemsDropped = 0;
+            // OPTIMIZATION: Collect undressed items in an array to complete all in-memory grid
+            // and array state mutations atomically BEFORE emitting network socket notifications.
+            const droppedItems = [];
             Object.keys(player.equipment).forEach((slotId) => {
                 const item = player.equipment[slotId];
                 if (item) {
@@ -98,15 +158,17 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
 
                     worldItems.push(item);
                     if (addItemToGrid) addItemToGrid(item);
-
-                    io.emit('itemSpawned', item);
-                    itemsDropped++;
+                    droppedItems.push(item);
                 }
             });
 
-            if (itemsDropped > 0) {
-                log.info(`Player ${player.Username} undressed, dropping ${itemsDropped} items.`);
-                io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+            if (droppedItems.length > 0) {
+                log.info(`Player ${player.Username} undressed, dropping ${droppedItems.length} items.`);
+                // Emit itemSpawned for each dropped item after atomic mutation
+                for (let i = 0; i < droppedItems.length; i++) {
+                    io.emit('itemSpawned', droppedItems[i]);
+                }
+                broadcastPlayerState(player);
                 saveCharacter(socket.id);
             }
         } catch (e) {
@@ -116,7 +178,12 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
 
     // --- Dynamic Storage Logic (Pockets etc) ---
 
-    // Move item from Specified Hand -> Pocket
+    /**
+     * Moves an item held in a designated player hand node into a clothing item's pocket.
+     * 
+     * @event stashItemClicked
+     * @param {Object} data - Payload containing { targetSlot, targetPocket, hand }.
+     */
     socket.on('stashItemClicked', (data) => {
         try {
             const { targetSlot, targetPocket, hand } = data;
@@ -124,7 +191,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             if (!player) return;
             if (player.isDead) return;
 
-            const targetHand = resolveHand(hand || player.actionHands?.activeHand);
+            const targetHand = resolveHand(hand, player);
             const handItem = getHandItem(player, targetHand);
             const clothingItem = player.equipment[targetSlot];
 
@@ -180,14 +247,19 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
 
             log.info(`[Storage] Stashed ${handItem.name} from ${targetHand} hand into ${clothingDef.name}'s ${pocketDef.name}.`);
 
-            io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+            broadcastPlayerState(player);
             saveCharacter(socket.id);
         } catch (e) {
             log.error(`Error handling stashItemClicked for ${socket.id}:`, e);
         }
     });
 
-    // Move item from Pocket -> Specified Hand
+    /**
+     * Retrieves an item from a clothing item's pocket into an empty designated player hand node.
+     * 
+     * @event retrieveItemClicked
+     * @param {Object} data - Payload containing { sourceSlot, sourcePocket, itemUid, hand }.
+     */
     socket.on('retrieveItemClicked', (data) => {
         try {
             const { sourceSlot, sourcePocket, itemUid, hand } = data;
@@ -195,7 +267,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             if (!player) return;
             if (player.isDead) return;
 
-            const targetHand = resolveHand(hand || player.actionHands?.activeHand);
+            const targetHand = resolveHand(hand, player);
             const clothingItem = player.equipment[sourceSlot];
 
             // Check if target hand is empty
@@ -220,13 +292,20 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
 
             log.info(`[Storage] Retrieved ${item.name} into ${targetHand} hand from ${sourcePocket}.`);
 
-            io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+            broadcastPlayerState(player);
             saveCharacter(socket.id);
         } catch (e) {
             log.error(`Error handling retrieveItemClicked for ${socket.id}:`, e);
         }
     });
 
+    /**
+     * Drops an item held in the active hand node onto the ground or surface.
+     * Enforces a server-side 60px reach check relative to player center.
+     * 
+     * @event dropItemClicked
+     * @param {Object} data - Payload containing { hand, x, y, onTable, surfaceDepth }.
+     */
     socket.on('dropItemClicked', (data) => {
         try {
             const player = players[socket.id];
@@ -252,8 +331,6 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
                 // Validate requested coordinates
                 if (data && typeof data.x === 'number' && typeof data.y === 'number') {
                     // Reach Check: 96x96 box around player center (+30 offset)
-                    // Player Center = x + 30, y
-                    // Reach Radius = 48
                     const pCenterX = player.position.x + 30;
                     const pCenterY = player.position.y;
                     const REACH = 60; // Slightly larger than client 48 to allow for latency/float diffs
@@ -296,7 +373,7 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
                 log.info(`Player ${player.Username} dropped item: ${droppedItem.name || droppedItem.uid}`);
 
                 // Update Hand state
-                io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+                broadcastPlayerState(player);
                 saveCharacter(socket.id);
             }
         } catch (e) {
@@ -304,6 +381,13 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
         }
     });
 
+    /**
+     * Handles consuming or using an item from ground or hand nodes.
+     * Validates distance (<= 150px) and delegates usage logic to performItemUse.
+     * 
+     * @event useItemClicked
+     * @param {Object} data - Payload containing { uid }.
+     */
     socket.on('useItemClicked', (data) => {
         try {
             const { uid } = data;
@@ -314,14 +398,18 @@ module.exports = function (io, socket, players, worldItems, saveCharacter, cloth
             let item = null;
             let isWorldItem = false;
 
-            // 1. Try World Items
-            const itemIndex = worldItems.findIndex(i => i.uid === uid);
-            if (itemIndex > -1) {
-                item = worldItems[itemIndex];
-                isWorldItem = true;
-                // Validation: Distance Check
-                const dist = Math.sqrt(Math.pow(player.position.x - item.x, 2) + Math.pow(player.position.y - item.y, 2));
-                if (dist > 150) return; // Too far
+            // OPTIMIZATION: Fast zero-allocation search over worldItems without closure allocations per element.
+            const wLen = worldItems.length;
+            for (let i = 0; i < wLen; i++) {
+                const wItem = worldItems[i];
+                if (wItem && wItem.uid === uid) {
+                    const dist = Math.hypot(player.position.x - wItem.x, player.position.y - wItem.y);
+                    if (dist <= 150) {
+                        item = wItem;
+                        isWorldItem = true;
+                    }
+                    break;
+                }
             }
 
             // 2. Try Hands (if not found in world)

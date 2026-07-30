@@ -1,4 +1,46 @@
-/* Stats HUD Container */
+/**
+ * @fileoverview Player Vitality Stats HUD Stylesheet (stats.css)
+ * 
+ * @description
+ * Defines visual styling, dark-fantasy color gradients, layout positioning, font family,
+ * and hardware-accelerated transitions for the top-left Vitality Heads-Up Display (HUD).
+ *
+ * Primary Components:
+ *  - #stats-hud: Top-left overlay container mounted over the Phaser game canvas.
+ *  - .stat-bar-container: Framing layout wrapper for individual stat bars.
+ *  - .stat-bar-track: Inner track isolating overflow clipping for fill animations.
+ *  - .stat-bar-fill: Dynamic percentage fill layer (#health-bar-fill, #stamina-bar-fill, #mana-bar-fill).
+ *  - .stat-text: Absolutely-centered numerical readout overlay (Cinzel serif).
+ *  - .stat-icon: Unclipped FontAwesome icon positioned outside the bar container.
+ *
+ * Optimization & Design Rationale:
+ *  - PASS-THROUGH CLICK PATTERN: #stats-hud uses pointer-events: none so clicks fall through
+ *    to the game canvas, while .clickable-stat-bar overrides with pointer-events: auto.
+ *  - TRACK OVERFLOW ISOLATION: .stat-bar-track encapsulates overflow: hidden so rounded bar
+ *    fills do not bleed out, while .stat-icon can render unclipped at left: -25px.
+ *  - GPU COMPOSITING: Hints like will-change promotion reduce layout reflow thrashing.
+ *  - FAIL-SAFE TOKENS: Uses CSS custom properties with explicit fallback hex values.
+ */
+
+/* ==========================================================================
+   Design System Tokens & Theme Fallbacks
+   ========================================================================== */
+:root {
+    --color-stat-bg: rgba(0, 0, 0, 0.7);
+    --color-stat-border: #4a3e2a; /* Dark wood/gold border */
+    --color-health-dark: #8b0000;
+    --color-health-light: #ff4c4c;
+    --color-stamina-dark: #b8860b;
+    --color-stamina-light: #ffd700;
+    --color-mana-dark: #00008b;
+    --color-mana-light: #4169e1;
+    --font-stat-text: 'Cinzel', serif;
+}
+
+/* ==========================================================================
+   HUD Container Layout
+   ========================================================================== */
+/* Stats HUD Container mounted over Phaser canvas */
 #stats-hud {
     position: absolute;
     top: 20px;
@@ -7,27 +49,37 @@
     flex-direction: column;
     gap: 8px;
     z-index: 100;
-    pointer-events: none;
-    /* Let clicks pass through to game */
+    pointer-events: none; /* Let canvas clicks pass through empty spaces */
+    contain: layout style; /* RATIONALE: Isolates style & layout recalc scope from rest of DOM */
 }
 
-/* Individual Stat Bar Container */
+/* ==========================================================================
+   Stat Bar Framing & Track
+   ========================================================================== */
+/* Individual Stat Bar Outer Positioning Container */
 .stat-bar-container {
     position: relative;
     width: 250px;
     max-width: 30vw;
     height: 24px;
-    background: rgba(0, 0, 0, 0.7);
-    border: 3px solid #4a3e2a;
-    /* Dark wood/gold border */
+}
+
+/* Inner Clip Track isolating fill overflow without cropping .stat-icon */
+.stat-bar-track {
+    position: absolute;
+    inset: 0;
+    background: var(--color-stat-bg, rgba(0, 0, 0, 0.7));
+    border: 3px solid var(--color-stat-border, #4a3e2a);
     border-radius: 6px;
-    overflow: hidden;
+    overflow: hidden; /* Clips fill bar to 6px rounded corners */
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
+/* Interactive Stat Bar Modifier (e.g. Health Bar opening Medical UI) */
 .stat-bar-container.clickable-stat-bar {
     pointer-events: auto;
     cursor: pointer;
+    will-change: transform, box-shadow; /* OPTIMIZATION: Promotes to GPU layer for smooth scale transitions */
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -36,41 +88,44 @@
     box-shadow: 0 0 12px rgba(255, 76, 76, 0.6), inset 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
-/* Common Bar Styling */
+/* ==========================================================================
+   Bar Fills & Specific Color Gradients
+   ========================================================================== */
+/* Common Bar Fill Properties */
 .stat-bar-fill {
     height: 100%;
-    width: 100%;
-    /* Default to full, JS updates this */
-    transition: width 0.3s ease-out;
+    width: var(--stat-percent, 100%); /* OPTIMIZATION: Driven by JS variable or percentage width */
+    transition: width 0.3s ease-out, transform 0.3s ease-out;
     position: relative;
+    will-change: width, transform;
 }
 
-/* Health Bar Specifics */
+/* Health Bar Color Gradient */
 #health-bar-fill {
-    background: linear-gradient(90deg, #8b0000, #ff4c4c);
-    /* Dark red to bright red */
+    background: linear-gradient(90deg, var(--color-health-dark, #8b0000), var(--color-health-light, #ff4c4c));
 }
 
-/* Stamina Bar Specifics */
+/* Stamina Bar Color Gradient */
 #stamina-bar-fill {
-    background: linear-gradient(90deg, #b8860b, #ffd700);
-    /* Dark gold to bright gold/yellow */
+    background: linear-gradient(90deg, var(--color-stamina-dark, #b8860b), var(--color-stamina-light, #ffd700));
 }
 
-/* Mana Bar Specifics */
+/* Mana Bar Color Gradient */
 #mana-bar-fill {
-    background: linear-gradient(90deg, #00008b, #4169e1);
-    /* Dark blue to royal blue */
+    background: linear-gradient(90deg, var(--color-mana-dark, #00008b), var(--color-mana-light, #4169e1));
 }
 
-/* Text Overlay */
+/* ==========================================================================
+   Overlays & Typography
+   ========================================================================== */
+/* Centered Numerical Text Overlay */
 .stat-text {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     color: #fff;
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-stat-text, 'Cinzel', serif);
     font-size: 12px;
     font-weight: bold;
     text-shadow: 1px 1px 2px #000;
@@ -78,7 +133,7 @@
     z-index: 2;
 }
 
-/* Optional: Icons next to bars */
+/* FontAwesome Icon Offset (Unclipped outside left of container) */
 .stat-icon {
     position: absolute;
     left: -25px;
@@ -92,4 +147,5 @@
     color: #fff;
     font-size: 16px;
     text-shadow: 0 0 3px #000;
+    z-index: 3;
 }

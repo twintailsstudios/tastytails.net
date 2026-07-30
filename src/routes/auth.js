@@ -1,94 +1,338 @@
+/**
+ * @fileoverview Authentication & Character Management Routes (auth.js)
+ * 
+ * @description
+ * Primary Express routing module handling user account registration, login, logout,
+ * JWT session cookie management, and player character lifecycle operations (creation,
+ * editing, soft deletion, character bank navigation).
+ * 
+ * Mounted in src/index.js under the base path '/api/user'.
+ */
 const router = require('express').Router();
 const User = require('../model/User');
-//const Character = require('../model/Character');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { registerValidation, loginValidation, charCreateValidation, voreTypeValidation, ratingsValidation } = require('../validation');
 const log = require('../logger');
 const DatabaseResilience = require('../classes/DatabaseResilience');
 
+// --- HELPER FUNCTIONS FOR SPIRIT SPRITE & PALETTE PROCESSING ---
 
+/**
+ * Converts a hex string representation (#RRGGBB or 0xRRGGBB) to an RGB integer object.
+ * @param {string} hex - Input hex string
+ * @returns {{r: number, g: number, b: number}} RGB color component object
+ */
+const hexToRgb = (hex) => {
+  if (!hex) return { r: 255, g: 255, b: 255 };
+  let safeHex = String(hex).replace('0x', '#');
+  if (!safeHex.startsWith('#')) safeHex = '#' + safeHex;
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(safeHex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 255, g: 255, b: 255 };
+};
 
+/**
+ * Blends an original RGB color with a magic color using additive light math.
+ * @param {{r: number, g: number, b: number}} originalRGB
+ * @param {{r: number, g: number, b: number}} magicColor
+ * @param {number} intensity - Blend intensity factor (0.0 to 1.0)
+ * @returns {{r: number, g: number, b: number}} Blended RGB color
+ */
+const calculateMagicColor = (originalRGB, magicColor, intensity = 0.5) => ({
+  r: Math.min(255, Math.round(originalRGB.r + (magicColor.r * intensity))),
+  g: Math.min(255, Math.round(originalRGB.g + (magicColor.g * intensity))),
+  b: Math.min(255, Math.round(originalRGB.b + (magicColor.b * intensity)))
+});
 
-//Registering new users
+/**
+ * Converts RGB numbers to 0x-prefixed hexadecimal strings for Phaser graphics engine.
+ * @param {number} r - Red channel (0-255)
+ * @param {number} g - Green channel (0-255)
+ * @param {number} b - Blue channel (0-255)
+ * @returns {string} Formatted 0xRRGGBB string
+ */
+const rgbToHex = (r, g, b) => "0x" + [r, g, b].map(x => {
+  const hex = x.toString(16);
+  return hex.length === 1 ? '0' + hex : hex;
+}).join('');
+
+/**
+ * Generates a spectral blue spirit sprite color variant from a standard hex color string.
+ * @param {string} originalHex - Base sprite color hex
+ * @returns {string} Spectral spirit color hex string
+ */
+const generateSpiritColor = (originalHex) => {
+  if (!originalHex) return '0xffffff';
+  const originalRGB = hexToRgb(originalHex);
+  const spectralBlue = { r: 60, g: 220, b: 255 };
+  const newRGB = calculateMagicColor(originalRGB, spectralBlue, 0.5);
+  return rgbToHex(newRGB.r, newRGB.g, newRGB.b);
+};
+
+/**
+ * Parses and constructs character customization components (ratings, vore types graph,
+ * multi-layer sprites, and spirit sprite variants) from an HTTP request body.
+ * 
+ * OPTIMIZATION: Extracted to top-level module scope to eliminate 250+ lines of duplicate
+ * code between creation and edit route handlers, preventing closure allocation overhead.
+ * 
+ * @param {Object} body - HTTP POST request body
+ * @returns {Object} Extracted character customization data payload
+ */
+const parseCharacterCustomization = (body) => {
+  const ratings = {
+    ovStar: body.ovStar ? body.ovStar : null,
+    avStar: body.avStar ? body.avStar : null,
+    cvStar: body.cvStar ? body.cvStar : null,
+    ubStar: body.ubStar ? body.ubStar : null,
+    tvStar: body.tvStar ? body.tvStar : null,
+    absStar: body.absStar ? body.absStar : null,
+    svStar: body.svStar ? body.svStar : null,
+    predStar: body.predStar ? body.predStar : null,
+    preyStar: body.preyStar ? body.preyStar : null,
+    softStar: body.softStar ? body.softStar : null,
+    hardStar: body.hardStar ? body.hardStar : null,
+    digestionStar: body.digestionStar ? body.digestionStar : null,
+    disposalStar: body.disposalStar ? body.disposalStar : null,
+    tfStar: body.tfStar ? body.tfStar : null,
+    btfStar: body.btfStar ? body.btfStar : null,
+    bsStar: body.bsStar ? body.bsStar : null,
+    gStar: body.gStar ? body.gStar : null,
+    sStar: body.sStar ? body.sStar : null,
+    iaoStar: body.iaoStar ? body.iaoStar : null
+  };
+
+  let voreTypes = [];
+
+  if (body.anatomyData && body.anatomyData.length > 2) {
+    try {
+      const graph = JSON.parse(body.anatomyData);
+      if (graph.nodes) {
+        voreTypes = graph.nodes.map(node => ({
+          id: node.id,
+          graphNodeId: String(node.id),
+          destination: node.properties.name || 'Unknown',
+          verb: node.properties.verb || 'eats',
+          type: node.type,
+          digestivePower: node.properties.digestivePower || 'Normal',
+          destinationDescrip: node.properties.destinationDescrip,
+          examineMsgDescrip: node.properties.examineMsgDescrip,
+          struggleInsideMsgDescrip: node.properties.struggleInsideMsgDescrip,
+          struggleOutsideMsgDescrip: node.properties.struggleOutsideMsgDescrip,
+          digestionInsideMsgDescrip: node.properties.digestionInsideMsgDescrip,
+          digestionOutsideMsgDescrip: node.properties.digestionOutsideMsgDescrip,
+          audioEntry: node.properties.enterSound || 'none',
+          audioAmbient: node.properties.ambientSound || 'none',
+          audioStruggle: node.properties.struggleSound || 'none',
+          audioExit: node.properties.exitSound || 'none',
+          contents: []
+        }));
+      }
+    } catch (e) {
+      log.warn("Failed to parse anatomyData during char customization parse");
+    }
+  }
+
+  if (voreTypes.length === 0 && body.destination && Array.isArray(body.destination)) {
+    for (let i = 0; i < body.destination.length; i++) {
+      const voreType = {
+        id: i,
+        destination: body.destination[i],
+        verb: body.verb ? body.verb[i] : 'eats',
+        digestivePower: body.digestivePower ? body.digestivePower[i] : 'Normal',
+        animation: body.animation ? body.animation[i] : null,
+        destinationDescrip: body.destinationDescrip ? body.destinationDescrip[i] : null,
+        examineMsgDescrip: body.examineMsgDescrip ? body.examineMsgDescrip[i] : null,
+        struggleInsideMsgDescrip: body.struggleInsideMsgDescrip ? body.struggleInsideMsgDescrip[i] : null,
+        struggleOutsideMsgDescrip: body.struggleOutsideMsgDescrip ? body.struggleOutsideMsgDescrip[i] : null,
+        digestionInsideMsgDescrip: body.digestionInsideMsgDescrip ? body.digestionInsideMsgDescrip[i] : null,
+        digestionOutsideMsgDescrip: body.digestionOutsideMsgDescrip ? body.digestionOutsideMsgDescrip[i] : null
+      };
+      voreTypes.push(voreType);
+      const { error1 } = voreTypeValidation(voreType);
+      if (error1) log.warn(`Vore type validation warning: ${error1.details[0].message}`);
+    }
+  }
+
+  const formatColor = (hex) => hex ? hex.replace("#", "0x") : '0xffffff';
+
+  const head = {
+    sprite: body.head,
+    color: formatColor(body.primaryHeadColor),
+    secondarySprite: body.headSecondaryFur,
+    secondaryColor: formatColor(body.secondaryHeadColor),
+    accentSprite: body.headAccentFur,
+    accentColor: formatColor(body.accentHeadColor)
+  };
+  const headAccessories = {
+    sprite: body.headAccessories,
+    color: formatColor(body.headAccessoriesColor)
+  };
+  const bodyShape = {
+    sprite: body.bodyShape
+  };
+  const bodyComp = {
+    sprite: body.mainBodyType,
+    color: formatColor(body.bodyColor),
+    secondarySprite: body.bodySecondaryFur,
+    secondaryColor: formatColor(body.secondaryBodyColor),
+    accentSprite: body.bodyAccentFur,
+    accentColor: formatColor(body.accentBodyColor)
+  };
+  const tail = {
+    sprite: body.tail,
+    color: formatColor(body.tailColor),
+    secondarySprite: body.tailSecondaryFur,
+    secondaryColor: formatColor(body.secondaryTailColor),
+    accentSprite: body.tailAccentFur,
+    accentColor: formatColor(body.accentTailColor)
+  };
+  const eyes = {
+    outer: body.eyesOuter,
+    iris: body.eyesIris,
+    color: formatColor(body.eyesColor)
+  };
+  const hair = {
+    sprite: body.hair,
+    color: formatColor(body.hairColor)
+  };
+  const ear = {
+    outerSprite: body.outerEar,
+    outerColor: formatColor(body.outerEarColor),
+    innerSprite: body.innerEar,
+    innerColor: formatColor(body.innerEarColor)
+  };
+  const genitals = {
+    sprite: body.genitals || body.genitles,
+    secondarySprite: 'empty'
+  };
+  const hands = {
+    sprite: body.handsFur,
+    color: body.handsColor
+  };
+  const feet = {
+    sprite: body.feetFur,
+    color: body.feetColor
+  };
+  const beak = {
+    sprite: body.beakSprite,
+    color: body.beakHex
+  };
+
+  const spiritSprite = {
+    head: { ...head, color: generateSpiritColor(head.color), secondaryColor: generateSpiritColor(head.secondaryColor), accentColor: generateSpiritColor(head.accentColor) },
+    body: { ...bodyComp, color: generateSpiritColor(bodyComp.color), secondaryColor: generateSpiritColor(bodyComp.secondaryColor), accentColor: generateSpiritColor(bodyComp.accentColor) },
+    hands: { ...hands, color: generateSpiritColor(hands.color) },
+    feet: { ...feet, color: generateSpiritColor(feet.color) },
+    tail: { ...tail, color: generateSpiritColor(tail.color), secondaryColor: generateSpiritColor(tail.secondaryColor), accentColor: generateSpiritColor(tail.accentColor) },
+    eyes: { ...eyes, color: generateSpiritColor(eyes.color) },
+    hair: { ...hair, color: generateSpiritColor(hair.color) },
+    ear: { ...ear, outerColor: generateSpiritColor(ear.outerColor), innerColor: generateSpiritColor(ear.innerColor) },
+    genitals: { ...genitals, color: generateSpiritColor(genitals.color), secondaryColor: generateSpiritColor(genitals.secondaryColor) },
+    beak: { ...beak, color: generateSpiritColor(beak.color) },
+    headAccessories: { ...headAccessories, color: generateSpiritColor(headAccessories.color) }
+  };
+
+  return {
+    ratings, voreTypes, head, headAccessories, bodyShape, body: bodyComp,
+    tail, eyes, hair, ear, genitals, hands, feet, beak, spiritSprite
+  };
+};
+
+// --- ACCOUNT AUTHENTICATION & SESSION ROUTES ---
+
+/**
+ * Handles new user account registration.
+ * Validates input, checks email uniqueness, hashes password with bcrypt (salt 10),
+ * persists user via DatabaseResilience, and redirects to /registered.
+ */
 router.post('/register', async (req, res) => {
   try {
-    //Lets Validate the Data Before Adding a User
     const { error } = registerValidation(req.body);
-    if (error) return res.status(405).send(error.details[0].message);
+    if (error) return res.status(400).send(error.details[0].message);
 
-    //Checking if the user is already in the database
     const emailExist = await User.findOne({ email: req.body.email });
-    if (emailExist) return res.status(401).send('Email already exists');
+    if (emailExist) return res.status(400).send('Email already exists');
 
-    //Hash the passwords
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
-    //Create a new user
     const user = new User({
       email: req.body.email,
       password: hashedPassword,
       birthday: req.body.birthday
     });
-    const savedUser = await DatabaseResilience.save(user);
-    //res.send({ user: user._id });
+    await DatabaseResilience.save(user);
     res.redirect('/registered');
   } catch (err) {
     log.error('Error in /register:', err);
-    res.status(400).send(err);
+    res.status(400).send(err.message || err);
   }
 });
 
-//User Login Request
+/**
+ * Handles user authentication and session creation.
+ * Validates input, verifies bcrypt password hash, signs JWT payload,
+ * and sets an httpOnly session cookie ('TastyTails').
+ */
 router.post('/login', async (req, res) => {
   try {
-    //Lets Validate the Data Before Allowing the User to Login
     const { error } = loginValidation(req.body);
-    if (error) return res.status(402).send(error.details[0].message);
-    //Checking if the email exists
-    const user = await User.findOne({ email: req.body.email });
-    if (!user) return res.status(403).send('Email or password is incorrect (bad email)');
-    //Check if password is correct
-    const validPass = await bcrypt.compare(req.body.password, user.password);
-    if (!validPass) return res.status(404).send('Email or password is incorrect (bad password)');
+    if (error) return res.status(400).send(error.details[0].message);
 
-    //Create and Assign a Token
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) return res.status(400).send('Email or password is incorrect (bad email)');
+
+    const validPass = await bcrypt.compare(req.body.password, user.password);
+    if (!validPass) return res.status(400).send('Email or password is incorrect (bad password)');
+
     const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET);
-    //Redirect user to home page and send token to response header
     res.cookie('TastyTails', token, {
-      expiresIn: "7d"
-    }), {
-      httpOnly: true
-    }
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      sameSite: 'lax'
+    });
     res.set('token', token).redirect('/');
   } catch (err) {
     log.error('Error in /login:', err);
-    res.status(400).send(err.message);
+    res.status(400).send(err.message || err);
   }
-})
+});
 
-//User Logout Request
+/**
+ * Clears session cookie and redirects user to home page.
+ */
 router.post('/logout', async (req, res) => {
   res.clearCookie('TastyTails').redirect('/');
-})
+});
 
-//Bring Up Login/Registration Forms
+/**
+ * Redirect helper for login form modal display.
+ */
 router.post('/loginForm', async (req, res) => {
   res.redirect('/loginForm');
-})
+});
 
-//Close Login/Registation Forms
+/**
+ * Redirect helper for closing registration modal.
+ */
 router.post('/closereg', async (req, res) => {
   res.redirect('/');
-})
+});
 
-//Going to Character-Bank
+// --- CHARACTER LIFECYCLE & SELECTION ROUTES ---
+
+/**
+ * Validates JWT session token and redirects user to character bank interface.
+ */
 router.post('/character-bank', async (req, res) => {
   try {
     const token = req.cookies.TastyTails;
-    let userId = token; // Fallback
-    // Decode token if it looks like one
+    let userId = token;
     if (token && token.split('.').length === 3) {
       try {
         const verified = jwt.verify(token, process.env.TOKEN_SECRET);
@@ -97,260 +341,36 @@ router.post('/character-bank', async (req, res) => {
     }
 
     const user = await User.findOne({ _id: userId });
-    if (!user) return res.redirect('/'); // Handle not found
+    if (!user) return res.redirect('/');
 
-    const charList = user.characters;
-    log.debug('user.characters = ', user.characters)
+    log.debug('user.characters = ', user.characters);
     res.redirect('/character-bank');
   } catch (err) {
     log.error('Error in /character-bank:', err);
     res.redirect('/');
   }
-})
+});
 
-//Create a new Character
+/**
+ * Creates a new character subdocument on the authenticated user's record.
+ * Parses character customization payload, validates ratings and attributes,
+ * and pushes initial stats and sprite configurations to User.characters.
+ */
 router.post('/createcharacter', async (req, res) => {
   try {
-    //Lets make sure the character sheet was properly filled out
-    //log('req.body = ', req.body);
-    var ratings = {
-      ovStar: req.body.ovStar ? req.body.ovStar : null,
-      avStar: req.body.avStar ? req.body.avStar : null,
-      cvStar: req.body.cvStar ? req.body.cvStar : null,
-      ubStar: req.body.ubStar ? req.body.ubStar : null,
-      tvStar: req.body.tvStar ? req.body.tvStar : null,
-      absStar: req.body.absStar ? req.body.absStar : null,
-      svStar: req.body.svStar ? req.body.svStar : null,
-      predStar: req.body.predStar ? req.body.predStar : null,
-      preyStar: req.body.preyStar ? req.body.preyStar : null,
-      softStar: req.body.softStar ? req.body.softStar : null,
-      hardStar: req.body.hardStar ? req.body.hardStar : null,
-      digestionStar: req.body.digestionStar ? req.body.digestionStar : null,
-      disposalStar: req.body.disposalStar ? req.body.disposalStar : null,
-      tfStar: req.body.tfStar ? req.body.tfStar : null,
-      btfStar: req.body.btfStar ? req.body.btfStar : null,
-      bsStar: req.body.bsStar ? req.body.bsStar : null,
-      gStar: req.body.gStar ? req.body.gStar : null,
-      sStar: req.body.sStar ? req.body.sStar : null,
-      iaoStar: req.body.iaoStar ? req.body.iaoStar : null
-    };
-    const { error3 } = ratingsValidation(ratings);
-    if (error3) return res.status(405).send(error3.details[0].message);
+    const custom = parseCharacterCustomization(req.body);
 
-    // log('ratings = ', ratings);
+    const { error: error3 } = ratingsValidation(custom.ratings);
+    if (error3) return res.status(400).send(error3.details[0].message);
 
-    var voreTypes = [];
+    const { error: error2 } = charCreateValidation(req.body);
+    if (error2) return res.status(400).send(error2.details[0].message);
 
-    // NEW: Priority - Parse from anatomyData if available (Preserves graphNodeId)
-    if (req.body.anatomyData && req.body.anatomyData.length > 2) {
-      try {
-        const graph = JSON.parse(req.body.anatomyData);
-        if (graph.nodes) {
-          voreTypes = graph.nodes
-            // .filter(node => node.type === 'destination') // CHANGED: Include all nodes
-            .map(node => ({
-              id: node.id,
-              // CRITICAL: This allows server to match nodes by string ID
-              graphNodeId: String(node.id),
-              destination: node.properties.name || 'Unknown',
-              verb: node.properties.verb || 'eats',
-              type: node.type,
-              digestivePower: node.properties.digestivePower || 'Normal',
-              destinationDescrip: node.properties.destinationDescrip,
-              examineMsgDescrip: node.properties.examineMsgDescrip,
-              struggleInsideMsgDescrip: node.properties.struggleInsideMsgDescrip,
-              struggleOutsideMsgDescrip: node.properties.struggleOutsideMsgDescrip,
-              digestionInsideMsgDescrip: node.properties.digestionInsideMsgDescrip,
-              digestionOutsideMsgDescrip: node.properties.digestionOutsideMsgDescrip,
-              audioEntry: node.properties.enterSound || 'none',
-              audioAmbient: node.properties.ambientSound || 'none',
-              audioStruggle: node.properties.struggleSound || 'none',
-              audioExit: node.properties.exitSound || 'none',
-              contents: []
-            }));
-          // log.debug(`[Auth] Parsed ${voreTypes.length} vore types from anatomyData`);
-        }
-      } catch (e) {
-        log.warn("Failed to parse anatomyData during char create");
-      }
-    }
-
-    // Fallback / Legacy Support
-    if (voreTypes.length === 0 && req.body.destination && Array.isArray(req.body.destination)) {
-      for (i = 0; i < req.body.destination.length; i++) {
-        //log('req.body.destination[i] = ', req.body.destination[i]);
-        var voreType = {
-          id: i,
-          destination: req.body.destination[i],
-          verb: req.body.verb[i],
-          digestivePower: req.body.digestivePower[i],
-          animation: req.body.animation[i],
-          destinationDescrip: req.body.destinationDescrip[i],
-          examineMsgDescrip: req.body.examineMsgDescrip[i],
-          struggleInsideMsgDescrip: req.body.struggleInsideMsgDescrip[i],
-          struggleOutsideMsgDescrip: req.body.struggleOutsideMsgDescrip[i],
-          digestionInsideMsgDescrip: req.body.digestionInsideMsgDescrip[i],
-          digestionOutsideMsgDescrip: req.body.digestionOutsideMsgDescrip[i]
-        }
-        voreTypes.push(voreType);
-        const { error1 } = voreTypeValidation(voreType);
-        if (error1) return res.status(405).send(error1.details[0].message);
-      };
-    } else {
-      // Handle single vore type if not array or empty? Use fallback logic or assume empty.
-      // For robustness, I'll log warning if expected. But let's assume valid array expected if destination exists.
-      // Actually the original code just looped. If dest is undefined, it crashes.
-      // The check I added `if (req.body.destination && Array.isArray` prevents crash.
-    }
-
-    var head = {
-      sprite: req.body.head,
-      color: req.body.primaryHeadColor ? req.body.primaryHeadColor.replace("#", "0x") : '0xffffff',
-      secondarySprite: req.body.headSecondaryFur,
-      secondaryColor: req.body.secondaryHeadColor ? req.body.secondaryHeadColor.replace("#", "0x") : '0xffffff',
-      accentSprite: req.body.headAccentFur,
-      accentColor: req.body.accentHeadColor ? req.body.accentHeadColor.replace("#", "0x") : '0xffffff'
-    }
-    //log('head = ', head);
-    var headAccessories = {
-      sprite: req.body.headAccessories,
-      color: req.body.headAccessoriesColor ? req.body.headAccessoriesColor.replace("#", "0x") : '0xffffff'
-    }
-    // log('headAccessories = ', headAccessories);
-    var bodyShape = {
-      sprite: req.body.bodyShape
-    }
-    // log('bodyShape = ', bodyShape);
-    var body = {
-      sprite: req.body.mainBodyType,
-      color: req.body.bodyColor ? req.body.bodyColor.replace("#", "0x") : '0xffffff',
-      secondarySprite: req.body.bodySecondaryFur,
-      secondaryColor: req.body.secondaryBodyColor ? req.body.secondaryBodyColor.replace("#", "0x") : '0xffffff',
-      accentSprite: req.body.bodyAccentFur,
-      accentColor: req.body.accentBodyColor ? req.body.accentBodyColor.replace("#", "0x") : '0xffffff'
-    }
-    var tail = {
-      sprite: req.body.tail,
-      color: req.body.tailColor ? req.body.tailColor.replace("#", "0x") : '0xffffff',
-      secondarySprite: req.body.tailSecondaryFur,
-      secondaryColor: req.body.secondaryTailColor ? req.body.secondaryTailColor.replace("#", "0x") : '0xffffff',
-      accentSprite: req.body.tailAccentFur,
-      accentColor: req.body.accentTailColor ? req.body.accentTailColor.replace("#", "0x") : '0xffffff'
-    }
-    var eyes = {
-      outer: req.body.eyesOuter,
-      iris: req.body.eyesIris,
-      color: req.body.eyesColor ? req.body.eyesColor.replace("#", "0x") : '0xffffff'
-    }
-    var hair = {
-      sprite: req.body.hair,
-      color: req.body.hairColor ? req.body.hairColor.replace("#", "0x") : '0xffffff'
-    }
-    var ear = {
-      outerSprite: req.body.outerEar,
-      outerColor: req.body.outerEarColor ? req.body.outerEarColor.replace("#", "0x") : '0xffffff',
-      innerSprite: req.body.innerEar,
-      innerColor: req.body.innerEarColor ? req.body.innerEarColor.replace("#", "0x") : '0xffffff'
-    }
-    // log('ear =', ear);
-    var genitles = {
-      sprite: req.body.genitles,
-      secondarySprite: 'empty'
-    }
-    var hands = {
-      sprite: req.body.handsFur,
-      color: req.body.handsColor
-    }
-    var feet = {
-      sprite: req.body.feetFur,
-      color: req.body.feetColor
-    }
-    var beak = {
-      sprite: req.body.beakSprite,
-      color: req.body.beakHex
-    }
-    var position = {
-      x: 3795,
-      y: 3728,
-      time: null
-    }
-    var input = {
-      left: false,
-      right: false,
-      down: true,
-      up: false
-    }
-    // log('beak = ', beak);
-
-    // --- SPIRIT SPRITE GENERATION LOGIC ---
-    // 1. INPUT: Convert the Hex String to Numbers (RGB)
-    const hexToRgb = (hex) => {
-      // Regex looks for the # symbol followed by pairs of hex digits (supports '0x' prefix too if handled)
-      // Our hex inputs often come as '0x...' or '#...' or just '...'.
-      // Standardize input to string
-      let safeHex = String(hex).replace('0x', '#');
-      if (!safeHex.startsWith('#')) safeHex = '#' + safeHex;
-
-      let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(safeHex);
-      return result ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-      } : { r: 255, g: 255, b: 255 }; // Default white if fail
-    };
-
-    // 2. MODIFY: Additive Light
-    const calculateMagicColor = (originalRGB, magicColor, intensity) => {
-      const rCalc = Math.min(255, Math.round(originalRGB.r + (magicColor.r * intensity)));
-      const gCalc = Math.min(255, Math.round(originalRGB.g + (magicColor.g * intensity)));
-      const bCalc = Math.min(255, Math.round(originalRGB.b + (magicColor.b * intensity)));
-      return { r: rCalc, g: gCalc, b: bCalc };
-    };
-
-    // 3. OUTPUT: Convert Number to 0x String (Server format)
-    const rgbToHex = (r, g, b) => {
-      return "0x" + [r, g, b].map(x => {
-        const hex = x.toString(16);
-        return hex.length === 1 ? '0' + hex : hex;
-      }).join('');
-    };
-
-    const generateSpiritColor = (originalHex) => {
-      if (!originalHex) return '0xffffff';
-      const originalRGB = hexToRgb(originalHex);
-      const spectralBlue = { r: 60, g: 220, b: 255 };
-      const intensity = 0.5;
-      const newRGB = calculateMagicColor(originalRGB, spectralBlue, intensity);
-      return rgbToHex(newRGB.r, newRGB.g, newRGB.b);
-    };
-
-    var spiritSprite = {
-      head: { ...head, color: generateSpiritColor(head.color), secondaryColor: generateSpiritColor(head.secondaryColor), accentColor: generateSpiritColor(head.accentColor) },
-      body: { ...body, color: generateSpiritColor(body.color), secondaryColor: generateSpiritColor(body.secondaryColor), accentColor: generateSpiritColor(body.accentColor) },
-      hands: { ...hands, color: generateSpiritColor(hands.color) },
-      feet: { ...feet, color: generateSpiritColor(feet.color) },
-      tail: { ...tail, color: generateSpiritColor(tail.color), secondaryColor: generateSpiritColor(tail.secondaryColor), accentColor: generateSpiritColor(tail.accentColor) },
-      eyes: { ...eyes, color: generateSpiritColor(eyes.color) },
-      hair: { ...hair, color: generateSpiritColor(hair.color) },
-      ear: { ...ear, outerColor: generateSpiritColor(ear.outerColor), innerColor: generateSpiritColor(ear.innerColor) },
-      genitles: { ...genitles, color: generateSpiritColor(genitles.color), secondaryColor: generateSpiritColor(genitles.secondaryColor) },
-      beak: { ...beak, color: generateSpiritColor(beak.color) },
-      headAccessories: { ...headAccessories, color: generateSpiritColor(headAccessories.color) }
-    };
-
-    const { error2 } = charCreateValidation(req.body);
-    if (error2) return res.status(405).send(error2.details[0].message);
-
-    //Create a new Character
     const token = req.cookies.TastyTails;
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-    //log('verified = ', verified._id);
-    log.debug('token = ', token);
 
-    // Clean logs
-    // log('req = ', req.rawHeaders[33]);
-    // log('verified._id = ', verified._id);
-    // log('characterId = ', characterId);
+    const position = { x: 3795, y: 3728, time: null };
+    const input = { left: false, right: false, down: true, up: false };
 
     const updateChar = await DatabaseResilience.updateOne(User, { _id: verified._id }, {
       $push: {
@@ -362,21 +382,21 @@ router.post('/createcharacter', async (req, res) => {
           "pronouns": req.body.pronouns,
           "icDescrip": req.body.icDescrip,
           "oocDescrip": req.body.oocDescrip,
-          "ratings": ratings,
-          "voreTypes": voreTypes,
-          "head": head,
-          "headAccessories": headAccessories,
-          "body": body,
-          "bodyShape": bodyShape,
-          "tail": tail,
-          "eyes": eyes,
-          "hair": hair,
-          "ear": ear,
-          "genitles": genitles,
-          "hands": hands,
-          "feet": feet,
-          "beak": beak,
-          "spiritSprite": spiritSprite,
+          "ratings": custom.ratings,
+          "voreTypes": custom.voreTypes,
+          "head": custom.head,
+          "headAccessories": custom.headAccessories,
+          "body": custom.body,
+          "bodyShape": custom.bodyShape,
+          "tail": custom.tail,
+          "eyes": custom.eyes,
+          "hair": custom.hair,
+          "ear": custom.ear,
+          "genitals": custom.genitals,
+          "hands": custom.hands,
+          "feet": custom.feet,
+          "beak": custom.beak,
+          "spiritSprite": custom.spiritSprite,
           "isDead": false,
           "position": position,
           "consumedBy": null,
@@ -384,7 +404,6 @@ router.post('/createcharacter', async (req, res) => {
           "isMoving": false,
           "input": input,
           "itentifier": "player",
-
           "deleted": false,
           "stats": {
             "health": 100,
@@ -416,238 +435,36 @@ router.post('/createcharacter', async (req, res) => {
       }
     });
     log.debug('updateChar = ', updateChar);
-
     res.redirect('/character-bank');
   } catch (err) {
     log.error('Error in /createcharacter:', err);
-    res.status(400).send(err);
+    res.status(400).send(err.message || err);
   }
-})
+});
 
+/**
+ * Updates an existing character subdocument.
+ * Preserves character stats and position while updating ratings, sprite layers,
+ * spirit sprites, and vore node graph data.
+ */
 router.post('/editcharacter', async (req, res) => {
   try {
-    //Lets make sure the character sheet was properly filled out
-    var ratings = {
-      ovStar: req.body.ovStar ? req.body.ovStar : null,
-      avStar: req.body.avStar ? req.body.avStar : null,
-      cvStar: req.body.cvStar ? req.body.cvStar : null,
-      ubStar: req.body.ubStar ? req.body.ubStar : null,
-      tvStar: req.body.tvStar ? req.body.tvStar : null,
-      absStar: req.body.absStar ? req.body.absStar : null,
-      svStar: req.body.svStar ? req.body.svStar : null,
-      predStar: req.body.predStar ? req.body.predStar : null,
-      preyStar: req.body.preyStar ? req.body.preyStar : null,
-      softStar: req.body.softStar ? req.body.softStar : null,
-      hardStar: req.body.hardStar ? req.body.hardStar : null,
-      digestionStar: req.body.digestionStar ? req.body.digestionStar : null,
-      disposalStar: req.body.disposalStar ? req.body.disposalStar : null,
-      tfStar: req.body.tfStar ? req.body.tfStar : null,
-      btfStar: req.body.btfStar ? req.body.btfStar : null,
-      bsStar: req.body.bsStar ? req.body.bsStar : null,
-      gStar: req.body.gStar ? req.body.gStar : null,
-      sStar: req.body.sStar ? req.body.sStar : null,
-      iaoStar: req.body.iaoStar ? req.body.iaoStar : null
-    };
-    const { error3 } = ratingsValidation(ratings);
-    if (error3) return res.status(405).send(error3.details[0].message);
+    const custom = parseCharacterCustomization(req.body);
 
-    // log('ratings = ', ratings);
+    const { error: error3 } = ratingsValidation(custom.ratings);
+    if (error3) return res.status(400).send(error3.details[0].message);
 
-    var voreTypes = [];
+    const { error: error2 } = charCreateValidation(req.body);
+    if (error2) return res.status(400).send(error2.details[0].message);
 
-    // NEW: Priority - Parse from anatomyData if available (Preserves graphNodeId)
-    if (req.body.anatomyData && req.body.anatomyData.length > 2) {
-      try {
-        const graph = JSON.parse(req.body.anatomyData);
-        if (graph.nodes) {
-          voreTypes = graph.nodes
-            // .filter(node => node.type === 'destination') // CHANGED: Include all nodes
-            .map(node => ({
-              id: node.id,
-              graphNodeId: String(node.id),
-              destination: node.properties.name || 'Unknown',
-              verb: node.properties.verb || 'eats',
-              type: node.type,
-              digestivePower: node.properties.digestivePower || 'Normal',
-              destinationDescrip: node.properties.destinationDescrip,
-              examineMsgDescrip: node.properties.examineMsgDescrip,
-              struggleInsideMsgDescrip: node.properties.struggleInsideMsgDescrip,
-              struggleOutsideMsgDescrip: node.properties.struggleOutsideMsgDescrip,
-              digestionInsideMsgDescrip: node.properties.digestionInsideMsgDescrip,
-              digestionOutsideMsgDescrip: node.properties.digestionOutsideMsgDescrip,
-              audioEntry: node.properties.enterSound || 'none',
-              audioAmbient: node.properties.ambientSound || 'none',
-              audioStruggle: node.properties.struggleSound || 'none',
-              audioExit: node.properties.exitSound || 'none',
-              contents: []
-            }));
-        }
-      } catch (e) {
-        log.warn("Failed to parse anatomyData during char edit");
-      }
-    }
-
-    // Fallback / Legacy Support
-    if (voreTypes.length === 0 && req.body.destination && Array.isArray(req.body.destination)) {
-      for (i = 0; i < req.body.destination.length; i++) {
-        //log('req.body.destination[i] = ', req.body.destination[i]);
-        var voreType = {
-          id: i,
-          destination: req.body.destination[i],
-          verb: req.body.verb[i],
-          digestionTimer: req.body.digestionTimer[i],
-          animation: req.body.animation[i],
-          destinationDescrip: req.body.destinationDescrip[i],
-          examineMsgDescrip: req.body.examineMsgDescrip[i],
-          struggleInsideMsgDescrip: req.body.struggleInsideMsgDescrip[i],
-          struggleOutsideMsgDescrip: req.body.struggleOutsideMsgDescrip[i],
-          digestionInsideMsgDescrip: req.body.digestionInsideMsgDescrip[i],
-          digestionOutsideMsgDescrip: req.body.digestionOutsideMsgDescrip[i]
-        }
-        voreTypes.push(voreType);
-        const { error1 } = voreTypeValidation(voreType);
-        if (error1) return res.status(405).send(error1.details[0].message);
-      };
-    }
-
-    var head = {
-      sprite: req.body.head,
-      color: req.body.primaryHeadColor ? req.body.primaryHeadColor.replace("#", "0x") : '0xffffff',
-      secondarySprite: req.body.headSecondaryFur,
-      secondaryColor: req.body.secondaryHeadColor ? req.body.secondaryHeadColor.replace("#", "0x") : '0xffffff',
-      accentSprite: req.body.headAccentFur,
-      accentColor: req.body.accentHeadColor ? req.body.accentHeadColor.replace("#", "0x") : '0xffffff'
-    }
-    //log('head = ', head);
-    var headAccessories = {
-      sprite: req.body.headAccessories,
-      color: req.body.headAccessoriesColor ? req.body.headAccessoriesColor.replace("#", "0x") : '0xffffff'
-    }
-    // log('headAccessories = ', headAccessories);
-    var bodyShape = {
-      sprite: req.body.bodyShape
-    }
-    // log('bodyShape = ', bodyShape);
-    var body = {
-      sprite: req.body.mainBodyType,
-      color: req.body.bodyColor ? req.body.bodyColor.replace("#", "0x") : '0xffffff',
-      secondarySprite: req.body.bodySecondaryFur,
-      secondaryColor: req.body.secondaryBodyColor ? req.body.secondaryBodyColor.replace("#", "0x") : '0xffffff',
-      accentSprite: req.body.bodyAccentFur,
-      accentColor: req.body.accentBodyColor ? req.body.accentBodyColor.replace("#", "0x") : '0xffffff'
-    }
-    var tail = {
-      sprite: req.body.tail,
-      color: req.body.tailColor ? req.body.tailColor.replace("#", "0x") : '0xffffff',
-      secondarySprite: req.body.tailSecondaryFur,
-      secondaryColor: req.body.secondaryTailColor ? req.body.secondaryTailColor.replace("#", "0x") : '0xffffff',
-      accentSprite: req.body.tailAccentFur,
-      accentColor: req.body.accentTailColor ? req.body.accentTailColor.replace("#", "0x") : '0xffffff'
-    }
-    var eyes = {
-      outer: req.body.eyesOuter,
-      iris: req.body.eyesIris,
-      color: req.body.eyesColor ? req.body.eyesColor.replace("#", "0x") : '0xffffff'
-    }
-    var hair = {
-      sprite: req.body.hair,
-      color: req.body.hairColor ? req.body.hairColor.replace("#", "0x") : '0xffffff'
-    }
-    var ear = {
-      outerSprite: req.body.outerEar,
-      outerColor: req.body.outerEarColor ? req.body.outerEarColor.replace("#", "0x") : '0xffffff',
-      innerSprite: req.body.innerEar,
-      innerColor: req.body.innerEarColor ? req.body.innerEarColor.replace("#", "0x") : '0xffffff'
-    }
-    // log('ear =', ear);
-    var genitles = {
-      sprite: req.body.genitles,
-      secondarySprite: 'empty'
-    }
-    var hands = {
-      sprite: req.body.handsFur,
-      color: req.body.handsColor
-    }
-    var feet = {
-      sprite: req.body.feetFur,
-      color: req.body.feetColor
-    }
-    var beak = {
-      sprite: req.body.beakSprite,
-      color: req.body.beakHex
-    }
-
-    // --- SPIRIT SPRITE GENERATION LOGIC ---
-    // 1. INPUT: Convert the Hex String to Numbers (RGB)
-    const hexToRgb = (hex) => {
-      let safeHex = String(hex).replace('0x', '#');
-      if (!safeHex.startsWith('#')) safeHex = '#' + safeHex;
-      let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(safeHex);
-      return result ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-      } : { r: 255, g: 255, b: 255 };
-    };
-
-    // 2. MODIFY: Additive Light
-    const calculateMagicColor = (originalRGB, magicColor, intensity) => {
-      const rCalc = Math.min(255, Math.round(originalRGB.r + (magicColor.r * intensity)));
-      const gCalc = Math.min(255, Math.round(originalRGB.g + (magicColor.g * intensity)));
-      const bCalc = Math.min(255, Math.round(originalRGB.b + (magicColor.b * intensity)));
-      return { r: rCalc, g: gCalc, b: bCalc };
-    };
-
-    // 3. OUTPUT: Convert Number to 0x String
-    const rgbToHex = (r, g, b) => {
-      return "0x" + [r, g, b].map(x => {
-        const hex = x.toString(16);
-        return hex.length === 1 ? '0' + hex : hex;
-      }).join('');
-    };
-
-    const generateSpiritColor = (originalHex) => {
-      if (!originalHex) return '0xffffff';
-      const originalRGB = hexToRgb(originalHex);
-      const spectralBlue = { r: 60, g: 220, b: 255 };
-      const intensity = 0.5;
-      const newRGB = calculateMagicColor(originalRGB, spectralBlue, intensity);
-      return rgbToHex(newRGB.r, newRGB.g, newRGB.b);
-    };
-
-    var spiritSprite = {
-      head: { ...head, color: generateSpiritColor(head.color), secondaryColor: generateSpiritColor(head.secondaryColor), accentColor: generateSpiritColor(head.accentColor) },
-      body: { ...body, color: generateSpiritColor(body.color), secondaryColor: generateSpiritColor(body.secondaryColor), accentColor: generateSpiritColor(body.accentColor) },
-      hands: { ...hands, color: generateSpiritColor(hands.color) },
-      feet: { ...feet, color: generateSpiritColor(feet.color) },
-      tail: { ...tail, color: generateSpiritColor(tail.color), secondaryColor: generateSpiritColor(tail.secondaryColor), accentColor: generateSpiritColor(tail.accentColor) },
-      eyes: { ...eyes, color: generateSpiritColor(eyes.color) },
-      hair: { ...hair, color: generateSpiritColor(hair.color) },
-      ear: { ...ear, outerColor: generateSpiritColor(ear.outerColor), innerColor: generateSpiritColor(ear.innerColor) },
-      genitles: { ...genitles, color: generateSpiritColor(genitles.color), secondaryColor: generateSpiritColor(genitles.secondaryColor) },
-      beak: { ...beak, color: generateSpiritColor(beak.color) },
-      headAccessories: { ...headAccessories, color: generateSpiritColor(headAccessories.color) }
-    };
-
-    const { error2 } = charCreateValidation(req.body);
-    if (error2) return res.status(405).send(error2.details[0].message);
-
-    //Push changes to existing Character
     const token = req.cookies.TastyTails;
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-    //log('verified = ', verified._id);
-    log.debug('token = ', token);
 
-    // Safety check for character ID extraction
     let characterId = req.body.charId;
-
     if (!characterId && req.headers.referer) {
-      // Fallback: Try to parse from Referer (e.g. .../edit/ID)
-      // This is less reliable but kept as backup for legacy calls
       try {
         const parts = req.headers.referer.split('/');
         const potentialId = parts.pop();
-        // Simple check if it looks like a Mongo ID (24 hex chars) to avoid "gzip" etc.
         if (/^[0-9a-fA-F]{24}$/.test(potentialId)) {
           characterId = potentialId;
         }
@@ -656,9 +473,9 @@ router.post('/editcharacter', async (req, res) => {
       }
     }
 
-    // log('req = ', req.rawHeaders[33]);
-    // log('verified._id = ', verified._id);
-    // log('characterId = ', characterId);
+    if (!characterId) {
+      return res.status(400).send('Character ID is required to edit character');
+    }
 
     const updateChar = await DatabaseResilience.findOneAndUpdate(User, { _id: verified._id, "characters._id": characterId }, {
       $set: {
@@ -669,73 +486,67 @@ router.post('/editcharacter', async (req, res) => {
         "characters.$.pronouns": req.body.pronouns,
         "characters.$.icDescrip": req.body.icDescrip,
         "characters.$.oocDescrip": req.body.oocDescrip,
-        "characters.$.ratings": ratings,
-        "characters.$.voreTypes": voreTypes,
-        "characters.$.head": head,
-        "characters.$.headAccessories": headAccessories,
-        "characters.$.body": body,
-        "characters.$.bodyShape": bodyShape,
-        "characters.$.tail": tail,
-        "characters.$.eyes": eyes,
-        "characters.$.hair": hair,
-        "characters.$.ear": ear,
-        "characters.$.genitles": genitles,
-        "characters.$.hands": hands,
-        "characters.$.feet": feet,
-        "characters.$.feet": feet,
-        "characters.$.beak": beak,
-        "characters.$.spiritSprite": spiritSprite,
+        "characters.$.ratings": custom.ratings,
+        "characters.$.voreTypes": custom.voreTypes,
+        "characters.$.head": custom.head,
+        "characters.$.headAccessories": custom.headAccessories,
+        "characters.$.body": custom.body,
+        "characters.$.bodyShape": custom.bodyShape,
+        "characters.$.tail": custom.tail,
+        "characters.$.eyes": custom.eyes,
+        "characters.$.hair": custom.hair,
+        "characters.$.ear": custom.ear,
+        "characters.$.genitals": custom.genitals,
+        "characters.$.hands": custom.hands,
+        "characters.$.feet": custom.feet,
+        "characters.$.beak": custom.beak,
+        "characters.$.spiritSprite": custom.spiritSprite,
         "characters.$.anatomyData": req.body.anatomyData || ""
       }
-    },
-      { new: true });
-    // log('updateChar = ', updateChar);
+    }, { new: true });
 
     res.redirect('/character-bank');
   } catch (err) {
     log.error('Error in /editcharacter:', err);
-    res.status(400).send(err);
+    res.status(400).send(err.message || err);
   }
-})
+});
 
+/**
+ * Soft deletes a character by setting characters.$.deleted to true.
+ */
 router.post('/deletecharacter', async (req, res) => {
   try {
-    // log.info('you are trying to delete a character');
-    //Push changes to existing Character
     const token = req.cookies.TastyTails;
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-    //log('verified = ', verified._id);
-    log.debug('token = ', token);
 
-    // log('req = ', req.body.charId);
-    // log('verified._id = ', verified._id);
     const characterId = req.body.charId;
     log.debug('Deleting characterId = ', characterId);
 
-    const updateChar = await DatabaseResilience.findOneAndUpdate(User, { _id: verified._id, "characters._id": characterId }, {
+    await DatabaseResilience.findOneAndUpdate(User, { _id: verified._id, "characters._id": characterId }, {
       $set: {
         "characters.$.deleted": true
       }
-    },
-      { new: true });
-    // log('updateChar = ', updateChar);
+    }, { new: true });
 
     res.redirect('/character-bank');
   } catch (err) {
     log.error('Error in /deletecharacter:', err);
-    res.status(400).send(err);
+    res.status(400).send(err.message || err);
   }
-})
+});
 
+/**
+ * Legacy feedback / user message endpoint.
+ */
 router.post('/message', async (req, res) => {
-  //Lets Validate the Data Before Adding a User
   const { error } = registerValidation(req.body);
-  if (error) return res.status(405).send(error.details[0].message);
+  if (error) return res.status(400).send(error.details[0].message);
   try {
     log.info('you successfully left a message!');
   } catch (err) {
     log.error('Error in /message:', err);
-    res.status(400).send(err);
+    res.status(400).send(err.message || err);
   }
 });
 

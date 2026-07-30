@@ -378,7 +378,7 @@ function create() {
         outerColor: '0xe0e0e0',
         innerColor: '0x636363'
       },
-      genitles:{
+      genitals:{
         sprite: 'empty',
         secondarySprite: 'empty'
       },
@@ -589,7 +589,7 @@ function create() {
       //     "eyes": eyes,
       //     "hair": hair,
       //     "ear": ear,
-      //     "genitles": genitles,
+      //     "genitals": genitals,
       //     "hands": hands,
       //     "feet": feet
       //   }}});
@@ -793,8 +793,8 @@ function addPlayer(self, playerInfo) {
   const playerContaineriris = self.add.sprite(30, -87, playerInfo.eyes.iris);
   playerContaineriris.setTint(playerInfo.eyes.color);
 
-  const playerContainergenitles = self.add.sprite(30, -87, playerInfo.genitles.sprite);
-  //self.genitles.setTint(playerInfo.genitles.color);
+  const playerContainergenitals = self.add.sprite(30, -87, playerInfo.genitals.sprite);
+  //self.genitals.setTint(playerInfo.genitals.color);
 
 
   playerContainer.add([
@@ -811,7 +811,7 @@ function addPlayer(self, playerInfo) {
     playerContainereyes,
     playerContaineriris,
     playerContainerhair,
-    playerContainergenitles
+    playerContainergenitals
   ]);
   playerContainer.sendToBack(self.tail);
   // playerContainer.bringToTop(self.tail);

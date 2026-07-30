@@ -1,0 +1,18 @@
+[
+  {
+    "type": "dead_letter_entry",
+    "key": "TestUser:_id:char1",
+    "modelName": "TestUser",
+    "filter": {
+      "_id": "char1"
+    },
+    "update": {
+      "$set": {
+        "x": 10
+      }
+    },
+    "options": {},
+    "firstQueuedAt": 1784916895570,
+    "failedAt": 1784916895570
+  }
+]

@@ -1,3 +1,18 @@
+/**
+ * @fileoverview play.css - Gameplay View Primary Theme & Layout Framework
+ *
+ * @description
+ * Establishes the core visual theme, full-screen application shell, split-pane
+ * resizer boundaries, Phaser canvas container, tabbed journal side panel, 5-column
+ * equipment paper-doll grid, and modal dialog overlays for TastyTails.net.
+ *
+ * @architecture
+ * - Design System: Centralized CSS custom properties defined in :root.
+ * - Layer Stacking: Tiered z-index scale (--z-play-nav, --z-crest-toggle, --z-modal-backdrop).
+ * - Hardware Acceleration: Composited animations using transform/opacity (pulseGold, popIn).
+ * - Layout Resizing: Controlled via state-driven body class modifiers (.play-mode, .nav-visible, .resizing).
+ */
+
 /* === COLOR PALETTE === */
 :root {
     --wood-dark: #3e2723;
@@ -30,26 +45,39 @@
     --accent-gold-bright: #ffd700;
     --plaque-bg: #0a0807;
     --plaque-border: #594d42;
+
+    /* Unified Z-Index Stacking Tiers */
+    --z-base: 1;
+    --z-hud-dock: 10;
+    --z-splitter: 100;
+    --z-modal-backdrop: 2000;
+    --z-modal-content: 2001;
+    --z-play-nav: 9000;
+    --z-crest-toggle: 9001;
+    --z-context-menu: 10000;
 }
 
 @keyframes pulseGold {
     0% {
-        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+        opacity: 0.8;
+        transform: scale(1);
     }
 
-    70% {
-        box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
     }
 
     100% {
-        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+        opacity: 0.8;
+        transform: scale(1);
     }
 }
 
 /* Global */
 body {
     background-color: var(--bg-color);
-    background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+    background-image: var(--texture-wood-pattern);
     color: var(--text-light);
     font-family: 'Lato', sans-serif;
     height: 100vh;
@@ -75,12 +103,14 @@ body.play-mode nav {
     top: -70px;
     left: 0;
     width: 100%;
-    z-index: 9999;
+    z-index: var(--z-play-nav);
     background: rgba(44, 36, 27, 0.95);
     backdrop-filter: blur(5px);
     border-bottom: 4px solid var(--gold);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
     transition: top 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    will-change: transform, top;
+    transform: translateZ(0);
 }
 
 body.play-mode #game-wrapper {
@@ -93,7 +123,7 @@ body.play-mode #game-wrapper {
     top: 0;
     left: calc( (100vw - 350px) / 2 );
     transform: translateX(-50%);
-    z-index: 10000;
+    z-index: var(--z-crest-toggle);
     cursor: pointer;
     transition: top 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
@@ -552,11 +582,7 @@ h3 {
 }
 
 .accordion::after {
-    content: '\f078';
-    /* FontAwesome Down Chevron */
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-    transition: transform 0.3s;
+    content: none;
 }
 
 .accordion.is-open::after {
@@ -657,22 +683,59 @@ h3 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
-    padding: 4px 6px;
-    border-bottom: 1px solid rgba(243, 229, 171, 0.15);
+    margin-bottom: 12px;
+    padding: 6px 8px;
+    border-bottom: 2px dashed var(--wood-light, #5d4037);
 }
 
+#voreDisplay h3,
+#voreDisplay .vore-dashboard-title,
+.vore-dashboard-header h3,
+.vore-dashboard-header .vore-dashboard-title,
+h3.vore-dashboard-title,
 .vore-dashboard-title {
     margin: 0;
     font-family: 'Cinzel', serif;
-    font-size: 13px;
+    font-size: 1.15rem;
     font-weight: 700;
-    color: var(--gold-light, #f3e5ab);
+    color: #3e2723 !important;
     letter-spacing: 0.5px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     border: none !important;
+    padding-bottom: 0 !important;
+}
+
+#voreDisplay h3 i,
+#voreDisplay .vore-dashboard-title i,
+.vore-dashboard-header h3 i,
+.vore-dashboard-header .vore-dashboard-title i,
+h3.vore-dashboard-title i,
+.vore-dashboard-title i {
+    color: #8b0000 !important;
+}
+
+/* Primary Action Button (.btn-primary 3D Keycap) */
+.btn-primary {
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    text-transform: uppercase;
+    background-color: #6b8c42;
+    color: #ffffff;
+    box-shadow: 0 4px 0 #3e5527;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.btn-primary:hover {
+    background-color: #7ea34f;
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #3e5527;
 }
 
 /* === EXTRACTED INLINE STYLES === */
@@ -718,8 +781,8 @@ h3 {
 }
 
 /* --- VORE TAB SPECIFIC STYLES ---
-           Styles for the Accordion List logic.
-        */
+   Styles for the Accordion List logic.
+*/
 .vore-list-container {
     flex: 1;
     overflow-y: auto;
@@ -750,71 +813,90 @@ h3 {
 .anatomy-card {
     margin-bottom: 15px;
     border: 1px solid var(--wood-light);
-    border-radius: 4px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
     overflow: visible;
     /* Crucial for dropdowns to overflow */
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.6);
 }
 
 /* The clickable header of the accordion */
-.accordion-btn {
+.accordion-btn,
+.anatomy-card .accordion {
     width: 100%;
-    background: var(--wood-light);
-    color: var(--parchment);
+    background: rgba(62, 39, 35, 0.12);
+    color: var(--wood-dark, #3e2723);
     border: none;
-    padding: 12px 15px;
+    border-bottom: 1px dashed var(--wood-light);
+    padding: 10px 12px;
     font-family: 'Cinzel', serif;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: bold;
     text-align: left;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: background 0.2s;
+    transition: all 0.2s ease;
 }
 
-.accordion-btn:hover {
-    background: var(--wood-dark);
-    color: var(--gold);
+.accordion-btn:hover,
+.anatomy-card .accordion:hover {
+    background: #5d4037;
+    color: #f3e5ab;
 }
 
-.accordion-btn.active {
-    background: var(--wood-dark);
-    color: var(--gold);
+.accordion-btn.active,
+.anatomy-card .accordion.is-open {
+    background: #3e2723;
+    color: #ffc107;
+    border-bottom-color: #ffc107;
 }
 
-.accordion-btn .arrow {
+.destination-name {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: inherit;
+}
+
+.accordion-btn .arrow,
+.anatomy-card .accordion .arrow {
     transition: transform 0.3s;
 }
 
-.accordion-btn.active .arrow {
+.accordion-btn.active .arrow,
+.anatomy-card .accordion.is-open .arrow {
     transform: rotate(90deg);
 }
 
 /* Badge showing current mode (Hold/Digest) */
 .mode-badge {
-    font-size: 0.7rem;
-    padding: 2px 6px;
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
     border-radius: 4px;
     background: rgba(0, 0, 0, 0.3);
-    color: var(--gold);
+    color: var(--gold, #ffc107);
     margin-left: auto;
-    margin-right: 10px;
+    margin-right: 6px;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 /* The expandable content area */
-.accordion-panel {
+.accordion-panel,
+.anatomy-card .accordion-content {
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.4s ease-out;
-    background: var(--parchment-light);
+    background: var(--parchment-light, #faf3e0);
 }
 
 /* When open, allow overflow for UI elements */
-.accordion-panel.open {
+.accordion-panel.open,
+.anatomy-card .accordion.is-open + .accordion-content {
     border-top: 2px solid var(--gold);
     overflow: visible;
 }
@@ -823,36 +905,39 @@ h3 {
     padding: 15px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
 }
 
 /* Mode Selector (Three Stamps) */
 .mode-selector {
     display: flex;
-    gap: 5px;
-    background: rgba(0, 0, 0, 0.1);
+    gap: 6px;
+    background: rgba(62, 39, 35, 0.1);
     padding: 5px;
-    border-radius: 4px;
+    border-radius: 6px;
+    border: 1px solid var(--wood-light, #5d4037);
     justify-content: center;
 }
 
 .mode-label {
     flex: 1;
     text-align: center;
-    padding: 5px;
+    padding: 6px 8px;
     font-family: 'Cinzel', serif;
-    font-size: 0.8rem;
+    font-size: 11px;
+    font-weight: 700;
     cursor: pointer;
-    border: 1px solid transparent;
-    border-radius: 2px;
-    color: var(--text-dark);
-    transition: 0.2s;
-    opacity: 0.7;
+    border: 1px solid rgba(62, 39, 35, 0.2);
+    border-radius: 4px;
+    color: var(--wood-dark, #3e2723);
+    background: rgba(255, 255, 255, 0.5);
+    transition: all 0.2s ease;
 }
 
 .mode-label:hover {
-    opacity: 1;
-    background: rgba(255, 255, 255, 0.3);
+    color: #3e2723;
+    background: #ffffff;
+    border-color: #3e2723;
 }
 
 .mode-label.selected {
@@ -865,11 +950,13 @@ h3 {
 
 /* Contents Roster (List of names) */
 .contents-roster {
-    background-color: var(--parchment-light);
-    border: 1px dashed var(--wood-light);
-    padding: 10px;
-    min-height: 60px;
+    background-color: #faf3e0;
+    border: 1px dashed var(--wood-light, #5d4037);
+    padding: 12px 10px 10px 10px;
+    min-height: 50px;
     position: relative;
+    margin-top: 8px;
+    border-radius: 4px;
 }
 
 .contents-roster::before {
@@ -877,12 +964,14 @@ h3 {
     position: absolute;
     top: -10px;
     left: 10px;
-    background: var(--parchment);
-    padding: 0 5px;
-    font-family: 'Lato';
-    font-size: 0.8rem;
-    color: var(--wood-light);
-    font-weight: bold;
+    background: var(--parchment, #f3e5ab);
+    padding: 0 6px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    color: var(--wood-dark, #3e2723);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .roster-list {
@@ -890,13 +979,22 @@ h3 {
     padding: 0;
     margin: 0;
     font-family: 'Caveat Brush', cursive;
-    color: var(--wood-dark);
-    font-size: 1.1rem;
+    color: var(--wood-dark, #3e2723);
+    font-size: 1.15rem;
 }
 
 .roster-list li {
-    padding: 2px 0;
-    border-bottom: 1px dotted #ccc;
+    padding: 4px 0;
+    border-bottom: 1px dotted rgba(62, 39, 35, 0.2);
+}
+
+.roster-list li.empty-roster {
+    font-family: 'Philosopher', serif;
+    font-size: 0.95rem;
+    color: #5d4037;
+    font-style: italic;
+    opacity: 1;
+    border-bottom: none;
 }
 
 .roster-list li:last-child {
@@ -906,37 +1004,47 @@ h3 {
 /* Action Buttons */
 .edit-btn {
     width: 100%;
-    padding: 10px;
-    background: transparent;
-    border: 2px solid var(--wood-light);
-    color: var(--wood-dark);
-    font-family: 'Cinzel';
-    font-weight: bold;
+    margin-top: 10px;
+    padding: 8px 14px;
+    background: #3e2723;
+    color: #f3e5ab;
+    border: none;
+    box-shadow: 0 3px 0 #2a1b15;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
     cursor: pointer;
-    transition: 0.2s;
+    transition: all 0.15s ease;
     border-radius: 4px;
 }
 
 .edit-btn:hover {
-    background: var(--wood-light);
-    color: var(--parchment);
+    background: #5d4037;
+    color: #ffffff;
+    transform: translateY(1px);
+    box-shadow: 0 2px 0 #2a1b15;
 }
 
 #addVoreBtn {
     width: 100%;
-    padding: 15px;
+    padding: 12px 15px;
     background: var(--wood-dark);
     color: var(--gold);
     border: 2px dashed var(--gold);
-    font-family: 'Cinzel';
-    font-size: 1rem;
+    font-family: 'Cinzel', serif;
+    font-size: 0.9rem;
+    font-weight: bold;
     cursor: pointer;
     margin-top: 20px;
     transition: 0.2s;
+    border-radius: 4px;
 }
 
 #addVoreBtn:hover {
     background: var(--wood-accent);
+    transform: scale(1.02);
+}
     transform: scale(1.02);
 }
 
@@ -947,7 +1055,7 @@ h3 {
     display: none;
     /* JS toggles this */
     position: fixed;
-    z-index: 2000;
+    z-index: var(--z-modal-backdrop);
     left: 0;
     top: 0;
     width: 100%;
@@ -1072,355 +1180,7 @@ textarea {
     font-family: 'Lato';
 }
 
-/* Form Grid layout */
-.form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-}
 
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group.full-width {
-    grid-column: span 2;
-}
-
-.modal-footer {
-    padding: 15px;
-    border-top: 2px solid var(--wood-light);
-    text-align: right;
-    background: rgba(0, 0, 0, 0.05);
-}
-
-.save-btn {
-    padding: 10px 30px;
-    background: var(--accent-blue);
-    color: white;
-    border: none;
-    font-family: 'Cinzel';
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.save-btn:hover {
-    background: #1a237e;
-}
-
-/* Animations */
-@keyframes popIn {
-    0% {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
-    }
-
-    70% {
-        box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
-    }
-
-    100% {
-        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
-    }
-}
-
-/* === FIXES FOR ACCORDION === */
-.accordion::after {
-    content: none !important;
-}
-
-.accordion .arrow {
-    transition: transform 0.3s;
-    margin-right: 8px;
-}
-
-.accordion.is-open .arrow {
-    transform: rotate(90deg);
-}
-
-.accordion.is-open {
-    background-color: var(--wood-light);
-    color: var(--gold);
-}
-
-.audio-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
-}
-
-.audio-btn.playing {
-    background: var(--gold);
-    color: var(--wood-dark);
-    animation: pulse 1s infinite;
-}
-
-/* Form Element Styles */
-input,
-select,
-textarea {
-    width: 100%;
-    padding: 8px;
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid var(--wood-light);
-    border-radius: 4px;
-    font-family: 'Lato';
-}
-
-/* Form Grid layout */
-.form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group.full-width {
-    grid-column: span 2;
-}
-
-.modal-footer {
-    padding: 15px;
-    border-top: 2px solid var(--wood-light);
-    text-align: right;
-    background: rgba(0, 0, 0, 0.05);
-}
-
-.save-btn {
-    padding: 10px 30px;
-    background: var(--accent-blue);
-    color: white;
-    border: none;
-    font-family: 'Cinzel';
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.save-btn:hover {
-    background: #1a237e;
-}
-
-/* Animations */
-@keyframes popIn {
-    0% {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
-    }
-
-    70% {
-        box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
-    }
-
-    100% {
-        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
-    }
-}
-
-/* === FIXES FOR ACCORDION === */
-.accordion::after {
-    content: none !important;
-}
-
-.accordion .arrow {
-    transition: transform 0.3s;
-    margin-right: 8px;
-}
-
-.accordion.is-open .arrow {
-    transform: rotate(90deg);
-}
-
-.accordion.is-open {
-    background-color: var(--wood-light);
-    color: var(--gold);
-}
-
-
-/* Form Grid layout */
-.form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group.full-width {
-    grid-column: span 2;
-}
-
-.modal-footer {
-    padding: 15px;
-    border-top: 2px solid var(--wood-light);
-    text-align: right;
-    background: rgba(0, 0, 0, 0.05);
-}
-
-.save-btn {
-    padding: 10px 30px;
-    background: var(--accent-blue);
-    color: white;
-    border: none;
-    font-family: 'Cinzel';
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.save-btn:hover {
-    background: #1a237e;
-}
-
-/* Animations */
-@keyframes popIn {
-    0% {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
-    }
-
-    70% {
-        box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
-    }
-
-    100% {
-        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
-    }
-}
-
-/* === FIXES FOR ACCORDION === */
-.accordion::after {
-    content: none !important;
-}
-
-.accordion .arrow {
-    transition: transform 0.3s;
-    margin-right: 8px;
-}
-
-.accordion.is-open .arrow {
-    transform: rotate(90deg);
-}
-
-.accordion.is-open {
-    background-color: var(--wood-light);
-    color: var(--gold);
-}
-
-
-/* Equipment Grid */
-.equipment-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 80px);
-    /* 3 Fixed columns */
-    grid-template-rows: repeat(8, 70px);
-    grid-template-areas:
-        ".        hair      ."
-        "leftEar  head      rightEar"
-        ".        neck      ."
-        "leftWrist torsoOuter rightWrist"
-        "leftHand torsoInner rightHand"
-        "belt     underwear tailBase"
-        ".        legs      tailTip"
-        ".        feet      .";
-    gap: 10px;
-    padding: 20px;
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    justify-content: center;
-    max-height: 600px;
-    overflow-y: auto;
-}
-
-.equip-slot {
-    width: 60px;
-    height: 60px;
-    border: 2px solid var(--wood-light);
-    border-radius: 8px;
-    background: rgba(44, 36, 27, 0.8);
-    position: relative;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: all 0.2s;
-    margin: 0 auto;
-}
-
-.equip-slot:hover {
-    border-color: var(--gold);
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
-}
-
-.equip-slot.has-item {
-    border-color: var(--wood-accent);
-}
-
-.equip-slot .slot-label {
-    position: absolute;
-    bottom: 2px;
-    width: 100%;
-    text-align: center;
-    font-size: 8px;
-    color: #aaa;
-    pointer-events: none;
-    text-transform: uppercase;
-    text-shadow: 1px 1px 0 #000;
-}
-
-.equip-slot .slot-item-icon {
-    font-size: 24px;
-    color: var(--parchment);
-    pointer-events: none;
-}
-
-.equip-slot .icon-container {
-    pointer-events: none;
-}
-
-.equipment-legend {
-    text-align: center;
-    color: #888;
-    margin-top: 5px;
-    font-style: italic;
-}
-
-/* Grid Area Assignments */
 
 
 /* --- PAPER DOLL & APPAREL STYLES --- */

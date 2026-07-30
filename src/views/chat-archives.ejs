@@ -1,3 +1,10 @@
+<!--
+  @fileoverview chat-archives.ejs - Structured View Template for Chat Archives
+  @description
+  Provides the UI canvas for searching, filtering, inspecting, and saving historical roleplay logs.
+  Rendered by Express route GET /chat-archives (src/routes/index.js) and wrapped inside src/views/layouts/layout.ejs.
+  Interacts directly with src/client/js/chat-archives.js via strict element ID bindings.
+-->
 <div class="container main-content">
     <div class="archive-header">
         <h2><i class="fa-solid fa-box-archive"></i> Chat Archives</h2>
@@ -100,9 +107,9 @@
                 </select>
             </div>
 
-            <button id="searchBtn" class="btn btn-primary" disabled><i class="fa-solid fa-magnifying-glass"></i>
+            <button id="searchBtn" class="btn btn-primary" disabled aria-label="Search chat archives"><i class="fa-solid fa-magnifying-glass"></i>
                 Search</button>
-            <div id="statusMsg"></div>
+            <div id="statusMsg" role="status" aria-live="polite"></div>
         </aside>
 
         <!-- Results Area -->
@@ -133,6 +140,7 @@
     </div>
 </div>
 
+<link rel="preload" href="/css/chat-archives.css" as="style">
 <link rel="stylesheet" href="/css/chat.css"> <!-- Reusing existing chat styles -->
 <link rel="stylesheet" href="/css/chat-archives.css">
-<script src="/js/chat-archives.js"></script>
+<script src="/js/chat-archives.js" defer></script>

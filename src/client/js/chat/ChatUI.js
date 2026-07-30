@@ -1,17 +1,21 @@
 /**
- * ChatUI.js
+ * @fileoverview ChatUI.js - Client-Side Chat View & DOM Controller
  * 
- * Manages the User Interface for the chat system.
- * This class handles all direct DOM manipulations, including:
- * - Appending/prepending messages
- * - Managing tabs (Global/Local) and unread counts
- * - Handling scroll behavior (auto-scroll vs. infinite scroll)
- * - Applying spoiler filters
- * - Showing toasts and notifications
+ * @description
+ * Manages the User Interface for the chat system on TastyTails.net.
+ * Handles all direct DOM manipulations, including:
+ * - Appending and prepending chat messages in high-performance batches
+ * - Managing Global vs. Local tab scope switching and per-tab scroll state
+ * - Infinite scroll pagination triggers and scroll delta offset calculations
+ * - O(1) container-based spoiler filter toggles (watersports, disposal, gore)
+ * - Displaying in-game world toasts and connection status alert banners
+ * 
+ * Triggered by: ChatSystem.js socket event handlers, user DOM clicks, and container scroll events.
  */
 class ChatUI {
     /**
-     * @param {Class} formatter - Reference to ChatFormatter helper
+     * Initializes DOM references, local scope state maps, and binds UI event listeners.
+     * @param {Object} formatter - Reference to ChatFormatter helper instance
      */
     constructor(formatter) {
         this.formatter = formatter;
@@ -33,6 +37,10 @@ class ChatUI {
             local: { atBottom: true, scrollTop: 0, hasBeenVisited: false }
         };
 
+        // OPTIMIZATION: Configurable DOM retention cap preventing memory bloat during long sessions
+        this.maxHistory = 200;
+        // OPTIMIZATION: Debounce timer tracking to cancel stale async callbacks on rapid tab scope switches
+        this.scopeSwitchTimer = null;
         this.isLoadingOlder = false; // Prevents double-fetching history
 
         this.bindEvents();
@@ -81,8 +89,11 @@ class ChatUI {
             // If inside a dropdown (but not the toggle button), do nothing (allow interaction)
             if (dropdownContainer) return;
 
-            // If outside everything, close all
-            document.querySelectorAll('[data-dropdown].active').forEach(d => d.classList.remove('active'));
+            // OPTIMIZATION: Active dropdown check skips redundant document query selections on global clicks
+            const activeDropdowns = document.querySelectorAll('[data-dropdown].active');
+            if (activeDropdowns.length > 0) {
+                activeDropdowns.forEach(d => d.classList.remove('active'));
+            }
         });
     }
 
@@ -94,6 +105,12 @@ class ChatUI {
      * @param {string} scope - 'global' or 'local'
      */
     setScope(scope) {
+        // OPTIMIZATION: Cancel pending scope restore timer if user rapidly toggles tabs
+        if (this.scopeSwitchTimer) {
+            clearTimeout(this.scopeSwitchTimer);
+            this.scopeSwitchTimer = null;
+        }
+
         this.saveTabState(this.currentScope);
         this.currentScope = scope;
         this.messagesContainer.setAttribute('data-view', scope);
@@ -107,8 +124,9 @@ class ChatUI {
         }
 
         // Slight delay to allow layout update before restoring scroll position
-        setTimeout(() => {
+        this.scopeSwitchTimer = setTimeout(() => {
             this.restoreTabState(scope);
+            this.scopeSwitchTimer = null;
         }, 10);
     }
 
@@ -297,12 +315,20 @@ class ChatUI {
     /**
      * Prepends older messages (Infinite Scroll).
      * Maintains scroll position relative to the content.
+     * @param {string} html - Historical message HTML payload
      */
     prependMessages(html) {
+        if (!html) {
+            this.isLoadingOlder = false;
+            const spinner = document.getElementById('chat-loading-spinner');
+            if (spinner) spinner.style.display = 'none';
+            return;
+        }
+
         const oldScrollHeight = this.messagesContainer.scrollHeight;
         this.messagesContainer.insertAdjacentHTML('afterbegin', html);
 
-        // Restore scroll position so user doesn't jump
+        // OPTIMIZATION: Restore scroll position delta so user viewport does not jump
         const newScrollHeight = this.messagesContainer.scrollHeight;
         this.messagesContainer.scrollTop = newScrollHeight - oldScrollHeight;
 
@@ -314,23 +340,18 @@ class ChatUI {
     }
 
     /**
-     * Removes old messages if history exceeds MAX_HISTORY (200).
-     * Now removes multiple elements in a loop to handle batch insertions.
+     * Trims historical message nodes if total count exceeds maxHistory (200).
+     * OPTIMIZATION: Selects specifically .chat-message nodes to avoid removing dividers or loading spinners.
      */
     pruneMessages() {
-        const MAX_HISTORY = 200;
-        const children = this.messagesContainer.children;
-        const total = children.length;
+        if (!this.messagesContainer) return;
+        const maxHistory = this.maxHistory || 200;
+        const messages = this.messagesContainer.querySelectorAll('.chat-message');
+        const excessCount = messages.length - maxHistory;
 
-        if (total > MAX_HISTORY) {
-            // Check index 1 if spinner exists at 0
-            const firstMsgIndex = (children[0] && children[0].id === 'chat-loading-spinner') ? 1 : 0;
-            const toRemoveCount = total - MAX_HISTORY;
-
-            for (let i = 0; i < toRemoveCount; i++) {
-                if (children[firstMsgIndex]) {
-                    children[firstMsgIndex].remove();
-                } else break;
+        if (excessCount > 0) {
+            for (let i = 0; i < excessCount; i++) {
+                messages[i].remove();
             }
         }
     }
@@ -411,12 +432,17 @@ class ChatUI {
 
     /**
      * Applies global spoiler settings (checkboxes) to hide/reveal content types.
+     * OPTIMIZATION: Toggles hide-type container CSS classes on messagesContainer for O(1) CSS filtering.
      */
     applySpoilerFilters() {
         ['watersports', 'disposal', 'gore'].forEach(type => {
             const box = document.getElementById(`${type}Box`);
             const isChecked = box ? box.checked : true; // Default checked (hidden)
-            const elements = document.querySelectorAll(`.spoiled-${type}`);
+            if (this.messagesContainer) {
+                this.messagesContainer.classList.toggle(`hide-${type}`, isChecked);
+            }
+            const root = this.messagesContainer || document;
+            const elements = root.querySelectorAll(`.spoiled-${type}`);
             elements.forEach(el => {
                 if (isChecked) el.classList.remove('revealed');
                 else el.classList.add('revealed');

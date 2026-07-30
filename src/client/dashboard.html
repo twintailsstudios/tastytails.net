@@ -221,6 +221,8 @@
 
 <body>
     <h1>TastyTails Server Health Dashboard</h1>
+    <div id="connection-error" style="display: none; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: bold;">⚠️ Connection to server lost. Retrying...</div>
+
 
     <div class="grid">
         <div class="card" style="border-left-color: #3b82f6;">
@@ -357,11 +359,79 @@
         </div>
     </div>
 
-    <div id="json-dump">Loading...</div>
+    <details id="json-dump-details" style="margin-top: 30px;">
+        <summary style="cursor: pointer; color: #94a3b8; font-size: 13px; font-weight: 600; padding: 8px 0;">Show Raw JSON Telemetry Dump</summary>
+        <div id="json-dump" style="margin-top: 10px;">Expand section to view raw JSON...</div>
+    </details>
 
     <script>
+        /**
+         * @fileoverview TastyTails Server Health Dashboard - Client Engine
+         * 
+         * @description
+         * Real-time performance monitoring dashboard for the TastyTails game server.
+         * Operates independently of the main game client via lightweight 1-second HTTP polling.
+         * Displays engine tick benchmarks, CPU/memory telemetry, database write queue stats,
+         * live load test metrics, buffered server logs, and deduplicated client error traces.
+         * 
+         * Triggered by: Express static route `/dashboard.html` -> Polling `GET /stats?_t=<timestamp>`
+         */
+
+        /** @type {Array<{avgTick: number, peakTick: number, lag: number}>} Rolling 60-second performance history dataset */
         const historyData = [];
 
+        /** @type {boolean} Re-entrancy lock preventing overlapping fetch calls */
+        let isUpdating = false;
+
+        /** @type {number} Counter tracking consecutive HTTP fetch failures */
+        let consecutiveFailures = 0;
+
+        /** @type {number} Number of log lines previously rendered to terminal */
+        let lastLogCount = 0;
+
+        /** @constant {number} Maximum DOM nodes allowed in log terminal to prevent memory bloat */
+        const MAX_DOM_LOGS = 200;
+
+        /** 
+         * Global DOM Element Cache Map
+         * OPTIMIZATION: Caching DOM references once at startup eliminates 19+ document.getElementById calls per second.
+         * @type {Object.<string, HTMLElement>} 
+         */
+        const DOM = {};
+
+        /**
+         * Initializes and caches static DOM element references upon page load.
+         */
+        function initDOMCache() {
+            DOM.connectionError = document.getElementById('connection-error');
+            DOM.tickRate = document.getElementById('tickRate');
+            DOM.tickDuration = document.getElementById('tickDuration');
+            DOM.peakTick = document.getElementById('peakTick');
+            DOM.breakdown = document.getElementById('breakdown');
+            DOM.cpuLoad = document.getElementById('cpuLoad');
+            DOM.eventLag = document.getElementById('eventLag');
+            DOM.connections = document.getElementById('connections');
+            DOM.entities = document.getElementById('entities');
+            DOM.network = document.getElementById('network');
+            DOM.dbQueue = document.getElementById('dbQueue');
+            DOM.dbLatency = document.getElementById('dbLatency');
+            DOM.gcStats = document.getElementById('gcStats');
+            DOM.memory = document.getElementById('memory');
+            DOM.memoryHeap = document.getElementById('memoryHeap');
+            DOM.uptime = document.getElementById('uptime');
+            DOM.actionStatsBody = document.getElementById('action-stats-body');
+            DOM.logTerminal = document.getElementById('log-terminal');
+            DOM.clientErrorsBody = document.getElementById('client-errors-body');
+            DOM.historyChart = document.getElementById('historyChart');
+            DOM.jsonDump = document.getElementById('json-dump');
+            DOM.jsonDumpDetails = document.getElementById('json-dump-details');
+        }
+
+        /**
+         * Formats byte counts into human-readable strings (B, KB, MB, GB, TB).
+         * @param {number} bytes - Raw byte count
+         * @returns {string} Formatted size string
+         */
         function formatBytes(bytes) {
             if (!bytes || bytes === 0) return '0 B';
             const k = 1024;
@@ -370,13 +440,25 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
+        /**
+         * Formats duration seconds into Hh Mm Ss format.
+         * @param {number} seconds - Uptime in seconds
+         * @returns {string} Formatted duration string
+         */
         function formatTime(seconds) {
+            if (typeof seconds !== 'number' || isNaN(seconds)) return '--';
             const h = Math.floor(seconds / 3600);
             const m = Math.floor((seconds % 3600) / 60);
             const s = Math.floor(seconds % 60);
             return `${h}h ${m}m ${s}s`;
         }
 
+        /**
+         * Determines CSS status class ('good', 'warn', 'bad') based on metric benchmark thresholds.
+         * @param {number} value - Metric numerical value
+         * @param {string} type - Metric category indicator
+         * @returns {string} Class name
+         */
         function getColor(value, type) {
             if (type === 'tickRate') return value > 25 ? 'good' : (value > 15 ? 'warn' : 'bad');
             if (type === 'duration') return value < 12 ? 'good' : (value < 25 ? 'warn' : 'bad');
@@ -386,10 +468,14 @@
             return '';
         }
 
-        const canvas = document.getElementById('historyChart');
-        const ctx = canvas.getContext('2d');
-
+        /**
+         * Renders the 2D rolling performance history line chart on HTML5 Canvas.
+         * OPTIMIZATION: Uses a single-pass loop for dynamic scale calculation to minimize CPU time.
+         */
         function drawChart() {
+            const canvas = DOM.historyChart || document.getElementById('historyChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
             const width = canvas.width;
             const height = canvas.height;
             ctx.clearRect(0, 0, width, height);
@@ -411,12 +497,15 @@
             const chartHeight = height - padding * 2;
             const chartWidth = width;
 
-            // Determine scale maximum
-            let maxVal = 33.3; // Minimum top margin is 30Hz tick rate boundary
-            historyData.forEach(d => {
-                maxVal = Math.max(maxVal, d.avgTick || 0, d.peakTick || 0, d.lag || 0);
-            });
-            maxVal = Math.ceil(maxVal * 1.15); // Add 15% padding headroom
+            // OPTIMIZATION: Single-pass scale maximum calculation
+            let maxVal = 33.3; // Baseline 30Hz target boundary (33.3ms)
+            for (let i = 0; i < historyData.length; i++) {
+                const d = historyData[i];
+                if (d.avgTick > maxVal) maxVal = d.avgTick;
+                if (d.peakTick > maxVal) maxVal = d.peakTick;
+                if (d.lag > maxVal) maxVal = d.lag;
+            }
+            maxVal = Math.ceil(maxVal * 1.15); // Add 15% headroom
 
             function getY(val) {
                 return height - padding - ((val / maxVal) * chartHeight);
@@ -452,198 +541,273 @@
             drawPlot('lag', '#ef4444', 2.5);
         }
 
-        async function updateStats() {
-            try {
-                const res = await fetch('/stats?_t=' + Date.now());
-                const data = await res.json();
+        /**
+         * Incrementally updates the server console log stream terminal window.
+         * OPTIMIZATION: Uses DocumentFragment for batch insertions and prunes DOM nodes above MAX_DOM_LOGS to prevent memory leaks.
+         * @param {Array<{level: string, raw: string}>} logs - Array of server log objects
+         */
+        function renderLogs(logs) {
+            const logTerminal = DOM.logTerminal;
+            if (!logTerminal) return;
 
-                // Raw Dump
-                document.getElementById('json-dump').textContent = JSON.stringify(data, null, 2);
+            if (!logs || logs.length === 0) {
+                logTerminal.textContent = 'No server console logs buffered yet.';
+                lastLogCount = 0;
+                return;
+            }
 
-                // Update standard cards
-                const tr = document.getElementById('tickRate');
-                tr.textContent = data.tickRate;
-                tr.className = `value ${getColor(data.tickRate, 'tickRate')}`;
+            const isScrolledToBottom = logTerminal.scrollHeight - logTerminal.clientHeight <= logTerminal.scrollTop + 15;
 
-                const td = document.getElementById('tickDuration');
-                td.textContent = (data.avgTickDuration || 0).toFixed(2) + ' ms';
-                td.className = `value ${getColor(data.avgTickDuration, 'duration')}`;
+            // Re-render entirely if buffer reset/truncated server-side
+            if (logs.length < lastLogCount || lastLogCount === 0) {
+                logTerminal.innerHTML = '';
+                lastLogCount = 0;
+            }
 
-                const el = document.getElementById('eventLag');
-                el.textContent = (data.eventLoopLag || 0).toFixed(2) + ' ms';
-                el.className = `value ${getColor(data.eventLoopLag, 'lag')}`;
-
-                document.getElementById('connections').textContent = data.activeConnections;
-                
-                const rssCard = document.getElementById('memory');
-                rssCard.textContent = formatBytes(data.memoryUsage.rss);
-                if (data.memoryUsage.heapUsed && data.memoryUsage.heapTotal) {
-                    document.getElementById('memoryHeap').textContent = 
-                        `Heap: ${formatBytes(data.memoryUsage.heapUsed)} / ${formatBytes(data.memoryUsage.heapTotal)}`;
-                }
-
-                document.getElementById('uptime').textContent = formatTime(data.uptime);
-
-                // Update detailed Profiling breakdowns
-                if (data.tickBreakdown) {
-                    const bd = data.tickBreakdown;
-                    const logc = (bd.logic || 0).toFixed(2);
-                    const phys = (bd.physics || 0).toFixed(2);
-                    const shad = (bd.shadowcasting || 0).toFixed(2);
-                    const ai = (bd.animalAI || 0).toFixed(2);
-                    const ser = (bd.serialize || 0).toFixed(2);
-                    document.getElementById('breakdown').innerHTML =
-                        `<span style="color: #ffc82c;">${logc}</span> | <span style="color: #ff7849;">${phys}</span> | <span style="color: #00bcd4;">${shad}</span> | <span style="color: #10b981;">${ai}</span> | <span style="color: #d946ef;">${ser}</span>`;
-                }
-
-                if (data.entities) {
-                    document.getElementById('entities').textContent =
-                        `${data.entities.clients} | ${data.entities.items} | ${data.entities.corpses}`;
-                }
-
-                if (data.network) {
-                    document.getElementById('network').textContent =
-                        `${data.network.packetsSent} pkts/s | ${formatBytes(data.network.bytesSent)}/s`;
-                }
-
-                document.getElementById('dbQueue').textContent = data.resilienceQueue || 0;
-
-                // Update new performance metrics
-                const pt = document.getElementById('peakTick');
-                pt.textContent = (data.maxTickDuration || 0).toFixed(2) + ' ms';
-                pt.className = `value ${getColor(data.maxTickDuration, 'duration')}`;
-
-                const cpu = document.getElementById('cpuLoad');
-                cpu.textContent = (data.cpuUsage || 0).toFixed(1) + '%';
-                cpu.className = `value ${getColor(data.cpuUsage, 'cpu')}`;
-
-                const db = document.getElementById('dbLatency');
-                db.textContent = (data.dbLatency || 0).toFixed(1) + ' ms';
-                db.className = `value ${getColor(data.dbLatency, 'db')}`;
-
-                if (data.gcStats) {
-                    const gc = data.gcStats;
-                    document.getElementById('gcStats').textContent = 
-                        `${gc.count} | ${(gc.maxDuration || 0).toFixed(1)} ms`;
-                }
-
-                // 1. Update Action Statistics (Test Progress Report)
-                if (data.actionStats) {
-                    const tbody = document.getElementById('action-stats-body');
-                    tbody.innerHTML = '';
-                    
-                    const actions = Object.keys(data.actionStats);
-                    let hasActions = false;
-                    
-                    actions.forEach(action => {
-                        const stats = data.actionStats[action];
-                        const total = stats.success + stats.fail;
-                        if (total > 0) {
-                            hasActions = true;
-                            const rate = ((stats.success / total) * 100).toFixed(1);
-                            
-                            const tr = document.createElement('tr');
-                            tr.innerHTML = `
-                                <td style="font-weight: bold; text-transform: capitalize; color: #f1f5f9;">${action} Messages/Ticks</td>
-                                <td style="text-align: right; color: #10b981; font-weight: bold; font-family: monospace;">${stats.success}</td>
-                                <td style="text-align: right; color: #ef4444; font-weight: bold; font-family: monospace;">${stats.fail}</td>
-                                <td style="text-align: right; vertical-align: middle;">
-                                    <div class="progress-bar-bg">
-                                        <div class="progress-bar-fill" style="width: ${rate}%; background: ${rate > 85 ? '#10b981' : (rate > 50 ? '#f59e0b' : '#ef4444')};"></div>
-                                    </div>
-                                    <span class="badge ${rate > 85 ? 'badge-success' : 'badge-error'}">${rate}%</span>
-                                </td>
-                            `;
-                            tbody.appendChild(tr);
-                        }
-                    });
-                    
-                    if (!hasActions) {
-                        tbody.innerHTML = `
-                            <tr>
-                                <td colspan="4" style="color: #64748b; text-align: center; padding: 20px;">No test actions recorded yet. Ensure bots or test cases are running.</td>
-                            </tr>
-                        `;
-                    }
-                }
-
-                // 2. Update Server Console Log Stream
-                if (data.logs) {
-                    const logTerminal = document.getElementById('log-terminal');
-                    const isScrolledToBottom = logTerminal.scrollHeight - logTerminal.clientHeight <= logTerminal.scrollTop + 10;
-                    
-                    logTerminal.innerHTML = '';
-                    data.logs.forEach(log => {
-                        const div = document.createElement('div');
-                        div.className = `log-line log-${log.level}`;
-                        div.textContent = log.raw;
-                        logTerminal.appendChild(div);
-                    });
-
-                    if (data.logs.length === 0) {
-                        logTerminal.textContent = 'No server console logs buffered yet.';
-                    }
-
-                    if (isScrolledToBottom) {
-                        logTerminal.scrollTop = logTerminal.scrollHeight;
-                    }
-                }
-
-                // 3. Update Client-Side Unique Errors
-                if (data.clientErrors) {
-                    const tbody = document.getElementById('client-errors-body');
-                    tbody.innerHTML = '';
-                    
-                    const keys = Object.keys(data.clientErrors);
-                    if (keys.length > 0) {
-                        keys.forEach(key => {
-                            const err = data.clientErrors[key];
-                            const tr = document.createElement('tr');
-                            
-                            const stackDrawer = err.stack ? `
-                                <details style="margin-top: 5px;">
-                                    <summary style="cursor: pointer; color: #ef4444; font-size: 12px; font-weight: bold; outline: none;">View Stack Trace</summary>
-                                    <pre style="font-family: 'JetBrains Mono', monospace; font-size: 11px; background: #0b090f; padding: 10px; border-radius: 4px; color: #94a3b8; overflow-x: auto; margin-top: 6px; border: 1px solid rgba(255,255,255,0.06); text-align: left; white-space: pre-wrap;">${err.stack}</pre>
-                                </details>
-                            ` : '<span style="color:#64748b;">No Stack</span>';
-
-                            tr.innerHTML = `
-                                <td style="text-align: center;"><span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-radius: 50%; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; font-family: monospace;">${err.count}</span></td>
-                                <td style="color: #f1f5f9; font-weight: bold; font-family: monospace; white-space: pre-wrap;">${err.message}</td>
-                                <td style="color: #94a3b8; font-size: 12px; font-family: monospace;">${err.lastTime}</td>
-                                <td style="text-align: center; vertical-align: middle;">${stackDrawer}</td>
-                            `;
-                            tbody.appendChild(tr);
-                        });
-                    } else {
-                        tbody.innerHTML = `
-                            <tr>
-                                <td colspan="4" style="color: #64748b; text-align: center; padding: 20px;">No client-side errors reported. Deduplication is active.</td>
-                            </tr>
-                        `;
-                    }
-                }
-
-                // Add to scrolling history
-                historyData.push({
-                    avgTick: data.avgTickDuration || 0,
-                    peakTick: data.maxTickDuration || 0,
-                    lag: data.eventLoopLag || 0
+            const newLogs = logs.slice(lastLogCount);
+            if (newLogs.length > 0) {
+                const fragment = document.createDocumentFragment();
+                newLogs.forEach(log => {
+                    const div = document.createElement('div');
+                    div.className = `log-line log-${log.level || 'info'}`;
+                    div.textContent = log.raw || '';
+                    fragment.appendChild(div);
                 });
-                if (historyData.length > 60) {
-                    historyData.shift();
+                logTerminal.appendChild(fragment);
+                lastLogCount = logs.length;
+
+                // OPTIMIZATION: Prune oldest DOM elements to maintain flat memory footprint
+                while (logTerminal.children.length > MAX_DOM_LOGS) {
+                    logTerminal.removeChild(logTerminal.firstChild);
                 }
+            }
 
-                // Redraw history chart
-                drawChart();
-
-            } catch (e) {
-                console.error(e);
+            if (isScrolledToBottom) {
+                logTerminal.scrollTop = logTerminal.scrollHeight;
             }
         }
 
-        setInterval(updateStats, 1000);
-        updateStats();
+        /**
+         * Updates all UI elements, metric cards, tables, and history charts from telemetry JSON.
+         * OPTIMIZATION: Uses optional chaining for null-safety and lazy JSON dump stringification.
+         * @param {Object} data - Server telemetry payload from /stats
+         */
+        async function updateStatsUI(data) {
+            // OPTIMIZATION: Only stringify JSON when details section is open
+            if (DOM.jsonDumpDetails && DOM.jsonDumpDetails.open && DOM.jsonDump) {
+                DOM.jsonDump.textContent = JSON.stringify(data, null, 2);
+            }
+
+            // Standard Metric Cards
+            if (DOM.tickRate) {
+                DOM.tickRate.textContent = data.tickRate ?? '--';
+                DOM.tickRate.className = `value ${getColor(data.tickRate, 'tickRate')}`;
+            }
+
+            if (DOM.tickDuration) {
+                const avgDuration = data?.avgTickDuration ?? 0;
+                DOM.tickDuration.textContent = avgDuration.toFixed(2) + ' ms';
+                DOM.tickDuration.className = `value ${getColor(avgDuration, 'duration')}`;
+            }
+
+            if (DOM.eventLag) {
+                const lag = data?.eventLoopLag ?? 0;
+                DOM.eventLag.textContent = lag.toFixed(2) + ' ms';
+                DOM.eventLag.className = `value ${getColor(lag, 'lag')}`;
+            }
+
+            if (DOM.connections) DOM.connections.textContent = data?.activeConnections ?? '--';
+
+            if (DOM.memory) {
+                const rss = data?.memoryUsage?.rss;
+                DOM.memory.textContent = rss ? formatBytes(rss) : '--';
+                if (data?.memoryUsage?.heapUsed && data?.memoryUsage?.heapTotal && DOM.memoryHeap) {
+                    DOM.memoryHeap.textContent = `Heap: ${formatBytes(data.memoryUsage.heapUsed)} / ${formatBytes(data.memoryUsage.heapTotal)}`;
+                }
+            }
+
+            if (DOM.uptime) DOM.uptime.textContent = formatTime(data?.uptime);
+
+            // Tick Breakdown
+            if (data?.tickBreakdown && DOM.breakdown) {
+                const bd = data.tickBreakdown;
+                DOM.breakdown.innerHTML =
+                    `<span style="color: #ffc82c;">${(bd.logic || 0).toFixed(2)}</span> | ` +
+                    `<span style="color: #ff7849;">${(bd.physics || 0).toFixed(2)}</span> | ` +
+                    `<span style="color: #00bcd4;">${(bd.shadowcasting || 0).toFixed(2)}</span> | ` +
+                    `<span style="color: #10b981;">${(bd.animalAI || 0).toFixed(2)}</span> | ` +
+                    `<span style="color: #d946ef;">${(bd.serialize || 0).toFixed(2)}</span>`;
+            }
+
+            if (data?.entities && DOM.entities) {
+                DOM.entities.textContent = `${data.entities.clients ?? 0} | ${data.entities.items ?? 0} | ${data.entities.corpses ?? 0}`;
+            }
+
+            if (data?.network && DOM.network) {
+                DOM.network.textContent = `${data.network.packetsSent ?? 0} pkts/s | ${formatBytes(data.network.bytesSent ?? 0)}/s`;
+            }
+
+            if (DOM.dbQueue) DOM.dbQueue.textContent = data?.resilienceQueue ?? 0;
+
+            if (DOM.peakTick) {
+                const maxTick = data?.maxTickDuration ?? 0;
+                DOM.peakTick.textContent = maxTick.toFixed(2) + ' ms';
+                DOM.peakTick.className = `value ${getColor(maxTick, 'duration')}`;
+            }
+
+            if (DOM.cpuLoad) {
+                const cpu = data?.cpuUsage ?? 0;
+                DOM.cpuLoad.textContent = cpu.toFixed(1) + '%';
+                DOM.cpuLoad.className = `value ${getColor(cpu, 'cpu')}`;
+            }
+
+            if (DOM.dbLatency) {
+                const dbLat = data?.dbLatency ?? 0;
+                DOM.dbLatency.textContent = dbLat.toFixed(1) + ' ms';
+                DOM.dbLatency.className = `value ${getColor(dbLat, 'db')}`;
+            }
+
+            if (data?.gcStats && DOM.gcStats) {
+                DOM.gcStats.textContent = `${data.gcStats.count ?? 0} | ${(data.gcStats.maxDuration || 0).toFixed(1)} ms`;
+            }
+
+            // Test Progress Report Table
+            if (data?.actionStats && DOM.actionStatsBody) {
+                const tbody = DOM.actionStatsBody;
+                tbody.innerHTML = '';
+                const actions = Object.keys(data.actionStats);
+                let hasActions = false;
+
+                actions.forEach(action => {
+                    const stats = data.actionStats[action];
+                    const total = stats.success + stats.fail;
+                    if (total > 0) {
+                        hasActions = true;
+                        const rate = ((stats.success / total) * 100).toFixed(1);
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td style="font-weight: bold; text-transform: capitalize; color: #f1f5f9;">${action} Messages/Ticks</td>
+                            <td style="text-align: right; color: #10b981; font-weight: bold; font-family: monospace;">${stats.success}</td>
+                            <td style="text-align: right; color: #ef4444; font-weight: bold; font-family: monospace;">${stats.fail}</td>
+                            <td style="text-align: right; vertical-align: middle;">
+                                <div class="progress-bar-bg">
+                                    <div class="progress-bar-fill" style="width: ${rate}%; background: ${rate > 85 ? '#10b981' : (rate > 50 ? '#f59e0b' : '#ef4444')};"></div>
+                                </div>
+                                <span class="badge ${rate > 85 ? 'badge-success' : 'badge-error'}">${rate}%</span>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    }
+                });
+
+                if (!hasActions) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="4" style="color: #64748b; text-align: center; padding: 20px;">No test actions recorded yet. Ensure bots or test cases are running.</td>
+                        </tr>
+                    `;
+                }
+            }
+
+            // Render Log Stream
+            renderLogs(data?.logs);
+
+            // Client Errors Table
+            if (data?.clientErrors && DOM.clientErrorsBody) {
+                const tbody = DOM.clientErrorsBody;
+                tbody.innerHTML = '';
+                const keys = Object.keys(data.clientErrors);
+                if (keys.length > 0) {
+                    keys.forEach(key => {
+                        const err = data.clientErrors[key];
+                        const tr = document.createElement('tr');
+                        const stackDrawer = err.stack ? `
+                            <details style="margin-top: 5px;">
+                                <summary style="cursor: pointer; color: #ef4444; font-size: 12px; font-weight: bold; outline: none;">View Stack Trace</summary>
+                                <pre style="font-family: 'JetBrains Mono', monospace; font-size: 11px; background: #0b090f; padding: 10px; border-radius: 4px; color: #94a3b8; overflow-x: auto; margin-top: 6px; border: 1px solid rgba(255,255,255,0.06); text-align: left; white-space: pre-wrap;">${err.stack}</pre>
+                            </details>
+                        ` : '<span style="color:#64748b;">No Stack</span>';
+
+                        tr.innerHTML = `
+                            <td style="text-align: center;"><span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-radius: 50%; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; font-family: monospace;">${err.count}</span></td>
+                            <td style="color: #f1f5f9; font-weight: bold; font-family: monospace; white-space: pre-wrap;">${err.message}</td>
+                            <td style="color: #94a3b8; font-size: 12px; font-family: monospace;">${err.lastTime}</td>
+                            <td style="text-align: center; vertical-align: middle;">${stackDrawer}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="4" style="color: #64748b; text-align: center; padding: 20px;">No client-side errors reported. Deduplication is active.</td>
+                        </tr>
+                    `;
+                }
+            }
+
+            // Rolling performance chart data
+            historyData.push({
+                avgTick: data?.avgTickDuration || 0,
+                peakTick: data?.maxTickDuration || 0,
+                lag: data?.eventLoopLag || 0
+            });
+            if (historyData.length > 60) {
+                historyData.shift();
+            }
+
+            drawChart();
+        }
+
+        /**
+         * Main polling routine with AbortController timeout and re-entrancy lock.
+         * OPTIMIZATION: Enforces 3000ms request timeout and guards against overlapping async fetch executions.
+         */
+        async function updateStatsWithTimeout() {
+            if (isUpdating) return;
+            isUpdating = true;
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+            try {
+                const res = await fetch('/stats?_t=' + Date.now(), { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!res.ok) throw new Error(`HTTP status ${res.status}`);
+                const data = await res.json();
+
+                consecutiveFailures = 0;
+                if (DOM.connectionError) DOM.connectionError.style.display = 'none';
+
+                await updateStatsUI(data);
+            } catch (e) {
+                consecutiveFailures++;
+                if (consecutiveFailures >= 3 && DOM.connectionError) {
+                    DOM.connectionError.style.display = 'block';
+                }
+                console.error("Dashboard telemetry update failed:", e);
+            } finally {
+                clearTimeout(timeoutId);
+                isUpdating = false;
+            }
+        }
+
+        /**
+         * Lifecycle initialization runner preventing double-triggering across DOM states.
+         */
+        let started = false;
+        function startLoop() {
+            if (started) return;
+            started = true;
+            initDOMCache();
+            setInterval(updateStatsWithTimeout, 1000);
+            updateStatsWithTimeout();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startLoop);
+        } else {
+            startLoop();
+        }
     </script>
 </body>
 

@@ -1,8 +1,14 @@
 /**
- * server-loop.js
+ * @fileoverview server-loop.js - Authoritative Game Server Loop & State Engine
  *
- * This file is the new heart of the authoritative game server.
- * It manages all game state, player connections, physics, and socket events.
+ * @description
+ * This file is the core engine of the authoritative game server for TastyTails.net.
+ * It manages in-memory game state (players, world items, corpses, animals, crafting stations),
+ * runs fixed 30Hz tick physics and mechanics, parses Tiled collision maps and spatial grids,
+ * computes raycasted visibility polygons for anti-cheat AOI culling, and streams delta states over Socket.IO.
+ *
+ * Triggered by: Server startup (src/index.js), 30Hz tick loop, 1Hz digestion & anatomy timers,
+ * and Socket.IO client event listeners.
  */
 
 const fs = require('fs');
@@ -14,7 +20,6 @@ const Chats = require('./model/Chat');
 // Handlers
 const inventoryHandlers = require('./sockets/inventoryHandlers');
 const craftingHandlers = require('./sockets/craftingHandlers'); // Now returns { init, checkCraftingRange }
-const clothingData = require('./data/clothingData');
 
 const itemData = require('./data/itemData');
 const resourceNodeDefs = require('./data/resourceNodeData');
@@ -484,18 +489,20 @@ function initializeMap() {
                         // --- Animal System Check ---
                         if (props.isAnimal || combinedProps.isAnimal) {
                             const animalId = `${objectLayer.name}_${obj.id}`;
+                            const spawnX = obj.x + (obj.width ? obj.width / 2 : 16);
+                            const spawnY = obj.y;
 
                             // Create Server Animal
                             const animal = new Animal(
                                 animalId,
-                                obj.x,
-                                obj.y,
+                                spawnX,
+                                spawnY,
                                 combinedProps,
                                 (x, y) => checkPointCollision(x, y) // Pass point collision function
                             );
 
                             activeAnimals[animalId] = animal;
-                            log.info(`[Server] Spawning Animal: ${animalId}`);
+                            log.info(`[Server] Spawning Animal: ${animalId} at (${spawnX}, ${spawnY})`);
                             return; // Skip static object creation
                         }
 
@@ -1071,15 +1078,22 @@ function checkHillHomeCollision(x, y) {
 /**
  * Evaluates whether a player steps on environmental ground hazard items.
  * Triggers item-defined damageOnStep effects (e.g. feet cuts from shards, feet burns from embers).
+ *
+ * OPTIMIZATION: Uses spatial hash grid lookup (getWorldItemsInArea) with a 64px safety boundary
+ * to restrict checks to nearby items, replacing an O(P * I) sequential scan of all world items.
+ *
+ * @param {Object} player - The player object to evaluate
+ * @param {Object} io - The Socket.IO server instance
  */
 function checkGroundItemHazards(player, io) {
-    if (!player || player.isDead || !worldItems || worldItems.length === 0) return;
+    if (!player || player.isDead) return;
 
     const now = Date.now();
     if (!player.hazardCooldowns) player.hazardCooldowns = {};
 
-    for (let i = 0; i < worldItems.length; i++) {
-        const worldItem = worldItems[i];
+    const nearbyItems = module.exports.getWorldItemsInArea(player.position.x, player.position.y, 64);
+    for (let i = 0; i < nearbyItems.length; i++) {
+        const worldItem = nearbyItems[i];
         if (!worldItem) continue;
 
         const def = resolveItemDef(worldItem, itemData);
@@ -1337,14 +1351,10 @@ function updatePlayerShadows(io) {
                 const px = player.position.x;
                 const py = player.position.y;
 
-                relevantSegments.push(
-                    [[px - boxSize, py - boxSize], [px + boxSize, py - boxSize]],
-                    [[px + boxSize, py - boxSize], [px + boxSize, py + boxSize]],
-                    [[px + boxSize, py + boxSize], [px - boxSize, py + boxSize]],
-                    [[px - boxSize, py + boxSize], [px - boxSize, py - boxSize]]
-                );
+                const minCorner = [px - boxSize, py - boxSize];
+                const maxCorner = [px + boxSize, py + boxSize];
 
-                const polygon = VisibilityPolygon.compute(pos, relevantSegments);
+                const polygon = VisibilityPolygon.computeViewport(pos, relevantSegments, minCorner, maxCorner);
                 player.visibilityPolygon = polygon;
                 player.lastShadowCalcPosition = { x: player.position.x, y: player.position.y };
             }
@@ -1433,24 +1443,24 @@ function gameLoop(io) {
     const tAiStart = performance.now();
     const animalUpdates = {};
     if (Object.keys(activeAnimals).length > 0) {
+        const activePlayerList = Object.values(players);
+
         Object.values(activeAnimals).forEach(animal => {
-            // [OPTIMIZATION] Culling: Skip update if no players are nearby (1500px buffer)
-            // This prevents CPU usage for animals in empty parts of the map.
-            const nearbyPlayers = getPlayersInRange(animal.x, animal.y, 1500);
-            if (nearbyPlayers.length === 0) return;
+            // [OPTIMIZATION] Culling: Skip update if no players are active or nearby (2000px buffer)
+            if (activePlayerList.length === 0) return;
+            const hasNearbyPlayer = activePlayerList.some(p => p.position && Math.hypot(p.position.x - animal.x, p.position.y - animal.y) <= 2000);
+            if (!hasNearbyPlayer) return;
 
             if (animal.update) {
                 const oldX = animal.x;
                 const oldY = animal.y;
                 const oldState = animal.state;
+                const oldSheared = animal.isSheared;
 
                 animal.update(delta);
 
-                // Check for changes (Delta compression or just send all moving ones)
-                // Sending all moving/state-changed animals is safer for now.
-                // Or just send ALL animals that are active? No, bandwidth.
-                // Send if position changed or state changed.
-                if (Math.abs(animal.x - oldX) > 0.1 || Math.abs(animal.y - oldY) > 0.1 || animal.state !== oldState) {
+                // Check for changes (position, AI state, or wool regrowth state)
+                if (animal.x !== oldX || animal.y !== oldY || animal.state !== oldState || animal.isSheared !== oldSheared) {
                     animalUpdates[animal.id] = animal.getData();
                 }
             }
@@ -1459,22 +1469,19 @@ function gameLoop(io) {
 
     // Broadcast Animal Updates (Optimized AOI)
     if (Object.keys(animalUpdates).length > 0) {
-        // Instead of Global Broadcast, we filter per-player.
-        // For small player counts, O(Players * MovingAnimals) is fine.
         const connectedSocketIds = Object.keys(players);
 
         connectedSocketIds.forEach(socketId => {
             const player = players[socketId];
-            if (!player) return;
+            if (!player || !player.position) return;
 
             const relevantUpdates = {};
             let hasUpdates = false;
 
             for (const [animId, animData] of Object.entries(animalUpdates)) {
-                // Ensure animData has position (getData should return it)
                 if (animData.x !== undefined && animData.y !== undefined) {
-                    const dist = Math.sqrt(Math.pow(player.position.x - animData.x, 2) + Math.pow(player.position.y - animData.y, 2));
-                    if (dist < 1200) { // View Distance (slightly larger than 1000 for fade in)
+                    const dist = Math.hypot(player.position.x - animData.x, player.position.y - animData.y);
+                    if (dist < 2500) { // Extended view distance buffer for continuous tracking
                         relevantUpdates[animId] = animData;
                         hasUpdates = true;
                     }
@@ -1515,7 +1522,7 @@ function gameLoop(io) {
     if (Object.keys(activeResourceNodes).length > 0) {
         Object.values(activeResourceNodes).forEach(node => {
             const def = resourceNodeDefs[node.type];
-            if (def && node.capacity < def.maxCapacity) {
+            if (def && def.regrowable !== false && def.regrowTime < 999999 && node.capacity < def.maxCapacity) {
                 node.regrowTimer += delta;
                 if (node.regrowTimer >= def.regrowTime) {
                     node.capacity += 1;
@@ -1826,6 +1833,7 @@ function gameLoop(io) {
  */
 function getCommonPlayerState(player) {
     return {
+        _id: player._id ? player._id.toString() : null,
         Identifier: player.Identifier,
         playerId: player.playerId,
         socketId: player.socketId,
@@ -1854,7 +1862,7 @@ function getCommonPlayerState(player) {
         tail: player.tail,
         eyes: player.eyes,
         ear: player.ear,
-        genitles: player.genitles,
+        genitals: player.genitals || player.genitles,
         beak: player.beak,
         headAccessories: player.headAccessories,
 
@@ -1911,6 +1919,16 @@ function getUpdatePacketForOther(player) {
 }
 // --- Snapshot & Delta Helpers ---
 
+/**
+ * Creates a shallow/one-level deep snapshot clone of a player object for state compression.
+ *
+ * OPTIMIZATION: Uses 1-level slot shallow copying for p.equipment instead of JSON.parse(JSON.stringify).
+ * This eliminates thousands of transient object allocations per second during 30Hz game loop ticks,
+ * preventing V8 Garbage Collection (GC) pauses while maintaining reference isolation for delta checks.
+ *
+ * @param {Object} p - The player object to snapshot
+ * @returns {Object} A cloned player snapshot object
+ */
 function clonePacketForSnapshot(p) {
     // OPTIMIZATION: Manual Shallow Clone + One-Level Deep for Mutable Props
     // Much faster than JSON.parse(JSON.stringify)
@@ -1922,12 +1940,14 @@ function clonePacketForSnapshot(p) {
     if (p.input) clone.input = { ...p.input };
     if (p.actionHands) clone.actionHands = { ...p.actionHands };
 
-    // These might differ, but often standard arrays/objects. 
-    // JSON parse/stringify is still safest/easiest for deep structures like equipment 
-    // without writing a full deepClone function, but we only do it for specific fields.
-    if (p.equipment) clone.equipment = JSON.parse(JSON.stringify(p.equipment));
-    // Note: If Equipment has nested objects, Spread is shallow. 
-    // But currently equipment is mostly flat key-val (head: 'sprite', etc).
+    if (p.equipment) {
+        const clonedEq = {};
+        for (const slot in p.equipment) {
+            const item = p.equipment[slot];
+            clonedEq[slot] = item ? (typeof item === 'object' ? { ...item } : item) : null;
+        }
+        clone.equipment = clonedEq;
+    }
 
     if (p.voreTypes) clone.voreTypes = [...p.voreTypes]; // Array shallow copy
 
@@ -1967,16 +1987,9 @@ function getPacketDelta(oldObj, newObj) {
         else if (key === 'stats' || key === 'equipment' || key === 'clothing' || key === 'voreTypes') {
             // These change rarely (relative to position) or are complex. 
             // If reference mismatch, perform check.
-            // Using JSON here is acceptable as these updates are rare compared to position.
             const oldStr = JSON.stringify(oldVal);
             const newStr = JSON.stringify(newVal);
             if (oldStr !== newStr) {
-                if (key === 'stats') {
-                    // log.debug(`[StatsDiff] Old: ${oldStr} | New: ${newStr}`);
-                    // Temporary log to console to inspect
-                    console.log(`[StatsDiff] Old: ${oldStr}`);
-                    console.log(`[StatsDiff] New: ${newStr}`);
-                }
                 delta[key] = newVal;
                 hasChanges = true;
             }
@@ -2076,7 +2089,7 @@ module.exports.start = (io, _messageSystem) => {
             eyes: { outer: 'eyes_01', iris: 'eyes_02', color: '0xfcf2f2' },
             hair: { sprite: 'empty', color: '0x636363' },
             ear: { outerSprite: 'empty', innerSprite: 'empty', outerColor: '0xe0e0e0', innerColor: '0x636363' },
-            genitles: { sprite: 'empty', secondarySprite: 'empty' },
+            genitals: { sprite: 'empty', secondarySprite: 'empty' },
             beak: { sprite: 'empty', color: '0xe0e0e0' },
             headAccessories: { sprite: 'empty', color: '0xe0e0e0' },
             spiritSprite: {},
@@ -2090,7 +2103,9 @@ module.exports.start = (io, _messageSystem) => {
 
             if (charId) {
                 try {
-                    const user = await User.findOne({ 'characters._id': charId });
+                    const user = await User.findOne({ 'characters._id': charId }, { 'characters.$': 1 });
+                    // SAFETY GUARD: Prevent memory leak race condition if socket disconnected during async DB query
+                    if (!players[socket.id]) return;
                     if (user) {
                         const character = user.characters.id(charId);
                         if (character) {
@@ -2196,7 +2211,7 @@ module.exports.start = (io, _messageSystem) => {
                     outerColor: '0xe0e0e0',
                     innerColor: '0x636363'
                 },
-                genitles: characterData ? characterData.genitles : {
+                genitals: characterData ? (characterData.genitals || characterData.genitles) : {
                     sprite: 'empty',
                     secondarySprite: 'empty'
                 },
@@ -2273,7 +2288,7 @@ module.exports.start = (io, _messageSystem) => {
 
             if (clientUpdated && clientSnapshot) {
                 // Restore cosmetic fields from client snapshot
-                const cosmeticFields = ['head', 'body', 'hands', 'feet', 'tail', 'eyes', 'hair', 'ear', 'genitles', 'beak', 'headAccessories'];
+                const cosmeticFields = ['head', 'body', 'hands', 'feet', 'tail', 'eyes', 'hair', 'ear', 'genitals', 'beak', 'headAccessories'];
                 cosmeticFields.forEach(field => {
                     if (clientSnapshot[field]) {
                         players[socket.id][field] = clientSnapshot[field];
@@ -2336,6 +2351,24 @@ module.exports.start = (io, _messageSystem) => {
             socket.emit('resourceNodeStates', activeNodesPayload);
         }
 
+        // Send initial active animals snapshot to newly connected player
+        if (activeAnimals && Object.keys(activeAnimals).length > 0) {
+            const initialAnimalData = {};
+            for (const [aId, anim] of Object.entries(activeAnimals)) {
+                if (anim && anim.getData) {
+                    initialAnimalData[aId] = anim.getData();
+                }
+            }
+            if (Object.keys(initialAnimalData).length > 0) {
+                socket.emit('animalUpdates', initialAnimalData);
+            }
+        }
+
+        // Register new player in playerGrid for immediate spatial AOI queries
+        if (players[socket.id]) {
+            updatePlayerGrid(players[socket.id]);
+        }
+
         // Send current players to the new connection
         // FILTER: Only send players who are actually visible to the new connection
         const visiblePlayers = {};
@@ -2350,14 +2383,10 @@ module.exports.start = (io, _messageSystem) => {
             const px = newPlayer.position.x;
             const py = newPlayer.position.y;
 
-            relevantSegments.push(
-                [[px - boxSize, py - boxSize], [px + boxSize, py - boxSize]],
-                [[px + boxSize, py - boxSize], [px + boxSize, py + boxSize]],
-                [[px + boxSize, py + boxSize], [px - boxSize, py + boxSize]],
-                [[px - boxSize, py + boxSize], [px - boxSize, py - boxSize]]
-            );
+            const minCorner = [px - boxSize, py - boxSize];
+            const maxCorner = [px + boxSize, py + boxSize];
 
-            newPlayer.visibilityPolygon = VisibilityPolygon.compute(pos, relevantSegments);
+            newPlayer.visibilityPolygon = VisibilityPolygon.computeViewport(pos, relevantSegments, minCorner, maxCorner);
             newPlayer.lastShadowCalcPosition = { x: newPlayer.position.x, y: newPlayer.position.y };
         }
 
@@ -2468,13 +2497,62 @@ module.exports.start = (io, _messageSystem) => {
             }
         };
 
+        // --- INTERACTION & MOVEMENT HANDLERS ---
+        // Extracted to src/sockets/interactionHandlers.js
+        const initInteractionHandlers = require('./sockets/interactionHandlers');
+        // Note: We pass TILE_SIZE (32) and craftingStations
+        initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid, activeResourceNodes, removeItemFromGrid);
+
+        // --- ITEM & INVENTORY HANDLERS ---
+        // Extracted to src/sockets/inventoryHandlers.js
+        const initInventoryHandlers = require('./sockets/inventoryHandlers');
+        // Pass sync helpers to inventory handlers
+        initInventoryHandlers(io, socket, players, worldItems, saveCharacter, itemData, addItemToGrid, removeItemFromGrid);
+
+        // --- CRAFTING HANDLERS ---
+        const initCraftingHandlers = require('./sockets/craftingHandlers');
+        // Initialize Handlers
+        initCraftingHandlers.init(io, socket, players, itemData, saveCharacter, craftingStations, worldItems, module.exports.broadcastToVisible, getUpdatePacketForSelf);
+
+        // --- Player Disconnect Cleanup ---
         socket.on('disconnect', async () => {
             log.info(`Player disconnected: ${socket.id}`);
-            await saveCharacter(socket.id);
-            removePlayerFromGrid(players[socket.id]); // Clean up spatial grid
-            untrackVictim(socket.id); // Optimization: Remove from digestion list
-            delete players[socket.id];
-            io.emit('removePlayer', socket.id);
+            const player = players[socket.id];
+
+            // 1. Force immediate character save on disconnect
+            try {
+                await saveCharacter(socket.id, true);
+            } catch (err) {
+                log.error(`Error saving character on disconnect for socket ${socket.id}:`, err);
+            }
+
+            // 2. Release any held players if this player was holding someone
+            try {
+                if (player) {
+                    Object.values(players).forEach(other => {
+                        if (other && other.heldBySocketId === socket.id) {
+                            other.isHeld = false;
+                            other.heldBySocketId = null;
+                        }
+                    });
+                }
+            } catch (err) {
+                log.error(`Error releasing held players on disconnect for ${socket.id}:`, err);
+            }
+
+            // 3. Clean up spatial grid and digestion tracking
+            try {
+                if (player) {
+                    removePlayerFromGrid(player);
+                }
+                untrackVictim(socket.id);
+            } catch (err) {
+                log.error(`Error cleaning up spatial grid / digestion on disconnect for ${socket.id}:`, err);
+            } finally {
+                // 4. GUARANTEED Cleanup: Delete player from server memory & notify clients
+                delete players[socket.id];
+                io.emit('removePlayer', socket.id);
+            }
         });
 
         // --- Player Input Handling ---
@@ -2577,23 +2655,6 @@ module.exports.start = (io, _messageSystem) => {
             }
         });
 
-        // --- INTERACTION & MOVEMENT HANDLERS ---
-        // Extracted to src/sockets/interactionHandlers.js
-        const initInteractionHandlers = require('./sockets/interactionHandlers');
-        // Note: We pass TILE_SIZE (32) and craftingStations
-        initInteractionHandlers(io, socket, players, messageSystem, collisionMap, 32, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid, activeResourceNodes, removeItemFromGrid);
-
-        // --- ITEM & INVENTORY HANDLERS ---
-        // Extracted to src/sockets/inventoryHandlers.js
-        const initInventoryHandlers = require('./sockets/inventoryHandlers');
-        // Pass sync helpers to inventory handlers
-        initInventoryHandlers(io, socket, players, worldItems, saveCharacter, clothingData, itemData, addItemToGrid, removeItemFromGrid);
-
-        // --- CRAFTING HANDLERS ---
-        const initCraftingHandlers = require('./sockets/craftingHandlers');
-        // Initialize Handlers
-        // Initialize Handlers
-        initCraftingHandlers.init(io, socket, players, itemData, saveCharacter, craftingStations, worldItems, module.exports.broadcastToVisible, getUpdatePacketForSelf);
 
         socket.on('pickUpClicked', (clicked) => {
             try {
@@ -2857,7 +2918,14 @@ module.exports.start = (io, _messageSystem) => {
         // --- Use compiled recipes from craftingHandlers ---
         const recipes = craftingHandlers.recipes;
 
-                socket.on('playerHandClicked', (data) => {
+        const SEED_TO_PLANT = {
+            'seed_indigo': 'plant_indigo_node',
+            'seed_madder_root': 'plant_madder_root_node',
+            'seed_weld': 'plant_weld_node',
+            'seed_potato': 'plant_potato_node'
+        };
+
+        socket.on('playerHandClicked', (data) => {
             try {
                 const { hand, clickedItem, playerIntent, targetZone, pointerX, pointerY } = data;
                 const player = players[socket.id];
@@ -2941,7 +3009,62 @@ module.exports.start = (io, _messageSystem) => {
                             return;
                         }
 
+                        // --- Farming Interactions on World Soil Items ---
+                        // WATERING DRY SOIL
+                        if (worldItem.itemId === 'tilled_soil_dry' && activeNode && activeNode.itemId === 'tool_watering_can') {
+                            worldItem.itemId = 'tilled_soil_watered';
+                            worldItem.name = 'Watered Tilled Soil';
+                            worldItem.texture = 'tilled_soil_watered';
+                            if (!worldItem.properties) worldItem.properties = {};
+                            worldItem.properties.soilState = 'watered';
+
+                            io.emit('itemUpdated', worldItem);
+                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', 'You water the tilled soil.', null, [], 'local', socket);
+                            log.info(`[Farming] Soil watered by ${player.Username} at (${worldItem.x}, ${worldItem.y}) with ${activeHand} hand`);
+                            return;
+                        }
+                        // PLANTING SEEDS
+                        else if (worldItem.itemId === 'tilled_soil_watered' && activeNode && SEED_TO_PLANT[activeNode.itemId]) {
+                            const seedId = activeNode.itemId;
+                            const plantId = SEED_TO_PLANT[seedId];
+
+                            // Consume seed from active hand
+                            if (activeHand === 'left') player.actionHands.leftNode = null;
+                            else player.actionHands.rightNode = null;
+
+                            // Transform soil
+                            worldItem.itemId = 'tilled_soil_planted';
+                            worldItem.name = 'Planted Tilled Soil';
+                            worldItem.texture = 'tilled_soil_planted';
+                            if (!worldItem.properties) worldItem.properties = {};
+                            worldItem.properties.soilState = 'planted';
+                            worldItem.properties.plantedTime = Date.now();
+                            worldItem.properties.plantId = plantId;
+
+                            io.emit('itemUpdated', worldItem);
+                            io.emit('playerStateUpdate', { [socket.id]: getSafePlayerState(player) });
+                            saveCharacter(socket.id);
+
+                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', `You plant the ${itemData[seedId]?.name || 'seed'}.`, null, [], 'local', socket);
+                            log.info(`[Farming] Seed ${seedId} planted by ${player.Username} at (${worldItem.x}, ${worldItem.y}) with ${activeHand} hand`);
+                            return;
+                        }
+
                         const def = resolveItemDef(worldItem, itemData);
+
+                        // HARVESTING SPROUTED CROPS
+                        if (def && def.gatherable) {
+                            const interactData = { type: 'resourceNode', id: clickedItem.uniqueId, action: 'gather', hand: activeHand };
+                            socket.listeners('objectInteract').forEach(listener => {
+                                try {
+                                    listener(interactData);
+                                } catch (e) {
+                                    log.error('Error invoking objectInteract listener for crop harvest:', e);
+                                }
+                            });
+                            return;
+                        }
+
                         if (def && def.preventPickup) {
                             return;
                         }
@@ -2999,7 +3122,14 @@ module.exports.start = (io, _messageSystem) => {
                             const reqTool = def.interactType;
                             let toolMatched = false;
                             
-                            if (reqTool === 'mine' && activeNode && activeNode.itemId === 'tool_pickaxe') toolMatched = true;
+                            if (def.gatherTool && def.gatherTool !== 'none') {
+                                if (activeNode && activeNode.itemId === def.gatherTool) toolMatched = true;
+                                else {
+                                    const toolName = itemData[def.gatherTool] ? itemData[def.gatherTool].name : 'appropriate tool';
+                                    if (messageSystem) messageSystem.sendSystemMessage('Interactional', `You need to hold a ${toolName} to harvest this.`, null, [], 'local', socket);
+                                    return;
+                                }
+                            } else if (reqTool === 'mine' && activeNode && activeNode.itemId === 'tool_pickaxe') toolMatched = true;
                             else if (reqTool === 'chop' && activeNode && activeNode.itemId === 'tool_axe') toolMatched = true;
                             else if (reqTool === 'gather') toolMatched = true;
 
@@ -3183,16 +3313,31 @@ module.exports.start = (io, _messageSystem) => {
                             actions.push('Haunt');
                         }
 
+                        // --- Check for Active Animal ---
+                        const animalTarget = activeAnimals[clickedItem.uniqueId] ||
+                                             activeAnimals[clickedItem.uniqueId?.toLowerCase()] ||
+                                             Object.values(activeAnimals).find(a => 
+                                                 a.id === clickedItem.uniqueId || 
+                                                 a.id.toLowerCase() === (clickedItem.uniqueId || '').toLowerCase() || 
+                                                 a.id.endsWith(`_${clickedItem.uniqueId}`)
+                                             );
+
                         // --- Check for Dynamic Item (World Item) ---
                         const worldItem = worldItems.find(i => i.uid === clickedItem.uniqueId);
 
                         // Log matching attempt
-                        log.debug(`[RightClick] Checking MapObject ${clickedItem.uniqueId}. isWorldItem? ${!!worldItem}`);
+                        log.debug(`[RightClick] Checking MapObject ${clickedItem.uniqueId}. isAnimal? ${!!animalTarget}. isWorldItem? ${!!worldItem}`);
 
                         let name = clickedItem.name;
                         let description = clickedItem.description;
 
-                        if (worldItem) {
+                        if (animalTarget) {
+                            name = animalTarget.properties.name || 'Sheep';
+                            description = animalTarget.isSheared ? `A sheared ${name.toLowerCase()}.` : `A fluffy ${name.toLowerCase()}.`;
+                            if (!requestingPlayer.isDead) {
+                                actions.push('Gather');
+                            }
+                        } else if (worldItem) {
                             const def = resolveItemDef(worldItem, itemData);
                             // Log definition
                             log.debug(`[RightClick] WorldItemDef: ${JSON.stringify(def)}`);
@@ -3214,7 +3359,7 @@ module.exports.start = (io, _messageSystem) => {
                         responseInfo.push({
                             name: name,
                             Identifier: 'mapObject',
-                            uniqueId: clickedItem.uniqueId,
+                            uniqueId: animalTarget ? animalTarget.id : clickedItem.uniqueId,
                             description: description,
                             availableActions: actions
                         });
@@ -3301,13 +3446,6 @@ module.exports.start = (io, _messageSystem) => {
         });
 
         // --- On Left Click get list of all targets clicked and player intent ---
-        const SEED_TO_PLANT = {
-            'seed_indigo': 'plant_indigo_node',
-            'seed_madder_root': 'plant_madder_root_node',
-            'seed_weld': 'plant_weld_node',
-            'seed_potato': 'plant_potato_node'
-        };
-
         socket.on('playerLeftClicked', (data) => {
             try {
                 const { clickedList, playerIntent, pointerX, pointerY, hand } = data;
@@ -3535,9 +3673,6 @@ module.exports.start = (io, _messageSystem) => {
     setInterval(() => {
         try {
             const start = performance.now();
-
-            // Update Animals (Server A.I.)
-            updateAnimals(1 / TICK_RATE);
 
             const stats = gameLoop(io);
             const end = performance.now();
@@ -3920,27 +4055,4 @@ module.exports.getZoneAt = getZoneAt;
 module.exports.getAvailableZones = getAvailableZones;
 module.exports.checkPointCollision = checkPointCollision;
 
-// --- Animal Update Loop ---
-function updateAnimals(delta) {
-    const animalPackets = {};
-    let hasUpdates = false;
 
-    if (!activeAnimals) return;
-
-    Object.keys(activeAnimals).forEach(id => {
-        const animal = activeAnimals[id];
-        animal.update(delta);
-        animalPackets[id] = {
-            id: animal.id,
-            x: animal.x,
-            y: animal.y,
-            state: animal.state,
-            properties: animal.properties
-        };
-        hasUpdates = true;
-    });
-
-    if (hasUpdates && ioGlobal) {
-        ioGlobal.emit('animalUpdates', animalPackets);
-    }
-}

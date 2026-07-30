@@ -8,11 +8,40 @@
  */
 
 /**
- * resourceNodeData.js
- * Source of truth for interactive environment objects (trees, rocks, plants, etc.).
- * Shared by server (physics/state) and client (preloading/visuals).
+ * @fileoverview Centralized Static Resource Node Registry (`resourceNodeData.js`)
+ * 
+ * @description
+ * Primary single source of truth for interactive environment objects (trees, rocks, agricultural crops).
+ * Shared across the server loop (physics body collision, distance checks, harvest mechanics, regrowth timers)
+ * and the client engine (spritesheet preloading, map collision offset calculation, layered crop rendering).
+ * 
+ * @typedef {Object} ResourceNodeDefinition
+ * @property {string} name - Human-readable display name.
+ * @property {string} description - Flavor text description for examine UI.
+ * @property {number} [frameWidth] - Spritesheet tile width for Phaser asset preloader.
+ * @property {number} [frameHeight] - Spritesheet tile height for Phaser asset preloader.
+ * @property {number} [bodyWidth] - Phaser arcade physics body collision width.
+ * @property {number} [bodyHeight] - Phaser arcade physics body collision height.
+ * @property {number} [bodyOffsetY] - Vertical offset to align physics body with base of sprite.
+ * @property {string} interactType - Interaction action identifier ('gather', 'mine', 'chop').
+ * @property {string} gatherItem - Inventory item ID awarded upon harvesting.
+ * @property {string} [gatherSeed] - Optional seed item ID dropped during harvest.
+ * @property {string} gatherTool - Required tool item ID ('tool_pickaxe', 'none').
+ * @property {number} maxCapacity - Maximum harvest capacity before node is depleted.
+ * @property {number} regrowTime - Regrowth interval in seconds per capacity unit.
+ * @property {boolean} [regrowable=true] - OPTIMIZATION: Set false for single-use crops to bypass server tick timer loops.
+ * @property {boolean} [skipPreload=false] - OPTIMIZATION: Set true for layered nodes to avoid non-existent tilemap 404s in preloader.
+ * @property {Object.<number, number>} capacityFrames - Map of remaining capacity to spritesheet frame index.
+ * @property {boolean} [preventPickup] - Prevents object from being picked up directly into inventory.
+ * @property {boolean} [isGround] - Indicates object rests flat on the ground plane.
+ * @property {boolean} [gatherable] - Enables gather interaction flag.
+ * @property {Object} [rendering] - Composite layer rendering rules (e.g. soil + crop sprite).
  */
-export default {
+
+export default Object.freeze({
+    // =========================================================================
+    // TREES & NATURAL HARVESTABLE NODES
+    // =========================================================================
     'tree_orange': {
         name: 'Orange Tree',
         description: 'A vibrant orange tree heavy with ripe fruit.',
@@ -45,7 +74,7 @@ export default {
         bodyOffsetY: 5,
         interactType: 'gather',
         gatherItem: 'ore_iron',
-        gatherTool: 'tool_pickaxe',
+        gatherTool: 'tool_pickaxe', // Enforced by interactionHandlers.js and server-loop.js
         maxCapacity: 5,
         regrowTime: 60, // Regrows 1 capacity every 60 seconds
         capacityFrames: {
@@ -57,6 +86,10 @@ export default {
             0: 5
         }
     },
+
+    // =========================================================================
+    // AGRICULTURAL CROPS (Layered rendering, non-regrowable single harvest)
+    // =========================================================================
     'plant_indigo_node': {
         name: 'Indigo Plant',
         description: 'A mature indigo plant ready for harvest.',
@@ -66,6 +99,9 @@ export default {
         gatherTool: 'none',
         maxCapacity: 1,
         regrowTime: 999999,
+        // OPTIMIZATION: Bypasses server tick loop and skips non-existent preloader tilemaps
+        regrowable: false,
+        skipPreload: true,
         capacityFrames: { 1: 0, 0: 0 },
         preventPickup: true,
         isGround: true,
@@ -87,6 +123,9 @@ export default {
         gatherTool: 'none',
         maxCapacity: 1,
         regrowTime: 999999,
+        // OPTIMIZATION: Bypasses server tick loop and skips non-existent preloader tilemaps
+        regrowable: false,
+        skipPreload: true,
         capacityFrames: { 1: 0, 0: 0 },
         preventPickup: true,
         isGround: true,
@@ -108,6 +147,9 @@ export default {
         gatherTool: 'none',
         maxCapacity: 1,
         regrowTime: 999999,
+        // OPTIMIZATION: Bypasses server tick loop and skips non-existent preloader tilemaps
+        regrowable: false,
+        skipPreload: true,
         capacityFrames: { 1: 0, 0: 0 },
         preventPickup: true,
         isGround: true,
@@ -129,6 +171,9 @@ export default {
         gatherTool: 'none',
         maxCapacity: 1,
         regrowTime: 999999,
+        // OPTIMIZATION: Bypasses server tick loop and skips non-existent preloader tilemaps
+        regrowable: false,
+        skipPreload: true,
         capacityFrames: { 1: 0, 0: 0 },
         preventPickup: true,
         isGround: true,
@@ -141,4 +186,4 @@ export default {
             ]
         }
     }
-};
+});

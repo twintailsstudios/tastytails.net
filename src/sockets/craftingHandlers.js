@@ -1,6 +1,20 @@
+/**
+ * @fileoverview craftingHandlers.js - Server-Side Crafting Station Socket Handlers & Range Guard
+ * 
+ * @description
+ * Manages player interactions with world crafting stations over WebSockets, including:
+ * - Recipe compilation (merging recipes.js and inline itemData.js recipe definitions)
+ * - Station inventory management (depositing from pockets/hands, retrieving to hands)
+ * - Resumable crafting timers, exclusive station locks (activeCrafterId), and dynamic item creation into output cooling racks
+ * - Distance-based auto-pausing (checkCraftingRange) called per tick from server-loop.js
+ * - Socket disconnect safeguards to prevent dangling timers and station lock stalls
+ */
+
 const log = require('../logger');
 const { resolveHand, getHandItem, setHandItem, clearHandItem } = require('./utils/handUtils');
 const itemData = require('../data/itemData');
+// OPTIMIZATION: Hoisted to top-level module scope to avoid per-craft dynamic require overhead
+const { createDynamicItem } = require('../utils/itemUtils');
 let recipes = {};
 
 try {
@@ -25,7 +39,7 @@ try {
                     ingredients: def.recipe.ingredients,
                     result: def.recipe.result || { itemId: itemId, count: def.recipe.count || 1 },
                     time: def.recipe.time || 3000,
-                    icon: def.recipe.icon || def.icon || 'fa-solid fa-cube',
+                    icon: def.recipe.icon || def.icon || 'fa-solid fa-box-open',
                     validateOnly: def.recipe.validateOnly || false,
                     customData: def.recipe.customData || undefined
                 });
@@ -43,10 +57,34 @@ try {
     log.warn('[Crafting] Failed to load craftingStations.js', e);
 }
 
-// Main Socket Initializer
+/**
+ * Initializes crafting socket event listeners for a connected client socket.
+ * 
+ * @param {Object} io - SocketIO server instance
+ * @param {Object} socket - Active client socket instance
+ * @param {Object} players - Global players dictionary keyed by socket ID
+ * @param {Object} itemData - Item definitions data object
+ * @param {Function} saveCharacter - Function to persist player character state to DB
+ * @param {Object} craftingStations - Global active crafting stations object
+ * @param {Object} worldItems - Global world items object
+ * @param {Function} [broadcastToVisible] - Helper function to broadcast events to visible spatial grid observers
+ * @param {Function} [getPacket] - Helper function to extract sanitized player state payload
+ */
 const init = function (io, socket, players, itemData, saveCharacter, craftingStations, worldItems, broadcastToVisible, getPacket) {
     const logPrefix = `[Crafting:${socket.id}]`;
     // log.info(`${ logPrefix } Initialized crafting handlers`); // verbose but useful for debug
+
+    // Centralized player state sync helper
+    const syncPlayerState = () => {
+        const player = players[socket.id];
+        if (!player) return;
+        const safePlayer = getPacket ? getPacket(player) : player;
+        if (broadcastToVisible) {
+            broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
+        } else {
+            io.emit('playerStateUpdate', { [socket.id]: safePlayer });
+        }
+    };
 
     // 1. Open Crafting UI Request
     socket.on('openCrafting', (data) => {
@@ -84,12 +122,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
                         log.info(`${logPrefix} Auto-deposited ${depositedItem.name} into station ${stationId} during openCrafting`);
 
                         // Update Player Visuals (Hands)
-                        const safePlayer = getPacket ? getPacket(player) : player;
-                        if (broadcastToVisible) {
-                            broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
-                        } else {
-                            io.emit('playerStateUpdate', { [socket.id]: safePlayer });
-                        }
+                        syncPlayerState();
                         saveCharacter(socket.id);
                     }
                 }
@@ -148,7 +181,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
                 }
             } else {
                 // Default: Deposit from specified Hand
-                const targetHand = resolveHand(hand || player.actionHands?.activeHand);
+                const targetHand = resolveHand(hand, player);
                 const handItem = getHandItem(player, targetHand);
 
                 if (handItem) {
@@ -181,12 +214,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             });
 
             // Update Player Visuals (Hands or Equipment)
-            const safePlayer = getPacket ? getPacket(player) : player;
-            if (broadcastToVisible) {
-                broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
-            } else {
-                io.emit('playerStateUpdate', { [socket.id]: safePlayer });
-            }
+            syncPlayerState();
             saveCharacter(socket.id);
 
             log.info(`${logPrefix} Deposited ${depositedItem.name} into ${stationId}`);
@@ -235,7 +263,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             }
 
             // Check if target hand is empty
-            const targetHand = resolveHand(hand || player.actionHands?.activeHand);
+            const targetHand = resolveHand(hand, player);
             const handNode = getHandItem(player, targetHand);
 
             if (handNode) {
@@ -260,12 +288,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             });
 
             // Notify Player Update
-            const safePlayer = getPacket ? getPacket(player) : player;
-            if (broadcastToVisible) {
-                broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
-            } else {
-                io.emit('playerStateUpdate', { [socket.id]: safePlayer });
-            }
+            syncPlayerState();
             saveCharacter(socket.id);
 
             log.info(`${logPrefix} Retrieved ${item.name} into ${targetHand} hand from ${stationId}`);
@@ -450,12 +473,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             });
 
             // Broadcast crafting state to visible players
-            const safePlayer = getPacket ? getPacket(player) : player;
-            if (broadcastToVisible) {
-                broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
-            } else {
-                io.emit('playerStateUpdate', { [socket.id]: safePlayer });
-            }
+            syncPlayerState();
             log.info(`${logPrefix} Started crafting ${recipe.name} (${duration}ms)`);
 
             // Timer for completion
@@ -475,12 +493,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
                         players[socket.id].craftingTimer = null; // Clear ref
 
                         // Broadcast completion state
-                        const safePlayer = getPacket ? getPacket(players[socket.id]) : players[socket.id];
-                        if (broadcastToVisible) {
-                            broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
-                        } else {
-                            io.emit('playerStateUpdate', { [socket.id]: safePlayer });
-                        }
+                        syncPlayerState();
                     }
 
                     // Unlock Station
@@ -490,8 +503,6 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
                     }
 
                     // Spawn Result
-                    // [MODIFIED] Use Universal Factory
-                    const { createDynamicItem } = require('../utils/itemUtils');
 
                     // Merge Recipe Result Custom Data with Client Dynamic Data
                     const combinedCustomData = {
@@ -579,12 +590,7 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
         player.currentStationId = null;
 
         // Broadcast State
-        const safePlayer = getPacket ? getPacket(player) : player;
-        if (broadcastToVisible) {
-            broadcastToVisible(io, socket.id, 'playerStateUpdate', { [socket.id]: safePlayer });
-        } else {
-            io.emit('playerStateUpdate', { [socket.id]: safePlayer });
-        }
+        syncPlayerState();
 
         // Explicitly notify the client to stop the UI
         socket.emit('craftingPaused', {
@@ -592,9 +598,61 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
             recipeId: station && station.craftingState ? station.craftingState.recipeId : null
         });
     });
+
+    // 5. Disconnect Cleanup Safeguard
+    socket.on('disconnect', () => {
+        try {
+            const player = players[socket.id];
+            if (!player) return;
+
+            // Cancel active crafting timer
+            if (player.craftingTimer) {
+                clearTimeout(player.craftingTimer);
+                player.craftingTimer = null;
+            }
+
+            const stationId = player.currentStationId;
+            if (stationId && craftingStations[stationId]) {
+                const station = craftingStations[stationId];
+                if (station.activeCrafterId === socket.id) {
+                    // Release station lock
+                    station.activeCrafterId = null;
+
+                    // Save remaining progress to station if player was crafting
+                    if (player.isCrafting && player.currentCraftingRecipeId && player.craftingStartTime) {
+                        const elapsed = Date.now() - player.craftingStartTime;
+                        const remaining = Math.max(0, (player.craftingDuration || 0) - elapsed);
+                        station.craftingState = {
+                            recipeId: player.currentCraftingRecipeId,
+                            customCraftingData: player.currentCraftingCustomData,
+                            remainingTime: remaining
+                        };
+                        log.info(`${logPrefix} Disconnected mid-crafting. Saved paused progress (${remaining}ms) to station ${stationId}`);
+                    }
+                }
+            }
+
+            player.isCrafting = false;
+            player.craftingStartTime = null;
+            player.craftingDuration = null;
+            player.currentCraftingRecipeId = null;
+            player.currentStationId = null;
+        } catch (disconnectErr) {
+            log.error(`${logPrefix} Error cleaning up crafting state on disconnect:`, disconnectErr);
+        }
+    });
 };
 
-// Helper for Range Check (called from server-loop)
+/**
+ * Server-loop tick helper that validates player proximity to their active crafting station.
+ * Invoked per-player on every server tick loop iteration in server-loop.js.
+ * Automatically pauses crafting and persists progress if player moves > 180px away.
+ * 
+ * @param {string} socketId - Socket ID of the player
+ * @param {Object} player - Active player entity object
+ * @param {Object} io - SocketIO server instance
+ * @param {Object} craftingStations - Global active crafting stations dictionary
+ */
 const checkCraftingRange = (socketId, player, io, craftingStations) => {
     if (!player.isCrafting || !player.currentStationId) return;
 

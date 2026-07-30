@@ -1,3 +1,16 @@
+/**
+ * @fileoverview anatomy_forge.css - Design System & Component Stylesheet for Anatomy Forge
+ * 
+ * @description
+ * Complete stylesheet for the node-based visual graph editor in TastyTails.net.
+ * Provides dark-fantasy parchment textures, ink bezier curves, wax-seal buttons,
+ * socket highlight feedback, slide-in inspector drawers, and modal dialog overlays.
+ *
+ * OPTIMIZATION NOTES:
+ * - Isolated SVG fractal noise rasterization to non-blocking .af-wrapper::before GPU layer.
+ * - Hardware layer promotion (will-change: transform) on #af-world for 60 FPS canvas panning/zooming.
+ * - Un-nested .af-modal-box.danger-mode to match DOM hierarchy in partials/anatomy_forge.ejs.
+ */
 :root {
     /* Palette: Earth tones, ink, and parchment */
     --bg-parchment: #f4e4bc;
@@ -32,8 +45,7 @@
     /* Drag over invalid target */
 }
 
-/* Import Fonts: 'Cinzel' for headers (Fantasy feel), 'Lora' for body text (Readable serif) */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+/* Note: Google Fonts linked in HTML <head> for non-blocking parallel loading */
 
 /* Scope to the anatomy forge container to avoid global pollution if possible, 
    though some structural styles are generic. */
@@ -43,16 +55,25 @@
     height: 100%;
     /* Fixed height for the editor within the tab */
     background-color: var(--bg-parchment);
-    /* Texture: A subtle noise filter overlay + Vignette for depth */
-    background-image:
-        radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.2) 100%),
-        url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+    /* Texture: Vignette for depth; noise overlay isolated to ::before pseudo-layer */
+    background-image: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.2) 100%);
     font-family: 'Philosopher', sans-serif;
     color: var(--ink-primary);
     overflow: hidden;
     display: flex;
     position: relative;
     border: 4px solid var(--wood-dark);
+    contain: layout style paint;
+}
+
+/* Isolated static background noise layer (Non-blocking GPU hardware layer) */
+.af-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
 }
 
 .af-wrapper * {
@@ -137,6 +158,7 @@
     overflow: hidden;
     cursor: grab;
     background: transparent;
+    contain: layout style paint;
 }
 
 .af-canvas-container:active {
@@ -151,6 +173,7 @@
     width: 0;
     height: 0;
     transform-origin: 0 0;
+    will-change: transform;
 }
 
 /* SVG Layer for Bezier Connections */
@@ -532,15 +555,15 @@ path.af-connector-draft {
 
 .af-section-header {
     font-family: 'Cinzel', serif;
-    font-size: 0.8rem;
-    color: var(--accent-red);
-    margin-top: 15px;
-    margin-bottom: 8px;
-    border-bottom: 1px solid rgba(168, 74, 74, 0.3);
-    padding-bottom: 4px;
+    font-size: 11px;
     font-weight: bold;
+    color: var(--ink-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding-bottom: 2px;
 }
 
 .af-form-group {
@@ -662,18 +685,7 @@ path.af-connector-draft {
     color: white;
 }
 
-.af-section-header {
-    font-family: 'Cinzel', serif;
-    font-size: 11px;
-    font-weight: bold;
-    color: var(--ink-secondary);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 15px;
-    margin-bottom: 5px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    padding-bottom: 2px;
-}
+/* Section header consolidated above */
 
 /* --- UI CONTROLS --- */
 .af-hint-text {
@@ -842,46 +854,46 @@ path.af-connector-draft {
     gap: 8px;
     cursor: pointer;
     font-weight: bold;
+}
 
-    /* Modal Danger Mode */
-    .af-modal-box.danger-mode {
-        border-color: #ff4444;
-        box-shadow: 0 0 30px rgba(255, 68, 68, 0.3);
-    }
+/* Modal Danger Mode Component Overrides */
+.af-modal-box.danger-mode {
+    border-color: #ff4444;
+    box-shadow: 0 0 30px rgba(255, 68, 68, 0.3);
+}
 
-    .af-modal-box.danger-mode .af-modal-title {
-        color: #ff4444;
-        font-size: 1.5rem;
-        text-transform: uppercase;
-    }
+.af-modal-box.danger-mode .af-modal-title {
+    color: #ff4444;
+    font-size: 1.5rem;
+    text-transform: uppercase;
+}
 
-    .af-modal-box.danger-mode .af-modal-msg {
-        font-size: 1.1rem;
-        font-weight: bold;
-        color: #aa5555;
-        background: rgba(255, 200, 200, 0.2);
-        padding: 10px;
-        border-radius: 4px;
-        border: 1px solid #ffaaaa;
-    }
+.af-modal-box.danger-mode .af-modal-msg {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #aa5555;
+    background: rgba(255, 200, 200, 0.2);
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #ffaaaa;
+}
 
-    .af-modal-checkbox-container {
-        margin: 15px 0;
-        padding: 15px;
-        background: rgba(0, 0, 0, 0.05);
-        border: 1px solid #d4a356;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        color: #5d4a3a;
-        font-size: 0.9rem;
-        font-weight: bold;
-    }
+.af-modal-box.danger-mode .af-modal-checkbox-container {
+    margin: 15px 0;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid #d4a356;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #5d4a3a;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
 
-    /* Ensure checkbox is visible */
-    .af-modal-checkbox-container input[type="checkbox"] {
-        width: 20px;
-        height: 20px;
-    }
+/* Ensure checkbox is visible */
+.af-modal-checkbox-container input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
 }

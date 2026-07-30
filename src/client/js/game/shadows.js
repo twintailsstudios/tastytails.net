@@ -1,48 +1,127 @@
-import { compute } from '../lib/visibility-polygon.js';
+/**
+ * @fileoverview shadows.js - Client-Side Dynamic Line-of-Sight (LoS) & Fog of War System
+ * 
+ * @description
+ * Implements the ShadowSystem class for TastyTails.net, generating real-time dynamic light
+ * visibility polygons around the player character using spatial hash partitioning and
+ * sweep-line 2D raycasting. Renders a screen-fixed Phaser RenderTexture for Fog of War darkness.
+ * 
+ * Triggered by:
+ * - Map load / Socket segment updates: socket.on('mapSegments') -> setSegments()
+ * - Viewport resize events: Phaser.Scale.Events.RESIZE -> onResize()
+ * - Scene main loop: scene.update() -> ShadowSystem.update() (60 FPS tick)
+ */
 
+import { computeViewport } from '../lib/visibility-polygon.js';
+
+/**
+ * Configuration constants for the Shadow System.
+ * @type {Object}
+ */
+const SHADOW_CONFIG = {
+    GRID_SIZE: 400,
+    VIEW_DISTANCE: 1000,
+    LERP_FACTOR: 0.3,
+    SPEED_DEADZONE: 5,
+    PLAYER_OFFSET_X: 30,
+    FOG_COLOR: 0x000000,
+    FOG_ALPHA: 0.5,
+    DEPTH: 100,
+    MIN_BOUNDS: 16
+};
+
+/**
+ * Packs 2D cell grid coordinates (x, y) into a 32-bit integer key.
+ * OPTIMIZATION: Replaces string template concatenation (`${x},${y}`) to prevent per-frame GC allocations.
+ * Supports cell ranges from -32,768 to +32,767 (world bounds up to ±13,107,200 pixels).
+ * 
+ * @param {number} x - Grid cell X coordinate.
+ * @param {number} y - Grid cell Y coordinate.
+ * @returns {number} 32-bit packed integer key.
+ */
+function packCellKey(x, y) {
+    return (((x + 32768) & 0xffff) * 65536) + ((y + 32768) & 0xffff);
+}
+
+/**
+ * Manages dynamic 2D line-of-sight visibility and fog erasure.
+ */
 export class ShadowSystem {
+    /**
+     * @param {Phaser.Scene} scene - The active Phaser game scene instance.
+     */
     constructor(scene) {
-        // console.log('[ShadowSystem] Constructor called');
         this.scene = scene;
         this.renderTexture = null;
         this.polygonGraphics = null;
-        this.segments = []; // Store map segments from server
+        this.segments = []; // Store map obstacle line segments from server
+        this.segmentGrid = {}; // Client-side spatial hash index
+        this.SEGMENT_GRID_SIZE = SHADOW_CONFIG.GRID_SIZE;
 
-        this.segments = []; // Store map segments from server
-        this.segmentGrid = {}; // Client-side spatial hash
-        this.SEGMENT_GRID_SIZE = 400; // Match Server
+        // OPTIMIZATION: Allocation Pools & Caching to eliminate per-tick GC pressure
+        this._seenSegments = new Set();
+        this._relevantSegmentsBuffer = [];
+        this._posBuffer = [0, 0];
+        this._lastScrollX = null;
+        this._lastScrollY = null;
+        this.lastShadowPos = null;
+        this.isDirty = true; // Force render on first frame or map load
+
+        // OPTIMIZATION: Pre-allocated Bounding Box Segments Pool
+        this._bboxSegments = [
+            [[0, 0], [0, 0]], // Top
+            [[0, 0], [0, 0]], // Right
+            [[0, 0], [0, 0]], // Bottom
+            [[0, 0], [0, 0]]  // Left
+        ];
 
         this.init();
     }
 
+    /**
+     * Initializes the screen-sized RenderTexture, helper Graphics object, and event listeners.
+     */
     init() {
-        // 1. Create a Render Texture (Screen Size with minimum dimension bounds to prevent 0x0 Framebuffer error)
-        const width = Math.max(Math.floor(this.scene.scale.width || 800), 16);
-        const height = Math.max(Math.floor(this.scene.scale.height || 600), 16);
+        const width = Math.max(Math.floor(this.scene.scale.width || 800), SHADOW_CONFIG.MIN_BOUNDS);
+        const height = Math.max(Math.floor(this.scene.scale.height || 600), SHADOW_CONFIG.MIN_BOUNDS);
 
-        // DIRECTLY add the RenderTexture to the scene
+        // Screen-fixed RenderTexture overlaying dark fog across viewport
         this.renderTexture = this.scene.add.renderTexture(0, 0, width, height);
-        this.renderTexture.setOrigin(0, 0); // Top-left
-        this.renderTexture.setScrollFactor(0); // Sticks to camera
-        this.renderTexture.setDepth(100); // Overlay depth
+        this.renderTexture.setOrigin(0, 0);
+        this.renderTexture.setScrollFactor(0);
+        this.renderTexture.setDepth(SHADOW_CONFIG.DEPTH);
 
-        // 2. Helper Graphics to draw the polygon (not added to scene, just for drawing to RT)
         this.polygonGraphics = this.scene.make.graphics({ add: false });
 
-        // Handle Resize
         this.scene.scale.on('resize', this.onResize, this);
+
+        // SAFEGUARD: Bind cleanup to Phaser Scene Shutdown / Destroy events to prevent memory leaks
+        if (this.scene.events) {
+            this.scene.events.once('shutdown', this.destroy, this);
+            this.scene.events.once('destroy', this.destroy, this);
+        }
     }
 
+    /**
+     * Hydrates the system with map obstacle line segments received from the server.
+     * @param {Array<Array<Array<number>>>} segments - Array of 2D line segment coordinate pairs.
+     */
     setSegments(segments) {
         this.segments = segments;
         this.populateSegmentGrid(segments);
+        this.isDirty = true;
     }
 
+    /**
+     * Indexes map obstacle line segments into the spatial hash grid.
+     * @param {Array<Array<Array<number>>>} segments - Array of 2D line segment coordinate pairs.
+     */
     populateSegmentGrid(segments) {
         this.segmentGrid = {};
         if (!segments) return;
 
-        segments.forEach(seg => {
+        for (let s = 0; s < segments.length; s++) {
+            const seg = segments[s];
             const p1 = seg[0];
             const p2 = seg[1];
 
@@ -58,38 +137,56 @@ export class ShadowSystem {
 
             for (let y = startY; y <= endY; y++) {
                 for (let x = startX; x <= endX; x++) {
-                    const key = `${x},${y}`;
+                    const key = packCellKey(x, y);
                     if (!this.segmentGrid[key]) this.segmentGrid[key] = [];
                     this.segmentGrid[key].push(seg);
                 }
             }
-        });
+        }
     }
 
+    /**
+     * Fast spatial query returning unique line segments within range of observer position.
+     * OPTIMIZATION: Uses internal reusable array buffer to avoid per-frame allocations.
+     * 
+     * @param {number} x - Target world X coordinate.
+     * @param {number} y - Target world Y coordinate.
+     * @param {number} range - Query radius in world units (pixels).
+     * @returns {Array<Array<Array<number>>>} Reusable array buffer of nearby line segments.
+     */
     getSegmentsInRange(x, y, range) {
         const cx = Math.floor(x / this.SEGMENT_GRID_SIZE);
         const cy = Math.floor(y / this.SEGMENT_GRID_SIZE);
         const rangeInCells = Math.ceil(range / this.SEGMENT_GRID_SIZE);
 
-        const segments = new Set();
+        this._relevantSegmentsBuffer.length = 0;
+        this._seenSegments.clear();
 
         for (let xx = cx - rangeInCells; xx <= cx + rangeInCells; xx++) {
             for (let yy = cy - rangeInCells; yy <= cy + rangeInCells; yy++) {
-                const key = `${xx},${yy}`;
-                if (this.segmentGrid[key]) {
-                    const cellSegs = this.segmentGrid[key];
+                const key = packCellKey(xx, yy);
+                const cellSegs = this.segmentGrid[key];
+                if (cellSegs) {
                     for (let i = 0; i < cellSegs.length; i++) {
-                        segments.add(cellSegs[i]);
+                        const seg = cellSegs[i];
+                        if (!this._seenSegments.has(seg)) {
+                            this._seenSegments.add(seg);
+                            this._relevantSegmentsBuffer.push(seg);
+                        }
                     }
                 }
             }
         }
-        return Array.from(segments);
+        return this._relevantSegmentsBuffer;
     }
 
+    /**
+     * Resizes the screen RenderTexture upon game viewport dimensions update.
+     * @param {Object} gameSize - Phaser GameSize object containing width and height.
+     */
     onResize(gameSize) {
-        const width = Math.max(Math.floor((gameSize && gameSize.width) || this.scene.scale.width || 800), 16);
-        const height = Math.max(Math.floor((gameSize && gameSize.height) || this.scene.scale.height || 600), 16);
+        const width = Math.max(Math.floor((gameSize && gameSize.width) || this.scene.scale.width || 800), SHADOW_CONFIG.MIN_BOUNDS);
+        const height = Math.max(Math.floor((gameSize && gameSize.height) || this.scene.scale.height || 600), SHADOW_CONFIG.MIN_BOUNDS);
 
         if (this.renderTexture) {
             this.renderTexture.destroy();
@@ -98,112 +195,120 @@ export class ShadowSystem {
         this.renderTexture = this.scene.add.renderTexture(0, 0, width, height);
         this.renderTexture.setOrigin(0, 0);
         this.renderTexture.setScrollFactor(0);
-        this.renderTexture.setDepth(100);
+        this.renderTexture.setDepth(SHADOW_CONFIG.DEPTH);
+        this.isDirty = true;
     }
 
+    /**
+     * Main frame tick update handler. Smooths player position, queries line segments,
+     * computes visibility polygon, and erases darkness mask.
+     */
     update() {
-        // console.log('[ShadowSystem] Update tick'); // Verbose
         if (!this.renderTexture) return;
 
-        // Use playerContainer as the player object (create.js uses this)
         const player = this.scene.playerContainer;
+        if (!player || this.segments.length === 0) return;
 
-        if (!player) {
-            // console.warn('[ShadowSystem] No player container');
-            return;
-        }
-
-        if (this.segments.length === 0) {
-            // console.warn('[ShadowSystem] No segments yet');
-            return;
-        }
-
-        // Use local player position for instant, predicted shadows
-        const targetX = player.x + 30;
+        const targetX = player.x + SHADOW_CONFIG.PLAYER_OFFSET_X;
         const targetY = player.y;
 
-        // Initialize if missing
         if (!this.lastShadowPos) {
             this.lastShadowPos = { x: targetX, y: targetY };
         }
 
-        // Calculate distance to target
         const dist = Phaser.Math.Distance.Between(this.lastShadowPos.x, this.lastShadowPos.y, targetX, targetY);
 
-        // --- ENHANCED SMOOTHING ---
-
-        // 1. Teleport Snap (Large jumps)
+        // Smooth position tracking: Teleport Snap -> Deadzone Check -> Lerp
         if (dist > 100) {
             this.lastShadowPos.x = targetX;
             this.lastShadowPos.y = targetY;
-        }
-        // 2. Resting Deadzone (Player stopped)
-        // Check body speed to see if we are effectively standing still.
-        // This prevents the shadow from "shimmering" due to sub-pixel body adjustments.
-        else if (player.body && player.body.speed < 5) {
+        } else if (player.body && player.body.speed < SHADOW_CONFIG.SPEED_DEADZONE) {
             this.lastShadowPos.x = targetX;
             this.lastShadowPos.y = targetY;
-        }
-        // 3. Normal Movement (Lerp)
-        else {
-            // Lerp factor: 0.3 (User Preference)
-            const lerp = 0.3;
-            this.lastShadowPos.x += (targetX - this.lastShadowPos.x) * lerp;
-            this.lastShadowPos.y += (targetY - this.lastShadowPos.y) * lerp;
+        } else {
+            this.lastShadowPos.x += (targetX - this.lastShadowPos.x) * SHADOW_CONFIG.LERP_FACTOR;
+            this.lastShadowPos.y += (targetY - this.lastShadowPos.y) * SHADOW_CONFIG.LERP_FACTOR;
         }
 
-        const pos = [this.lastShadowPos.x, this.lastShadowPos.y];
+        const camera = this.scene.cameras && this.scene.cameras.main;
+        if (!camera) return;
 
-        // Compute visibility locally
-        // [OPTIMIZED] Use Spatial Partitioning
-        // View Distance matches Server (600) or arguably screen size (1920/2 = 1000)
-        // Let's use 1000 to be safe for rendering (visuals matter more than strict anti-cheat here)
-        const viewDist = 1000;
-        const relevantSegments = this.getSegmentsInRange(pos[0], pos[1], viewDist);
+        const scrollX = camera.scrollX;
+        const scrollY = camera.scrollY;
 
-        // [FIX] Add Dynamic Bounding Box Limit
-        // Prevents infinite rays vs culled segments
-        const boxSize = viewDist;
-        const px = pos[0];
-        const py = pos[1];
+        // OPTIMIZATION: Skip raycasting & WebGL erase pass if stationary and scene is clean
+        const isStationary = Math.abs(this.lastShadowPos.x - targetX) < 0.01 &&
+                             Math.abs(this.lastShadowPos.y - targetY) < 0.01 &&
+                             scrollX === this._lastScrollX &&
+                             scrollY === this._lastScrollY;
 
-        relevantSegments.push(
-            [[px - boxSize, py - boxSize], [px + boxSize, py - boxSize]], // Top
-            [[px + boxSize, py - boxSize], [px + boxSize, py + boxSize]], // Right
-            [[px + boxSize, py + boxSize], [px - boxSize, py + boxSize]], // Bottom
-            [[px - boxSize, py + boxSize], [px - boxSize, py - boxSize]]  // Left
-        );
+        if (isStationary && !this.isDirty) {
+            return;
+        }
 
-        const points = compute(pos, relevantSegments);
-        // console.log(`[ShadowSystem] Computed ${points.length} points`);
+        this.isDirty = false;
+        this._lastScrollX = scrollX;
+        this._lastScrollY = scrollY;
 
-        const camera = this.scene.cameras.main;
+        this._posBuffer[0] = this.lastShadowPos.x;
+        this._posBuffer[1] = this.lastShadowPos.y;
 
-        // 1. Reset Darkness (Fill texture with Black, 50% alpha)
+        const viewDist = SHADOW_CONFIG.VIEW_DISTANCE;
+        const relevantSegments = this.getSegmentsInRange(this._posBuffer[0], this._posBuffer[1], viewDist);
+
+        const px = this._posBuffer[0];
+        const py = this._posBuffer[1];
+        const minCorner = [px - viewDist, py - viewDist];
+        const maxCorner = [px + viewDist, py + viewDist];
+
+        const points = computeViewport(this._posBuffer, relevantSegments, minCorner, maxCorner);
+
+        // Fill background fog
         this.renderTexture.clear();
-        this.renderTexture.fill(0x000000, 0.5);
+        this.renderTexture.fill(SHADOW_CONFIG.FOG_COLOR, SHADOW_CONFIG.FOG_ALPHA);
 
-        // 2. Draw Light Polygon (into the helper graphics)
+        // Render light polygon into helper graphics
         this.polygonGraphics.clear();
         this.polygonGraphics.beginPath();
 
         if (points.length > 0) {
-            // Convert World -> Screen Space relative to Camera
-            const scrollX = camera.scrollX;
-            const scrollY = camera.scrollY;
-
             this.polygonGraphics.moveTo(points[0][0] - scrollX, points[0][1] - scrollY);
-
             for (let i = 1; i < points.length; i++) {
                 this.polygonGraphics.lineTo(points[i][0] - scrollX, points[i][1] - scrollY);
             }
         }
 
         this.polygonGraphics.closePath();
-        this.polygonGraphics.fillStyle(0xffffff); // Color doesn't matter for erase, but keeps it valid
+        this.polygonGraphics.fillStyle(0xffffff);
         this.polygonGraphics.fillPath();
 
-        // 3. Erase the polygon from the darkness (reveals the world underneath)
+        // Cut light polygon out of dark fog texture
         this.renderTexture.erase(this.polygonGraphics, 0, 0);
     }
+
+    /**
+     * Idempotent cleanup method. Unbinds listeners and destroys WebGL render textures.
+     */
+    destroy() {
+        if (this.scene && this.scene.scale) {
+            this.scene.scale.off('resize', this.onResize, this);
+        }
+        if (this.scene && this.scene.events) {
+            this.scene.events.off('shutdown', this.destroy, this);
+            this.scene.events.off('destroy', this.destroy, this);
+        }
+        if (this.renderTexture) {
+            this.renderTexture.destroy();
+            this.renderTexture = null;
+        }
+        if (this.polygonGraphics) {
+            this.polygonGraphics.destroy();
+            this.polygonGraphics = null;
+        }
+        this.segmentGrid = {};
+        this._seenSegments.clear();
+        this._relevantSegmentsBuffer.length = 0;
+    }
 }
+
+

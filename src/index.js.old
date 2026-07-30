@@ -623,7 +623,7 @@ function create() {
         outerColor: '0xe0e0e0',
         innerColor: '0x636363'
       },
-      genitles:{
+      genitals:{
         sprite: 'empty',
         secondarySprite: 'empty'
       },

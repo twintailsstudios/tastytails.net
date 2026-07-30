@@ -1,73 +1,102 @@
+/**
+ * @fileoverview Client-Side Movement Prediction & Server State Reconciliation
+ * 
+ * @description
+ * Handles deterministic client-side prediction, sequence-based input acknowledgment,
+ * collision parity checking, smooth lerp interpolation, and visual animation sync
+ * for the local player sprite in TastyTails.net.
+ * 
+ * Triggered by: `socket.on('playerUpdates')` in create.js on incoming server snapshot broadcasts.
+ */
+
 import { updatePlayerAnimations } from './animations.js';
 import { updateStruggleBar } from './player.js';
 
+/**
+ * Reconciles local player position with authoritative server state snapshot.
+ * Re-simulates unacknowledged local inputs starting from server target coordinates.
+ * 
+ * @param {Object} serverPlayerState - Authoritative player state snapshot sent by server.
+ * @param {Phaser.Scene} self - Active Phaser game scene instance.
+ * @returns {void}
+ */
 export function reconcile(serverPlayerState, self) {
     const localPlayer = self.playerContainer;
-    // Add a guard to make sure the player and its physics body exist
-    if (!localPlayer || !localPlayer.body) {
-        // console.log("Reconcile called but local player or its body isn't ready yet.");
+    // Defensive check: Ensure local player container, body, and server position payload exist
+    if (!localPlayer || !localPlayer.body || !serverPlayerState || !serverPlayerState.position) {
         return;
     }
 
     const serverPos = serverPlayerState.position;
-    const clientPos = { x: self.playerContainer.x, y: self.playerContainer.y };
-    const distance = Phaser.Math.Distance.Between(clientPos.x, clientPos.y, serverPos.x, serverPos.y);
-
-
-
-    // --- DIAGNOSTIC LOGGING ---
-    // We'll log the positions from both the server and the client to compare them.
-    // console.log(`[RECONCILE] Server wants us at: (${serverPos.x.toFixed(2)}, ${serverPos.y.toFixed(2)})`);
-    // console.log(`[RECONCILE] Client is currently at: (${clientPos.x.toFixed(2)}, ${clientPos.y.toFixed(2)})`);
-    // console.log(`[RECONCILE] Distance between them: ${distance.toFixed(2)}`);
+    // OPTIMIZATION: Extract primitive scalars to eliminate temporary {x, y} object allocations in hot loop
+    const clientX = localPlayer.x;
+    const clientY = localPlayer.y;
+    const distance = Phaser.Math.Distance.Between(clientX, clientY, serverPos.x, serverPos.y);
 
     // --- SERVER RECONCILIATION WITH CLIENT-SIDE PREDICTION ---
 
-    // 1. Remove acknowledged inputs
-    if (serverPlayerState.lastProcessedInputSequence) {
-        localPlayer.pendingInputs = localPlayer.pendingInputs.filter(input => {
-            return input.sequence > serverPlayerState.lastProcessedInputSequence;
-        });
+    // 1. Remove acknowledged inputs in-place to avoid array allocation
+    // OPTIMIZATION: In-place array pruning prevents GC pauses on 20Hz network update ticks
+    if (serverPlayerState.lastProcessedInputSequence && Array.isArray(localPlayer.pendingInputs)) {
+        const ackSeq = serverPlayerState.lastProcessedInputSequence;
+        const inputs = localPlayer.pendingInputs;
+        let writeIdx = 0;
+        for (let i = 0; i < inputs.length; i++) {
+            if (inputs[i] && inputs[i].sequence > ackSeq) {
+                inputs[writeIdx++] = inputs[i];
+            }
+        }
+        inputs.length = writeIdx;
+    }
+
+
+    // Safeguard: Prevent runaway queue growth under severe packet loss (> 3s latency)
+    const MAX_PENDING_INPUTS = 60;
+    if (Array.isArray(localPlayer.pendingInputs) && localPlayer.pendingInputs.length > MAX_PENDING_INPUTS) {
+        localPlayer.pendingInputs.length = 0;
+        localPlayer.setPosition(serverPos.x, serverPos.y);
+        if (localPlayer.body) {
+            localPlayer.body.updateFromGameObject();
+            localPlayer.body.prev.copy(localPlayer.body.position);
+        }
+        return;
     }
 
     // 2. Calculate Predicted Position
     // Start with the authoritative position from the server
     let predictedX = serverPos.x;
     let predictedY = serverPos.y;
-    const speed = 100; // Must match server speed
+    const speed = serverPlayerState.speed || 100; // Match server speed or default fallback
 
     // Re-apply all pending (unacknowledged) inputs
-    // Re-apply all pending (unacknowledged) inputs
-    localPlayer.pendingInputs.forEach(inputData => {
-        const { input, delta } = inputData;
+    if (Array.isArray(localPlayer.pendingInputs)) {
+        for (let i = 0; i < localPlayer.pendingInputs.length; i++) {
+            const inputData = localPlayer.pendingInputs[i];
+            if (!inputData || !inputData.input) continue;
+            const { input, delta } = inputData;
 
-        let proposedX = predictedX;
-        if (input.left) proposedX -= speed * delta;
-        if (input.right) proposedX += speed * delta;
+            let proposedX = predictedX;
+            if (input.left) proposedX -= speed * delta;
+            if (input.right) proposedX += speed * delta;
 
-        // Check X Collision
-        if (serverPlayerState.isDead || !checkPredictionCollision(self, proposedX, predictedY)) {
-            predictedX = proposedX;
+            // Check X Collision
+            if (serverPlayerState.isDead || !checkPredictionCollision(self, proposedX, predictedY)) {
+                predictedX = proposedX;
+            }
+
+            let proposedY = predictedY;
+            if (input.up) proposedY -= speed * delta;
+            if (input.down) proposedY += speed * delta;
+
+            // Check Y Collision
+            if (serverPlayerState.isDead || !checkPredictionCollision(self, predictedX, proposedY)) {
+                predictedY = proposedY;
+            }
         }
-
-        let proposedY = predictedY;
-        if (input.up) proposedY -= speed * delta;
-        if (input.down) proposedY += speed * delta;
-
-        // Check Y Collision
-        if (serverPlayerState.isDead || !checkPredictionCollision(self, predictedX, proposedY)) {
-            predictedY = proposedY;
-        }
-    });
+    }
 
     // 3. Compare Predicted vs Current
-    const dist = Phaser.Math.Distance.Between(clientPos.x, clientPos.y, predictedX, predictedY);
-
-    // --- DIAGNOSTICS ---
-    // console.log('Reconcile State:', { 
-    //     ts: serverPlayerState.lastClientTimestamp, 
-    //     hasUpdateFunc: !!window.updateDebugStats 
-    // });
+    const dist = Phaser.Math.Distance.Between(clientX, clientY, predictedX, predictedY);
 
     if (serverPlayerState.lastClientTimestamp) {
         const rtt = Date.now() - serverPlayerState.lastClientTimestamp;
@@ -76,11 +105,7 @@ export function reconcile(serverPlayerState, self) {
         }
     }
 
-    // Threshold can be small (e.g. 2px) to allow for minor floating point differences
-    // --- BYPASS RECONCILIATION IF HELD (Target-Side Attachment) ---
-    // If we are held, we are manually attaching to the holder in update.js
-    // We do NOT want the server to snap us back, as that causes "bungee" lag.
-    // However, we MUST allow animation updates to proceed below.
+    // Bypass reconciliation position snapping if held (attached to holder in update.js)
     const shouldReconcilePosition = !serverPlayerState.isHeld;
 
     if (shouldReconcilePosition) {
@@ -88,23 +113,16 @@ export function reconcile(serverPlayerState, self) {
     }
 
     if (shouldReconcilePosition && dist > 5.0) {
-        // console.log(`[RECONCILE] Divergence detected (${dist.toFixed(2)}px). Interpolating to predicted.`);
-
-        // Interpolate to the PREDICTED position
-        // Increased lerpFactor from 0.1 to 0.5 for snappier response (less sliding/acceleration feel)
         const lerpFactor = 0.3;
-        const newX = self.playerContainer.x + (predictedX - self.playerContainer.x) * lerpFactor;
-        const newY = self.playerContainer.y + (predictedY - self.playerContainer.y) * lerpFactor;
+        const newX = localPlayer.x + (predictedX - localPlayer.x) * lerpFactor;
+        const newY = localPlayer.y + (predictedY - localPlayer.y) * lerpFactor;
 
-        self.playerContainer.setPosition(newX, newY);
+        localPlayer.setPosition(newX, newY);
 
         // Update physics body to match
-        const body = self.playerContainer.body;
+        const body = localPlayer.body;
         body.updateFromGameObject();
         body.prev.copy(body.position);
-
-        // We do NOT reset velocity here, as we want to keep momentum while correcting
-        // body.velocity.set(0); 
 
         if (self.localPlayerState?.position) {
             self.localPlayerState.position.x = newX;
@@ -112,14 +130,7 @@ export function reconcile(serverPlayerState, self) {
         }
     }
 
-    // Update local player animations based on server's state (or keep local?)
-    // Usually for local player, we want to trust local input for animation state to feel responsive.
-    // But if we are snapping, we might want to use server state. 
-    // For now, let's keep using server state for animations to ensure other players see correct things,
-    // but strictly speaking, local inputs should drive local animations.
-    // Update local player animations based on local input
-    // We use the current cursor keys to determine animation state.
-    // This prevents stuttering when pendingInputs is empty (fully reconciled).
+    // Update local player animation state
     let isMoving = false;
     let rotation = serverPlayerState.rotation; // Default to server rotation
 
@@ -151,15 +162,14 @@ export function reconcile(serverPlayerState, self) {
         }
     }
 
-    // If held, we MUST use the server's state for animation (walking behind holder)
-    // because local input is likely zero or irrelevant.
+    // If held, use server's state for animation (walking behind holder)
     if (serverPlayerState.isHeld) {
         isMoving = serverPlayerState.isMoving;
         rotation = serverPlayerState.rotation;
     }
 
     const localAnimState = {
-        ...serverPlayerState, // Inherit visuals
+        ...serverPlayerState,
         isMoving: isMoving,
         rotation: rotation
     };
@@ -169,8 +179,13 @@ export function reconcile(serverPlayerState, self) {
 }
 
 /**
- * Checks for collisions at a predicted position (x, y).
+ * Checks for collisions at a predicted target position (x, y).
  * Mirrors server-side logic from server-loop.js checkCollision().
+ * 
+ * @param {Phaser.Scene} scene - Active Phaser scene context with mapLayers and objectGroup.
+ * @param {number} x - Proposed target X coordinate.
+ * @param {number} y - Proposed target Y coordinate.
+ * @returns {boolean} True if proposed coordinate collides with tile or object; false if clear.
  */
 function checkPredictionCollision(scene, x, y) {
     // Player Dimensions (Hardcoded to match server/player.js)
@@ -178,12 +193,7 @@ function checkPredictionCollision(scene, x, y) {
     const height = 30;
 
     // --- COORDINATE ALIGNMENT ---
-    // Server logic (server-loop.js:438): left = x + 30 - width/2
-    // The server offsets the collision box by +30px relative to the player's center 'x'.
     const serverOffsetX = 30;
-
-    // --- SAFETY MARGIN ("Fat Prediction") ---
-    // Expand the collision box by 2px to ensure we stop before the server does.
     const margin = 0;
 
     // Calculate Proposed Bounding Box
@@ -194,7 +204,6 @@ function checkPredictionCollision(scene, x, y) {
 
     // 1. Check Tile Collision
     if (scene.mapLayers) {
-        // Optimization: Unroll checks to avoid array allocation
         const tileXStart = scene.map.worldToTileX(left);
         const tileXEnd = scene.map.worldToTileX(right);
         const tileYStart = scene.map.worldToTileY(top);
@@ -203,8 +212,12 @@ function checkPredictionCollision(scene, x, y) {
         for (const layer of scene.mapLayers) {
             if (!layer) continue;
 
-            // Match Server Logic: Skip 'zones' layer
-            if (layer.layer.name.toLowerCase().includes('zones')) continue;
+            // Match Server Logic: Skip 'zones' layer (lazy-evaluated boolean flag)
+            if (layer.isZoneLayer === undefined) {
+                const layerName = layer.layer?.name || '';
+                layer.isZoneLayer = layerName.toLowerCase().includes('zones');
+            }
+            if (layer.isZoneLayer) continue;
 
             for (let ty = tileYStart; ty <= tileYEnd; ty++) {
                 for (let tx = tileXStart; tx <= tileXEnd; tx++) {
@@ -221,21 +234,18 @@ function checkPredictionCollision(scene, x, y) {
     if (scene.objectGroup) {
         const objects = scene.objectGroup.getChildren();
 
-        // Optimize: Use Spatial Hash if available, or simple AABB scan for now (client object count is usually low < 100 visible)
-        // For accurate parity, we check basic AABB.
-
         for (const obj of objects) {
-            // Check if object is active and static (has body)
             if (!obj.active || !obj.body) continue;
 
             const objBody = obj.body;
 
-            // Interaction Check (Items): 
-            // In server-loop, items are skipped unless 'isSolid'. 
-            // In map.js, items might not have bodies or set to sensor?
-            // Assuming objectGroup contains solid obstacles.
+            // Proximity guard: Skip objects further than maximum radius
+            const maxRadius = Math.max(objBody.width || 60, objBody.height || 60) + 100;
+            if (Math.abs(objBody.x - x) > maxRadius || Math.abs(objBody.y - y) > maxRadius) {
+                continue;
+            }
 
-            // AABB Overlap
+            // AABB Overlap Check
             if (left < objBody.right &&
                 right > objBody.x &&
                 top < objBody.bottom &&
@@ -247,3 +257,4 @@ function checkPredictionCollision(scene, x, y) {
 
     return false;
 }
+

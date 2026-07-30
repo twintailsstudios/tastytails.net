@@ -1,7 +1,15 @@
-/* ==========================================================================
-   Apparel & Equipment Floating Window Stylesheet
-   Design System: TastyTails Universal UI (Warm Medieval Tavern & Parchment)
-   ========================================================================== */
+/**
+ * @fileoverview apparel.css - Client Apparel & Equipment Floating Window Stylesheet
+ * 
+ * @description
+ * Defines the visual design system, paper doll stage canvas, 5x8 CSS Grid layout,
+ * equipment slot icon alignments, and minimized dock tab for TastyTails.net.
+ * Adheres to the Warm Medieval Tavern design system.
+ *
+ * Triggered by:
+ * - HTML partial inclusion (apparel_window.ejs included in play.ejs)
+ * - Dynamic slot rendering and window lifecycle management (equipment.js)
+ */
 
 /* Non-blocking viewport container - Shifted upwards by default */
 .apparel-overlay {
@@ -28,7 +36,7 @@
     min-width: 580px;
     min-height: 700px;
     background: #f3e5ab;
-    background-image: url('/images/cream-paper.png');
+    background-image: var(--texture-cream-paper, url('/assets/images/patterns/cream-paper.png'));
     border: 6px solid #3e2723;
     border-radius: 8px;
     box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 60px rgba(62, 39, 35, 0.15);
@@ -37,6 +45,8 @@
     overflow: hidden;
     user-select: none;
     transition: box-shadow 0.2s ease;
+    /* OPTIMIZATION: Hardware layer promotion prevents layout recalculations during WindowManager drag/resize */
+    will-change: transform, width, height;
 }
 
 /* Header & Drag Handle */
@@ -79,8 +89,10 @@
     gap: 8px;
 }
 
+/* Consolidated Control Button Base Mechanics */
 .apparel-window .minimize-btn,
-.apparel-window .close-btn {
+.apparel-window .close-btn,
+.apparel-tab-dock#apparel-minimized-tab .restore-btn {
     width: 26px;
     height: 26px;
     background: #5d4037;
@@ -99,14 +111,14 @@
 .apparel-window .minimize-btn:hover {
     background: #795548;
     color: #fff;
-    transform: translateY(1px);
+    transform: translateY(1px) translateZ(0);
 }
 
 .apparel-window .close-btn:hover {
     background: #8b0000;
     border-color: #8b0000;
     color: #fff;
-    transform: translateY(1px);
+    transform: translateY(1px) translateZ(0);
 }
 
 /* Window Body */
@@ -159,12 +171,14 @@
     padding: 20px;
 }
 
-/* Humanoid Paper Doll Silhouette Backdrop */
+/* Humanoid Paper Doll Silhouette Backdrop (GPU Hardware Promoted) */
+/* OPTIMIZATION: Hardware accelerated 3D transform prevents heavy GPU raster repaints from filter: blur(15px) */
 .paper-doll-silhouette {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate3d(-50%, -50%, 0);
+    will-change: transform;
     width: 220px;
     height: 520px;
     background: rgba(62, 39, 35, 0.04);
@@ -176,7 +190,8 @@
 }
 
 /* Equipment Grid Uniform Spacing & Area Overrides */
-.equipment-grid {
+/* OPTIMIZATION: High-specificity parent scoping out-specs global play.css rules cleanly without !important */
+#apparel-window .equipment-grid {
     grid-template-areas:
         'lear  hair  hair  rear  .'
         '.     head  head  .     .'
@@ -185,168 +200,170 @@
         'lhand belt  undr  rhand .'
         '.     legs  legs  .     .'
         '.     feet  feet  .     .'
-        '.     tbas  ttip  .     .' !important;
-    gap: 8px !important;
-    padding: 10px !important;
+        '.     tbas  ttip  .     .';
+    gap: 8px;
+    padding: 10px;
 }
 
-.equipment-grid > [data-slot='hair'] {
-    grid-area: hair !important;
-    height: 38px !important;
-    margin-top: 0 !important;
-    border-radius: 18px !important;
+#apparel-window .equipment-grid > [data-slot='hair'] {
+    grid-area: hair;
+    height: 38px;
+    margin-top: 0;
+    border-radius: 18px;
 }
 
-.equipment-grid > [data-slot='head'] {
-    grid-area: head !important;
-    height: 58px !important;
-    margin-top: 0 !important;
-    border-radius: 20px 20px 10px 10px !important;
+#apparel-window .equipment-grid > [data-slot='head'] {
+    grid-area: head;
+    height: 58px;
+    margin-top: 0;
+    border-radius: 20px 20px 10px 10px;
 }
 
-.equipment-grid > [data-slot='neck'] {
-    grid-area: neck !important;
-    height: 38px !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    border-radius: 4px !important;
+#apparel-window .equipment-grid > [data-slot='neck'] {
+    grid-area: neck;
+    height: 38px;
+    margin-top: 0;
+    margin-bottom: 0;
+    border-radius: 4px;
 }
 
-.equipment-grid > [data-slot='leftEar'],
-.equipment-grid > [data-slot='rightEar'] {
-    align-self: center !important;
-    margin-bottom: 0 !important;
-    height: 42px !important;
-    width: 42px !important;
+#apparel-window .equipment-grid > [data-slot='leftEar'],
+#apparel-window .equipment-grid > [data-slot='rightEar'] {
+    align-self: center;
+    margin-bottom: 0;
+    height: 42px;
+    width: 42px;
 }
 
-.equipment-grid > [data-slot='legs'] {
-    height: 65px !important;
+#apparel-window .equipment-grid > [data-slot='legs'] {
+    height: 65px;
 }
 
-.equipment-grid > [data-slot='tailBase'],
-.equipment-grid > [data-slot='tailTip'] {
-    height: 48px !important;
+#apparel-window .equipment-grid > [data-slot='tailBase'],
+#apparel-window .equipment-grid > [data-slot='tailTip'] {
+    height: 48px;
 }
 
 /* Slot Layout & Perfect Icon Centering Overrides */
-.equip-slot {
+#apparel-window .equipment-grid > .equip-slot {
     position: relative;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.equip-slot .icon-container {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    pointer-events: none !important;
-    z-index: 4 !important;
+#apparel-window .equip-slot .icon-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 4;
 }
 
-.equip-slot .slot-item-icon {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 100% !important;
-    height: 100% !important;
-    font-size: 22px !important;
-    color: #f3e5ab !important;
-    line-height: 1 !important;
-    text-align: center !important;
-    text-shadow: 1px 1px 2px #000 !important;
-    pointer-events: none !important;
+#apparel-window .equip-slot .slot-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 22px;
+    color: #f3e5ab;
+    line-height: 1;
+    text-align: center;
+    text-shadow: 1px 1px 2px #000;
+    pointer-events: none;
 }
 
-.equip-slot .slot-item-icon i {
-    font-size: 24px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    line-height: 1 !important;
+#apparel-window .equip-slot .slot-item-icon i {
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    color: var(--gold, #ffd700);
+    filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.5)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9));
 }
 
-.equip-slot .ghost-icon {
-    position: absolute !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    font-size: 18px !important;
-    opacity: 0.25 !important;
-    pointer-events: none !important;
-    margin: 0 !important;
+#apparel-window .equip-slot .ghost-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 18px;
+    opacity: 0.25;
+    pointer-events: none;
+    margin: 0;
 }
 
 /* Minimized Dock Tab - Compact Corner Pill */
-#apparel-minimized-tab {
-    position: fixed !important;
-    width: auto !important;
-    max-width: 240px !important;
-    height: 44px !important;
-    min-width: 0 !important;
-    padding: 6px 14px !important;
-    border-radius: 22px !important;
-    background: #3e2723 !important;
-    border: 2px solid #ffc107 !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6) !important;
-    z-index: 9999 !important;
-    align-items: center !important;
-    gap: 10px !important;
-    cursor: pointer !important;
-    margin: 0 !important;
-    user-select: none !important;
+.apparel-tab-dock#apparel-minimized-tab {
+    position: fixed;
+    width: auto;
+    max-width: 240px;
+    height: 44px;
+    min-width: 0;
+    padding: 6px 14px;
+    border-radius: 22px;
+    background: #3e2723;
+    border: 2px solid #ffc107;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+    z-index: 1200;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    margin: 0;
+    user-select: none;
 }
 
-#apparel-minimized-tab:hover {
-    background: #5d4037 !important;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8) !important;
+.apparel-tab-dock#apparel-minimized-tab:hover {
+    background: #5d4037;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8);
 }
 
-#apparel-minimized-tab .tab-icon {
-    font-size: 1.1rem !important;
-    color: #ffc107 !important;
-    display: flex !important;
-    align-items: center !important;
+.apparel-tab-dock#apparel-minimized-tab .tab-icon {
+    font-size: 1.1rem;
+    color: #ffc107;
+    display: flex;
+    align-items: center;
 }
 
-#apparel-minimized-tab .tab-content {
-    display: flex !important;
-    align-items: center !important;
-    flex: 0 1 auto !important;
+.apparel-tab-dock#apparel-minimized-tab .tab-content {
+    display: flex;
+    align-items: center;
+    flex: 0 1 auto;
 }
 
-#apparel-minimized-tab .tab-title {
-    font-family: 'Cinzel', serif !important;
-    font-size: 0.85rem !important;
-    font-weight: bold !important;
-    color: #f3e5ab !important;
-    white-space: nowrap !important;
+.apparel-tab-dock#apparel-minimized-tab .tab-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #f3e5ab;
+    white-space: nowrap;
 }
 
-#apparel-minimized-tab .restore-btn {
-    width: 22px !important;
-    height: 22px !important;
-    background: #5d4037 !important;
-    border: 1px solid #795548 !important;
-    color: #ffc107 !important;
-    border-radius: 4px !important;
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    font-size: 0.75rem !important;
-    cursor: pointer !important;
-    margin-left: 4px !important;
+.apparel-tab-dock#apparel-minimized-tab .restore-btn {
+    width: 22px;
+    height: 22px;
+    background: #5d4037;
+    border: 1px solid #795548;
+    color: #ffc107;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    margin-left: 4px;
 }
 
-#apparel-minimized-tab .restore-btn:hover {
-    background: #6b8c42 !important;
-    color: #fff !important;
+.apparel-tab-dock#apparel-minimized-tab .restore-btn:hover {
+    background: #6b8c42;
+    color: #fff;
 }

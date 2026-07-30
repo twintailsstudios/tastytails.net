@@ -5,6 +5,8 @@ const User = require('../model/User');
 const log = require('../logger');
 const mongoose = require('mongoose');
 
+const ChatArchive = require('../model/ChatArchive');
+
 // Helper to escape regex special characters
 function escapeRegex(text) {
     return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
@@ -312,18 +314,16 @@ router.post('/save', verify, async (req, res) => {
             }
         }
 
-        // Add to savedLogs
-        const newLog = {
-            title: title,
-            savedAt: new Date(),
+        // Add to ChatArchive collection
+        const archive = new ChatArchive({
+            userId: req.user._id,
             characterId: characterId,
-            messageIds: idsToSave
-        };
+            title: title,
+            messageIds: idsToSave,
+            savedAt: new Date()
+        });
 
-        await User.updateOne(
-            { _id: req.user._id },
-            { $push: { savedLogs: newLog } }
-        );
+        await archive.save();
 
         res.json({ success: true, message: `Log saved successfully with ${idsToSave.length} messages.` });
 

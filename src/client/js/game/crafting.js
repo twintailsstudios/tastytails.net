@@ -1,14 +1,31 @@
+/**
+ * @fileoverview CraftingUI - Client-side Crafting Station Overlay & Manager
+ * 
+ * @description
+ * Orchestrates all interactive crafting station UIs (Forges, Sewing Tables, Cooking Racks).
+ * Manages blueprint rendering, input slot reconciliation, progress bar animations, dual-hand
+ * equipment deposits/withdrawals, CSS theming, and pluggable sub-modules (e.g. SewingModule).
+ * 
+ * Triggered by: Socket events ('craftingUIOpen', 'craftingUpdateStation', 'craftingComplete', etc.),
+ * inventory slot clicks, and game engine proximity updates in update.js.
+ */
+
 import { WindowManager } from './utils/WindowManager.js';
 import { DockManager } from './utils/DockManager.js';
 import { SewingModule } from './modules/SewingModule.js';
+import itemData from './itemData.js';
 
 export class CraftingUI {
+    /**
+     * Creates an instance of CraftingUI.
+     * @param {Object} socket - Socket.IO client instance for server communication
+     * @param {Object} player - Local player container / scene reference
+     */
     constructor(socket, player) {
         this.socket = socket;
         this.player = player;
         this.isOpen = false;
         this.activeRecipe = null;
-        this.currentStationId = null;
         this.currentStationId = null;
         this.localStationInventory = [];
         this.pausedState = null; // { recipeId, remainingTime }
@@ -42,8 +59,6 @@ export class CraftingUI {
         if (this.minimizedTab) {
             DockManager.register(this.minimizedTab, 'left');
         }
-
-        // Satchel
 
         // Satchel
         this.playerInventoryGrid = document.getElementById('playerInventory');
@@ -111,11 +126,110 @@ export class CraftingUI {
         this.socket.on('craftingPaused', (data) => {
             this.pauseCraftingUI(data);
         });
+
+        // Window resize positioning listener
+        window.addEventListener('resize', () => {
+            if (this.uiContainer && this.uiContainer.classList.contains('active')) {
+                this.positionWindow();
+            }
+        });
+
+        // Pockets drawer toggle observer & transition tracking
+        const drawer = document.getElementById('satchel-drawer');
+        if (drawer) {
+            if (typeof MutationObserver !== 'undefined') {
+                const observer = new MutationObserver(() => {
+                    if (this.uiContainer && this.uiContainer.classList.contains('active')) {
+                        this.positionWindow();
+                    }
+                });
+                observer.observe(drawer, { attributes: true, attributeFilter: ['class', 'style'] });
+            }
+
+            let drawerAnimId = null;
+            const animateDrawerStacking = () => {
+                if (this.uiContainer && this.uiContainer.classList.contains('active')) {
+                    this.positionWindow();
+                    drawerAnimId = requestAnimationFrame(animateDrawerStacking);
+                }
+            };
+
+            drawer.addEventListener('transitionstart', () => {
+                if (this.uiContainer && this.uiContainer.classList.contains('active')) {
+                    if (drawerAnimId) cancelAnimationFrame(drawerAnimId);
+                    drawerAnimId = requestAnimationFrame(animateDrawerStacking);
+                }
+            });
+
+            drawer.addEventListener('transitionend', () => {
+                if (drawerAnimId) cancelAnimationFrame(drawerAnimId);
+                if (this.uiContainer && this.uiContainer.classList.contains('active')) {
+                    this.positionWindow();
+                }
+            });
+        }
+    }
+
+    positionWindow() {
+        if (!this.window) return;
+        // Do not override user's custom dragged/resized window position
+        if (this.window.dataset.hasBeenDragged === 'true') return;
+
+        requestAnimationFrame(() => {
+            if (!this.window || this.window.dataset.hasBeenDragged === 'true') return;
+
+            this.window.style.position = 'absolute';
+            this.window.style.top = '50px';
+
+            // X-Axis Centering relative to #phaserApp or body
+            const phaserApp = document.getElementById('phaserApp') || document.body;
+            const appRect = phaserApp.getBoundingClientRect();
+            const appCenterX = appRect.left + (appRect.width / 2);
+            const winWidth = this.window.offsetWidth || 800;
+            const targetLeft = Math.max(10, appCenterX - (winWidth / 2));
+
+            this.window.style.left = `${Math.round(targetLeft)}px`;
+            this.window.style.transform = 'none';
+            this.window.style.margin = '0';
+
+            // Y-Axis Stacking: Positioned 12px above Active Hands UI or Pockets drawer
+            const handsHud = document.getElementById('hands-hud');
+            const drawer = document.getElementById('satchel-drawer');
+            let bottomOffset = 78;
+
+            // Live bounding rect check: if drawer is visible and has height on screen (open or transitioning)
+            if (drawer) {
+                const rect = drawer.getBoundingClientRect();
+                if (rect.top > 0 && rect.height > 10) {
+                    bottomOffset = window.innerHeight - rect.top + 12;
+                } else if (handsHud) {
+                    const handleTab = document.getElementById('pocket-collapse-handle');
+                    const targetEl = (handleTab && handleTab.offsetHeight > 0 && !handleTab.classList.contains('hidden-hud') && !handleTab.classList.contains('collapsed')) ? handleTab : handsHud;
+                    const hRect = targetEl.getBoundingClientRect();
+                    if (hRect.top > 0) {
+                        bottomOffset = window.innerHeight - hRect.top + 12;
+                    }
+                }
+            } else if (handsHud) {
+                const handleTab = document.getElementById('pocket-collapse-handle');
+                const targetEl = (handleTab && handleTab.offsetHeight > 0 && !handleTab.classList.contains('hidden-hud') && !handleTab.classList.contains('collapsed')) ? handleTab : handsHud;
+                const hRect = targetEl.getBoundingClientRect();
+                if (hRect.top > 0) {
+                    bottomOffset = window.innerHeight - hRect.top + 12;
+                }
+            }
+
+            const availableHeight = Math.max(320, window.innerHeight - 50 - bottomOffset);
+            this.window.style.height = `${Math.round(availableHeight)}px`;
+        });
     }
 
     open(data) {
         this.isOpen = true;
         this.currentStationId = data.stationId;
+        if (window.game && window.game.objectGroup) {
+            this.currentStationObject = window.game.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === data.stationId) || null;
+        }
 
         // Re-parent window back to overlay container if detached by dragging
         if (this.window && this.uiContainer && this.window.parentElement !== this.uiContainer) {
@@ -133,7 +247,7 @@ export class CraftingUI {
             this.window.style.display = '';
         }
 
-        this.uiContainer.style.display = 'flex'; // Ensure flex layout
+        this.uiContainer.style.display = 'block';
         if (window.completeTutorialTask) {
             window.completeTutorialTask('crafting_open');
         }
@@ -142,6 +256,7 @@ export class CraftingUI {
         void this.uiContainer.offsetWidth;
 
         this.uiContainer.classList.add('active'); // Use CSS class for fade-in
+        this.positionWindow();
 
         this.activeRecipe = null;
         this.localStationInventory = data.stationInventory || [];
@@ -240,6 +355,10 @@ export class CraftingUI {
         // Re-attach listeners for the restored elements
         if (this.craftBtn) this.craftBtn.onclick = () => this.startCrafting();
 
+        if (this.currentModule && typeof this.currentModule.destroy === 'function') {
+            this.currentModule.destroy();
+        }
+
         this.isCustomLayout = false;
         this.currentModule = null;
     }
@@ -277,6 +396,23 @@ export class CraftingUI {
             this.window.classList.add(config.theme);
         }
 
+        // [NEW] Update Minimized Tab Theme & Title
+        if (this.minimizedTab) {
+            this.minimizedTab.className = 'minimized-tab'; // Reset
+            if (config.theme) {
+                this.minimizedTab.classList.add(config.theme);
+            }
+
+            const titleEl = this.minimizedTab.querySelector('.tab-title, #minimized-tab-title');
+            if (titleEl) {
+                const titleStr = config.title || "Crafting Paused";
+                titleEl.textContent = titleStr;
+                titleEl.style.display = 'block';
+                titleEl.style.opacity = '1';
+                titleEl.style.visibility = 'visible';
+            }
+        }
+
         // [NEW] Dynamic Modules
         if (config.modules) {
             if (config.modules.recipeList === false) {
@@ -287,27 +423,6 @@ export class CraftingUI {
             if (config.modules.type === 'sewing_custom') {
                 this.mountCustomModule(new SewingModule(this.window.querySelector('.window-body'), this.socket, this));
                 return; // Stop default rendering
-            }
-        }
-
-        // [NEW] Update Minimized Tab Theme & Title
-        if (this.minimizedTab) {
-            this.minimizedTab.className = 'minimized-tab'; // Reset
-            if (config.theme) {
-                this.minimizedTab.classList.add(config.theme);
-            }
-
-            // Direct ID selection for robustness - Handle potential duplicates
-            const allTitles = document.querySelectorAll('#minimized-tab-title');
-
-            if (allTitles.length > 0) {
-                const titleStr = config.title || "Crafting Paused";
-                allTitles.forEach((el) => {
-                    el.textContent = titleStr;
-                    el.style.display = 'block';
-                    el.style.opacity = '1';
-                    el.style.visibility = 'visible';
-                });
             }
         }
 
@@ -377,19 +492,22 @@ export class CraftingUI {
                 el.onclick = () => this.selectRecipe(recipe, recipes);
 
                 // [OPTIMIZED] Data-Driven Icon
-                // Priority: Recipe Icon -> Result Custom Icon -> Default Tool
+                // Priority: Recipe Icon -> Result Item Data Icon -> Result Custom Icon -> Default Tool
                 let iconClass = recipe.icon; // e.g. 'fa-solid fa-sword'
+
+                if (!iconClass && recipe.result && recipe.result.itemId && itemData[recipe.result.itemId]) {
+                    iconClass = itemData[recipe.result.itemId].icon;
+                }
 
                 // Fallback to result custom data if recipe icon missing
                 if (!iconClass && recipe.result && recipe.result.customData && recipe.result.customData.icon) {
-                    // Ensure it has fa-solid if just 'fa-something' provided? 
-                    // Usually data has full string, or partial. Let's assume full class string or construct it.
                     const icon = recipe.result.customData.icon;
                     iconClass = icon.includes('fa-') ? (icon.includes('fa-solid') ? icon : `fa-solid ${icon}`) : `fa-solid ${icon}`;
                 }
 
                 // Ultimate fallback
-                if (!iconClass) iconClass = 'fa-solid fa-hammer';
+                if (!iconClass) iconClass = 'fa-solid fa-box-open';
+                iconClass = iconClass.includes('fa-') ? (iconClass.includes('fa-solid') ? iconClass : `fa-solid ${iconClass}`) : `fa-solid ${iconClass}`;
 
                 // If iconClass is character (emoji)? No, moving to FontAwesome.
                 // But some legacy might use emojis in ID? logic removed.
@@ -471,15 +589,20 @@ export class CraftingUI {
         for (let i = 0; i < MAX_SLOTS; i++) {
             const el = slots[i];
             const item = inventory[i];
+            const currentKey = item ? `${item.uid}_${item.count || 1}_${item.icon || ''}_${item.name || ''}` : 'empty';
+
+            if (el.dataset.slotKey === currentKey) continue;
+            el.dataset.slotKey = currentKey;
 
             if (item) {
                 // Unified Rendering Logic
+                let itemIcon = item.icon || (item.itemId && itemData[item.itemId] ? itemData[item.itemId].icon : null);
                 let iconHtml = '';
-                if (item.icon) {
-                    iconHtml = `<i class="fa-solid ${item.icon}" style="font-size:24px;"></i>`;
+                if (itemIcon) {
+                    const iconClass = itemIcon.includes('fa-') ? (itemIcon.includes('fa-solid') ? itemIcon : `fa-solid ${itemIcon}`) : `fa-solid ${itemIcon}`;
+                    iconHtml = `<i class="${iconClass}" style="font-size:24px; color: ${item.color ? '#' + item.color.toString(16).padStart(6, '0') : ''}"></i>`;
                 } else {
-                    const displayChar = item.name ? item.name.substring(0, 2) : '??';
-                    iconHtml = `<span style="font-size:18px; font-weight:bold;">${displayChar}</span>`;
+                    iconHtml = `<i class="fa-solid fa-box-open" style="font-size:24px;"></i>`;
                 }
 
                 // Only touch DOM if changed
@@ -602,11 +725,15 @@ export class CraftingUI {
         this.previewDesc.textContent = rDesc;
 
         let iconClass = this.activeRecipe.icon;
+        if (!iconClass && this.activeRecipe.result && this.activeRecipe.result.itemId && itemData[this.activeRecipe.result.itemId]) {
+            iconClass = itemData[this.activeRecipe.result.itemId].icon;
+        }
         if (!iconClass && this.activeRecipe.result && this.activeRecipe.result.customData && this.activeRecipe.result.customData.icon) {
             const icon = this.activeRecipe.result.customData.icon;
             iconClass = icon.includes('fa-') ? (icon.includes('fa-solid') ? icon : `fa-solid ${icon}`) : `fa-solid ${icon}`;
         }
-        if (!iconClass) iconClass = 'fa-solid fa-hammer';
+        if (!iconClass) iconClass = 'fa-solid fa-box-open';
+        iconClass = iconClass.includes('fa-') ? (iconClass.includes('fa-solid') ? iconClass : `fa-solid ${iconClass}`) : `fa-solid ${iconClass}`;
 
         this.previewIcon.innerHTML = `<i class="${iconClass}"></i>`;
 
@@ -763,16 +890,23 @@ export class CraftingUI {
             this.tabProgressBar.style.width = `${startPercent}%`;
         }
 
-        // Force reflow
-        this.progressBar.offsetHeight;
+        // Start Animation (Target 100% over REMAINING duration via non-blocking rAF)
+        const triggerStartAnim = () => {
+            this.progressBar.style.transition = `width ${duration}ms linear`;
+            this.progressBar.style.width = '100%';
 
-        // Start Animation (Target 100% over REMAINING duration)
-        this.progressBar.style.transition = `width ${duration}ms linear`;
-        this.progressBar.style.width = '100%';
+            if (this.tabProgressBar) {
+                this.tabProgressBar.style.transition = `width ${duration}ms linear`;
+                this.tabProgressBar.style.width = '100%';
+            }
+        };
 
-        if (this.tabProgressBar) {
-            this.tabProgressBar.style.transition = `width ${duration}ms linear`;
-            this.tabProgressBar.style.width = '100%';
+        if (document.hidden) {
+            triggerStartAnim();
+        } else {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(triggerStartAnim);
+            });
         }
 
         // Lock UI
@@ -791,13 +925,23 @@ export class CraftingUI {
 
         this.progressBar.style.transition = 'none';
         this.progressBar.style.width = '0%';
-        this.progressBar.offsetHeight; // Reflow
-        this.progressBar.style.transition = `width ${duration}ms linear`;
-        this.progressBar.style.width = '100%';
 
-        if (this.tabProgressBar) {
-            this.tabProgressBar.style.transition = `width ${duration}ms linear`;
-            this.tabProgressBar.style.width = '100%';
+        const triggerOptimisticAnim = () => {
+            this.progressBar.style.transition = `width ${duration}ms linear`;
+            this.progressBar.style.width = '100%';
+
+            if (this.tabProgressBar) {
+                this.tabProgressBar.style.transition = `width ${duration}ms linear`;
+                this.tabProgressBar.style.width = '100%';
+            }
+        };
+
+        if (document.hidden) {
+            triggerOptimisticAnim();
+        } else {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(triggerOptimisticAnim);
+            });
         }
     }
 
@@ -806,8 +950,13 @@ export class CraftingUI {
         const flash = document.getElementById('flashOverlay');
         if (flash) {
             flash.style.animation = 'none';
-            flash.offsetHeight;
-            flash.style.animation = 'success-flash 0.5s ease-out';
+            if (document.hidden) {
+                flash.style.animation = 'success-flash 0.5s ease-out';
+            } else {
+                requestAnimationFrame(() => {
+                    flash.style.animation = 'success-flash 0.5s ease-out';
+                });
+            }
         }
 
         // Reset Bar
@@ -838,11 +987,12 @@ export class CraftingUI {
         let iconHtml = `<span style="font-size:32px;">🎁</span>`;
         if (item) {
             // Unified Rendering Logic
-            if (item.icon) {
-                iconHtml = `<i class="fa-solid ${item.icon}" style="font-size:32px; color: ${item.color ? '#' + item.color.toString(16) : ''}"></i>`;
+            let itemIcon = item.icon || (item.itemId && itemData[item.itemId] ? itemData[item.itemId].icon : null);
+            if (itemIcon) {
+                const iconClass = itemIcon.includes('fa-') ? (itemIcon.includes('fa-solid') ? itemIcon : `fa-solid ${itemIcon}`) : `fa-solid ${itemIcon}`;
+                iconHtml = `<i class="${iconClass}" style="font-size:32px; color: ${item.color ? '#' + item.color.toString(16).padStart(6, '0') : ''}"></i>`;
             } else {
-                const displayChar = item.name ? item.name.substring(0, 2) : '??';
-                iconHtml = `<span style="font-size:24px; font-weight:bold;">${displayChar}</span>`;
+                iconHtml = `<i class="fa-solid fa-box-open" style="font-size:32px;"></i>`;
             }
 
             this.outputSlot.innerHTML = iconHtml;

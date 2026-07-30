@@ -1,3 +1,13 @@
+/**
+ * @fileoverview inventory.js - Client-Side Apparel Storage & Satchel Drawer Manager
+ * 
+ * @description
+ * Manages the UI rendering, state synchronization, and user interactions for clothing
+ * storage pockets (satchel drawer, collar tabs clothing tower, pocket item grids).
+ * Integrated with dual-hand click delegation (clickManager) and Socket.IO network events.
+ * 
+ * @module inventoryUI
+ */
 
 import { clickManager } from './clickManager.js';
 import itemData from './itemData.js';
@@ -11,7 +21,67 @@ export const inventoryUI = {
     activeTab: null,
     isCollapsed: false,
     lastRenderedHash: '',
+    toastTimer: null,
+    lastActionTime: 0,
+    ACTION_COOLDOWN_MS: 150,
 
+    /**
+     * Formats icon definition into FontAwesome HTML element or returns raw emoji/HTML.
+     * @param {string} iconDef - Icon definition string from itemData.
+     * @returns {string} Formatted HTML string.
+     */
+    getIconHtml: function (iconDef) {
+        let iconHtml = iconDef || '📦';
+        if (iconHtml && !iconHtml.startsWith('<')) {
+            const iconClass = iconHtml.includes('fa-') ? iconHtml : `fa-solid ${iconHtml}`;
+            return `<i class="${iconClass}"></i>`;
+        }
+        return iconHtml;
+    },
+
+    /**
+     * Calculates combined item load and max capacity across all pockets for an apparel piece.
+     * @param {Object} entry - Storage item entry containing item data and definition.
+     * @returns {{ totalLoad: number, totalCap: number }} Computed load and capacity.
+     */
+    calculateStorageCapacity: function (entry) {
+        let totalLoad = 0;
+        let totalCap = 0;
+        if (entry && entry.def && Array.isArray(entry.def.pockets)) {
+            const contentsMap = (entry.item && entry.item.contents) || {};
+            entry.def.pockets.forEach(pDef => {
+                totalCap += (pDef.capacity || 0);
+                const contents = contentsMap[pDef.id] || [];
+                totalLoad += contents.reduce((acc, item) => acc + (item.size || 1), 0);
+            });
+        }
+        return { totalLoad, totalCap };
+    },
+
+    /**
+     * OPTIMIZATION: Computes a fast composite string hash across pocket contents.
+     * Replaces expensive JSON.stringify serialization to eliminate GC allocations during game loop ticks.
+     * @param {Object} contentsMap - Pocket contents dictionary mapped by pocket ID.
+     * @returns {string} Composite hash string.
+     */
+    computeContentsHash: function (contentsMap) {
+        if (!contentsMap) return '';
+        let hash = '';
+        for (const pocketId in contentsMap) {
+            const items = contentsMap[pocketId] || [];
+            hash += `|p:${pocketId}`;
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                hash += `:${it.uid || ''}_${it.name || ''}_${it.size || 1}_${it.icon || ''}`;
+            }
+        }
+        return hash;
+    },
+
+    /**
+     * Initializes inventory drawer DOM container and binds toggle/collapse event handlers.
+     * @param {Object} socket - Active Socket.IO client instance.
+     */
     init: function (socket) {
         this.socket = socket;
 
@@ -46,23 +116,51 @@ export const inventoryUI = {
         this.listContainer = document.getElementById('pocket-list-container');
         this.tower = document.getElementById('clothing-tower');
 
-        // Bind Collapse / Toggle Controls (Handle Tab & Dock Pill)
+        // Prevent pointer events inside satchel drawer from causing canvas movement
+        if (this.drawer) {
+            let drawerTimer = null;
+            const suppressDrawerPointer = () => {
+                window.isPointerDownOnUI = true;
+                if (drawerTimer) clearTimeout(drawerTimer);
+                drawerTimer = setTimeout(() => {
+                    window.isPointerDownOnUI = false;
+                }, 150);
+            };
+            ['pointerdown', 'mousedown', 'touchstart'].forEach(evt => {
+                this.drawer.addEventListener(evt, suppressDrawerPointer, true);
+            });
+        }
+
+        // Bind Collapse / Toggle Controls (Handle Tab, Dock Pill, and Drawer Header Collapse Button)
         const handleTab = document.getElementById('pocket-collapse-handle');
         if (handleTab) {
-            handleTab.onclick = () => this.toggleCollapse();
+            handleTab.onclick = (e) => {
+                if (e && e.stopPropagation) e.stopPropagation();
+                this.toggleCollapse();
+            };
         }
 
         const activePill = document.getElementById('active-apparel-pill');
         if (activePill) {
-            activePill.onclick = () => this.toggleCollapse();
+            activePill.onclick = (e) => {
+                if (e && e.stopPropagation) e.stopPropagation();
+                this.toggleCollapse();
+            };
         }
 
         const collapseBtn = document.getElementById('drawer-collapse-btn');
         if (collapseBtn) {
-            collapseBtn.onclick = () => this.toggleCollapse(true);
+            collapseBtn.onclick = (e) => {
+                if (e && e.stopPropagation) e.stopPropagation();
+                this.toggleCollapse(true);
+            };
         }
     },
 
+    /**
+     * Toggles the collapsed/expanded state of the satchel drawer sliding menu.
+     * @param {boolean} [forceCollapse] - Optional explicit boolean to set collapse state.
+     */
     toggleCollapse: function (forceCollapse) {
         if (typeof forceCollapse === 'boolean') {
             this.isCollapsed = forceCollapse;
@@ -91,8 +189,12 @@ export const inventoryUI = {
         }
     },
 
+    /**
+     * Main update loop called whenever player equipment state is synced from the server.
+     * @param {Object} playerInfo - Synchronized player information object containing equipment data.
+     */
     update: function (playerInfo) {
-        if (!playerInfo.equipment) return;
+        if (!playerInfo || !playerInfo.equipment) return;
 
         // Find equipped items with storage
         const storageItems = [];
@@ -154,6 +256,10 @@ export const inventoryUI = {
         }
     },
 
+    /**
+     * Renders collar tab elements ("clothing tower") for each equipped storage piece.
+     * @param {Array<Object>} storageItems - Array of equipped storage item entries.
+     */
     renderTower: function (storageItems) {
         const currentIds = Array.from(this.tower.children).map(el => el.dataset.id);
         const newIds = storageItems.map(i => i.clothingId);
@@ -168,27 +274,14 @@ export const inventoryUI = {
             const tab = document.createElement('div');
             tab.className = 'tower-tab';
             tab.dataset.id = entry.clothingId;
+            tab.dataset.slotId = entry.slotId;
             
-            let iconHtml = entry.def.icon || '📦';
-            if (iconHtml && !iconHtml.startsWith('<')) {
-                const iconClass = iconHtml.includes('fa-') ? iconHtml : `fa-solid ${iconHtml}`;
-                iconHtml = `<i class="${iconClass}"></i>`;
-            }
-
-            // Calculate total load across all pockets for capacity pip
-            let totalLoad = 0;
-            let totalCap = 0;
-            if (entry.def.pockets) {
-                entry.def.pockets.forEach(pDef => {
-                    totalCap += pDef.capacity;
-                    const contents = (entry.item.contents && entry.item.contents[pDef.id]) || [];
-                    totalLoad += contents.reduce((acc, item) => acc + (item.size || 1), 0);
-                });
-            }
+            const iconHtml = this.getIconHtml(entry.def.icon);
+            const { totalLoad, totalCap } = this.calculateStorageCapacity(entry);
 
             let pipClass = 'pip-empty';
             if (totalLoad > 0) {
-                const percent = (totalLoad / totalCap) * 100;
+                const percent = totalCap > 0 ? (totalLoad / totalCap) * 100 : 0;
                 if (percent >= 100) pipClass = 'pip-crit';
                 else if (percent > 60) pipClass = 'pip-warn';
                 else pipClass = 'pip-ok';
@@ -218,11 +311,19 @@ export const inventoryUI = {
         });
     },
 
+    /**
+     * OPTIMIZATION: Updates visual states and capacity pips using O(1) Map indexing by slotId.
+     * @param {Array<Object>} storageItems - Array of equipped storage item entries.
+     */
     updateActiveTabVisuals: function (storageItems) {
         let activeIdx = 0;
         let activeEntry = null;
 
-        Array.from(this.tower.children).forEach((tab, idx) => {
+        const itemMap = new Map(storageItems ? storageItems.map(i => [i.slotId, i]) : []);
+        const children = this.tower.children;
+
+        for (let idx = 0; idx < children.length; idx++) {
+            const tab = children[idx];
             const isTarget = tab.dataset.id === this.activeTab;
             if (isTarget) {
                 tab.classList.add('active');
@@ -233,50 +334,49 @@ export const inventoryUI = {
 
             // Update capacity pip dynamically if storageItems provided
             if (storageItems) {
-                const entry = storageItems.find(i => i.clothingId === tab.dataset.id);
+                const slotId = tab.dataset.slotId || tab.dataset.id;
+                const entry = itemMap.get(slotId) || storageItems.find(i => i.clothingId === tab.dataset.id);
                 if (isTarget) activeEntry = entry;
 
-                if (entry && entry.def.pockets) {
-                    let totalLoad = 0;
-                    let totalCap = 0;
-                    entry.def.pockets.forEach(pDef => {
-                        totalCap += pDef.capacity;
-                        const contents = (entry.item.contents && entry.item.contents[pDef.id]) || [];
-                        totalLoad += contents.reduce((acc, item) => acc + (item.size || 1), 0);
-                    });
+                if (entry && entry.def && entry.def.pockets) {
+                    const { totalLoad, totalCap } = this.calculateStorageCapacity(entry);
                     const pip = tab.querySelector('.tab-capacity-pip');
                     if (pip) {
                         pip.className = 'tab-capacity-pip';
                         if (totalLoad === 0) pip.classList.add('pip-empty');
                         else if (totalLoad >= totalCap) pip.classList.add('pip-crit');
-                        else if ((totalLoad / totalCap) > 0.6) pip.classList.add('pip-warn');
+                        else if (totalCap > 0 && (totalLoad / totalCap) > 0.6) pip.classList.add('pip-warn');
                         else pip.classList.add('pip-ok');
                     }
                     tab.title = `${entry.def.name} (${totalLoad}/${totalCap})`;
                 }
             }
-        });
+        }
 
         // Update Dock Active Apparel Pill
         const pillIcon = document.getElementById('pill-icon');
         const pillText = document.getElementById('pill-text');
+        const activePill = document.getElementById('active-apparel-pill');
         if (pillIcon && pillText && activeEntry && storageItems) {
-            let iconHtml = activeEntry.def.icon || '📦';
-            if (iconHtml && !iconHtml.startsWith('<')) {
-                const iconClass = iconHtml.includes('fa-') ? iconHtml : `fa-solid ${iconHtml}`;
-                iconHtml = `<i class="${iconClass}"></i>`;
+            const itemName = activeEntry.def.name;
+            const countText = `(${activeIdx + 1}/${storageItems.length})`;
+            pillIcon.innerHTML = this.getIconHtml(activeEntry.def.icon);
+            pillText.innerHTML = `<span class="pill-name">${itemName}</span><span class="pill-count">${countText}</span>`;
+            if (activePill) {
+                activePill.title = `Apparel Storage: ${itemName} ${countText}`;
             }
-            pillIcon.innerHTML = iconHtml;
-            pillText.textContent = `${activeEntry.def.name} (${activeIdx + 1}/${storageItems.length})`;
         }
     },
 
+    /**
+     * Builds and renders the satchel drawer pocket sections, items, and ghost slots for the active apparel item.
+     * Uses hash-based memoization to skip redundant DOM updates.
+     * @param {Object} entry - Active storage item entry.
+     * @param {boolean} shouldAnimate - Whether to force drawer animation.
+     */
     renderDrawer: function (entry, shouldAnimate) {
-        const currentHash = JSON.stringify({
-            slot: entry.slotId,
-            contents: entry.item.contents,
-            anim: shouldAnimate
-        });
+        const contentsHash = this.computeContentsHash(entry.item.contents);
+        const currentHash = `${entry.slotId}:${contentsHash}:${shouldAnimate}`;
 
         if (this.lastRenderedHash === currentHash && !shouldAnimate) {
             return;
@@ -284,7 +384,8 @@ export const inventoryUI = {
         this.lastRenderedHash = currentHash;
 
         this.listContainer.innerHTML = '';
-        document.getElementById('drawer-title').innerText = entry.def.name;
+        const drawerTitle = document.getElementById('drawer-title');
+        if (drawerTitle) drawerTitle.innerText = entry.def.name;
 
         const pockets = entry.def.pockets;
 
@@ -324,8 +425,11 @@ export const inventoryUI = {
             contents.forEach((item, itemIdx) => {
                 const itemEl = document.createElement('div');
                 itemEl.className = 'hud-item';
-                const displayChar = item.name ? item.name.substring(0, 2) : '??';
-                const iconHtml = item.icon ? `<i class="fa-solid ${item.icon}"></i>` : `<span>${displayChar}</span>`;
+                let itemIcon = item.icon || (item.itemId && itemData[item.itemId] ? itemData[item.itemId].icon : null);
+                if (!itemIcon) itemIcon = 'fa-solid fa-box-open';
+                const fullClass = itemIcon.includes('fa-') ? (itemIcon.includes('fa-solid') ? itemIcon : `fa-solid ${itemIcon}`) : `fa-solid ${itemIcon}`;
+                const colorStyle = item.color ? ` style="color: #${item.color.toString(16).padStart(6, '0')};"` : '';
+                const iconHtml = `<i class="${fullClass}"${colorStyle}></i>`;
 
                 itemEl.innerHTML = `${iconHtml}<span class="size-pip">${item.size || 1}</span>`;
                 itemEl.title = item.name;
@@ -369,23 +473,52 @@ export const inventoryUI = {
         });
     },
 
+    /**
+     * Emits socket request to stash item from active hand into specified pocket slot.
+     * OPTIMIZATION: Throttled by 150ms cooldown to prevent multi-click socket spam.
+     * @param {string} slotId - Equipment slot ID.
+     * @param {string} pocketId - Pocket ID.
+     * @param {string} [hand='left'] - Hand used ('left' or 'right').
+     */
     stashItem: function (slotId, pocketId, hand = 'left') {
+        const now = Date.now();
+        if (now - this.lastActionTime < this.ACTION_COOLDOWN_MS) return;
+        this.lastActionTime = now;
+
         console.log('[Inventory] Stash to', slotId, pocketId, 'Hand:', hand);
         this.socket.emit('stashItemClicked', { targetSlot: slotId, targetPocket: pocketId, hand: hand });
     },
 
+    /**
+     * Emits socket request to retrieve item from pocket into active hand.
+     * OPTIMIZATION: Throttled by 150ms cooldown to prevent multi-click socket spam.
+     * @param {string} slotId - Equipment slot ID.
+     * @param {string} pocketId - Pocket ID.
+     * @param {string} itemUid - Item unique identifier.
+     * @param {string} [hand='left'] - Target hand ('left' or 'right').
+     */
     retrieveItem: function (slotId, pocketId, itemUid, hand = 'left') {
+        const now = Date.now();
+        if (now - this.lastActionTime < this.ACTION_COOLDOWN_MS) return;
+        this.lastActionTime = now;
+
         console.log('[Inventory] Retrieve', itemUid, 'Hand:', hand);
         this.socket.emit('retrieveItemClicked', { sourceSlot: slotId, sourcePocket: pocketId, itemUid: itemUid, hand: hand });
     },
 
+    /**
+     * Displays temporary toast notification pop-up.
+     * Clears active timer handles to prevent message truncation.
+     * @param {string} msg - Message text to display in toast notification.
+     */
     showToast: function (msg) {
         const el = document.getElementById('toast');
         if (el) {
+            if (this.toastTimer) clearTimeout(this.toastTimer);
             el.textContent = msg;
             el.style.opacity = 1;
             el.style.top = '-50px';
-            setTimeout(() => { el.style.opacity = 0; el.style.top = '-40px'; }, 1500);
+            this.toastTimer = setTimeout(() => { el.style.opacity = 0; el.style.top = '-40px'; }, 1500);
         }
     }
 };

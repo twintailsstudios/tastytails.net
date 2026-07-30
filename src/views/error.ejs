@@ -1,15 +1,25 @@
 
-<style>
-body {
-  background-color: #0b4b90;
-  padding: 0;
-  margin: 0;
-}
-</style>
-
-<body>
-  <section class="container">
-    <h1><%= error %></h1>
-    <p><%= errDescrip %></p>
-  </section>
-</body>
+<%#
+  @fileoverview error.ejs - Centralized Web Error View Template
+  @description
+  Renders user-facing error titles and descriptions within the master layout shell.
+  Triggered by: verifyToken.js middleware, index.js, edit.js, play.js, and diagnostic /error route.
+%>
+<div class="container" style="padding: 2rem 1rem; max-width: 650px; margin: 2rem auto;" role="alert" aria-live="polite">
+  <div style="background: var(--palette-parchment, #f3e5ab); border: 2px solid var(--palette-wood-dark, #3e2723); border-radius: 8px; padding: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.4); text-align: center;">
+    <%# OPTIMIZATION: Render error title with defensive fallback check to prevent ReferenceError if route context omits 'error' %>
+    <h1 style="color: var(--palette-accent-red, #8b0000); margin-top: 0; font-family: 'Cinzel', serif; font-size: 2rem;">
+      <%= typeof error !== 'undefined' ? error : 'An Error Occurred' %>
+    </h1>
+    <%# OPTIMIZATION: Render error description with defensive fallback check to prevent ReferenceError if route context omits 'errDescrip' %>
+    <p style="color: var(--palette-text-dark, #3e2723); font-size: 1.1rem; line-height: 1.6; margin: 1.5rem 0;">
+      <%= typeof errDescrip !== 'undefined' ? errDescrip : 'An unexpected issue occurred while processing your request.' %>
+    </p>
+    <%# UX & RECOVERY: Direct CTA navigation button to return home from error screens %>
+    <div style="margin-top: 2rem;">
+      <a href="/" class="btn" style="display: inline-block; padding: 0.6rem 1.5rem; text-decoration: none;">
+        <i class="fa-solid fa-house"></i> Return Home
+      </a>
+    </div>
+  </div>
+</div>

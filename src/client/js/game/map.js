@@ -1,7 +1,47 @@
+/**
+ * @fileoverview Client-Side World Builder & Tilemap Instantiation Engine for TastyTails.net
+ * 
+ * @description
+ * Parses preloaded Tiled JSON maps (`dynamic_map`), creates render layers, binds texture keys,
+ * configures Arcade Physics collision boundaries, and asynchronously spawns interactive map objects 
+ * (resource nodes, crafting stations, interactive doors) and NPC animals without blocking the main UI thread.
+ * 
+ * Triggered by: GameScene.create() during scene initialization.
+ * Downstream consumers: contextMenu.js, crafting.js, dropMode.js, reconcile.js, update.js.
+ */
+
 import { Animal } from './entity/Animal.js';
 import { createAnimations } from './animations.js';
 import resourceNodeData from './resourceNodeData.js';
 
+/**
+ * Normalizes Tiled properties (array format or key-value object format) into a clean Object map.
+ * @param {Array<Object>|Object} objProps - Raw Tiled properties array or object map.
+ * @returns {Object} Key-value map of normalized properties.
+ */
+function extractObjectProperties(objProps) {
+    const map = {};
+    if (Array.isArray(objProps)) {
+        objProps.forEach(p => {
+            if (p.type === 'bool' || typeof p.value === 'boolean' || p.value === 'true' || p.value === 'false') {
+                map[p.name] = (p.value === true || p.value === 'true');
+            } else {
+                map[p.name] = p.value;
+            }
+        });
+    } else if (objProps && typeof objProps === 'object') {
+        Object.assign(map, objProps);
+    }
+    return map;
+}
+
+/**
+ * Primary tilemap factory function. Instantiates the Phaser tilemap, binds tileset textures,
+ * creates collision layers, initializes physics groups, and triggers non-blocking object generation.
+ * @param {Phaser.Scene} scene - The active Phaser GameScene context.
+ * @param {Function} [onProgress] - Optional callback (ratio) => void reported as objects spawn.
+ * @returns {Phaser.Tilemaps.Tilemap} The created tilemap instance.
+ */
 export function createMap(scene, onProgress) {
     //----- Loads the json  file and also the map tileset -----//
     const map = scene.make.tilemap({ key: 'dynamic_map' }); // Using the dynamic key
@@ -14,37 +54,16 @@ export function createMap(scene, onProgress) {
         } else {
             console.error("[createMap] Cache entry for 'dynamic_map' is missing!");
         }
-    } else {
-        // console.log(`[createMap] Found ${map.tilesets.length} tilesets in map.`);
     }
-
-    // 1. Identify Object Layers
-    // Phaser puts all layers with type="objectgroup" into the 'objects' array.
-    // 1. Identify Object Layers
-    // Phaser puts all layers with type="objectgroup" into the 'objects' array.
-    // console.log("--- Object Layers Found ---");
-    /*
-    if (map.objects) {
-        map.objects.forEach(layerData => {
-            console.log(`Name: ${layerData.name}, Object Count: ${layerData.objects.length}`);
-        });
-    }
-    */
 
     // 2. Identify Tilesets and Load Images Dynamically
-    // developer_note:
-    // This loop iterates through every tileset defined in the map JSON.
-    // It attempts to finding a matching image key in Phaser's texture manager.
-    // If you see a "black screen" or missing tiles, it usually means the key in preload.js
-    // does not match the tileset name in Tiled.
-    // console.log("--- Tilesets Found ---");
+    // OPTIMIZATION: Retrieve raw tilemap cache once outside the tileset loop
+    const tilemapCache = scene.cache.tilemap.get('dynamic_map');
+    const rawData = tilemapCache ? tilemapCache.data : null;
+
     map.tilesets.forEach(tileset => {
-        const hasCustomProps = tileset.tileProperties && Object.keys(tileset.tileProperties).length > 0;
         let type = 'Single Image Tileset';
 
-        // Peek at raw data to verify type
-        const tilemapCache = scene.cache.tilemap.get('dynamic_map');
-        const rawData = tilemapCache ? tilemapCache.data : null;
         if (rawData && rawData.tilesets) {
             const rawTileset = rawData.tilesets.find(t => t.name === tileset.name);
             if (rawTileset && !rawTileset.image) {
@@ -52,35 +71,19 @@ export function createMap(scene, onProgress) {
             }
         }
 
-        // console.log(`Name: ${tileset.name}`);
-        // console.log(`- Type: ${type}`);
-        // console.log(`- First GID: ${tileset.firstgid}`);
-        // console.log(`- Total Tiles: ${tileset.total}`);
-
         // --- Dynamic Image Binding ---
         const tilesetName = tileset.name;
         if (tilesetName === 'AutoMap Rules') {
-            // console.log(`[createMap] Skipping internal Tiled layer '${tilesetName}'`);
             return;
         }
 
-        // We assume the image key in Phaser cache matches the tileset name from Tiled 
-        // SKIPPING Collection of Images (they don't use a single master image)
         if (type === 'Collection of Images') {
-            // console.log(`[createMap] Skipping addTilesetImage for '${tilesetName}' (Collection of Images)`);
+            // Skipping Collection of Images
         } else if (scene.textures.exists(tilesetName)) {
-            // console.log(`[createMap] Matched tileset '${tilesetName}' to image key '${tilesetName}'`);
             map.addTilesetImage(tilesetName, tilesetName);
         } else {
-            // Smart Filter: Ignore "Object-Only" Tilesets
-            // if it looks like a single image (ends in .png) OR has only 1 tile, it is likely an Object Sprite.
-            // The Object Spawner (spawnObject) handles these by stripping the extension manually.
             const isLikelyObject = tilesetName.toLowerCase().endsWith('.png') || tileset.total === 1;
-
-            if (isLikelyObject) {
-                // Silently skip or log at debug level
-                // console.warn(`[createMap] Info: Tileset '${tilesetName}' skipped for painting (assuming Object Sprite).`);
-            } else {
+            if (!isLikelyObject) {
                 console.error(`[createMap] FAILED to match tileset '${tilesetName}' to any loaded image key. Strict matching enabled.`);
             }
         }
@@ -91,7 +94,15 @@ export function createMap(scene, onProgress) {
         console.log("[createMap] Tileset loading process complete (check for previous errors if black screen).");
     }
 
-    // --- THE AUTOMATION START ---
+    // --- Animal System Group Initialization ---
+    scene.animals = scene.physics.add.group({
+        classType: Animal,
+        runChildUpdate: true
+    });
+
+    if (!scene.animalsMap) {
+        scene.animalsMap = new Map();
+    }
 
     // We create a single physics group for ALL objects in the world
     scene.objectGroup = scene.physics.add.group({ immovable: true });
@@ -107,26 +118,25 @@ export function createMap(scene, onProgress) {
     }
 
     //----- Creates "layers" of different map tiles to be placed on top of one another -----//
-    // DYNAMIC LAYER LOADING REFACTOR
     scene.mapLayers = [];
     scene.tableTopObjects = []; // Optimization: Cached list for Drop Mode
 
     map.layers.forEach((layerData, index) => {
-        // console.log(`Creating layer: ${layerData.name}`);
         const layer = map.createLayer(layerData.name, map.tilesets, 0, 0);
 
         if (layer) {
             scene.mapLayers.push(layer);
 
-            // Check if this layer should have collision
-            // We check if any tile in the layer has collision enabled in Tiled
-            // Updated to 'blocked' (lowercase) and boolean true
+            // Set collision property
             layer.setCollisionByProperty({ blocked: true });
 
-            // Set depth based on Tiled order or custom logic
-            // Default behavior: layers render in order of creation.
-            // If explicit depth is needed, we can set it.
-            // For now, let's keep the 'grass' behavior (depth -6) if named grass, otherwise standard.
+            // OPTIMIZATION: Check if any tile in layer data has collision flags set to avoid unnecessary physics checks
+            if (layer.layer && layer.layer.data) {
+                layer.hasCollision = layer.layer.data.some(row => row && row.some(tile => tile && tile.collides));
+            } else {
+                layer.hasCollision = false;
+            }
+
             if (layerData.name === 'ground') {
                 layer.depth = -10;
             } else if (layerData.name === 'grass') {
@@ -135,12 +145,6 @@ export function createMap(scene, onProgress) {
                 layer.depth = 0; // Default
             }
 
-            // Hillhome handling (Example usage from previous code)
-            // If the layer is 'objects2', the original code made it fade.
-            // We'll rely on index or name if that feature is needed, but the server event handles transparency via scene.mapLayers index.
-            // Since we push in order, the indexes should align IF the map file has the same structure.
-            // If not, we might need a more robust way to identify "Roof" layers.
-
             // Hide 'zones' layer by default
             if (layerData.name.toLowerCase().includes('zones')) {
                 layer.alpha = 0;
@@ -148,21 +152,16 @@ export function createMap(scene, onProgress) {
         }
     });
 
-    // --- Animal System ---
-    scene.animals = scene.physics.add.group({
-        classType: Animal,
-        runChildUpdate: true
-    });
-
-    // Collide animals with world blocked tiles
-    if (scene.mapLayers) {
+    // Collide animals with world blocked tiles only on collidable layers
+    if (scene.mapLayers && scene.animals) {
         scene.mapLayers.forEach(layer => {
-            scene.physics.add.collider(scene.animals, layer);
+            if (layer.hasCollision) {
+                scene.physics.add.collider(scene.animals, layer);
+            }
         });
     }
 
     // Initialize Animations for known animals (Sheep)
-    // We reuse the player animation creator because the sprite sheet layout is identical (36 frames)
     if (scene.anims) {
         createAnimations(scene, ['sheep']);
     }
@@ -175,7 +174,12 @@ export function createMap(scene, onProgress) {
 
 /**
  * Asynchronously builds game objects from Tiled Object Layers.
- * Uses time-slicing to prevent blocking the UI/Loading Screen.
+ * Uses a 12ms frame-budget yield to prevent blocking the UI/Loading Screen on large maps.
+ * 
+ * @param {Phaser.Scene} scene - Active Phaser GameScene context.
+ * @param {Phaser.Tilemaps.Tilemap} map - Instantiated Phaser Tilemap.
+ * @param {Function} [onProgress] - Progress reporting callback.
+ * @returns {Promise<void>}
  */
 async function buildMapObjectsAsync(scene, map, onProgress) {
     // 1. Pre-fetch raw data for all tilesets.
@@ -198,7 +202,9 @@ async function buildMapObjectsAsync(scene, map, onProgress) {
                     if (tile.properties) {
                         const props = {};
                         tile.properties.forEach(p => {
-                            if (p.type === 'int' || p.type === 'float' || !isNaN(p.value)) {
+                            if (p.type === 'bool' || typeof p.value === 'boolean' || p.value === 'true' || p.value === 'false') {
+                                props[p.name] = (p.value === true || p.value === 'true');
+                            } else if (p.type === 'int' || p.type === 'float' || (!isNaN(p.value) && typeof p.value !== 'boolean')) {
                                 props[p.name] = Number(p.value);
                             } else {
                                 props[p.name] = p.value;
@@ -217,12 +223,17 @@ async function buildMapObjectsAsync(scene, map, onProgress) {
     }
 
     // 2. Process Layers
-    if (map.objects) {
-        let totalObjects = 0;
-        map.objects.forEach(l => { if (l.objects) totalObjects += l.objects.length; });
-        let objectsProcessed = 0;
+    const objectLayers = (rawMapData && rawMapData.layers) 
+        ? rawMapData.layers.filter(l => l.type === 'objectgroup')
+        : (map.objects || []);
 
-        for (const layerData of map.objects) {
+    if (objectLayers.length > 0) {
+        let totalObjects = 0;
+        objectLayers.forEach(l => { if (l.objects) totalObjects += l.objects.length; });
+        let objectsProcessed = 0;
+        let lastYieldTime = performance.now();
+
+        for (const layerData of objectLayers) {
             const objects = layerData.objects;
             if (!objects) continue;
 
@@ -233,7 +244,11 @@ async function buildMapObjectsAsync(scene, map, onProgress) {
             while (i < objects.length) {
                 const end = Math.min(i + chunkSize, objects.length);
                 for (let j = i; j < end; j++) {
-                    spawnObject(scene, map, objects[j], rawTilesets, layerData.name);
+                    try {
+                        spawnObject(scene, map, objects[j], rawTilesets, layerData.name);
+                    } catch (err) {
+                        console.warn(`[World Builder] Error spawning object ID ${objects[j]?.id} in layer '${layerData.name}':`, err);
+                    }
                     objectsProcessed++;
                 }
                 i += chunkSize;
@@ -243,8 +258,12 @@ async function buildMapObjectsAsync(scene, map, onProgress) {
                     onProgress(objectsProcessed / totalObjects);
                 }
 
-                // Yield to main thread
-                await new Promise(resolve => setTimeout(resolve, 0));
+                // OPTIMIZATION: Yield using setTimeout(0) only when frame execution time exceeds 12ms
+                const now = performance.now();
+                if (now - lastYieldTime > 12) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                    lastYieldTime = performance.now();
+                }
             }
         }
     }
@@ -260,6 +279,12 @@ async function buildMapObjectsAsync(scene, map, onProgress) {
 
 /**
  * Spawns a single object.
+ * 
+ * @param {Phaser.Scene} scene - Active Phaser GameScene context.
+ * @param {Phaser.Tilemaps.Tilemap} map - Active Phaser Tilemap.
+ * @param {Object} obj - Tiled object layer element definition.
+ * @param {Array<Object>} rawTilesets - Pre-fetched raw tileset definitions.
+ * @param {string} layerName - Name of the Tiled object layer.
  */
 function spawnObject(scene, map, obj, rawTilesets, layerName) {
     let textureKey;
@@ -268,11 +293,14 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
     let usedLocalID = -1;
     let rawImage = null;
 
-    // 1. Find Raw Tileset
-    const rawTs = rawTilesets
-        .slice()
-        .reverse()
-        .find(ts => obj.gid >= ts.firstgid);
+    // 1. Find Raw Tileset (Backwards index search without array allocation)
+    let rawTs = null;
+    for (let k = rawTilesets.length - 1; k >= 0; k--) {
+        if (obj.gid >= rawTilesets[k].firstgid) {
+            rawTs = rawTilesets[k];
+            break;
+        }
+    }
 
     if (rawTs) {
         const trueLocalID = obj.gid - rawTs.firstgid;
@@ -286,11 +314,14 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
         console.warn(`[World Builder] Could not find Raw Tileset for GID ${obj.gid}`);
     }
 
+    // Extract & normalize properties
+    const objPropsMap = extractObjectProperties(obj.properties);
+    const mergedProps = { ...tileProps, ...objPropsMap };
+
     // Treat as item if layer is 'items' or isItem property is true
-    const isItem = tileProps.isItem || 
-                   layerName?.toLowerCase() === 'items' || 
-                   obj.properties?.some(p => p.name === 'isItem' && p.value === true) ||
-                   (obj.properties && !Array.isArray(obj.properties) && obj.properties.isItem);
+    const isItem = mergedProps.isItem === true || 
+                   mergedProps.isItem === 'true' || 
+                   layerName?.toLowerCase() === 'items';
 
     if (isItem) {
         return;
@@ -320,7 +351,6 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
             usedLocalID = localID;
             textureKey = 'tilesetSprite';
             frame = localID;
-            // console.log(`[World Builder] Fallback to tilesetSprite: frame ${frame} for GID ${obj.gid}`);
             if (phaserTileset.tileProperties && phaserTileset.tileProperties[localID]) {
                 tileProps = phaserTileset.tileProperties[localID];
             }
@@ -332,29 +362,38 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
 
     // 3. Create the Sprite
     // --- Animal Special Handling ---
-    if (tileProps.isAnimal || obj.properties?.some(p => p.name === 'isAnimal' && p.value === true)) {
-        // Merge properties
-        const mergedProps = { ...tileProps, ...obj.properties };
-        // Handle array of properties from Tiled
-        if (Array.isArray(obj.properties)) {
-            obj.properties.forEach(p => { mergedProps[p.name] = p.value; });
-        }
+    const isAnimal = mergedProps.isAnimal === true || 
+                     mergedProps.isAnimal === 'true' || 
+                     mergedProps.isAnimal === 1 || 
+                     mergedProps.isAnimal === '1' ||
+                     layerName?.toLowerCase() === 'animals';
 
-        // [FIX] Force ID to match Server Format for synchronization
-        // Server uses: `${layerName}_${obj.id}`. We assume layer is 'animals'.
+    if (isAnimal) {
         if (!mergedProps.id) {
-            mergedProps.id = `animals_${obj.id}`;
+            mergedProps.id = `${layerName}_${obj.id}`;
         }
 
-        const animal = new Animal(scene, obj.x, obj.y, textureKey, frame, mergedProps);
+        const spawnX = obj.x + (obj.width ? obj.width / 2 : 16);
+        const spawnY = obj.y;
 
-        // Add to specific group
+        const animal = new Animal(scene, spawnX, spawnY, textureKey, frame, mergedProps);
+
         if (scene.animals) {
             scene.animals.add(animal);
         } else {
-            console.warn('scene.animals group missing, adding to display list only');
             scene.add.existing(animal);
         }
+
+        const animalId = mergedProps.id;
+        if (!scene.animalsMap) {
+            scene.animalsMap = new Map();
+        }
+        scene.animalsMap.set(animalId, animal);
+
+        animal.once('destroy', () => {
+            if (scene.animalsMap) scene.animalsMap.delete(animalId);
+        });
+
         return; // Skip standard sprite creation
     }
 
@@ -459,18 +498,7 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
     // 5. Enable Interaction & Metadata
     sprite.setInteractive();
 
-    let stationType = null;
-    if (obj.properties) {
-        if (Array.isArray(obj.properties)) {
-            const p = obj.properties.find(prop => prop.name === 'stationType');
-            if (p) stationType = p.value;
-        } else {
-            if (obj.properties.stationType) stationType = obj.properties.stationType;
-        }
-    }
-    if (!stationType && tileProps && tileProps.stationType) {
-        stationType = tileProps.stationType;
-    }
+    const stationType = mergedProps.stationType || null;
 
     sprite.objectInfo = {
         Identifier: 'mapObject',
@@ -482,36 +510,23 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
         interactType: nodeDef ? nodeDef.interactType : null
     };
 
+    // Register into fast O(1) scene lookup Map
+    if (scene.mapObjectsMap && sprite.objectInfo.uniqueId) {
+        const uid = sprite.objectInfo.uniqueId;
+        scene.mapObjectsMap.set(uid, sprite);
+        sprite.once('destroy', () => {
+            if (scene.mapObjectsMap) scene.mapObjectsMap.delete(uid);
+        });
+    }
+
     // --- Zone Transparency Prop ---
-    let clearZone = null;
-    if (obj.properties) {
-        if (Array.isArray(obj.properties)) {
-            const p = obj.properties.find(prop => prop.name === 'clearZone');
-            if (p) clearZone = p.value;
-        } else {
-            if (obj.properties.clearZone) clearZone = obj.properties.clearZone;
-        }
-    }
-    if (!clearZone && tileProps && tileProps.clearZone) {
-        clearZone = tileProps.clearZone;
-    }
+    const clearZone = mergedProps.clearZone || null;
     if (clearZone) {
         sprite.clearZone = clearZone;
     }
 
     // --- TableTop Property ---
-    let isTableTop = false;
-    if (obj.properties) {
-        if (Array.isArray(obj.properties)) {
-            const p = obj.properties.find(prop => prop.name === 'tableTop');
-            if (p) isTableTop = p.value === true || p.value === 'true';
-        } else {
-            if (obj.properties.tableTop) isTableTop = obj.properties.tableTop;
-        }
-    }
-    if (!isTableTop && tileProps && tileProps.tableTop) {
-        isTableTop = tileProps.tableTop === true || tileProps.tableTop === 'true';
-    }
+    const isTableTop = mergedProps.tableTop === true || mergedProps.tableTop === 'true';
     if (isTableTop) {
         sprite.objectInfo.tableTop = true;
         if (scene.tableTopObjects) scene.tableTopObjects.push(sprite);
@@ -519,19 +534,7 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
 
     // --- Blocked Property (Collision) ---
     let isBlocked = true;
-    let blockedProp = null;
-    if (obj.properties) {
-        if (Array.isArray(obj.properties)) {
-            const p = obj.properties.find(prop => prop.name === 'blocked');
-            if (p) blockedProp = p.value;
-        } else {
-            if (obj.properties.blocked !== undefined) blockedProp = obj.properties.blocked;
-        }
-    }
-    if (blockedProp === null && tileProps && tileProps.blocked !== undefined) {
-        blockedProp = tileProps.blocked;
-    }
-    if (blockedProp === false || blockedProp === 'false') {
+    if (mergedProps.blocked === false || mergedProps.blocked === 'false') {
         isBlocked = false;
     }
 

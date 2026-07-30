@@ -6,14 +6,21 @@ const { resolveItemDef } = require('../utils/itemUtils');
 const { trackVictim, untrackVictim } = require('../server/mechanics/digestion');
 
 /**
- * Interaction Handlers
+ * @fileoverview interactionHandlers.js - Player Interaction & Combat Socket Event Router
  * 
- * This module handles:
- * 1. Player Input (Movement) and Updates
- * 2. Interaction Events (Clicking other players, examining)
- * 3. Vore Mechanics (Eating, Struggling, Digesting, Releasing)
+ * @description
+ * Manages WebSocket client interaction events for the TastyTails game server.
+ * Handles movement input queuing, non-physics updates, reach/distance verification,
+ * friendly/grabbing/hostile player actions, map object harvesting, entity examination,
+ * and multi-stage vore mechanics (entrance, path progression, clenching, struggling, digestion, and release).
  * 
- * Reorganized for readability.
+ * OPTIMIZATIONS & SAFEGUARDS:
+ * - Uses Shadow & Line-of-Sight raycasting (checkVisibility / _visibleSet) for observer socket broadcasts.
+ * - Emits voreStageUpdate directly to prey and predator sockets to guarantee UI delivery without server-wide payload flooding.
+ * - Safely escapes player usernames via escapeRegExp during dynamic perspective tag processing.
+ * - Enforces optional chaining on body parts in resolveTargetLimb to prevent unexpected TypeErrors.
+ * 
+ * Triggered by: Socket.io client events (`playerInput`, `playerPerformAction`, `objectInteract`, `voreAction`, `advanceVoreStage`, etc.).
  */
 module.exports = function (io, socket, players, messageSystem, collisionMap, TILE_SIZE, saveCharacter, craftingStations, getPlayersInRange, activeAnimals, worldItems, addItemToGrid, activeResourceNodes, removeItemFromGrid) {
     const logPrefix = `[Inter:${socket.id}]`;
@@ -272,13 +279,25 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
             // 1. Animal Interaction
             if (type === 'animal') {
-                const animal = activeAnimals[id];
-                if (!animal) return;
+                // Robust Animal ID Lookup (Handles case mismatches & numeric IDs)
+                const animal = activeAnimals[id] || 
+                               activeAnimals[id?.toLowerCase()] || 
+                               Object.values(activeAnimals).find(a => 
+                                   a.id === id || 
+                                   a.id.toLowerCase() === (id || '').toLowerCase() || 
+                                   a.id.endsWith(`_${id}`)
+                               );
+
+                if (!animal) {
+                    log.warn(`[AnimalInteract] Could not find active animal for id: ${id}`);
+                    sendSystemMsg(socket, messageSystem, `Target animal not found.`);
+                    return;
+                }
 
                 // Distance Check (Server Side specific for Animals)
-                // Animals have x/y. Player has position.x/y
                 const dist = Math.sqrt(Math.pow(player.position.x - animal.x, 2) + Math.pow(player.position.y - animal.y, 2));
                 if (dist > 120) { // Slight buffer over client 100
+                    sendSystemMsg(socket, messageSystem, `You are too far away from the ${animal.properties.name || 'animal'}.`);
                     return;
                 }
 
@@ -290,19 +309,11 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                         return;
                     }
 
-                    // [NEW] Check for Sheers
-                    const currentActiveHand = data.hand || player.actionHands.activeHand || 'right'; // 'left' or 'right'
-                    let hasSheers = false;
-
-                    if (currentActiveHand === 'left') {
-                        if (player.actionHands.leftNode && player.actionHands.leftNode.itemId === 'tool_sheers') {
-                            hasSheers = true;
-                        }
-                    } else if (currentActiveHand === 'right') {
-                        if (player.actionHands.rightNode && player.actionHands.rightNode.itemId === 'tool_sheers') {
-                            hasSheers = true;
-                        }
-                    }
+                    // Check for Sheers in EITHER hand (left or right)
+                    const leftNode = player.actionHands?.leftNode;
+                    const rightNode = player.actionHands?.rightNode;
+                    const hasSheers = (leftNode && leftNode.itemId === 'tool_sheers') || 
+                                     (rightNode && rightNode.itemId === 'tool_sheers');
 
                     if (!hasSheers) {
                         sendSystemMsg(socket, messageSystem, `You need to hold sheers to harvest wool.`);
@@ -315,7 +326,7 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                         itemId: 'fiber_wool',
                         name: 'Wool Fiber',
                         texture: 'fiber_wool',
-                        icon: 'fa-apple-whole', // Match itemData (or update if needed)
+                        icon: 'fa-apple-whole',
                         size: 1,
                         properties: {},
                         x: animal.x,
@@ -331,7 +342,6 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                         animal.markSheared();
                         sendSystemMsg(socket, messageSystem, `You shear the ${animal.properties.name || 'sheep'} and wool falls to the ground.`);
                     } else {
-                        // Fallback should not happen if wired correctly
                         log.error('Missing worldItems or addItemToGrid in interactionHandlers');
                     }
 
@@ -591,21 +601,14 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 // 2. Grammar/Perspective Adjustments on raw string
                 // If isPredator, "Vorny eats" -> "You eat"
                 if (isPred) {
-                    // Replace Name with You
-                    // We need to be careful with verb conjugation: "eats" -> "eat"
-                    // Simple heuristic: "s" suffix removal? 
-                    // Let's replace "PredName verb" with "You verb-s"
-                    const nameRegex = new RegExp(`\\b${predName}\\b`, 'gi');
-                    processed = processed.replace(nameRegex, 'You');
+                    const safePred = escapeRegExp(predName);
+                    if (safePred) {
+                        processed = processed.replace(new RegExp(`\\b${safePred}\\b`, 'gi'), 'You');
+                    }
 
-                    // Attempt verb fix: "You eats" -> "You eat"
-                    // This is brittle but requested.
-                    // Replace "You [word]s" with "You [word]"
-                    // Or specifically target the known verb
-                    const verbRegex = new RegExp(`\\bYou ${verb}\\b`, 'gi');
-                    // if verb ends in 's', remove it.
-                    if (verb.endsWith('s')) {
+                    if (verb && verb.endsWith('s')) {
                         const baseVerb = verb.slice(0, -1);
+                        const verbRegex = new RegExp(`\\bYou ${escapeRegExp(verb)}\\b`, 'gi');
                         processed = processed.replace(verbRegex, `You ${baseVerb}`);
                     }
 
@@ -615,8 +618,10 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
                 // If isPrey, "Vorny eats Jacky" -> "Vorny eats you"
                 if (isPrey) {
-                    const nameRegex = new RegExp(`\\b${preyName}\\b`, 'gi');
-                    processed = processed.replace(nameRegex, 'you');
+                    const safePrey = escapeRegExp(preyName);
+                    if (safePrey) {
+                        processed = processed.replace(new RegExp(`\\b${safePrey}\\b`, 'gi'), 'you');
+                    }
                 }
 
                 return processed;
@@ -644,17 +649,19 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 messageSystem.sendSystemMessage('Interactional', externalMsg, null, excluded, 'local', predSocket);
             }
 
-            // Log to Global Vore Log (History) - Keeps original 3rd person
-            // OPTIMIZED: Spatial Broadcast for Vore Log (1000px range)
-            if (getPlayersInRange) {
-                const observers = getPlayersInRange(predator.position.x, predator.position.y, 1000);
-                observers.forEach(obs => {
+            // Log to Vore Log - Shadow & Line-of-Sight Broadcast
+            let voreLogObservers = [];
+            if (getPlayersInRange && predator.position) {
+                voreLogObservers = getPlayersInRange(predator.position.x, predator.position.y, 800);
+            } else {
+                voreLogObservers = Object.values(players);
+            }
+            voreLogObservers.forEach(obs => {
+                if (isObserverVisible(obs.playerId, predator.playerId, players)) {
                     const obsSocket = io.sockets.sockets.get(obs.playerId);
                     if (obsSocket) obsSocket.emit('voreLog', externalMsg);
-                });
-            } else {
-                io.emit('voreLog', externalMsg);
-            }
+                }
+            });
 
             // STATE UPDATES
 
@@ -806,8 +813,10 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                         processed = processed.replace(/\btheir\b/gi, 'your');
                     }
                     if (isPrey) {
-                        const nameRegex = new RegExp(`\\b${preyName}\\b`, 'gi');
-                        processed = processed.replace(nameRegex, 'you');
+                        const safePrey = escapeRegExp(preyName);
+                        if (safePrey) {
+                            processed = processed.replace(new RegExp(`\\b${safePrey}\\b`, 'gi'), 'you');
+                        }
                     }
                     return processed;
                 };
@@ -845,16 +854,19 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                     const excluded = [String(prey._id), String(predator._id)];
                     messageSystem.sendSystemMessage('Interactional', externalMsg, null, excluded, 'local', predSocket);
 
-                    // OPTIMIZED: Spatial Broadcast for Vore Log
-                    if (getPlayersInRange) {
-                        const observers = getPlayersInRange(predator.position.x, predator.position.y, 1000);
-                        observers.forEach(obs => {
+                    // OPTIMIZED: Shadow & Line-of-Sight Broadcast for Vore Log
+                    let observers = [];
+                    if (getPlayersInRange && predator.position) {
+                        observers = getPlayersInRange(predator.position.x, predator.position.y, 800);
+                    } else {
+                        observers = Object.values(players);
+                    }
+                    observers.forEach(obs => {
+                        if (isObserverVisible(obs.playerId, predator.playerId, players)) {
                             const obsSocket = io.sockets.sockets.get(obs.playerId);
                             if (obsSocket) obsSocket.emit('voreLog', externalMsg);
-                        });
-                    } else {
-                        io.emit('voreLog', externalMsg);
-                    }
+                        }
+                    });
                 }
 
                 broadcastVoreStageUpdate(io, prey, predator, nextStage, nextNode.properties.name);
@@ -1006,17 +1018,18 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                     .replace(/<node>/gi, nodeName);
 
                 if (isPred) {
-                    const nameRegex = new RegExp(`\\b${predName}\\b`, 'gi');
-                    processed = processed.replace(nameRegex, 'You');
+                    const safePred = escapeRegExp(predName);
+                    if (safePred) {
+                        processed = processed.replace(new RegExp(`\\b${safePred}\\b`, 'gi'), 'You');
+                    }
                     processed = processed.replace(/\btheir\b/gi, 'your');
-                    // "Your gut churns" logic is handled by standard tag replacement usually
-                    // but if the user writes "<pred>'s gut", it becomes "You's gut".
-                    // Fix "You's" -> "Your"
                     processed = processed.replace(/\bYou's\b/gi, 'Your');
                 }
                 if (isPrey) {
-                    const nameRegex = new RegExp(`\\b${preyName}\\b`, 'gi');
-                    processed = processed.replace(nameRegex, 'you');
+                    const safePrey = escapeRegExp(preyName);
+                    if (safePrey) {
+                        processed = processed.replace(new RegExp(`\\b${safePrey}\\b`, 'gi'), 'you');
+                    }
                 }
                 return processed;
             };
@@ -1042,16 +1055,19 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 const excluded = [String(prey._id), String(predator._id)];
                 messageSystem.sendSystemMessage('Interactional', externalMsg, null, excluded, 'local', predSocket);
 
-                // OPTIMIZED: Spatial Broadcast for Vore Log
-                if (getPlayersInRange) {
-                    const observers = getPlayersInRange(predator.position.x, predator.position.y, 1000);
+                    // OPTIMIZED: Shadow & Line-of-Sight Broadcast for Vore Log
+                    let observers = [];
+                    if (getPlayersInRange && predator.position) {
+                        observers = getPlayersInRange(predator.position.x, predator.position.y, 800);
+                    } else {
+                        observers = Object.values(players);
+                    }
                     observers.forEach(obs => {
-                        const obsSocket = io.sockets.sockets.get(obs.playerId);
-                        if (obsSocket) obsSocket.emit('voreLog', externalMsg);
+                        if (isObserverVisible(obs.playerId, predator.playerId, players)) {
+                            const obsSocket = io.sockets.sockets.get(obs.playerId);
+                            if (obsSocket) obsSocket.emit('voreLog', externalMsg);
+                        }
                     });
-                } else {
-                    io.emit('voreLog', externalMsg);
-                }
             }
 
         } catch (e) {
@@ -1233,36 +1249,41 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
             // Find Victim
             const prey = Object.values(players).find(p => getFullName(p) === targetName);
 
+            const msg = `${getFullName(predator)} released ${targetName} from their ${voreTypeEntry ? voreTypeEntry.destination : 'body'}.`;
+
             if (prey) {
                 untrackVictim(prey.playerId); // Stop digestion
                 resetVoreState(prey);
                 if (predator.holding === prey.socketId) predator.holding = null;
-
-                const msg = `${getFullName(predator)} released ${targetName} from their ${voreTypeEntry ? voreTypeEntry.destination : 'body'}.`;
                 log.info(msg);
-
-                // OPTIMIZED: Spatial Broadcast for Vore Log
-                if (getPlayersInRange) {
-                    const observers = getPlayersInRange(predator.position.x, predator.position.y, 1000);
-                    observers.forEach(obs => {
-                        const obsSocket = io.sockets.sockets.get(obs.playerId);
-                        if (obsSocket) obsSocket.emit('voreLog', msg);
-                    });
-                } else {
-                    io.emit('voreLog', msg);
-                }
-                sendSystemMsg(socket, messageSystem, msg);
-
-                // [FIX] Broadcast Immediate Update (removed from contents)
-                io.emit('playerStateUpdate', {
-                    [predator.playerId]: {
-                        playerId: predator.playerId,
-                        voreTypes: predator.voreTypes
-                    }
-                });
-
                 saveState(saveCharacter, socket.id, prey.socketId);
+            } else {
+                log.warn(`${logPrefix} Released offline target '${targetName}' from predator contents.`);
+                if (saveCharacter) saveCharacter(socket.id);
             }
+
+            // OPTIMIZED: Shadow & Line-of-Sight Broadcast for Vore Log
+            let observers = [];
+            if (getPlayersInRange && predator.position) {
+                observers = getPlayersInRange(predator.position.x, predator.position.y, 800);
+            } else {
+                observers = Object.values(players);
+            }
+            observers.forEach(obs => {
+                if (isObserverVisible(obs.playerId, socket.id, players)) {
+                    const obsSocket = io.sockets.sockets.get(obs.playerId);
+                    if (obsSocket) obsSocket.emit('voreLog', msg);
+                }
+            });
+            sendSystemMsg(socket, messageSystem, msg);
+
+            // [FIX] Broadcast Immediate Update (removed from contents)
+            io.emit('playerStateUpdate', {
+                [predator.playerId]: {
+                    playerId: predator.playerId,
+                    voreTypes: predator.voreTypes
+                }
+            });
 
         } catch (e) {
             log.error(`${logPrefix} Error handling releaseVoreTarget:`, e);
@@ -1276,6 +1297,52 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 // HELPERS
 // =========================================================================
 
+/**
+ * Safely escapes special regular expression characters in a string.
+ * @param {string} string - Input string to escape
+ * @returns {string} Escaped regex pattern string
+ */
+function escapeRegExp(string) {
+    return string ? string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
+}
+
+/**
+ * Checks if an observer socket can see a target socket using Line-of-Sight & Shadow Raycasting.
+ * Uses observer._visibleSet or delegates to serverLoop.checkVisibility.
+ * @param {string} observerSocketId - Socket ID of the observer player
+ * @param {string} targetSocketId - Socket ID of the target player being observed
+ * @param {Object} [playersDict] - In-memory active players dictionary
+ * @returns {boolean} True if the observer has line-of-sight visibility
+ */
+function isObserverVisible(observerSocketId, targetSocketId, playersDict) {
+    if (!observerSocketId || !targetSocketId) return false;
+    if (observerSocketId === targetSocketId) return true;
+
+    if (playersDict && playersDict[observerSocketId]) {
+        const observer = playersDict[observerSocketId];
+        if (observer._visibleSet) {
+            return observer._visibleSet.has(targetSocketId);
+        }
+    }
+
+    try {
+        const serverLoop = require('../server-loop');
+        if (serverLoop && typeof serverLoop.checkVisibility === 'function') {
+            return serverLoop.checkVisibility(observerSocketId, targetSocketId);
+        }
+    } catch {
+        // Ignored
+    }
+
+    return true;
+}
+
+/**
+ * Verifies physical reach (AABB bounding box) between two players.
+ * @param {Object} p1 - Initiating player object
+ * @param {Object} p2 - Target player object
+ * @returns {boolean} True if within interaction reach
+ */
 function checkReach(p1, p2) {
     const p1X = p1.position.x + 30; // Center X
     const p1Y = p1.position.y;
@@ -1295,41 +1362,52 @@ function checkReach(p1, p2) {
 /**
  * Resolves a unified target zone ('arms', 'hands', 'legs', 'feet', 'groin', 'head', 'torso', 'tail')
  * to a concrete server BODY_PARTS anatomical limb ('leftArm' | 'rightArm', etc.).
+ * @param {Object} targetPlayer - Target player object
+ * @param {string} [targetZone='torso'] - Target anatomical area
+ * @returns {string} Server body part string
  */
 function resolveTargetLimb(targetPlayer, targetZone = 'torso') {
     const parts = (targetPlayer && targetPlayer.stats && targetPlayer.stats.bodyParts) ? targetPlayer.stats.bodyParts : null;
 
     switch (targetZone) {
         case 'arms': {
-            if (!parts || parts.leftArm.hp === parts.rightArm.hp) {
+            const leftHp = parts?.leftArm?.hp ?? 100;
+            const rightHp = parts?.rightArm?.hp ?? 100;
+            if (!parts || leftHp === rightHp) {
                 return Math.random() < 0.5 ? 'leftArm' : 'rightArm';
             }
-            if (parts.leftArm.hp <= 0) return 'rightArm';
-            if (parts.rightArm.hp <= 0) return 'leftArm';
+            if (leftHp <= 0) return 'rightArm';
+            if (rightHp <= 0) return 'leftArm';
             return Math.random() < 0.5 ? 'leftArm' : 'rightArm';
         }
         case 'hands': {
-            if (!parts || parts.leftHand.hp === parts.rightHand.hp) {
+            const leftHp = parts?.leftHand?.hp ?? 100;
+            const rightHp = parts?.rightHand?.hp ?? 100;
+            if (!parts || leftHp === rightHp) {
                 return Math.random() < 0.5 ? 'leftHand' : 'rightHand';
             }
-            if (parts.leftHand.hp <= 0) return 'rightHand';
-            if (parts.rightHand.hp <= 0) return 'leftHand';
+            if (leftHp <= 0) return 'rightHand';
+            if (rightHp <= 0) return 'leftHand';
             return Math.random() < 0.5 ? 'leftHand' : 'rightHand';
         }
         case 'legs': {
-            if (!parts || parts.leftLeg.hp === parts.rightLeg.hp) {
+            const leftHp = parts?.leftLeg?.hp ?? 100;
+            const rightHp = parts?.rightLeg?.hp ?? 100;
+            if (!parts || leftHp === rightHp) {
                 return Math.random() < 0.5 ? 'leftLeg' : 'rightLeg';
             }
-            if (parts.leftLeg.hp <= 0) return 'rightLeg';
-            if (parts.rightLeg.hp <= 0) return 'leftLeg';
+            if (leftHp <= 0) return 'rightLeg';
+            if (rightHp <= 0) return 'leftLeg';
             return Math.random() < 0.5 ? 'leftLeg' : 'rightLeg';
         }
         case 'feet': {
-            if (!parts || parts.leftFoot.hp === parts.rightFoot.hp) {
+            const leftHp = parts?.leftFoot?.hp ?? 100;
+            const rightHp = parts?.rightFoot?.hp ?? 100;
+            if (!parts || leftHp === rightHp) {
                 return Math.random() < 0.5 ? 'leftFoot' : 'rightFoot';
             }
-            if (parts.leftFoot.hp <= 0) return 'rightFoot';
-            if (parts.rightFoot.hp <= 0) return 'leftFoot';
+            if (leftHp <= 0) return 'rightFoot';
+            if (rightHp <= 0) return 'leftFoot';
             return Math.random() < 0.5 ? 'leftFoot' : 'rightFoot';
         }
         case 'groin':
@@ -1341,6 +1419,7 @@ function resolveTargetLimb(targetPlayer, targetZone = 'torso') {
             return targetZone || 'torso';
     }
 }
+
 
 function handleFriendlyAction(io, socket, player, target, itemData, saveCharacter, messageSystem, targetZone = 'torso') {
     const activeHand = player.actionHands.activeHand || 'left';
@@ -1676,6 +1755,14 @@ function resetVoreState(p) {
     resetGrappleState(p);
 }
 
+/**
+ * Broadcasts vore stage updates directly to prey/predator sockets, and to observers via Line-of-Sight.
+ * @param {Object} io - Socket.io server instance
+ * @param {Object} prey - Prey player object
+ * @param {Object} predator - Predator player object
+ * @param {number} stage - Current vore stage (0: Released, 1: Entrance, 2: Path, 3: Destination)
+ * @param {string} nodeName - Name of current internal node (e.g. 'Stomach')
+ */
 function broadcastVoreStageUpdate(io, prey, predator, stage, nodeName) {
     let destinationMode = 'Hold';
     let nodeVoreTypeId = null;
@@ -1691,24 +1778,46 @@ function broadcastVoreStageUpdate(io, prey, predator, stage, nodeName) {
     const targetName = getFullName(prey);
     const predatorName = getFullName(predator);
 
-    io.emit('voreStageUpdate', {
-        playerId: prey.playerId,
-        predatorId: predator.playerId,
+    const payload = {
+        playerId: prey ? prey.playerId : null,
+        predatorId: predator ? predator.playerId : null,
         predatorName: predatorName,
         stage: stage,
         nodeName: nodeName,
         targetName: targetName,
-        targetHp: prey.stats ? Math.round(prey.stats.health) : 100,
-        targetMaxHp: prey.stats ? Math.round(prey.stats.maxHealth) : 100,
-        targetStamina: prey.stats ? Math.round(prey.stats.stamina) : 100,
-        predatorStamina: predator.stats ? Math.round(predator.stats.stamina) : 100,
+        targetHp: (prey && prey.stats) ? Math.round(prey.stats.health) : 100,
+        targetMaxHp: (prey && prey.stats) ? Math.round(prey.stats.maxHealth) : 100,
+        targetStamina: (prey && prey.stats) ? Math.round(prey.stats.stamina) : 100,
+        predatorStamina: (predator && predator.stats) ? Math.round(predator.stats.stamina) : 100,
         destinationMode: destinationMode,
         nodeVoreTypeId: nodeVoreTypeId,
-        isClenching: predator.isClenching || false,
-        isClenchSuppressed: prey.isClenchSuppressed || false,
-        struggleCooldownUntil: prey.struggleCooldownUntil || 0,
-        struggleCooldownRemaining: prey.struggleCooldownRemaining || 0
-    });
+        isClenching: predator ? (predator.isClenching || false) : false,
+        isClenchSuppressed: prey ? (prey.isClenchSuppressed || false) : false,
+        struggleCooldownUntil: prey ? (prey.struggleCooldownUntil || 0) : 0,
+        struggleCooldownRemaining: prey ? (prey.struggleCooldownRemaining || 0) : 0
+    };
+
+    // 1. Guaranteed Direct Delivery to Protagonists (Prey & Predator)
+    const preySocketId = prey ? (prey.socketId || prey.playerId) : null;
+    const predSocketId = predator ? (predator.socketId || predator.playerId) : null;
+
+    if (preySocketId && io.sockets.sockets.get(preySocketId)) {
+        io.sockets.sockets.get(preySocketId).emit('voreStageUpdate', payload);
+    }
+    if (predSocketId && predSocketId !== preySocketId && io.sockets.sockets.get(predSocketId)) {
+        io.sockets.sockets.get(predSocketId).emit('voreStageUpdate', payload);
+    }
+
+    // 2. Line-of-Sight / Shadow System Broadcast for Observers
+    const predatorTargetId = predator ? (predator.socketId || predator.playerId) : null;
+    if (predatorTargetId) {
+        io.sockets.sockets.forEach((obsSocket, obsId) => {
+            if (obsId === preySocketId || obsId === predSocketId) return;
+            if (isObserverVisible(obsId, predatorTargetId)) {
+                obsSocket.emit('voreStageUpdate', payload);
+            }
+        });
+    }
 }
 
 function addPlayerToVoreContents(predator, destName, preyName, nodeId) {

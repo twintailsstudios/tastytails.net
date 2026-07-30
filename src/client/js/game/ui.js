@@ -1,4 +1,21 @@
-// --- RECONCILIATION HELPER ---
+/**
+ * @fileoverview ui.js - Client-Side Vore GUI Controller
+ * 
+ * @description
+ * Manages client DOM rendering and reconciliation for organ accordion lists (#voreListContainer),
+ * floating predator controls (#predator-controls), prey struggle HUD (#struggle-window), and AnatomyForge modals.
+ * Interfaces with Socket.io client events and Phaser canvas positioning.
+ */
+
+import { WindowManager } from './utils/WindowManager.js';
+import { DockManager } from './utils/DockManager.js';
+
+/**
+ * Resolves node type for a vore destination by parsing anatomy graph data.
+ * @param {Object} vore - Vore entry object.
+ * @param {Object} localPlayerInfo - Global player info state object.
+ * @returns {string|undefined} Resolved node type string.
+ */
 function getVoreNodeType(vore, localPlayerInfo) {
     let nodeType = vore.type;
     if (!nodeType && localPlayerInfo && localPlayerInfo.anatomyData) {
@@ -8,11 +25,19 @@ function getVoreNodeType(vore, localPlayerInfo) {
                 const node = graph.nodes.find(n => String(n.id) === vore.graphNodeId);
                 if (node) nodeType = node.type;
             }
-        } catch (e) { /* ignore parse error */ }
+        } catch (e) {
+            console.warn('[UI] Failed to parse localPlayerInfo.anatomyData JSON:', e);
+        }
     }
     return nodeType;
 }
 
+/**
+ * Reconciles and renders organ destination accordion cards in #voreListContainer.
+ * Uses a 3-phase DOM diffing pattern (Index -> Update/Create -> Cleanup Obsolete).
+ * @param {Array<Object>} voreTypes - Array of vore organ destination objects.
+ * @param {Object} self - Phaser scene context containing socket connection.
+ */
 export function createVoreList(voreTypes, self) {
     window.createVoreList = createVoreList;
     const container = document.getElementById("voreListContainer");
@@ -204,16 +229,9 @@ function updateRosterList(ul, contents, vore, self, card = null) {
             const releaseBtn = document.createElement("button");
             releaseBtn.innerHTML = '<i class="fa-solid fa-eject"></i> Eject';
             releaseBtn.title = `Release ${name}`;
-            releaseBtn.className = "release-btn";
-            releaseBtn.style.marginLeft = "10px";
-            releaseBtn.style.padding = "3px 8px";
-            releaseBtn.style.background = "#d9534f";
-            releaseBtn.style.color = "white";
-            releaseBtn.style.border = "none";
-            releaseBtn.style.borderRadius = "3px";
-            releaseBtn.style.cursor = "pointer";
-            releaseBtn.style.fontSize = "10px";
-            releaseBtn.style.fontWeight = "bold";
+            releaseBtn.className = "release-btn btn-danger-sm";
+            releaseBtn.dataset.targetName = name;
+            releaseBtn.dataset.voreTypeId = vore._id;
 
             releaseBtn.onclick = (e) => {
                 e.stopPropagation();
@@ -245,9 +263,18 @@ function updateRosterList(ul, contents, vore, self, card = null) {
         }
     } else {
         const li = document.createElement("li");
+        li.className = "empty-roster";
         li.innerText = "Empty";
-        li.style.opacity = "0.5";
         ul.appendChild(li);
+    }
+
+    // Dynamic Accordion Height Recalculation (if panel is open)
+    if (card) {
+        const btn = card.querySelector('.accordion');
+        const panel = card.querySelector('.accordion-content');
+        if (btn && panel && btn.classList.contains('is-open') && panel.style.maxHeight) {
+            panel.style.maxHeight = panel.scrollHeight + "px";
+        }
     }
 }
 
@@ -394,9 +421,12 @@ window.toggleAudioPreview = function (btn, type) {
     }
 };
 
-import { WindowManager } from './utils/WindowManager.js';
-import { DockManager } from './utils/DockManager.js';
-
+/**
+ * Positions a floating vore window centered horizontally relative to #phaserApp
+ * and stacked 12px above active bottom HUD bars (#hands-hud, #satchel-drawer).
+ * OPTIMIZATION: Bypasses auto-repositioning if the window dataset.hasBeenDragged is 'true'.
+ * @param {HTMLElement} container - Floating window element container.
+ */
 export function positionVoreWindow(container) {
     if (!container || container.dataset.hasBeenDragged === 'true') return;
 
@@ -437,14 +467,25 @@ export function positionVoreWindow(container) {
 }
 if (typeof window !== 'undefined') {
     window.positionVoreWindow = positionVoreWindow;
+    let resizeTimeout;
     window.addEventListener('resize', () => {
-        document.querySelectorAll('.vore-window').forEach(win => {
-            if (win.dataset.hasBeenDragged !== 'true') positionVoreWindow(win);
+        if (resizeTimeout) cancelAnimationFrame(resizeTimeout);
+        resizeTimeout = requestAnimationFrame(() => {
+            document.querySelectorAll('.vore-window').forEach(win => {
+                if (win.dataset.hasBeenDragged !== 'true') positionVoreWindow(win);
+            });
         });
     });
 }
 
 // --- Struggle Button & Predator Controls UI ---
+
+/**
+ * Renders or updates the floating predator vore control window (#predator-controls)
+ * and side-dock minimization tab (#vore-minimized-tab) for Stages 1–3.
+ * @param {Object} data - Predator stage control state data packet.
+ * @param {Object} socket - Socket.io client instance.
+ */
 export function createPredatorVoreControls(data, socket) {
     // Stage 0 = Released/None. Only Stages 1, 2, and 3 are supported.
     if (!data || !data.stage || data.stage <= 0 || data.stage > 3) {
@@ -475,8 +516,9 @@ export function createPredatorVoreControls(data, socket) {
             <button class="restore-btn" title="Restore Window">☐</button>
         `;
         document.body.appendChild(minTab);
-        if (window.DockManager || DockManager) {
-            (window.DockManager || DockManager).register(minTab, 'right');
+        const dm = window.DockManager || DockManager;
+        if (dm) {
+            dm.register(minTab, 'right');
         }
     } else {
         const titleEl = minTab.querySelector('.tab-title');
@@ -721,6 +763,9 @@ export function createPredatorVoreControls(data, socket) {
     }
 }
 
+/**
+ * Removes the floating predator controls window and minimization tab from the DOM.
+ */
 export function removePredatorVoreControls() {
     const existing = document.getElementById('predator-controls');
     if (existing) existing.remove();
@@ -728,6 +773,13 @@ export function removePredatorVoreControls() {
     if (minTab) minTab.remove();
 }
 
+/**
+ * Renders or updates the prey struggle window (#struggle-window) and manages 250ms cooldown timer ticks.
+ * OPTIMIZATION: Checks container.contains(btnSubtextEl) before each interval tick to clear detached timers.
+ * @param {boolean} isConsumed - Whether the local player is currently consumed.
+ * @param {Object} socket - Socket.io client instance.
+ * @param {Object} [clenchData=window.lastClenchData||{}] - Optional clench state data.
+ */
 export function createStruggleButton(isConsumed, socket, clenchData = window.lastClenchData || {}) {
     let container = document.getElementById('struggle-window');
     let minTab = document.getElementById('struggle-minimized-tab');
@@ -932,15 +984,21 @@ export function createStruggleButton(isConsumed, socket, clenchData = window.las
                 const struggleBtn = container.querySelector('#struggle-btn');
                 const subtitleEl = container.querySelector('#struggle-subtitle');
 
+                if (!btnSubtextEl || !container.contains(btnSubtextEl)) {
+                    clearInterval(container.struggleCooldownTimer);
+                    container.struggleCooldownTimer = null;
+                    return;
+                }
+
                 if (currentNow < struggleCooldownUntil) {
                     const remSec = Math.ceil((struggleCooldownUntil - currentNow) / 1000);
-                    if (btnSubtextEl) btnSubtextEl.innerText = `Recovering... (${remSec}s)`;
+                    btnSubtextEl.innerText = `Recovering... (${remSec}s)`;
                 } else {
                     clearInterval(container.struggleCooldownTimer);
                     container.struggleCooldownTimer = null;
                     delete container.dataset.struggleCooldownUntil;
                     container.dataset.isCooldown = 'false';
-                    if (btnSubtextEl) btnSubtextEl.innerText = 'Fight Back & Thrash';
+                    btnSubtextEl.innerText = 'Fight Back & Thrash';
                     if (subtitleEl) subtitleEl.innerText = 'Thrash against internal walls to escape!';
                     if (struggleBtn && container.dataset.isClenched !== 'true') {
                         struggleBtn.disabled = false;
@@ -962,8 +1020,9 @@ export function createStruggleButton(isConsumed, socket, clenchData = window.las
                 <button class="restore-btn" title="Restore Window">☐</button>
             `;
             document.body.appendChild(minTab);
-            if (window.DockManager || DockManager) {
-                (window.DockManager || DockManager).register(minTab, 'right');
+            const dm = window.DockManager || DockManager;
+            if (dm) {
+                dm.register(minTab, 'right');
             }
 
             minTab.onclick = (e) => {

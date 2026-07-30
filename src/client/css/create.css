@@ -1,3 +1,24 @@
+/**
+ * @fileoverview create.css - Character Creator & Editor Stylesheet
+ * 
+ * @description
+ * Primary design system, visual theme, layout architecture, dynamic micro-interactions,
+ * and responsive breakpoints for the Character Creator & Character Editor views (/create and /edit/:charId).
+ *
+ * Key Components:
+ * - Tabletop RPG parchment ledger & oak wood framing theme tokens (:root)
+ * - 2-Column creator grid layout (.creator-grid, .ledger-container, #previewContainer)
+ * - Magical Paw-Print Custom Select dropdown system (.custom-select-wrapper)
+ * - Accordion drawer transitions (.style-grid)
+ * - Pure CSS star rating SVG mask controls (.rating)
+ * - Mobile responsive stack layout (@media max-width: 1000px)
+ *
+ * Upstream Assets:
+ * - Local pattern textures (/assets/images/patterns/{wood-pattern,cream-paper,black-scales}.png)
+ * - Google Fonts (Cinzel, Philosopher, Caveat Brush, Lato)
+ * - FontAwesome 6 Free (\f1b0 paw print icon)
+ */
+
 /* === COLOR PALETTE & VARIABLES === */
 :root {
     --bg-color: #2c241b;
@@ -10,6 +31,15 @@
     --text-dark: #3e2723;
     --text-light: #f5f5f5;
     --accent-red: #8b0000;
+
+    /* Typography Tokens */
+    --font-body: 'Philosopher', sans-serif;
+    --font-heading: 'Cinzel', serif;
+    --font-handwriting: 'Caveat Brush', cursive;
+    --font-code: 'Lato', sans-serif;
+
+    /* SVG Asset Masks (RESOURCE EFFICIENCY: Centralized to avoid duplicate parsing) */
+    --star-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"/></svg>');
     
     /* Universal Button Tokens */
     --btn-primary-bg: #6b8c42;              /* Anatomy Forge Entrance Green */
@@ -28,9 +58,9 @@
 
 body {
     background-color: var(--bg-color);
-    background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+    background-image: var(--texture-wood-pattern, url('https://www.transparenttextures.com/patterns/wood-pattern.png'));
     color: var(--text-light);
-    font-family: 'Philosopher', sans-serif;
+    font-family: var(--font-body, 'Philosopher', sans-serif);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -56,7 +86,7 @@ header {
 }
 
 h1 {
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-heading, 'Cinzel', serif);
     font-size: 2rem;
     color: var(--gold);
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
@@ -77,7 +107,7 @@ nav {
 .nav-links a {
     color: var(--parchment);
     text-decoration: none;
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-heading, 'Cinzel', serif);
     font-size: 1.1rem;
     transition: color 0.3s;
 }
@@ -94,7 +124,7 @@ nav {
     padding: 5px 15px;
     border-radius: 4px;
     cursor: pointer;
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-heading, 'Cinzel', serif);
     transition: all 0.3s;
 }
 
@@ -123,7 +153,7 @@ nav {
 /* --- LEFT COLUMN: THE LEDGER --- */
 .ledger-container {
     background-color: var(--parchment);
-    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    background-image: url('/assets/images/patterns/cream-paper.png');
     border: 10px solid var(--wood-dark);
     border-radius: 8px;
     box-shadow: inset 0 0 60px rgba(62, 39, 35, 0.2), 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -157,7 +187,7 @@ nav {
     color: var(--parchment-dark);
     border: none;
     padding: 15px 5px;
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-heading, 'Cinzel', serif);
     font-weight: bold;
     font-size: 1.1rem;
     cursor: pointer;
@@ -215,7 +245,7 @@ nav {
     border-bottom: 2px solid var(--wood-light);
     text-align: left;
     outline: none;
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-heading, 'Cinzel', serif);
     font-size: 1.2rem;
     font-weight: bold;
     transition: 0.4s;
@@ -234,8 +264,8 @@ nav {
 .sub-collapsible {
     background-color: rgba(255, 255, 255, 0.3);
     border-bottom: 1px dashed var(--wood-light);
-    font-family: 'Cinzel', serif;
-    font-size: 1rem;
+    font-family: var(--font-heading, 'Cinzel', serif);
+    font-size: 1.0rem;
     padding: 10px 15px;
     margin-top: 5px;
 }
@@ -254,16 +284,17 @@ nav {
     padding: 20px 10px;
     background-color: rgba(255, 255, 255, 0.3);
     max-height: 0;
-    overflow: visible;
-    transition: max-height 0.3s ease-out, opacity 0.3s;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease, visibility 0.3s ease;
     opacity: 0;
     visibility: hidden;
 }
 
 .style-grid.active {
-    max-height: 2000px;
+    max-height: 1000px;
     opacity: 1;
     visibility: visible;
+    overflow: visible;
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
@@ -306,15 +337,16 @@ nav {
 }
 
 label {
-    font-family: 'Caveat Brush', cursive;
+    font-family: var(--font-handwriting, 'Caveat Brush', cursive);
     font-size: 1.2rem;
     color: var(--wood-light);
     margin-bottom: 2px;
     white-space: nowrap;
 }
 
-select {
-    display: none;
+select:not(.af-form-select),
+select.hidden-native-select {
+    display: none !important;
 }
 
 /* === MAGICAL CUSTOM SELECT STYLING === */
@@ -322,7 +354,7 @@ select {
     position: relative;
     user-select: none;
     width: 100%;
-    font-family: 'Caveat Brush', cursive;
+    font-family: var(--font-handwriting, 'Caveat Brush', cursive);
 }
 
 .custom-select {
@@ -337,7 +369,7 @@ select {
     align-items: center;
     justify-content: space-between;
     padding: 5px 10px;
-    font-family: 'Caveat Brush', cursive;
+    font-family: var(--font-handwriting, 'Caveat Brush', cursive);
     font-size: 1.1rem;
     color: var(--text-dark);
     border-bottom: 2px solid var(--wood-light);
@@ -400,7 +432,7 @@ select {
     right: 0;
     border: 2px solid var(--wood-dark);
     background-color: var(--parchment);
-    background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+    background-image: url('/assets/images/patterns/cream-paper.png');
     transition: all 0.3s cubic-bezier(0.5, 0, 0, 1.25);
     opacity: 0;
     visibility: hidden;
@@ -424,7 +456,7 @@ select {
     position: relative;
     display: block;
     padding: 10px 15px;
-    font-family: 'Caveat Brush', cursive;
+    font-family: var(--font-handwriting, 'Caveat Brush', cursive);
     font-size: 1.1rem;
     color: var(--text-dark);
     cursor: pointer;
@@ -485,7 +517,7 @@ textarea {
     background: transparent;
     border: none;
     border-bottom: 2px solid var(--wood-light);
-    font-family: 'Caveat Brush', cursive;
+    font-family: var(--font-handwriting, 'Caveat Brush', cursive);
     font-size: 1.2rem;
     color: var(--text-dark);
     padding: 5px;
@@ -549,7 +581,7 @@ textarea {
     display: flex;
     flex-direction: column;
     align-items: center;
-    background-image: url('https://www.transparenttextures.com/patterns/black-scales.png');
+    background-image: url('/assets/images/patterns/black-scales.png');
     z-index: 10;
     gap: 10px;
 }
@@ -586,7 +618,7 @@ canvas {
     display: block;
     text-align: center;
     color: var(--parchment);
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-heading, 'Cinzel', serif);
     border-bottom: 1px dashed var(--wood-light);
     margin-bottom: 8px;
     padding-bottom: 4px;
@@ -604,7 +636,7 @@ canvas {
     border: 2px solid var(--wood-light);
     padding: 8px 10px;
     border-radius: 4px;
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-heading, 'Cinzel', serif);
     font-weight: bold;
     cursor: pointer;
     transition: all 0.2s;
@@ -649,7 +681,7 @@ canvas {
 }
 
 .palette-item span {
-    font-family: 'Lato', sans-serif;
+    font-family: var(--font-code, 'Lato', sans-serif);
     font-size: 0.75rem;
     color: var(--parchment-dark);
 }
@@ -680,8 +712,8 @@ canvas {
     width: 20px;
     height: 20px;
     background-color: rgba(62, 39, 35, 0.3);
-    mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"/></svg>');
-    -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"/></svg>');
+    mask-image: var(--star-mask);
+    -webkit-mask-image: var(--star-mask);
     mask-repeat: no-repeat;
 }
 
@@ -708,7 +740,7 @@ canvas {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(62, 39, 35, 0.1);
     border-radius: 4px;
-    font-family: 'Philosopher', sans-serif;
+    font-family: var(--font-body, 'Philosopher', sans-serif);
     font-size: 1.05rem;
     color: var(--text-dark);
 }

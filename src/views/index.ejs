@@ -1,98 +1,127 @@
+<%#
+  @fileoverview index.ejs - Primary Landing Page & Authentication Modal View
+  
+  @description
+  Displays the main public homepage notice board for TastyTails.net, dynamic authentication state CTAs,
+  and a dual-column modal overlay containing account registration and login forms.
+  
+  Injected into layout.ejs via express-ejs-layouts middleware.
+  
+  @optimization CLIENT-SIDE MODAL TOGGLE:
+  Renders the .registrationBox container unconditionally with class-toggled visibility (.hide) based on
+  loginForm view state. Eliminates server POST roundtrips (/api/user/loginForm, /api/user/closereg)
+  by allowing client-side JS (hideFunction()) to toggle visibility instantly without page reloads.
+-%>
 <link rel="stylesheet" href="/css/landing.css">
-<% if (loginForm==1) { %>
-  <section class="registrationBox">
-    <div class="popUpContainer">
 
-      <!-- Close Button -->
-      <div class="close">
-        <form action="/api/user/closereg" method="POST">
-          <button type="submit"><i class="fa-solid fa-xmark"></i></button>
-        </form>
-      </div>
+<!-- DUAL-COLUMN AUTHENTICATION MODAL OVERLAY -->
+<!-- OPTIMIZATION: Rendered with dynamic class state to preserve DOM node for instant client-side hideFunction() toggles -->
+<section class="registrationBox <%= (typeof loginForm !== 'undefined' && loginForm == 1) ? '' : 'hide' %>" id="authModal" aria-hidden="<%= (typeof loginForm !== 'undefined' && loginForm == 1) ? 'false' : 'true' %>">
+  <div class="popUpContainer">
 
-      <!-- LEFT COLUMN: REGISTER -->
-      <div class="registrationContainer">
-        <header class="reg1">
-          <h1>Create Account</h1>
-          <p>Join the Guild!</p>
-        </header>
-        <form action="/api/user/register" method="POST">
-          <ul>
-            <li><input type="email" id="reg_email" name="email" placeholder="Enter Email..." required></li>
-            <li><input type="password" id="reg_password" name="password" placeholder="Enter Password..." required>
-            </li>
-            <li><input type="password" id="reg_confirm" name="password_confirmation" placeholder="Verify Password..."
-                required></li>
-            <li><input type="text" onfocus="(this.type='date')" id="birthday" name="birthday"
-                placeholder="Date of Birth..." required></li>
-          </ul>
-          <button type="submit" class="btn btn-primary button">Sign Up!</button>
-        </form>
-      </div>
-
-      <!-- DIVIDER LINE -->
-      <div class="divider"></div>
-
-      <!-- RIGHT COLUMN: LOGIN -->
-      <div class="loginContainer">
-        <header class="login">
-          <h1>Log In</h1>
-          <p>Welcome back, traveler.</p>
-        </header>
-        <form action="/api/user/login" method="POST">
-          <ul>
-            <li><input type="email" id="login_email" name="email" placeholder="Enter Email..." required></li>
-            <li><input type="password" id="login_password" name="password" placeholder="Enter Password..." required>
-            </li>
-          </ul>
-          <button type="submit" class="btn btn-primary button">Login</button>
-        </form>
-      </div>
-
+    <!-- Modal Close Control -->
+    <div class="close">
+      <button type="button" onclick="hideFunction()" aria-label="Close modal window"><i class="fa-solid fa-xmark"></i></button>
     </div>
-  </section>
-  <% } %>
 
-    <main>
-      <div class="notice-board">
-        <!-- Decorative Nails -->
-        <div class="nail tl"></div>
-        <div class="nail tr"></div>
-        <div class="nail bl"></div>
-        <div class="nail br"></div>
+    <!-- LEFT COLUMN: ACCOUNT REGISTRATION -->
+    <div class="registrationContainer">
+      <header class="reg1">
+        <h1>Create Account</h1>
+        <p>Join the Guild!</p>
+      </header>
+      <form action="/api/user/register" method="POST">
+        <ul>
+          <li><input type="email" id="reg_email" name="email" placeholder="Enter Email..." aria-label="Registration Email" required></li>
+          <li><input type="password" id="reg_password" name="password" placeholder="Enter Password..." aria-label="Registration Password" required>
+          </li>
+          <li><input type="password" id="reg_confirm" name="password_confirmation" placeholder="Verify Password..." aria-label="Confirm Password"
+              required></li>
+          <li><input type="text" onfocus="(this.type='date')" id="birthday" name="birthday"
+              placeholder="Date of Birth..." aria-label="Date of Birth" required></li>
+        </ul>
+        <button type="submit" class="btn btn-primary button">Sign Up!</button>
+      </form>
+    </div>
 
-        <h2 class="notice-title">Under Construction</h2>
-        <div class="notice-subtitle">~ Pardon the Dust! ~</div>
+    <!-- DIVIDER LINE -->
+    <div class="divider"></div>
 
-        <p class="notice-text">
-          The tavern is currently being expanded. The builders are hammering away, and the paint is still wet.
-          However, the guild registry is open for business!
-        </p>
+    <!-- RIGHT COLUMN: USER LOGIN -->
+    <div class="loginContainer">
+      <header class="login">
+        <h1>Log In</h1>
+        <p>Welcome back, traveler.</p>
+      </header>
+      <form action="/api/user/login" method="POST">
+        <ul>
+          <li><input type="email" id="login_email" name="email" placeholder="Enter Email..." aria-label="Login Email" required></li>
+          <li><input type="password" id="login_password" name="password" placeholder="Enter Password..." aria-label="Login Password" required>
+          </li>
+        </ul>
+        <button type="submit" class="btn btn-primary button">Login</button>
+      </form>
+    </div>
 
-        <% if (token !==null) { %>
-          <a href="/character-bank" class="btn btn-primary cta-btn">
-            <i class="fa-solid fa-scroll"></i> Play the Alpha!
-          </a>
-          <% } else { %>
-            <form action="/api/user/loginForm" method="POST" style="display:inline;">
-              <button type="submit" class="btn btn-primary cta-btn" style="border:none; cursor:pointer;">
-                <i class="fa-solid fa-key"></i> Login to Enter
-              </button>
-            </form>
-            <% } %>
+  </div>
+</section>
 
-              <br>
+<!-- MAIN HOMEPAGE NOTICE BOARD -->
+<main>
+  <div class="notice-board">
+    <!-- Decorative Corner Nails -->
+    <div class="nail tl"></div>
+    <div class="nail tr"></div>
+    <div class="nail bl"></div>
+    <div class="nail br"></div>
 
-              <!-- Image Container (Handles missing image gracefully) -->
-              <div class="construction-img-container">
-                <!-- Using an onerror to hide the image tag if your specific asset isn't found in this env -->
-                <img src="assets/images/Tasty_Tails_under_construction.png" alt="Under Construction"
-                  onerror="this.style.display='none'; document.getElementById('backup-icon').style.display='block';">
+    <h2 class="notice-title">Under Construction</h2>
+    <div class="notice-subtitle">~ Pardon the Dust! ~</div>
 
-                <!-- Fallback Icon shown if image is missing -->
-                <div id="backup-icon" class="construction-icon" style="display:none;">
-                  <i class="fa-solid fa-hammer"></i>
-                </div>
-              </div>
-      </div>
-    </main>
+    <p class="notice-text">
+      The tavern is currently being expanded. The builders are hammering away, and the paint is still wet.
+      However, the guild registry is open for business!
+    </p>
+
+    <!-- DYNAMIC AUTHENTICATION CTA -->
+    <% if (token !== null) { %>
+      <a href="/character-bank" class="btn btn-primary cta-btn">
+        <i class="fa-solid fa-scroll"></i> Play the Alpha!
+      </a>
+      <% } else { %>
+        <!-- OPTIMIZATION: Triggers client-side hideFunction() instantly without POST server roundtrip -->
+        <button type="button" onclick="hideFunction()" class="btn btn-primary cta-btn" style="border:none; cursor:pointer;" aria-label="Open Login and Registration Window">
+          <i class="fa-solid fa-key"></i> Login to Enter
+        </button>
+        <% } %>
+
+          <br>
+
+          <!-- CONSTRUCTION IMAGE CONTAINER & RESILIENT FALLBACK -->
+          <div class="construction-img-container">
+            <img src="/assets/images/Tasty_Tails_under_construction.png" alt="Under Construction" id="construction-img">
+
+            <!-- Fallback Icon shown if image asset is missing in current environment -->
+            <div id="backup-icon" class="construction-icon" style="display:none;" aria-label="Under construction hammer icon">
+              <i class="fa-solid fa-hammer"></i>
+            </div>
+          </div>
+          <!-- SECURITY: CSP-compliant error event listener block handling image fallback -->
+          <script>
+            (function() {
+              const img = document.getElementById('construction-img');
+              const backup = document.getElementById('backup-icon');
+              if (!img || !backup) return;
+              function handleImgError() {
+                img.style.display = 'none';
+                backup.style.display = 'block';
+              }
+              if (img.complete && img.naturalWidth === 0) {
+                handleImgError();
+              } else {
+                img.addEventListener('error', handleImgError);
+              }
+            })();
+          </script>
+  </div>
+</main>

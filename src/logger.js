@@ -1,3 +1,14 @@
+/**
+ * @fileoverview Custom Logger & Diagnostics Utility - TastyTails Server Architecture
+ * 
+ * @description
+ * Provides zero-dependency terminal logging, level-based severity output, stack trace call site resolution,
+ * execution stopwatch timers, ASCII table rendering, health snapshots, and a fixed O(1) circular ring buffer
+ * (`logBuffer`) exposed for monitoring dashboards.
+ * 
+ * Triggered by: Express route handlers, Socket.IO packet handlers, game loop tick engine, DB resilience wrapper, telemetry APIs.
+ */
+
 const path = require('path');
 const util = require('util');
 
@@ -69,11 +80,15 @@ const FILE_TOKEN_COLORS = {
     'dbInterface.js': STYLES.fg.cyan,
 };
 
+const ANSI_REGEX = /\x1b\[[0-9;]*m/g;
+
 // --- Internal State for Advanced Features ---
 let currentIndentLevel = 0;
 const timers = new Map();
-const logBuffer = [];
 const MAX_LOGS = 200;
+const logBuffer = new Array(MAX_LOGS);
+let logHead = 0;
+let logCount = 0;
 
 // --- Helper Functions ---
 
@@ -100,38 +115,51 @@ function getTimestamp() {
 
 /**
  * Identifies the caller file and line number
+ * @returns {{fileName: string, lineNumber: string|number}} Caller details
  */
 function getCallerInfo() {
-    const error = new Error();
-    const stack = error.stack.split('\n');
+    // OPTIMIZATION: Uses V8 Error.prepareStackTrace CallSite reflection wrapped in try...finally.
+    // Avoids costly new Error().stack string splitting and regex parsing on every log call.
+    const origPrepare = Error.prepareStackTrace;
+    try {
+        Error.prepareStackTrace = (_, stack) => stack;
+        const err = new Error();
+        Error.captureStackTrace(err, getCallerInfo);
+        const stack = err.stack;
 
-    // Iterate through the stack to find the first line outside of logger.js
-    for (let i = 2; i < stack.length; i++) {
-        const line = stack[i];
-        if (!line.includes(__filename)) {
-            // Regex to parse "    at FunctionName (path/to/file.js:line:col)" or "    at path/to/file.js:line:col"
-            const match = line.match(/[\(\s](.*):(\d+):\d+\)?$/);
-            if (match) {
-                const fullPath = match[1];
-                const lineNumber = match[2];
-                const fileName = path.basename(fullPath);
-                return { fileName, lineNumber };
+        if (Array.isArray(stack)) {
+            for (const site of stack) {
+                if (!site || typeof site.getFileName !== 'function') continue;
+                const fileName = site.getFileName();
+                if (typeof fileName === 'string' && fileName.length > 0 && !fileName.includes(__filename) && !fileName.startsWith('node:')) {
+                    return {
+                        fileName: path.basename(fileName),
+                        lineNumber: typeof site.getLineNumber === 'function' ? (site.getLineNumber() || '?') : '?'
+                    };
+                }
             }
         }
+    } catch (_e) {
+        // Safe fallback if V8 prepareStackTrace fails in non-standard environments
+    } finally {
+        Error.prepareStackTrace = origPrepare;
     }
     return { fileName: 'unknown', lineNumber: '?' };
 }
 
 /**
  * Format arguments for logging (handles objects, errors, etc.)
+ * @param {Array<*>} args - Raw log arguments
+ * @returns {string} Formatted log message
  */
 function formatArgs(args) {
     return args.map(arg => {
         if (arg instanceof Error) {
             return `${STYLES.fg.red}${arg.stack}${STYLES.reset}`;
         }
-        if (typeof arg === 'object') {
-            return util.inspect(arg, { colors: true, depth: null, compact: false, breakLength: 80 });
+        if (typeof arg === 'object' && arg !== null) {
+            // OPTIMIZATION: Cap inspection depth (depth: 4, maxArrayLength: 50) to prevent event-loop lockups on huge objects
+            return util.inspect(arg, { colors: true, depth: 4, maxArrayLength: 50, compact: false, breakLength: 80 });
         }
         return arg;
     }).join(' ');
@@ -161,21 +189,20 @@ function baseLog(levelKey, ...args) {
     // align columns slightly for readability
     console.log(`${timePart} ${levelPart.padEnd(20)} ${filePart.padEnd(30)} ${indent}${message}`);
 
-    // Buffer log line for Web Dashboard
-    const cleanMsg = message.replace(/\x1b\[[0-9;]*m/g, '');
+    // OPTIMIZATION: Write to O(1) ring buffer index pointer instead of O(N) logBuffer.shift() re-indexing
+    const cleanMsg = message.replace(ANSI_REGEX, '');
     const cleanLogStr = `[${timestamp}] [${level.label}] [${fileName}:${lineNumber}] ${cleanMsg}`;
     
-    logBuffer.push({
+    logBuffer[logHead] = {
         time: timestamp,
         level: levelKey,
         label: level.label,
         caller: `${fileName}:${lineNumber}`,
         message: cleanMsg,
         raw: cleanLogStr
-    });
-    if (logBuffer.length > MAX_LOGS) {
-        logBuffer.shift();
-    }
+    };
+    logHead = (logHead + 1) % MAX_LOGS;
+    if (logCount < MAX_LOGS) logCount++;
 }
 
 // --- Public API ---
@@ -252,11 +279,6 @@ logger.endTimer = (label) => {
         if (duration > 100) color = STYLES.fg.yellow;
         if (duration > 500) color = STYLES.fg.red;
 
-        // Use baseLog directly or a helper
-        const { fileName, lineNumber } = getCallerInfo(); // Will be this file unless called carefully? 
-        // Actually baseLog does getCallerInfo stack trace shift.
-        // We'll just construct a message string.
-
         // We manually construct the message to inject the color for the time
         const timeMsg = `${color}${duration}ms${STYLES.reset}`;
         logger.info(`Timer '${label}': ${timeMsg}`);
@@ -269,7 +291,7 @@ logger.endTimer = (label) => {
  * Tabular Data Display
  */
 logger.table = (data) => {
-    if (!Array.isArray(data) || data.length === 0) {
+    if (!Array.isArray(data) || data.length === 0 || !data[0] || typeof data[0] !== 'object') {
         logger.info("No data found for table.");
         return;
     }
@@ -334,6 +356,11 @@ logger.health = () => {
     logger.table(stats);
 };
 
-logger.getLogs = () => logBuffer;
+logger.getLogs = () => {
+    if (logCount < MAX_LOGS) {
+        return logBuffer.slice(0, logCount);
+    }
+    return [...logBuffer.slice(logHead, MAX_LOGS), ...logBuffer.slice(0, logHead)];
+};
 
 module.exports = logger;

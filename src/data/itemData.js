@@ -1,30 +1,51 @@
 /**
- * itemData.js (ONLY EDIT THIS FILE WHEN CREATING OR CHANGING ITEMS)
- * Definitions for items, specifically their physical size.
- * Defaults to size 1 if not found.
+ * @fileoverview Master Static Item Compendium (itemData.js)
+ * 
+ * @description
+ * Single Source of Truth (SSOT) static item registry for TastyTails.net.
+ * Defines item dimensions, FontAwesome icons, Phaser textures, crafting recipes,
+ * multi-layered visual component tinting, ground hazards, and clothing metadata.
+ * 
+ * Synchronized to client build via: scripts/sync-items.js
+ * 
+ * IMPORTANT: ONLY EDIT THIS FILE WHEN CREATING OR CHANGING ITEMS.
+ * Do not edit src/client/js/game/itemData.js directly.
  */
-module.exports = {
+
+/**
+ * OPTIMIZATION: Recursively deep-freezes static item definitions and sub-schemas
+ * (recipes, rendering, pockets) to enforce state immutability and prevent accidental
+ * dynamic property mutations at runtime across server and client sessions.
+ * 
+ * @param {Object} obj - Target item dictionary or schema object
+ * @returns {Object} Deeply frozen immutable object
+ */
+function deepFreeze(obj) {
+    if (obj && typeof obj === 'object' && !Object.isFrozen(obj)) {
+        Object.keys(obj).forEach(prop => {
+            if (typeof obj[prop] === 'object' && obj[prop] !== null) {
+                deepFreeze(obj[prop]);
+            }
+        });
+        Object.freeze(obj);
+    }
+    return obj;
+}
+
+const itemData = {
     // Basic Items
-    'glass_beer': { size: 1, name: 'Beer Glass', icon: 'fa-glass-whiskey', texture: 'glass_beer' },
-    'bottle_empty': { size: 1, name: 'Empty Bottle', icon: 'fa-wine-bottle', texture: 'bottle_empty', description: 'An empty glass bottle.' },
     'key': { size: 1, name: 'Key', icon: 'fa-key', texture: 'key' },
     'scroll_01': { size: 1, name: 'Test Scroll', icon: 'fa-scroll', texture: 'scroll2', description: 'A testing scroll.' },
 
-    // Drink Bottles
-    'bottle_ale': { size: 1, name: 'Ale Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_ale', playerUse: true, returnOnEmpty: 'bottle_empty' },
-    'bottle_wine': { size: 1, name: 'Wine Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_wine', playerUse: true, returnOnEmpty: 'bottle_empty' },
-    'bottle_whiskey': { size: 1, name: 'Whiskey Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_whiskey', playerUse: true, returnOnEmpty: 'bottle_empty' },
-    'bottle_beer': { size: 1, name: 'Beer Bottle', icon: 'fa-glass-whiskey', texture: 'bottle_beer', playerUse: true, returnOnEmpty: 'bottle_empty' },
-
     // Tools/Weapons
-    'stick': { size: 4, name: 'Sturdy Stick' },
+    'stick': { size: 4, name: 'Sturdy Stick', icon: 'fa-solid fa-tree' },
 
     // Crafting Items
-    'ore_iron': { size: 2, name: 'Iron Ore', icon: 'fa-gem', texture: 'ore_iron', flavor: `Hard and metallic`, description: `A chunk of iron ore.`, verb: 'use', maxUses: 1, playerUse: false },
+    'ore_iron': { size: 2, name: 'Iron Ore', icon: 'fa-solid fa-gem', texture: 'ore_iron', flavor: `Hard and metallic`, description: `A chunk of iron ore.`, verb: 'use', maxUses: 1, playerUse: false },
     'ingot_iron': {
         size: 2,
         name: 'Iron Ingot',
-        icon: 'fa-solid fa-smithing',
+        icon: 'fa-solid fa-cubes',
         texture: 'ingot_iron',
         flavor: `Hard and metallic`,
         description: `An ingot of iron.`,
@@ -44,7 +65,7 @@ module.exports = {
     'debug_ground_bleedDamage': {
         size: 1,
         name: 'Sharp Ground Shards',
-        icon: 'fa-droplet',
+        icon: 'fa-solid fa-droplet',
         texture: 'debug_ground_bleedDamage',
         description: 'Sharp glass shards on the ground that cut the feet of anyone stepping on them.',
         preventPickup: true,
@@ -59,7 +80,7 @@ module.exports = {
     'debug_ground_burnDamage': {
         size: 1,
         name: 'Smoldering Embers',
-        icon: 'fa-fire',
+        icon: 'fa-solid fa-fire',
         texture: 'debug_ground_burnDamage',
         description: 'Smoldering hot embers on the ground that burn the feet of anyone stepping on them.',
         preventPickup: true,
@@ -76,7 +97,7 @@ module.exports = {
     'debug_bandage': {
         size: 1,
         name: 'Linen Bandage',
-        icon: 'fa-bandage',
+        icon: 'fa-solid fa-bandage',
         texture: 'debug_bandage',
         description: 'Clean linen bandages used to seal cuts and stop active bleeding.',
         verb: 'apply',
@@ -88,7 +109,7 @@ module.exports = {
     'bandage': {
         size: 1,
         name: 'Linen Bandage',
-        icon: 'fa-bandage',
+        icon: 'fa-solid fa-bandage',
         texture: 'debug_bandage',
         description: 'Clean linen bandages used to seal cuts and stop active bleeding.',
         verb: 'apply',
@@ -100,7 +121,7 @@ module.exports = {
     'debug_salve': {
         size: 1,
         name: 'Sovereign Salve',
-        icon: 'fa-jar',
+        icon: 'fa-solid fa-jar',
         texture: 'debug_salve',
         description: 'Soothing medicinal salve used to heal thermal burns.',
         verb: 'apply',
@@ -112,7 +133,7 @@ module.exports = {
     'salve': {
         size: 1,
         name: 'Sovereign Salve',
-        icon: 'fa-jar',
+        icon: 'fa-solid fa-jar',
         texture: 'debug_salve',
         description: 'Soothing medicinal salve used to heal thermal burns.',
         verb: 'apply',
@@ -123,17 +144,17 @@ module.exports = {
     },
 
     // Default
-    'default': { size: 1, name: 'Unknown Object' },
+    'default': { size: 1, name: 'Unknown Object', icon: 'fa-solid fa-box-open' },
 
     // Food
-    'food_orange': { size: 1, name: 'Orange', icon: 'fa-apple-whole', texture: 'food_orange', flavor: `Tangy and sweet`, description: `A juicy orange.`, verb: 'eat', maxUses: 1, playerUse: true, isDynamic: true },
-    'food_potato': { size: 1, name: 'Potato', icon: 'fa-apple-whole', texture: 'food_potato', flavor: `Starchy and savory`, description: `A rich potato.`, verb: 'eat', maxUses: 1, playerUse: true, isDynamic: true },
+    'food_orange': { size: 1, name: 'Orange', icon: 'fa-solid fa-apple-whole', texture: 'food_orange', flavor: `Tangy and sweet`, description: `A juicy orange.`, verb: 'eat', maxUses: 1, playerUse: true, isDynamic: true },
+    'food_potato': { size: 1, name: 'Potato', icon: 'fa-solid fa-egg', texture: 'food_potato', flavor: `Starchy and savory`, description: `A rich potato.`, verb: 'eat', maxUses: 1, playerUse: true, isDynamic: true },
 
     // Tools
     'tool_sheers': {
         size: 1,
         name: 'Sheers',
-        icon: 'fa-apple-whole',
+        icon: 'fa-solid fa-scissors',
         texture: 'sheers',
         flavor: `Tastes like metal`,
         description: `Big heavy scissors`,
@@ -146,13 +167,13 @@ module.exports = {
             ingredients: [
                 { itemId: 'ingot_iron', count: 2 }
             ],
-            icon: 'fa-solid fa-khanda'
+            icon: 'fa-solid fa-scissors'
         }
     },
     'tool_pickaxe': {
         size: 1,
         name: 'Pickaxe',
-        icon: 'fa-apple-whole',
+        icon: 'fa-solid fa-hammer',
         texture: 'pickaxe',
         flavor: `Tastes like metal`,
         description: `Big heavy pickaxe`,
@@ -165,13 +186,13 @@ module.exports = {
             ingredients: [
                 { itemId: 'ingot_iron', count: 3 }
             ],
-            icon: 'fa-solid fa-khanda'
+            icon: 'fa-solid fa-hammer'
         }
     },
     'tool_hoe': {
         size: 1,
         name: 'Hoe',
-        icon: 'fa-apple-whole',
+        icon: 'fa-solid fa-trowel',
         texture: 'hoe',
         flavor: `Tastes like metal`,
         description: `Big heavy hoe`,
@@ -184,13 +205,13 @@ module.exports = {
             ingredients: [
                 { itemId: 'ingot_iron', count: 2 }
             ],
-            icon: 'fa-solid fa-khanda'
+            icon: 'fa-solid fa-trowel'
         }
     },
     'tool_watering_can': {
         size: 1,
         name: 'Watering Can',
-        icon: 'fa-apple-whole',
+        icon: 'fa-solid fa-faucet-drip',
         texture: 'watering_can',
         flavor: `Tastes like water`,
         description: `A watering can`,
@@ -203,17 +224,17 @@ module.exports = {
             ingredients: [
                 { itemId: 'ingot_iron', count: 2 }
             ],
-            icon: 'fa-solid fa-khanda'
+            icon: 'fa-solid fa-faucet-drip'
         }
     },
 
     // Fibers
-    'fiber_wool': { size: 1, name: 'Wool Fiber', icon: 'fa-apple-whole', texture: 'fiber_wool', flavor: `Soft and warm`, description: `A roll of wool fiber.`, verb: 'use', maxUses: 1, playerUse: false },
+    'fiber_wool': { size: 1, name: 'Wool Fiber', icon: 'fa-solid fa-cloud', texture: 'fiber_wool', flavor: `Soft and warm`, description: `A roll of wool fiber.`, verb: 'use', maxUses: 1, playerUse: false },
 
     // Dye precursors
-    'indigo': { size: 1, name: 'Indigo', icon: 'fa-apple-whole', texture: 'indigo', flavor: `Pungent`, description: `A roll of indigo fiber.`, verb: 'use', maxUses: 1, playerUse: false },
-    'madder_root': { size: 1, name: 'Madder Root', icon: 'fa-apple-whole', texture: 'madder_root', flavor: `Pungent`, description: `A roll of madder root fiber.`, verb: 'use', maxUses: 1, playerUse: false },
-    'weld': { size: 1, name: 'Weld', icon: 'fa-apple-whole', texture: 'weld', flavor: `Pungent`, description: `A roll of weld fiber.`, verb: 'use', maxUses: 1, playerUse: false },
+    'indigo': { size: 1, name: 'Indigo', icon: 'fa-solid fa-leaf', texture: 'indigo', flavor: `Pungent`, description: `A roll of indigo fiber.`, verb: 'use', maxUses: 1, playerUse: false },
+    'madder_root': { size: 1, name: 'Madder Root', icon: 'fa-solid fa-carrot', texture: 'madder_root', flavor: `Pungent`, description: `A roll of madder root fiber.`, verb: 'use', maxUses: 1, playerUse: false },
+    'weld': { size: 1, name: 'Weld', icon: 'fa-solid fa-wheat-awn', texture: 'weld', flavor: `Pungent`, description: `A roll of weld fiber.`, verb: 'use', maxUses: 1, playerUse: false },
 
 
 
@@ -243,7 +264,6 @@ module.exports = {
         texture: 'alpha_bottle',
         maxUses: 9,
         playerUse: true,
-        returnOnEmpty: 'bottle_empty',
         isDynamic: true,
         color: 0x66ccff,
         verb: 'Drink',
@@ -372,6 +392,45 @@ module.exports = {
             }
         }
     },
+    'skirt_01': {
+        name: 'Plain Skirt',
+        equipSlot: 'legs',
+        isItem: true,
+        itemId: 'skirt_01',
+        itemType: 'clothing',
+        texture: 'skirt_01',
+        icon: 'fa-solid fa-socks',
+        maxUses: 1,
+        playerUse: false,
+        isDynamic: true,
+        color: 0xFFFFFF,
+        verb: 'wear',
+        flavor: 'cloth',
+        description: 'A simple plain skirt.',
+        secondaryPatterns: [
+            { id: 'secondary_01', name: 'Skirt Pattern 1' },
+            { id: 'secondary_02', name: 'Skirt Pattern 2' },
+            { id: 'secondary_03', name: 'Skirt Pattern 3' }
+        ],
+        pockets: [
+            { id: 'front_left', name: 'Front Left', capacity: 5 },
+            { id: 'front_right', name: 'Front Right', capacity: 5 },
+            { id: 'back_left', name: 'Back Left', capacity: 5 },
+            { id: 'back_right', name: 'Back Right', capacity: 5 }
+        ],
+        recipe: {
+            station: 'sewing_machine',
+            time: 5000,
+            icon: 'fa-solid fa-shirt',
+            ingredients: [
+                { itemId: 'thread_wool_white', count: 1, usesConsumed: 3 }
+            ],
+            customData: {
+                baseShape: 'skirt_01',
+                baseName: 'Skirt'
+            }
+        }
+    },
     'weapon_iron_sword': {
         size: 10,
         name: 'Iron Sword',
@@ -460,7 +519,7 @@ module.exports = {
     'thread_wool_white': {
         size: 1,
         name: 'White Wool Thread',
-        icon: 'fa-scroll',
+        icon: 'fa-solid fa-scroll',
         texture: 'alpha_thread',
         maxUses: 9,
         isDynamic: true,
@@ -480,7 +539,7 @@ module.exports = {
     'thread_wool_blue': {
         size: 1,
         name: 'Blue Wool Thread',
-        icon: 'fa-scroll',
+        icon: 'fa-solid fa-scroll',
         texture: 'alpha_thread',
         maxUses: 9,
         isDynamic: true,
@@ -501,7 +560,7 @@ module.exports = {
     'thread_wool_red': {
         size: 1,
         name: 'Red Wool Thread',
-        icon: 'fa-scroll',
+        icon: 'fa-solid fa-scroll',
         texture: 'alpha_thread',
         maxUses: 9,
         isDynamic: true,
@@ -522,7 +581,7 @@ module.exports = {
     'thread_wool_yellow': {
         size: 1,
         name: 'Yellow Wool Thread',
-        icon: 'fa-scroll',
+        icon: 'fa-solid fa-scroll',
         texture: 'alpha_thread',
         maxUses: 9,
         isDynamic: true,
@@ -543,7 +602,7 @@ module.exports = {
     'dye_blue': {
         size: 1,
         name: 'Blue Dye',
-        icon: 'fa-scroll',
+        icon: 'fa-solid fa-bottle-droplet',
         texture: 'alpha_dye',
         maxUses: 9,
         isDynamic: true,
@@ -563,7 +622,7 @@ module.exports = {
     'dye_red': {
         size: 1,
         name: 'Red Dye',
-        icon: 'fa-scroll',
+        icon: 'fa-solid fa-bottle-droplet',
         texture: 'alpha_dye',
         maxUses: 9,
         isDynamic: true,
@@ -583,7 +642,7 @@ module.exports = {
     'dye_yellow': {
         size: 1,
         name: 'Yellow Dye',
-        icon: 'fa-scroll',
+        icon: 'fa-solid fa-bottle-droplet',
         texture: 'alpha_dye',
         maxUses: 9,
         isDynamic: true,
@@ -649,4 +708,6 @@ module.exports = {
         }
     }
 };
+
+module.exports = deepFreeze(itemData);
 

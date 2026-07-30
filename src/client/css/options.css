@@ -1,4 +1,19 @@
-/* Options Tab Styling */
+/**
+ * @fileoverview options.css - Options Tab & Telemetry Overlay Stylesheet
+ *
+ * @description
+ * Defines visual styles, pure CSS toggle switch controls, debug statistics layouts,
+ * and hardware-accelerated canvas containers for the Game Options tab in TastyTails.net.
+ *
+ * Included in: src/views/play.ejs (via <link rel="stylesheet" href="/css/options.css" />)
+ * Styled HTML: src/views/partials/menu.ejs (#optionsDisplay)
+ * JS Controllers: src/client/js/game/debugGraph.js, src/client/js/game/create.js
+ */
+
+/* ==========================================================================
+   Options Container & Layout Groups
+   ========================================================================== */
+
 #optionsDisplay .paper-note {
     display: flex;
     flex-direction: column;
@@ -21,24 +36,38 @@
 .setting-text {
     font-family: 'Cinzel', serif;
     font-weight: bold;
-    color: var(--wood-dark);
+    color: var(--wood-dark, #3e2723);
     font-size: 1rem;
 }
 
-/* Toggle Switch */
+/* ==========================================================================
+   Pure CSS Toggle Switch Component
+   ========================================================================== */
+
+/* DX & MODULARITY: Toggle switch dimensions are parameterized via CSS custom variables.
+   Adjusting --switch-width, --switch-height, or --knob-size resizes the component automatically. */
 .toggle-switch-label {
+    --switch-width: 40px;
+    --switch-height: 20px;
+    --knob-size: 14px;
+    --knob-offset: 2px;
     position: relative;
     display: inline-block;
-    width: 40px;
-    height: 20px;
+    width: var(--switch-width);
+    height: var(--switch-height);
+    /* SAFEGUARD: Prevents accidental text selection highlights when clicking toggles rapidly */
+    user-select: none;
+    -webkit-user-select: none;
 }
 
+/* Hides native checkbox input visually while retaining standard keyboard accessibility */
 .toggle-switch-label input {
     opacity: 0;
     width: 0;
     height: 0;
 }
 
+/* OPTIMIZATION: Scoped to specific background-color and border-color transitions to leverage GPU compositor */
 .toggle-slider {
     position: absolute;
     cursor: pointer;
@@ -47,35 +76,40 @@
     right: 0;
     bottom: 0;
     background-color: #ccc;
-    transition: .4s;
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 20px;
     border: 1px solid #999;
 }
 
+/* OPTIMIZATION: Hardware-accelerated transform transition for slider knob movement */
 .toggle-slider:before {
     position: absolute;
     content: "";
-    height: 14px;
-    width: 14px;
-    left: 2px;
-    bottom: 2px;
+    height: var(--knob-size);
+    width: var(--knob-size);
+    left: var(--knob-offset);
+    bottom: var(--knob-offset);
     background-color: white;
-    transition: .4s;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 50%;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 input:checked+.toggle-slider {
-    background-color: var(--wood-light);
-    border-color: var(--wood-dark);
+    background-color: var(--wood-light, #d7ccc8);
+    border-color: var(--wood-dark, #3e2723);
 }
 
+/* Dynamically computes knob translation based on parameterized switch width and knob size */
 input:checked+.toggle-slider:before {
-    transform: translateX(20px);
-    background-color: var(--gold);
+    transform: translateX(calc(var(--switch-width) - var(--knob-size) - (var(--knob-offset) * 2)));
+    background-color: var(--gold, #ffd700);
 }
 
-/* Debug Section */
+/* ==========================================================================
+   Debug Telemetry Readouts & Canvas Overlay
+   ========================================================================== */
+
 .debug-section {
     margin-top: 10px;
     border-top: 2px dashed rgba(62, 39, 35, 0.2);
@@ -85,12 +119,13 @@ input:checked+.toggle-slider:before {
 .debug-section h4 {
     margin: 0 0 10px 0;
     font-family: 'Cinzel', serif;
-    color: var(--wood-dark);
+    color: var(--wood-dark, #3e2723);
     font-size: 1.1rem;
     border-bottom: 1px solid rgba(62, 39, 35, 0.1);
     padding-bottom: 5px;
 }
 
+/* DX: Uses monospace font ('Lato', monospace) to prevent layout jitter during rapid stat updates */
 .debug-stat-row {
     display: flex;
     justify-content: space-between;
@@ -103,22 +138,26 @@ input:checked+.toggle-slider:before {
 }
 
 .stat-label {
-    color: var(--wood-accent);
+    color: var(--wood-accent, #8d6e63);
     font-weight: bold;
 }
 
 .stat-value {
-    color: var(--text-dark);
+    color: var(--text-dark, #212121);
 }
 
+/* OPTIMIZATION: isolation: isolate and transform: translateZ(0) promote the container to its own
+   compositing layer, preventing full-page raster repaints during 60 FPS #debug-graph canvas draws. */
 .debug-graph-container {
     margin-top: 10px;
     background: #000;
-    border: 2px solid var(--wood-light);
+    border: 2px solid var(--wood-light, #d7ccc8);
     border-radius: 4px;
     overflow: hidden;
     padding: 2px;
     box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+    isolation: isolate;
+    transform: translateZ(0);
 }
 
 #debug-graph {

@@ -1,6 +1,22 @@
+/**
+ * @fileoverview SewingModule.js - Custom Sewing Machine Crafting Station UI
+ * 
+ * @description
+ * Pluggable client-side crafting module for the `sewing_machine` station.
+ * Mounted within `CraftingUI` (`crafting.js`) to provide real-time multi-layered
+ * garment tailoring, pattern selection, offscreen canvas texture tinting,
+ * smooth camera transitions, and hand-based thread spool inventory integration.
+ * 
+ * @module SewingModule
+ */
+
 import itemData from '../itemData.js';
 import { clickManager } from '../clickManager.js';
 
+/**
+ * Camera zoom and offset configurations by clothing equipment slot.
+ * @type {Object.<string, {offsetY: number, zoom: number}>}
+ */
 export const SLOT_CAMERA_CONFIGS = {
     'torsoOuter': { offsetY: 0,   zoom: 3.0 },
     'torsoInner': { offsetY: 0,   zoom: 3.0 },
@@ -10,7 +26,16 @@ export const SLOT_CAMERA_CONFIGS = {
     'default':    { offsetY: 0,   zoom: 3.0 }
 };
 
+/**
+ * Class representing the interactive Sewing Machine Station UI module.
+ */
 export class SewingModule {
+    /**
+     * Creates an instance of SewingModule.
+     * @param {HTMLElement} container - Parent DOM container element (.window-body)
+     * @param {Object} socket - Socket.IO client instance
+     * @param {Object} craftingUI - Host CraftingUI manager instance
+     */
     constructor(container, socket, craftingUI) {
         this.container = container;
         this.socket = socket;
@@ -57,9 +82,16 @@ export class SewingModule {
         this.updatePatternsForSelectedBase();
 
         this.rafId = null;
+        this.activeBaseObj = null;
+        this.isCrafting = false;
+        this.craftTimeout = null;
         this.render();
     }
 
+    /**
+     * Discovers base clothing garments from item definitions or station recipes.
+     * Populates `this.bases` with garment metadata.
+     */
     populateBasesFromRecipes() {
         this.bases = [];
         Object.values(itemData).forEach(item => {
@@ -96,6 +128,24 @@ export class SewingModule {
         if (this.bases.length === 0) {
             this.bases = [{ id: 'shirt_01', name: 'T-Shirt', shape: 'shirt', resultItemId: 'shirt_01', equipSlot: 'torsoOuter', secondaryPatterns: [] }];
         }
+        this.activeBaseObj = this.bases[0] || null;
+    }
+
+    /**
+     * Cleans up animation loop frame requests, active craft timeouts, and clears texture caches upon module unmount.
+     * @optimization Halts idle requestAnimationFrame loops to prevent memory leaks and unnecessary CPU usage.
+     */
+    destroy() {
+        this.active = false;
+        if (this.craftTimeout) {
+            clearTimeout(this.craftTimeout);
+            this.craftTimeout = null;
+        }
+        if (this.rafId) {
+            cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+        }
+        this.textureCache.clear();
     }
 
     setCameraTargetForSlot(slotId) {
@@ -506,6 +556,7 @@ export class SewingModule {
         this.state.dirty = true;
 
         if (this.state.activeTab === 0) {
+            this.activeBaseObj = this.bases.find(b => b.id === id) || this.bases[0];
             this.updatePatternsForSelectedBase();
         }
 
@@ -518,7 +569,30 @@ export class SewingModule {
         this.checkCraftability();
     }
 
+    /**
+     * Retrieves the currently active base garment object.
+     * @optimization Caches reference to avoid O(N) Array.find lookups during 60 FPS canvas rendering.
+     * @returns {Object} Active base garment configuration object.
+     */
+    getActiveBase() {
+        const baseId = this.state.selections[0];
+        if (this.activeBaseObj && this.activeBaseObj.id === baseId) {
+            return this.activeBaseObj;
+        }
+        this.activeBaseObj = this.bases.find(b => b.id === baseId) || this.bases[0];
+        return this.activeBaseObj;
+    }
+
+    /**
+     * Updates station inventory threads and resets active craft lock state.
+     * @param {Array<Object>} inventory - Array of item objects in the station
+     */
     updateInventory(inventory) {
+        this.isCrafting = false;
+        if (this.craftTimeout) {
+            clearTimeout(this.craftTimeout);
+            this.craftTimeout = null;
+        }
         this.inventory = inventory || [];
         this.state.threads = [null, null, null, null];
         this.state.threadItems = [null, null, null, null];
@@ -540,22 +614,28 @@ export class SewingModule {
     }
 
     extractColor(item) {
-        // [FIX] Check for color on the item root first (where server merges customData)
-        if (item.color !== undefined) {
-            return typeof item.color === 'number'
-                ? '#' + item.color.toString(16).padStart(6, '0')
-                : item.color;
+        if (!item) return '#cccccc';
+
+        // 1. Check for color on item root or customData
+        let colorVal = item.color !== undefined ? item.color : (item.customData?.color);
+
+        // 2. Fallback to static item definition in itemData if undefined over socket network
+        if (colorVal === undefined && item.itemId && itemData[item.itemId]) {
+            colorVal = itemData[item.itemId].color;
         }
-        // Legacy/Structure Support: Check customData wrapper
-        if (item.customData && item.customData.color !== undefined) {
-            return typeof item.customData.color === 'number'
-                ? '#' + item.customData.color.toString(16).padStart(6, '0')
-                : item.customData.color;
+
+        if (colorVal !== undefined) {
+            return typeof colorVal === 'number'
+                ? '#' + colorVal.toString(16).padStart(6, '0')
+                : colorVal;
         }
-        const n = item.name.toLowerCase();
+
+        // 3. Fallback color matching by item name / ID
+        const n = (item.name || item.itemId || '').toLowerCase();
         if (n.includes('red')) return '#d32f2f';
         if (n.includes('blue')) return '#1976d2';
         if (n.includes('green')) return '#388e3c';
+        if (n.includes('yellow')) return '#ffff00';
         if (n.includes('black')) return '#000000';
         if (n.includes('white')) return '#ffffff';
         return '#cccccc';
@@ -593,13 +673,20 @@ export class SewingModule {
     checkCraftability() {
         let valid = true;
         const baseThread = this.state.threadItems[0];
-        if (!baseThread) valid = false;
-        else {
-            if (!baseThread.variant && !(baseThread.customData && baseThread.customData.variant)) valid = false;
+        if (!baseThread) {
+            valid = false;
+        } else {
+            const variant = baseThread.variant || 
+                            baseThread.customData?.variant || 
+                            itemData[baseThread.itemId]?.variant || 
+                            baseThread.itemId;
+            if (!variant) valid = false;
         }
 
         for (let i = 1; i < 4; i++) {
-            if (this.state.selections[i] !== 'none' && !this.state.threads[i]) valid = false;
+            if (this.state.selections[i] !== 'none' && !this.state.threads[i]) {
+                valid = false;
+            }
         }
 
         this.dom.craftBtn.disabled = !valid;
@@ -608,13 +695,24 @@ export class SewingModule {
         else this.dom.craftBtn.classList.remove('ready');
     }
 
+    /**
+     * Starts the continuous 60 FPS animation and lerp camera transition loop.
+     * @optimization Automatically self-terminates when container is disconnected or module is destroyed.
+     */
     startRenderLoop() {
+        this.active = true;
         const loop = () => {
+            if (!this.active || !this.container || !this.container.isConnected) {
+                this.rafId = null;
+                return;
+            }
+
             // Update Camera Lerp (Smooth scrolling transition)
             const deltaY = this.camera.targetY - this.camera.currentY;
             const deltaZoom = this.camera.targetZoom - this.camera.currentZoom;
+            const isLerping = Math.abs(deltaY) > 0.05 || Math.abs(deltaZoom) > 0.0005;
 
-            if (Math.abs(deltaY) > 0.1 || Math.abs(deltaZoom) > 0.001) {
+            if (isLerping) {
                 this.camera.currentY += deltaY * this.camera.lerpFactor;
                 this.camera.currentZoom += deltaZoom * this.camera.lerpFactor;
                 this.state.dirty = true;
@@ -627,13 +725,16 @@ export class SewingModule {
                 this.drawCanvas();
                 this.state.dirty = false;
             }
-            if (this.container.isConnected) {
-                this.rafId = requestAnimationFrame(loop);
-            }
+
+            this.rafId = requestAnimationFrame(loop);
         };
         this.rafId = requestAnimationFrame(loop);
     }
 
+    /**
+     * Renders the mannequin body and active garment layers onto the canvas context.
+     * @optimization Uses getActiveBase() cached reference for O(1) lookups during rendering.
+     */
     drawCanvas() {
         const ctx = this.dom.ctx;
         const w = this.dom.canvas.width;
@@ -657,7 +758,7 @@ export class SewingModule {
         const baseId = this.state.selections[0];
         const baseThread = this.state.threads[0];
         if (baseId) {
-            const baseObj = this.bases.find(b => b.id === baseId);
+            const baseObj = this.getActiveBase();
             if (baseObj) {
                 const textureKey = baseObj.resultItemId;
                 const alpha = baseThread ? 1.0 : 0.4;
@@ -672,7 +773,7 @@ export class SewingModule {
             const thread = this.state.threads[i];
 
             if (sel && sel !== 'none') {
-                const baseObj = this.bases.find(b => b.id === this.state.selections[0]);
+                const baseObj = this.getActiveBase();
                 if (!baseObj) continue;
 
                 const textureKey = `${baseObj.resultItemId}-${sel}`;
@@ -717,10 +818,26 @@ export class SewingModule {
         }
     }
 
+    /**
+     * Creates or retrieves a color-tinted offscreen canvas element.
+     * @optimization Uses strict Least Recently Used (LRU) single-entry eviction when cache size reaches 50.
+     * @param {HTMLImageElement|CanvasImageSource} img - Source image object
+     * @param {number} sx - Source crop X coordinate
+     * @param {number} sy - Source crop Y coordinate
+     * @param {number} w - Source crop width
+     * @param {number} h - Source crop height
+     * @param {string} colorHex - Hex color string (#RRGGBB)
+     * @returns {HTMLCanvasElement} Tinted offscreen canvas element
+     */
     getTintedImage(img, sx, sy, w, h, colorHex) {
-        const cacheKey = `${img.src}-${sx}-${sy}-${colorHex}`;
+        const imgSrc = img.src || 'frame';
+        const cacheKey = `${imgSrc}:${sx}:${sy}:${w}:${h}:${colorHex}`;
+
         if (this.textureCache.has(cacheKey)) {
-            return this.textureCache.get(cacheKey);
+            const cachedCanvas = this.textureCache.get(cacheKey);
+            this.textureCache.delete(cacheKey);
+            this.textureCache.set(cacheKey, cachedCanvas);
+            return cachedCanvas;
         }
 
         const c = document.createElement('canvas');
@@ -742,13 +859,22 @@ export class SewingModule {
         ctx.fillStyle = colorHex;
         ctx.fillRect(0, 0, c.width, c.height);
 
-        this.textureCache.set(cacheKey, c);
-        if (this.textureCache.size > 50) this.textureCache.clear();
+        if (this.textureCache.size >= 50) {
+            const oldestKey = this.textureCache.keys().next().value;
+            this.textureCache.delete(oldestKey);
+        }
 
+        this.textureCache.set(cacheKey, c);
         return c;
     }
 
+    /**
+     * Dispatches the tailored garment crafting request to the server.
+     * @optimization Applies an in-flight craft lock to prevent duplicate socket packet emissions.
+     */
     craft() {
+        if (this.isCrafting) return;
+
         let threadCount = 0;
         if (this.state.threads[0]) threadCount++;
         for (let i = 1; i < 4; i++) {
@@ -758,8 +884,20 @@ export class SewingModule {
         }
         if (threadCount === 0) return;
 
+        this.isCrafting = true;
+        if (this.dom.craftBtn) {
+            this.dom.craftBtn.disabled = true;
+            this.dom.craftBtn.textContent = "Stitching Garment...";
+        }
+
+        if (this.craftTimeout) clearTimeout(this.craftTimeout);
+        this.craftTimeout = setTimeout(() => {
+            this.isCrafting = false;
+            this.checkCraftability();
+        }, 10000);
+
         const recipeId = `sewing_${threadCount}_layer`;
-        const selectedBase = this.bases.find(b => b.id === this.state.selections[0]);
+        const selectedBase = this.getActiveBase();
         const targetItemId = selectedBase ? selectedBase.resultItemId : 'shirt_01';
 
         const customData = {
@@ -799,8 +937,15 @@ export class SewingModule {
         this.craftingUI.startCraftingOptimistic(recipeId, 5000 + (threadCount * 1000));
     }
 
+    /**
+     * Parses a hex color string into an integer value for socket serialization.
+     * @param {string} hexStr - Color hex string (e.g., '#FF0000' or '0xFF0000')
+     * @returns {number} Integer color value (fallback 0xFFFFFF if invalid or NaN)
+     */
     parseColor(hexStr) {
-        if (!hexStr) return 0xFFFFFF;
-        return parseInt(hexStr.replace('#', '0x'), 16);
+        if (!hexStr || typeof hexStr !== 'string') return 0xFFFFFF;
+        const cleaned = hexStr.replace(/^#|^0x/, '');
+        const parsed = parseInt(cleaned, 16);
+        return isNaN(parsed) ? 0xFFFFFF : parsed;
     }
 }

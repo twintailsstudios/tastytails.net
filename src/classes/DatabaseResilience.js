@@ -1,36 +1,73 @@
+/**
+ * @fileoverview DatabaseResilience.js - Database Resilience Engine & Write-Behind Cache
+ * 
+ * @description
+ * High-performance fault-tolerance manager and write-behind cache for TastyTails.net.
+ * Coalesces frequent tick-rate updates into memory and issues bulk MongoDB writes,
+ * while transparently queueing updates and backing up un-flushed state during database outages.
+ * 
+ * Triggered by: Game loop ticks, mechanic update calls, socket handlers, auth routes,
+ * Mongoose connection state hooks, and background flush intervals (30s).
+ */
+
 const log = require('../logger');
 const fs = require('fs');
 const path = require('path');
+const monitoring = require('../server/monitoring');
+const { performance } = require('perf_hooks');
+
+/**
+ * Generates a normalized, key-order invariant cache key for query filters.
+ * OPTIMIZATION: Uses a fast-path for simple _id queries to avoid Object.keys() GC allocations on hot ticks.
+ * 
+ * @param {Object|string} filter - Query filter object
+ * @returns {string} Normalized string key
+ */
+function getStableFilterKey(filter) {
+    if (!filter || typeof filter !== 'object') return String(filter);
+    // Fast-path: single key or direct primitive _id
+    if (filter._id && Object.keys(filter).length === 1 && typeof filter._id !== 'object') {
+        return `_id:${filter._id}`;
+    }
+    const sortedKeys = Object.keys(filter).sort();
+    let keyStr = '';
+    for (let i = 0; i < sortedKeys.length; i++) {
+        const k = sortedKeys[i];
+        keyStr += `${k}:${filter[k]};`;
+    }
+    return keyStr;
+}
 
 class DatabaseResilience {
     constructor() {
         this.isOnline = false;
+        this.isFlushing = false; // Flag preventing concurrent re-entrant bulk writes
         this.offlineQueue = [];
-        this.writeBuffer = new Map(); // [NEW] Write-Behind Buffer (Key -> { model, filter, update, options, timestamps })
+        this.writeBuffer = new Map(); // Write-Behind Buffer (Key -> { model, filter, update, options, timestamps })
         this.disconnectTime = null;
         this.shutdownCallback = null;
         this.io = null;
 
         // Configuration
         this.config = {
-            maxTimeMS: 60000, // 60 seconds
-            maxQueueSize: 10000,
+            maxTimeMS: 60000, // 60 seconds max disconnect tolerance
+            maxQueueSize: 10000, // Max memory queue size before emergency flush/shutdown
             backupDir: path.join(__dirname, '../../backups'),
-            flushIntervalMS: 30000 // [NEW] 30 Seconds Flush
+            flushIntervalMS: 30000 // 30 Seconds background flush interval
         };
 
         this.checkInterval = null;
-        this.flushInterval = null; // [NEW] Timer for flush
+        this.flushInterval = null;
     }
 
     /**
-     * Initialize listeners on the Mongoose instance.
+     * Initialize listeners on the Mongoose instance and load emergency backups.
      * @param {Object} mongoose - The Mongoose instance
-     * @param {Function} shutdownCallback - Function to call for graceful shutdown
-     * @param {Object} [io] - Socket.io instance for broadcasting events
+     * @param {Function} shutdownCallback - Callback invoked for graceful shutdown on critical outages
+     * @param {Object} [io] - Socket.io instance for broadcasting server stability events
      */
     async init(mongoose, shutdownCallback, io = null) {
-        this.mongoose = mongoose; // Store for later use
+        this.mongoose = mongoose;
         this.shutdownCallback = shutdownCallback;
         this.io = io;
 
@@ -43,7 +80,7 @@ class DatabaseResilience {
             }
         }
 
-        // Try to load any existing backups
+        // Try to load any existing backups from disk
         await this._loadQueueFromDisk();
 
         // Current state check
@@ -63,10 +100,14 @@ class DatabaseResilience {
             this.handleDisconnect();
         });
 
-        // [NEW] Start the Write-Behind Flush Loop
+        // Start the Write-Behind Flush Loop
         this._startFlushLoop();
     }
 
+    /**
+     * Starts the periodic 30-second write-behind buffer flush timer.
+     * @private
+     */
     _startFlushLoop() {
         if (this.flushInterval) clearInterval(this.flushInterval);
         this.flushInterval = setInterval(() => {
@@ -77,6 +118,9 @@ class DatabaseResilience {
         log.info(`[ResilienceEngine] Write-Behind Cache initialized. Flushing every ${this.config.flushIntervalMS / 1000}s.`);
     }
 
+    /**
+     * Event handler fired when MongoDB connection becomes healthy.
+     */
     handleConnect() {
         if (this.isOnline) return; // Already online
 
@@ -90,20 +134,23 @@ class DatabaseResilience {
             this.checkInterval = null;
         }
 
-        // Emit Stable Event
+        // Emit Stable Event to connected clients
         if (this.io) {
             this.io.emit('serverStable');
         }
 
-        // Flush Legacy Queue
+        // Flush Legacy Offline Queue
         this._flushQueue();
 
-        // Retrigger Buffer Flush
+        // Retrigger Buffer Flush if items exist
         if (this.writeBuffer.size > 0) {
             this._flushBuffer();
         }
     }
 
+    /**
+     * Event handler fired when MongoDB connection drops.
+     */
     handleDisconnect() {
         if (!this.isOnline) return; // Already offline
 
@@ -111,31 +158,38 @@ class DatabaseResilience {
         this.disconnectTime = Date.now();
         log.warn('MongoDB Disconnected! Entering resilient mode...');
 
-        // Emit Unstable Event
+        // Emit Unstable Event to connected clients
         if (this.io) {
             this.io.emit('serverUnstable');
         }
 
-        // Start checking thresholds
+        // Start checking disconnect time and queue size thresholds
         if (!this.checkInterval) {
             this.checkInterval = setInterval(() => this._checkThresholds(), 1000);
         }
     }
 
     /**
-     * [NEW] Queues a database update (specifically meant for replacing updateOne).
-     * Merges $set fields if an update for the same document is already pending.
+     * Queues a database update for write-behind batching.
+     * Merges $set fields and $inc deltas if an update for the same document is already pending.
+     * OPTIMIZATION: Non-blocking fire-and-forget O(1) memory update for high-frequency game ticks.
      * 
      * @param {Object} Model - The Mongoose Model
-     * @param {Object} filter - Query filter (must be unique per doc, e.g. { _id: ... })
-     * @param {Object} update - Update instructions (only support $set efficiently for now)
-     * @param {Object} options - Update options (upsert, etc)
+     * @param {Object} filter - Query filter (unique per document)
+     * @param {Object} update - Update instructions ($set, $inc)
+     * @param {Object} [options] - Mongoose update options (upsert, etc.)
+     * @returns {Promise<boolean>} Always returns true immediately
      */
     async queueUpdate(Model, filter, update, options = {}) {
-        // Generate a stable key for this document
-        // Assumes filter is simple object like { 'characters._id': '...' } or { _id: '...' }
-        const filterKey = JSON.stringify(filter);
+        // Generate a stable normalized key for this document
+        const filterKey = getStableFilterKey(filter);
         const bufferKey = `${Model.modelName}:${filterKey}`;
+
+        // Enforce maxQueueSize guard
+        if (!this.writeBuffer.has(bufferKey) && this.writeBuffer.size >= this.config.maxQueueSize) {
+            log.warn('[ResilienceEngine] Write Buffer size limit reached. Scheduling emergency flush...');
+            setImmediate(() => this._flushBuffer());
+        }
 
         // Get existing or create new
         let entry = this.writeBuffer.get(bufferKey);
@@ -146,7 +200,8 @@ class DatabaseResilience {
                 filter,
                 update: { ...update }, // Shallow copy to start
                 options,
-                firstQueuedAt: Date.now()
+                firstQueuedAt: Date.now(),
+                retryCount: 0
             };
             this.writeBuffer.set(bufferKey, entry);
         } else {
@@ -154,16 +209,10 @@ class DatabaseResilience {
             // 1. Merge $set
             if (update.$set) {
                 if (!entry.update.$set) entry.update.$set = {};
-                // Overwrite keys in existing $set with new ones
                 Object.assign(entry.update.$set, update.$set);
             }
 
-            // 2. Handling other operators ($inc, $push) is harder to merge blindly.
-            // Strategy: For now, if we see non-$set, we just overwrite/append?
-            // "The solution should be a Write-Behind Cache... Changes are held in memory"
-            // Most game updates are $set (position, stats).
-            // If we have $inc, we really should sum them.
-            // Let's implement basic $inc merging just in case health uses it (though health uses $set usually in our codebase).
+            // 2. Merge $inc deltas
             if (update.$inc) {
                 if (!entry.update.$inc) entry.update.$inc = {};
                 for (const [field, val] of Object.entries(update.$inc)) {
@@ -172,14 +221,11 @@ class DatabaseResilience {
                 }
             }
 
-            // For anything else ($push, etc), we might just OVERWRITE the operator block for now roughly
-            // or merge strictly.
-            // Given the requirement is mostly about "saveCharacter" (position/$set) optimization:
+            // 3. Merge other operators ($push, $pull, etc.)
             const otherOps = Object.keys(update).filter(k => k !== '$set' && k !== '$inc');
             for (const op of otherOps) {
                 if (!entry.update[op]) entry.update[op] = update[op];
                 else {
-                    // Primitive merge: Object.assign (last write wins for specific fields)
                     if (typeof update[op] === 'object' && update[op] !== null) {
                         Object.assign(entry.update[op], update[op]);
                     } else {
@@ -189,64 +235,88 @@ class DatabaseResilience {
             }
         }
 
-        // console.log(`[Resilience] Queue size: ${this.writeBuffer.size}`);
-        return true; // "Fire and Forget" success
+        return true; // Fire-and-Forget success
     }
 
     /**
-     * [NEW] Flushes the write buffer to MongoDB using BulkWrite.
+     * Flushes the write-behind buffer to MongoDB using Model.bulkWrite().
+     * OPTIMIZATION: Uses a staging buffer map so new incoming updates can accumulate during async I/O.
+     * SAFEGUARD: Non-destructively re-merges failed operations on bulkWrite errors, dumping entries exceeding 3 retries to dead-letter backup.
+     * @private
      */
     async _flushBuffer() {
-        if (this.writeBuffer.size === 0) return;
-        if (!this.isOnline) return;
+        if (this.writeBuffer.size === 0 || !this.isOnline || this.isFlushing) return;
 
+        this.isFlushing = true;
         log.important(`[ResilienceEngine] Flushing ${this.writeBuffer.size} batched documents...`);
+
+        // Stage buffer entries to allow new incoming writes to accumulate safely
+        const stagingBuffer = new Map(this.writeBuffer);
+        this.writeBuffer.clear();
 
         const opsByModel = {};
 
         // Group operations by Model (since bulkWrite is per-model)
-        for (const [key, entry] of this.writeBuffer) {
+        for (const [key, entry] of stagingBuffer) {
             const modelName = entry.Model.modelName;
-            if (!opsByModel[modelName]) opsByModel[modelName] = { Model: entry.Model, ops: [] };
+            if (!opsByModel[modelName]) opsByModel[modelName] = { Model: entry.Model, ops: [], entries: [] };
 
             opsByModel[modelName].ops.push({
                 updateOne: {
                     filter: entry.filter,
                     update: entry.update,
-                    ...entry.options // upsert, etc
+                    ...entry.options
                 }
             });
+            opsByModel[modelName].entries.push({ key, entry });
         }
 
-        // Clear buffer NOW to allow new writes to accumulate while we await DB
-        // (Optimistic clearing - if DB fail, we might lose this batch, but we can't block)
-        // Alternative: Copy map, clear, then process.
-        this.writeBuffer.clear();
+        try {
+            // Execute Bulk Writes per model
+            for (const modelName of Object.keys(opsByModel)) {
+                const { Model, ops, entries } = opsByModel[modelName];
+                try {
+                    const dbStart = performance.now();
+                    const res = await Model.bulkWrite(ops, { ordered: false });
+                    const dbEnd = performance.now();
+                    monitoring.recordDbLatency(dbEnd - dbStart);
+                    log.success(`[ResilienceEngine] ${modelName} Sync: Matched ${res.matchedCount}, Modified ${res.modifiedCount}`);
+                } catch (err) {
+                    log.error(`[ResilienceEngine] BulkWrite failed for ${modelName}:`, err);
+                    
+                    // Non-destructive re-merge of failed operations
+                    for (const { key, entry } of entries) {
+                        entry.retryCount = (entry.retryCount || 0) + 1;
+                        if (entry.retryCount > 3) {
+                            log.error(`[ResilienceEngine] Exceeded max retries for ${key}. Moving to dead-letter backup.`);
+                            this._dumpDeadLetterEntry(key, entry);
+                            continue;
+                        }
 
-        // Execute Bulk Writes
-        const monitoring = require('../server/monitoring');
-        const { performance } = require('perf_hooks');
-        for (const modelName of Object.keys(opsByModel)) {
-            const { Model, ops } = opsByModel[modelName];
-            try {
-                // bulkWrite(ops, { ordered: false }) for parallelism
-                const dbStart = performance.now();
-                const res = await Model.bulkWrite(ops, { ordered: false });
-                const dbEnd = performance.now();
-                monitoring.recordDbLatency(dbEnd - dbStart);
-                log.success(`[ResilienceEngine] ${modelName} Sync: Matched ${res.matchedCount}, Modified ${res.modifiedCount}`);
-            } catch (err) {
-                log.error(`[ResilienceEngine] BulkWrite failed for ${modelName}:`, err);
-                // Advanced: We could push failed ops back to offlineQueue?
-                // For now, log the data loss risk is acceptable per instructions.
+                        if (!this.writeBuffer.has(key)) {
+                            this.writeBuffer.set(key, entry);
+                        } else {
+                            // Merge failed $inc into new entry if present, letting newer $set take precedence
+                            const newEntry = this.writeBuffer.get(key);
+                            if (entry.update.$inc) {
+                                if (!newEntry.update.$inc) newEntry.update.$inc = {};
+                                for (const [field, val] of Object.entries(entry.update.$inc)) {
+                                    newEntry.update.$inc[field] = (newEntry.update.$inc[field] || 0) + val;
+                                }
+                            }
+                        }
+                    }
+                }
             }
+        } finally {
+            this.isFlushing = false;
         }
     }
 
     /**
-     * Saves a Mongoose document. If offline, queues it.
+     * Saves a Mongoose document. If offline, queues it in offlineQueue.
      * @param {Object} doc - The Mongoose document to save
-     * @returns {Promise<Object>} - The saved doc (or the queued doc)
+     * @returns {Promise<Object>} - The saved document (or queued doc reference)
      */
     async save(doc) {
         if (this.isOnline) {
@@ -264,7 +334,12 @@ class DatabaseResilience {
     }
 
     /**
-     * Wrapper for Model.updateOne
+     * Wrapper for Model.updateOne. If offline, queues it.
+     * @param {Object} Model - Mongoose Model
+     * @param {Object} filter - Filter query
+     * @param {Object} update - Update payload
+     * @param {Object} [options] - Options
+     * @returns {Promise<Object>} Mongoose result object or mock acknowledgement
      */
     async updateOne(Model, filter, update, options = {}) {
         if (this.isOnline) {
@@ -283,13 +358,17 @@ class DatabaseResilience {
                 update,
                 options
             });
-            // Return mock result
             return { matchedCount: 1, modifiedCount: 1, acknowledged: true };
         }
     }
 
     /**
-     * Wrapper for Model.findOneAndUpdate
+     * Wrapper for Model.findOneAndUpdate. If offline, queues it.
+     * @param {Object} Model - Mongoose Model
+     * @param {Object} filter - Filter query
+     * @param {Object} update - Update payload
+     * @param {Object} [options] - Options
+     * @returns {Promise<Object|null>} Target document or null if offline
      */
     async findOneAndUpdate(Model, filter, update, options = {}) {
         if (this.isOnline) {
@@ -308,22 +387,21 @@ class DatabaseResilience {
                 update,
                 options
             });
-            // Return null or empty obj - hard to mock the return DOC without knowing it.
-            // But auth.js mainly uses it for "fire and forget" or redirecting after.
-            // Returning null might be safe for now, or a basic object if verified._id is needed?
-            // Auth.js logic: `const updateChar = await ...; log('updateChar = ', updateChar);`
-            // It doesn't seem to use properties of updateChar logic-wise, just logging.
             return null;
         }
     }
 
+    /**
+     * Flushes offlineQueue upon database reconnection.
+     * @private
+     */
     async _flushQueue() {
         if (this.offlineQueue.length === 0) return;
 
         log.important(`MongoDB Reconnected! Flushing ${this.offlineQueue.length} queued operations...`);
 
         const queue = [...this.offlineQueue];
-        this.offlineQueue = []; // Clear main queue
+        this.offlineQueue = [];
 
         let successCount = 0;
         let failCount = 0;
@@ -342,8 +420,6 @@ class DatabaseResilience {
                         }
                     }
                 } else if (item.type === 'restore_snapshot') {
-                    // Restore snapshot using findByIdAndUpdate (upsert) to force data persistence
-                    // irrespective of change tracking.
                     if (this.mongoose && item.modelName && item.data) {
                         try {
                             const Model = this.mongoose.model(item.modelName);
@@ -351,9 +427,7 @@ class DatabaseResilience {
                                 await Model.findByIdAndUpdate(item.data._id, item.data, {
                                     upsert: true,
                                     new: true,
-                                    runValidators: false // Skip validators on restore potentially? Or True? True is safer.
-                                    // Actually, if data is raw from DB, it might fail validation if schema changed. 
-                                    // But typically we want validation. Let's try true.
+                                    runValidators: false
                                 });
                             } else {
                                 await Model.create(item.data);
@@ -369,14 +443,19 @@ class DatabaseResilience {
                 }
                 successCount++;
             } catch (err) {
-                // For 'save' type (runtime objects), retry logic for VersionError
-                if (item.type === 'save' && err.name === 'VersionError' && !item.doc.isNew) {
-                    log.warn(`VersionError flushing item ${item.doc._id}. Retrying as INSERT...`);
+                // For 'save' type (runtime objects), retry logic for VersionError using upsert
+                if (item.type === 'save' && err.name === 'VersionError' && item.doc && item.doc._id) {
+                    log.warn(`VersionError flushing item ${item.doc._id}. Retrying via findByIdAndUpdate upsert...`);
                     try {
-                        item.doc.isNew = true;
-                        await item.doc.save();
+                        const Model = item.doc.constructor;
+                        const docData = typeof item.doc.toObject === 'function' ? item.doc.toObject() : item.doc;
+                        await Model.findByIdAndUpdate(item.doc._id, docData, {
+                            upsert: true,
+                            new: true,
+                            runValidators: false
+                        });
                         successCount++;
-                        continue; // Success on retry
+                        continue;
                     } catch (retryErr) {
                         log.error('Failed to flush queued item (retry):', retryErr);
                         failCount++;
@@ -391,6 +470,10 @@ class DatabaseResilience {
         log.success(`Flush complete. Success: ${successCount}, Failed: ${failCount}`);
     }
 
+    /**
+     * Periodically checks offline duration and queue size limits while disconnected.
+     * @private
+     */
     _checkThresholds() {
         if (this.isOnline) return;
 
@@ -398,39 +481,34 @@ class DatabaseResilience {
         const timeOffline = now - this.disconnectTime;
         const timeLeft = this.config.maxTimeMS - timeOffline;
 
-        // Check Critical Warning Threshold (e.g. 15s remaining)
         if (timeLeft <= 15000 && timeLeft > 0) {
             if (this.io) {
                 this.io.emit('serverCriticalWarning', { seconds: Math.ceil(timeLeft / 1000) });
             }
         }
 
-        // Check Time specific
         if (timeOffline > this.config.maxTimeMS) {
             this._triggerShutdown(`Database disconnected for too long (> ${this.config.maxTimeMS / 1000}s)`);
             return;
         }
 
-        // Check Queue Size
         if (this.offlineQueue.length > this.config.maxQueueSize) {
             this._triggerShutdown(`Database offline queue exceeded limit (${this.offlineQueue.length})`);
             return;
         }
     }
 
+    /**
+     * Triggers emergency server shutdown when database outage limits are exceeded.
+     * @param {string} reason - Reason for emergency shutdown
+     * @private
+     */
     _triggerShutdown(reason) {
         if (this.checkInterval) clearInterval(this.checkInterval);
         log.error(`[DatabaseResilience] ${reason}`);
 
-        // Dump queue to disk before shutting down
         this._dumpQueueToDisk();
-
-        // [NEW] Attempt final flush of Write Buffer (if database is still reachable? unlikely if we are shutting down due to disconnect)
-        // But if shutdown reason is manual, we should flush.
-        // If reason is "Database disconnected", flushBuffer will fail anyway.
-        // We could dump writeBuffer to disk too?
-        // Let's dump WriteBuffer to disk as well.
-        this._dumpWriteBufferToDisk(); // Separated for clarity
+        this._dumpWriteBufferToDisk();
 
         if (this.shutdownCallback) {
             this.shutdownCallback(reason, new Error(reason));
@@ -439,60 +517,90 @@ class DatabaseResilience {
         }
     }
 
+    /**
+     * Helper to synchronously write emergency backup files to disk.
+     * @param {string} prefix - File prefix (dump, wb_dump, dead_letter)
+     * @param {Array|Object} data - Data to serialize
+     * @private
+     */
+    _writeDumpFile(prefix, data) {
+        try {
+            if (!fs.existsSync(this.config.backupDir)) {
+                fs.mkdirSync(this.config.backupDir, { recursive: true });
+            }
+            const timestamp = Date.now();
+            const filename = `${prefix}_${timestamp}.json`;
+            const filepath = path.join(this.config.backupDir, filename);
+            fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
+            log.important(`[DatabaseResilience] Backup written to ${filename}`);
+        } catch (e) {
+            log.error(`[DatabaseResilience] Failed to write ${prefix} backup file:`, e);
+        }
+    }
+
+    /**
+     * Dumps an entry exceeding maximum retry attempts to dead-letter storage.
+     * @param {string} key - Buffer key
+     * @param {Object} entry - Entry data
+     * @private
+     */
+    _dumpDeadLetterEntry(key, entry) {
+        const deadLetterData = [{
+            type: 'dead_letter_entry',
+            key,
+            modelName: entry.Model ? entry.Model.modelName : null,
+            filter: entry.filter,
+            update: entry.update,
+            options: entry.options,
+            firstQueuedAt: entry.firstQueuedAt,
+            failedAt: Date.now()
+        }];
+        this._writeDumpFile('dead_letter', deadLetterData);
+    }
+
+    /**
+     * Dumps the writeBuffer map to disk.
+     * @private
+     */
     _dumpWriteBufferToDisk() {
         if (this.writeBuffer.size === 0) return;
-        try {
-            const timestamp = Date.now();
-            const filename = `wb_dump_${timestamp}.json`;
-            const filepath = path.join(this.config.backupDir, filename);
-
-            // Map values
-            const data = Array.from(this.writeBuffer.values()).map(entry => ({
-                type: 'write_buffer_entry',
-                modelName: entry.Model.modelName,
-                filter: entry.filter,
-                update: entry.update,
-                options: entry.options
-            }));
-
-            fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
-            log.important(`[ResilienceEngine] Write Buffer dumped to ${filename}`);
-        } catch (e) {
-            log.error('[ResilienceEngine] Failed to dump Write Buffer:', e);
-        }
+        const data = Array.from(this.writeBuffer.values()).map(entry => ({
+            type: 'write_buffer_entry',
+            modelName: entry.Model ? entry.Model.modelName : null,
+            filter: entry.filter,
+            update: entry.update,
+            options: entry.options
+        }));
+        this._writeDumpFile('wb_dump', data);
     }
 
+    /**
+     * Dumps the offlineQueue array to disk.
+     * @private
+     */
     _dumpQueueToDisk() {
         if (this.offlineQueue.length === 0) return;
-
-        try {
-            const timestamp = Date.now();
-            const filename = `dump_${timestamp}.json`;
-            const filepath = path.join(this.config.backupDir, filename);
-
-            const serializableQueue = this.offlineQueue.map(item => {
-                if (item.type === 'save') {
-                    return {
-                        type: 'restore_snapshot', // Prepare for restore next time
-                        modelName: item.doc.constructor.modelName,
-                        data: item.doc.toObject(),
-                        isNew: item.doc.isNew
-                    };
-                } else if (item.type === 'update') {
-                    return item; // Already serializable
-                } else if (item.type === 'restore_snapshot') {
-                    return item; // Already serialized
-                }
-                return null;
-            }).filter(i => i !== null);
-
-            fs.writeFileSync(filepath, JSON.stringify(serializableQueue, null, 2));
-            log.important(`[DatabaseResilience] Emergency Backup written to ${filename}`);
-        } catch (e) {
-            log.error('[DatabaseResilience] Failed to write emergency backup:', e);
-        }
+        const serializableQueue = this.offlineQueue.map(item => {
+            if (item.type === 'save') {
+                const docData = typeof item.doc.toObject === 'function' ? item.doc.toObject() : item.doc;
+                return {
+                    type: 'restore_snapshot',
+                    modelName: item.doc.constructor ? item.doc.constructor.modelName : null,
+                    data: docData,
+                    isNew: item.doc.isNew
+                };
+            } else if (item.type === 'update' || item.type === 'restore_snapshot') {
+                return item;
+            }
+            return null;
+        }).filter(Boolean);
+        this._writeDumpFile('dump', serializableQueue);
     }
 
+    /**
+     * Reads emergency backup files from disk and restores operations into memory queues upon server boot.
+     * @private
+     */
     async _loadQueueFromDisk() {
         try {
             if (!fs.existsSync(this.config.backupDir)) return;
@@ -512,14 +620,11 @@ class DatabaseResilience {
 
                 for (const item of queueData) {
                     if (item.type === 'write_buffer_entry') {
-                        // Restore to Buffer
                         if (this.mongoose) {
                             const Model = this.mongoose.model(item.modelName);
                             this.queueUpdate(Model, item.filter, item.update, item.options);
                         }
-                    }
-                    else if (item.type === 'save') {
-                        // Map legacy 'save' dump to 'restore_snapshot' internally
+                    } else if (item.type === 'save') {
                         this.offlineQueue.push({
                             type: 'restore_snapshot',
                             modelName: item.modelName,

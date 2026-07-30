@@ -1,3 +1,13 @@
+/**
+ * @fileoverview Phaser Scene Creation & Setup Orchestrator (create.js)
+ * 
+ * @description
+ * Bootstraps client scene rendering, socket networking, environment maps, 
+ * subsystem managers, and DOM loading screen handover for TastyTails.net.
+ * 
+ * Triggered by: Phaser Scene Manager after preload.js finishes asset loading.
+ */
+
 import { windowSize, drawDebug } from './utils.js';
 import { createAnimations, updatePlayerAnimations, createEmoteAnimations } from './animations.js';
 import { displayPlayers, displayOtherPlayers, getPlayerSprite, updateStruggleBar, updatePlayerEquipmentVisuals, updateTypingIndicator, updateCraftingBar, updatePlayerCosmetics } from './player.js';
@@ -24,15 +34,34 @@ let playerDebugGraphics;
 let showDebug = false;
 let shadowSystem = null; // New Variable
 
+/**
+ * Safe O(1) retrieval helper for map objects.
+ * Evicts inactive or destroyed sprite references automatically.
+ * @param {Phaser.Scene} scene
+ * @param {string} uniqueId
+ * @returns {Phaser.GameObjects.Sprite|null}
+ */
+function getMapObject(scene, uniqueId) {
+    if (!scene.mapObjectsMap) return null;
+    const sprite = scene.mapObjectsMap.get(uniqueId);
+    if (sprite && sprite.active) return sprite;
+    if (sprite && !sprite.active) {
+        scene.mapObjectsMap.delete(uniqueId);
+    }
+    return null;
+}
+
 export function create() {
     const self = this;
     window.gameScene = self; // Expose globally for UI interactions
     initDebugGraph(); // Initialize HTML debug graph
     initTargetSelection(); // Initialize Target Selection Paper Doll Widget
 
+    // OPTIMIZATION: Fast O(1) lookup Maps for map objects and animal entities
+    this.mapObjectsMap = new Map();
+    this.animalsMap = new Map();
+
     // --- LOADING SCREEN HANDOVER ---
-    // FIX: Retrieve from window and attach to scene
-    // --- DOM LOADING LOGIC ---
     // Initialize Loading State
     this.loadingFlags = {
         player: false,
@@ -41,7 +70,7 @@ export function create() {
         mapObjects: false
     };
 
-    // [FIX] Store initial door states to handle race condition (Packet vs Map Build)
+    // Store initial door states to handle race condition (Packet vs Map Build)
     this.startDoorStates = null;
     this.startResourceNodeStates = null;
 
@@ -60,16 +89,14 @@ export function create() {
 
     // Helper: Check Completion
     this.checkLoadingComplete = function () {
-        // console.log('[Loading] Checking flags:', self.loadingFlags);
-
         // Need all flags to proceed
         if (self.loadingFlags.player && self.loadingFlags.items && self.loadingFlags.segments && self.loadingFlags.mapObjects) {
 
-            // [FIX] Apply cached door states now that map objects are built
-            if (self.startDoorStates && self.objectGroup) {
+            // OPTIMIZATION: Apply cached door states using O(1) Map lookup
+            if (self.startDoorStates && self.mapObjectsMap) {
                 console.log('[Client] Applying cached door states after map build.');
                 self.startDoorStates.forEach(d => {
-                    const doorSprite = self.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === d.id);
+                    const doorSprite = getMapObject(self, d.id);
                     if (doorSprite) {
                         if (d.state === 'open') {
                             doorSprite.play('door_open');
@@ -83,11 +110,11 @@ export function create() {
                 });
             }
 
-            // Apply cached resource node states now that map objects are built
-            if (self.startResourceNodeStates && self.objectGroup) {
+            // OPTIMIZATION: Apply cached resource node states using O(1) Map lookup
+            if (self.startResourceNodeStates && self.mapObjectsMap) {
                 console.log('[Client] Applying cached resource node states after map build.');
                 self.startResourceNodeStates.forEach(nodeData => {
-                    const sprite = self.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === nodeData.id);
+                    const sprite = getMapObject(self, nodeData.id);
                     if (sprite) {
                         sprite.setFrame(nodeData.frame);
                     }
@@ -151,6 +178,15 @@ export function create() {
     initMedicalUI(this.socket);
     console.log('this.socket = ', this.socket);
 
+    // Cleanly disconnect socket when leaving the /play page or closing the tab
+    const cleanDisconnect = () => {
+        if (this.socket && this.socket.connected) {
+            this.socket.disconnect();
+        }
+    };
+    window.addEventListener('beforeunload', cleanDisconnect);
+    window.addEventListener('pagehide', cleanDisconnect);
+
     this.socket.emit('getAllChats', {
         token: document.cookie.replace('TastyTails=', ''),
         charId: document.location.href.split('play/')[1]
@@ -173,10 +209,15 @@ export function create() {
         lastCheck: Date.now()
     };
 
-    // Helper: Only calculate size if debug stats are actually visible
-    // accessing offsetParent is a cheap way to check if an element (or its parent) has display:none
-    // OPTIMIZATION: Do NOT check DOM (offsetParent) on every packet. It causes Reflow.
-    // Use a boolean flag controlled by the toggle listener.
+    // OPTIMIZATION: Lightweight payload byte size estimation without JSON.stringify GC overhead
+    const estimatePayloadSize = (payload) => {
+        if (!payload) return 0;
+        if (typeof payload === 'string') return payload.length;
+        if (typeof payload === 'number') return 8;
+        if (typeof payload === 'boolean') return 4;
+        return 64; // Fast shallow estimate for objects/arrays
+    };
+
     const isDebugVisible = () => {
         return self.showDebug; // Simple boolean check
     };
@@ -185,9 +226,7 @@ export function create() {
     const originalEmit = this.socket.emit;
     this.socket.emit = function (eventName, data, ...args) {
         if (data && isDebugVisible()) {
-            // Rough estimation of payload size
-            const str = JSON.stringify(data);
-            if (str) self.bandwidthStats.bytesOut += str.length + 20; // +20 overhead
+            self.bandwidthStats.bytesOut += estimatePayloadSize(data) + 20; // +20 overhead
         }
         return originalEmit.apply(this, [eventName, data, ...args]);
     };
@@ -195,9 +234,7 @@ export function create() {
     // 2. Incoming (Wildcard listener)
     this.socket.onAny((event, ...args) => {
         if (isDebugVisible()) {
-            // args is an array of arguments.
-            const str = JSON.stringify(args);
-            if (str) self.bandwidthStats.bytesIn += str.length + 20;
+            self.bandwidthStats.bytesIn += estimatePayloadSize(args) + 20;
         }
     });
 
@@ -216,10 +253,102 @@ export function create() {
         pointer.interactionHandled = false;
     });
 
+    // Global Capture-Phase UI Click Detector
+    // Captures raw DOM event target BEFORE any event bubbling or Phaser input processing
+    if (typeof window.isPointerDownOnUI === 'undefined') {
+        window.isPointerDownOnUI = false;
+
+        let captureTimer = null;
+        const handleCaptureDown = (e) => {
+            const target = e.target;
+            const tag = target && target.tagName ? target.tagName.toUpperCase() : '';
+            const isCanvas = target && (tag === 'CANVAS' || (typeof target.closest === 'function' && target.closest('canvas')));
+            window.isPointerDownOnUI = !isCanvas;
+        };
+
+        ['pointerdown', 'mousedown', 'touchstart'].forEach(eventType => {
+            window.addEventListener(eventType, handleCaptureDown, true);
+        });
+
+        const handleCaptureUp = (e) => {
+            if (captureTimer) clearTimeout(captureTimer);
+            captureTimer = setTimeout(() => {
+                window.isPointerDownOnUI = false;
+            }, 150);
+        };
+
+        ['pointerup', 'mouseup', 'touchend', 'touchcancel'].forEach(eventType => {
+            window.addEventListener(eventType, handleCaptureUp, true);
+        });
+    }
+
+    // Helper to determine if a click event occurred over an HTML UI element
+    let lastPointerDownIsUI = false;
+    const isClickOnUI = (pointer) => {
+        if (window.isPointerDownOnUI) return true;
+        if (!pointer) return false;
+        const evt = pointer.event;
+
+        // Helper to evaluate element targets for UI matching
+        const isUIElement = (target) => {
+            if (!target) return false;
+            const tag = target.tagName ? target.tagName.toUpperCase() : '';
+            if (tag && tag !== 'CANVAS') return true;
+            if (typeof target.closest === 'function') {
+                if (target.closest('#target-doll-widget') ||
+                    target.closest('#target-lens-popout') ||
+                    target.closest('.target-zone-node') ||
+                    target.closest('.intent-dock-group') ||
+                    target.closest('.intent-option') ||
+                    target.closest('#active-apparel-pill') ||
+                    target.closest('#hands-hud') ||
+                    target.closest('#dashboard-cluster')) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        // 1. Direct target check from native browser event
+        if (evt && isUIElement(evt.target)) {
+            return true;
+        }
+
+        // 2. Viewport clientX/clientY check with document.elementFromPoint
+        let clientX = null;
+        let clientY = null;
+
+        if (evt) {
+            if (evt.clientX !== undefined) {
+                clientX = evt.clientX;
+                clientY = evt.clientY;
+            } else if (evt.touches && evt.touches.length > 0) {
+                clientX = evt.touches[0].clientX;
+                clientY = evt.touches[0].clientY;
+            } else if (evt.changedTouches && evt.changedTouches.length > 0) {
+                clientX = evt.changedTouches[0].clientX;
+                clientY = evt.changedTouches[0].clientY;
+            }
+        }
+
+        if (clientX !== null && clientY !== null) {
+            const el = document.elementFromPoint(clientX, clientY);
+            if (isUIElement(el)) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
     // Global pointer down for ground click-to-move navigation
     this.input.on('pointerdown', (pointer, currentlyOverObjects) => {
-        // Only accept Primary (Left) Click
-        if (pointer.button !== 0) return;
+        // Accept Primary (Left) Click or Secondary (Right) Click
+        if (pointer.button !== 0 && pointer.button !== 2) return;
+
+        // Ignore clicks on HTML UI elements anywhere on screen
+        lastPointerDownIsUI = window.isPointerDownOnUI || isClickOnUI(pointer);
+        if (lastPointerDownIsUI) return;
 
         // Skip if a menu/overlay is open or if dropMode is active
         const contextMenu = document.getElementById('contextMenu');
@@ -229,6 +358,7 @@ export function create() {
 
         // Defer check to allow object-specific pointerdown handlers to run and set interactionHandled = true
         this.time.delayedCall(0, () => {
+            if (lastPointerDownIsUI || window.isPointerDownOnUI || isClickOnUI(pointer)) return;
             if (pointer.interactionHandled) return;
 
             // Also check currentlyOverObjects to avoid moving when clicking on interactive elements that might not have set the flag
@@ -438,32 +568,26 @@ export function create() {
 
     // --- Animal Updates ---
     this.socket.on('animalUpdates', (updates) => {
-        // Debug: Log once to confirm receipt
-        if (!window._recAnimalUpdates) {
-            console.log('[Client] Received animalUpdates:', Object.keys(updates));
-            window._recAnimalUpdates = true;
-        }
-
-        if (!this.animals) return;
+        if (!this.animals || !this.animalsMap) return;
 
         Object.keys(updates).forEach(id => {
             const data = updates[id];
-            // Match ID
-            // Server ID Format: animals_323
-            // Client ID Format (map.js): animals_323
-            const animal = this.animals.getChildren().find(a => a.objectInfo && a.objectInfo.uniqueId === id);
-
-            if (animal) {
-                animal.serverUpdate(data);
-            } else {
-                // Warn once per missing ID
-                if (!window[`_missing_${id}`]) {
-                    console.warn(`[Client] Update for unknown animal: ${id}`);
-                    // debug list available
-                    const existing = this.animals.getChildren().map(a => a.objectInfo ? a.objectInfo.uniqueId : 'none');
-                    console.log('Available IDs:', existing);
-                    window[`_missing_${id}`] = true;
+            // Robust O(1) + Fallback Animal lookup
+            let animal = this.animalsMap.get(id) || 
+                         this.animalsMap.get(id.toLowerCase());
+            
+            if (!animal && this.animalsMap.size > 0) {
+                const searchId = id.toLowerCase();
+                for (const a of this.animalsMap.values()) {
+                    if (a && a.objectInfo && (a.objectInfo.uniqueId?.toLowerCase() === searchId || a.properties?.id?.toLowerCase() === searchId)) {
+                        animal = a;
+                        break;
+                    }
                 }
+            }
+
+            if (animal && animal.active) {
+                animal.serverUpdate(data);
             }
         });
     });
@@ -562,16 +686,16 @@ export function create() {
                         // Player is consumed
                         self.playerContainer.setVisible(false);
 
-                        // Find the predator
+                        // OPTIMIZATION: Resolve predator via local container or O(1) otherPlayersMap
                         let predator = null;
-                        self.otherPlayersGroup.getChildren().forEach(other => {
-                            if (other.playerId === fullState.consumedBy) {
-                                predator = other;
-                            }
-                        });
+                        if (self.socket && self.socket.id === fullState.consumedBy) {
+                            predator = self.playerContainer;
+                        } else {
+                            predator = self.otherPlayersMap.get(fullState.consumedBy);
+                        }
 
                         // If predator found, follow them
-                        if (predator) {
+                        if (predator && predator.active) {
                             self.cameras.main.startFollow(predator);
                             if (window.cam1) window.cam1.startFollow(predator);
                         }
@@ -860,13 +984,22 @@ export function create() {
             if (note) {
                 const displayName = info.name || (info.firstName ? `${info.firstName} ${info.lastName}` : 'Unknown');
                 const displayDesc = info.description || info.icDescrip || 'No description available.';
-                const flavor = info.flavor ? `<p style="font-style:italic; color:#aaa; margin-top:5px;">${info.flavor}</p>` : '';
 
-                note.innerHTML = `
-                    <h3>Inspection: ${displayName}</h3>
-                    <p>${displayDesc}</p>
-                    ${flavor}
-                `;
+                // SECURITY: Construct DOM text nodes safely to prevent XSS script execution
+                note.textContent = '';
+                const h3 = document.createElement('h3');
+                h3.textContent = `Inspection: ${displayName}`;
+                const pDesc = document.createElement('p');
+                pDesc.textContent = displayDesc;
+                note.appendChild(h3);
+                note.appendChild(pDesc);
+
+                if (info.flavor) {
+                    const pFlavor = document.createElement('p');
+                    pFlavor.style.cssText = 'font-style:italic; color:#aaa; margin-top:5px;';
+                    pFlavor.textContent = info.flavor;
+                    note.appendChild(pFlavor);
+                }
             }
             // Switch to Look tab
             const lookTab = document.getElementById('lookTab');
@@ -875,56 +1008,49 @@ export function create() {
     });
 
     this.socket.on('typing', (data) => {
-        // console.log('[Client] Received typing event:', data);
+        if (!data || !data.charId) return;
+        const charIdStr = data.charId.toString();
+
         let targetContainer = null;
-        if (self.playerContainer && self.playerContainer.playerInfo && self.playerContainer.playerInfo._id && self.playerContainer.playerInfo._id.toString() === data.charId) {
+        if (self.playerContainer && self.playerContainer.playerInfo && self.playerContainer.playerInfo._id && self.playerContainer.playerInfo._id.toString() === charIdStr) {
             targetContainer = self.playerContainer;
-            // console.log('[Client] Typing target is SELF');
-        } else {
+        } else if (self.otherPlayersGroup) {
             const others = self.otherPlayersGroup.getChildren();
-            targetContainer = others.find(p => p.playerInfo && p.playerInfo._id && p.playerInfo._id.toString() === data.charId);
+            targetContainer = others.find(p => p.playerInfo && (
+                (p.playerInfo._id && p.playerInfo._id.toString() === charIdStr) ||
+                (p.playerInfo.playerId && p.playerInfo.playerId.toString() === charIdStr) ||
+                (p.playerId && p.playerId.toString() === charIdStr)
+            ));
         }
 
         if (targetContainer) {
             updateTypingIndicator(targetContainer, data.isTyping);
-        } else {
-            // console.warn('[Client] Typing target not found:', data.charId);
         }
     });
-
-
 
     // --- Door Update Listener ---
     this.socket.on('doorUpdate', (data) => {
-        // data = { id, state, blocked, lightBlock }
-        // Find the door sprite
-        if (self.objectGroup) {
-            const doorSprite = self.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === data.id);
-            if (doorSprite) {
-                // Play Animation
-                if (data.state === 'open') {
-                    doorSprite.play('door_open');
-                    doorSprite.body.enable = false; // Disable collision
-                } else {
-                    doorSprite.play('door_close');
-                    doorSprite.body.enable = true; // Enable collision
-                }
-
-                // Update Metadata if needed
-                doorSprite.objectInfo.state = data.state;
-                // Collision is handled by body.enable above
+        // OPTIMIZATION: Fast O(1) Map lookup
+        const doorSprite = getMapObject(self, data.id);
+        if (doorSprite) {
+            if (data.state === 'open') {
+                doorSprite.play('door_open');
+                doorSprite.body.enable = false;
+            } else {
+                doorSprite.play('door_close');
+                doorSprite.body.enable = true;
             }
+            doorSprite.objectInfo.state = data.state;
         }
     });
 
-    // [FIX] Initial Door States (Bulk Update on Connect)
+    // Initial Door States (Bulk Update on Connect)
     this.socket.on('doorStates', (doors) => {
-        // console.log('[Client] Received initial door states:', doors.length);
         self.startDoorStates = doors; // Cache for race condition
 
-        if (self.objectGroup) {
+        if (self.mapObjectsMap) {
             doors.forEach(d => {
-                const doorSprite = self.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === d.id);
+                const doorSprite = getMapObject(self, d.id);
                 if (doorSprite) {
                     if (d.state === 'open') {
                         doorSprite.play('door_open');
@@ -941,19 +1067,17 @@ export function create() {
 
     // --- Resource Node State Listeners ---
     this.socket.on('resourceNodeUpdate', (data) => {
-        if (self.objectGroup) {
-            const sprite = self.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === data.id);
-            if (sprite) {
-                sprite.setFrame(data.frame);
-            }
+        const sprite = getMapObject(self, data.id);
+        if (sprite) {
+            sprite.setFrame(data.frame);
         }
     });
 
     this.socket.on('resourceNodeStates', (nodes) => {
         self.startResourceNodeStates = nodes;
-        if (self.objectGroup) {
+        if (self.mapObjectsMap) {
             nodes.forEach(nodeData => {
-                const sprite = self.objectGroup.getChildren().find(obj => obj.objectInfo && obj.objectInfo.uniqueId === nodeData.id);
+                const sprite = getMapObject(self, nodeData.id);
                 if (sprite) {
                     sprite.setFrame(nodeData.frame);
                 }
@@ -969,25 +1093,22 @@ export function create() {
         if (self.objectGroup) {
             self.objectGroup.getChildren().forEach(sprite => {
                 if (sprite.clearZone) {
-                    // If sprite's clearZone matches current zone, fade OUT
-                    if (sprite.clearZone === currentZone) {
-                        if (sprite.alpha > 0) {
-                            self.tweens.add({
-                                targets: sprite,
-                                alpha: 0,
-                                duration: 150
-                            });
-                        }
-                    } else {
-                        // Otherwise, ensure it is faded IN
-                        if (sprite.alpha < 1) {
-                            self.tweens.add({
-                                targets: sprite,
-                                alpha: 1,
-                                duration: 250
-                            });
-                        }
+                    const targetAlpha = (sprite.clearZone === currentZone) ? 0 : 1;
+                    if (sprite.targetZoneAlpha === targetAlpha) return;
+                    sprite.targetZoneAlpha = targetAlpha;
+
+                    // OPTIMIZATION: Stop active zone-fade tween specifically to avoid killing combat/stealth tweens
+                    if (sprite.zoneTween) {
+                        sprite.zoneTween.stop();
+                        sprite.zoneTween = null;
                     }
+
+                    sprite.zoneTween = self.tweens.add({
+                        targets: sprite,
+                        alpha: targetAlpha,
+                        duration: targetAlpha === 0 ? 150 : 250,
+                        onComplete: () => { sprite.zoneTween = null; }
+                    });
                 }
             });
         }

@@ -1,3 +1,17 @@
+/**
+ * @fileoverview Chat.js - Mongoose Model for TastyTails.net Chat Messages
+ * 
+ * @description
+ * Defines the Mongoose schema (`chatSchema`) and model (`Chats`) for storing chat messages,
+ * spatial game location snapshots, player visual profiles, emoji reactions, content warning
+ * spoilers, and targeted audience visibility rules.
+ * 
+ * Triggered by:
+ * - Real-Time Chat Engine (`MessageSystem.js` write-behind buffer flushes every 2s)
+ * - Express REST API Chat Archives (`chatArchives.js`)
+ * - Server Startup Initializer (`server-loop.js`, `index.js`)
+ */
+
 const mongoose = require('mongoose');
 
 const Schema = mongoose.Schema;
@@ -27,15 +41,18 @@ const chatSchema = new mongoose.Schema({
     type: [String], // Array of Character IDs to exclude.
     default: []
   },
+  // OPTIMIZATION: Retain array schema for client/server contract compatibility, but set {_id: false}
+  // to suppress sub-document ObjectId generation overhead during bulk inserts.
   message: {
-    type: [{
+    type: [new mongoose.Schema({
       content: {
         type: String
       },
       time: {
         type: Date
       }
-    }]
+    }, { _id: false })],
+    default: []
   },
   gameState: {
     speaker_context: { type: Object, default: {} },
@@ -87,7 +104,7 @@ const chatSchema = new mongoose.Schema({
     }
   },
   senderProfile: {
-    type: mongoose.Schema.Types.Mixed, // Stores { head, eyes, ears, colors: {...} }
+    type: mongoose.Schema.Types.Mixed,
     default: {}
   },
   createdAt: {
@@ -96,9 +113,16 @@ const chatSchema = new mongoose.Schema({
   }
 });
 
-// Compound index for optimizing filtering by visibility and sorting by time
+// OPTIMIZATION: Compound index for optimizing filtering by visibility and sorting by time
 chatSchema.index({ visibleTo: 1, createdAt: -1 });
-// Fallback index for time-only queries or public chats if optimizer prefers
+
+// OPTIMIZATION: Fallback index for time-only queries or public chats
 chatSchema.index({ createdAt: -1 });
+
+// OPTIMIZATION: Compound index for character-based historical chat archive lookups
+chatSchema.index({ 'identifier.character': 1, createdAt: -1 });
+
+// OPTIMIZATION: Compound index for spatial zone-based roleplay archive searches
+chatSchema.index({ 'gameState.location_context.zone': 1, createdAt: -1 });
 
 module.exports = mongoose.model('Chats', chatSchema);

@@ -1,10 +1,91 @@
 /**
- * Centralized Asset Manifest
- * All game assets (images, spritesheets) should be defined here.
+ * @fileoverview Centralized Asset Manifest (assetsList.js)
+ * 
+ * @description
+ * Serves as the single source of truth for declaring all static images, tilesets,
+ * player avatar customization layers, clothing items, and resource nodes loaded
+ * by the client Phaser engine during preloading.
+ * 
+ * Triggered by: preload.js during Phaser scene initialization.
  */
 
 import resourceNodeData from './resourceNodeData.js';
 import itemData from './itemData.js';
+
+// Configuration constants for avatar customization layer bounds
+const EAR_COUNT = 11;
+const HEAD_COUNT = 6;
+const HEAD_SECONDARY_COUNT = 5;
+const TAIL_COUNT = 10;
+const TAIL_SECONDARY_COUNT = 6;
+
+/**
+ * Single-pass extractor for static images, clothing spritesheets, and rendered items from itemData.
+ * OPTIMIZATION: Consolidates 3 separate .filter()/.map() iterations into a single O(N) loop
+ * to minimize Garbage Collection (GC) pauses during client module initialization.
+ * 
+ * @param {Object} itemDefinitions - Map of item definitions from itemData.js
+ * @returns {{ itemImages: Array<Object>, itemClothingSheets: Array<Object>, itemRenderSheets: Array<Object> }} Extracted asset objects grouped by category.
+ */
+function extractItemAssets(itemDefinitions) {
+    if (!itemDefinitions || typeof itemDefinitions !== 'object') {
+        return { itemImages: [], itemClothingSheets: [], itemRenderSheets: [] };
+    }
+
+    const itemImages = [];
+    const itemClothingSheets = [];
+    const itemRenderSheets = [];
+
+    for (const [key, def] of Object.entries(itemDefinitions)) {
+        if (!def || typeof def !== 'object') continue;
+
+        // Static item image textures (clothing items load as spritesheets from /assets/clothes/)
+        if (def.texture && !def.rendering && def.itemType !== 'clothing') {
+            itemImages.push({
+                key: String(def.texture),
+                path: `/assets/tilemaps/${def.texture}.png`
+            });
+        }
+
+        // Layered/rendered spritesheet items
+        if (def.texture && def.rendering) {
+            itemRenderSheets.push({
+                key: String(def.texture),
+                path: `/assets/tilemaps/${def.texture}.png`,
+                frameWidth: 12,
+                frameHeight: 64
+            });
+        }
+
+        // Dynamic clothing items & secondary patterns
+        if (def.itemType === 'clothing') {
+            const baseTex = def.texture || def.itemId || key;
+            if (baseTex) {
+                itemClothingSheets.push({
+                    key: String(baseTex),
+                    path: `/assets/clothes/${baseTex}.png`,
+                    animate: true
+                });
+            }
+            if (Array.isArray(def.secondaryPatterns)) {
+                for (const pattern of def.secondaryPatterns) {
+                    const patternId = typeof pattern === 'string' ? pattern : pattern?.id;
+                    if (patternId) {
+                        itemClothingSheets.push({
+                            key: `${baseTex}-${patternId}`,
+                            path: `/assets/clothes/${baseTex}-${patternId}.png`,
+                            animate: true
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    return { itemImages, itemClothingSheets, itemRenderSheets };
+}
+
+const { itemImages, itemClothingSheets, itemRenderSheets } = extractItemAssets(itemData);
 
 export const assets = {
     // Map Tilesets (Must match Tiled Tileset Names)
@@ -69,13 +150,8 @@ export const assets = {
         { key: 'shirt', path: '/assets/tilemaps/shirt.png' },
         { key: 'clothing_store_exit_rug', path: '/assets/tilemaps/clothing_store_exit_rug.png' },
         { key: 'pub_exit_rug', path: '/assets/tilemaps/pub_exit_rug.png' },
-        // Dynamically loaded item textures
-        ...Object.entries(itemData)
-            .filter(([key, def]) => def.texture && !def.rendering)
-            .map(([key, def]) => ({
-                key: def.texture,
-                path: `/assets/tilemaps/${def.texture}.png`
-            })),
+        // Dynamically loaded item textures (extracted via single-pass helper)
+        ...itemImages,
         // Building Sprites
         { key: 'blacksmith_outside_01', path: '/assets/tilemaps/blacksmith_outside_01.png' },
         { key: 'blacksmith_outside_02', path: '/assets/tilemaps/blacksmith_outside_02.png' },
@@ -117,8 +193,8 @@ export const assets = {
         { key: 'body_01-feet-secondary_01', path: '/assets/spritesheets/body_01-feet-secondary_01.png', animate: true },
         { key: 'body_01-feet-secondary_02', path: '/assets/spritesheets/body_01-feet-secondary_02.png', animate: true },
 
-        // Ears (1-11 Outer/Inner)
-        ...Array.from({ length: 11 }, (_, i) => i + 1).flatMap(i => {
+        // Ears (1 to EAR_COUNT Outer/Inner)
+        ...Array.from({ length: EAR_COUNT }, (_, i) => i + 1).flatMap(i => {
             const id = i < 10 ? `0${i}` : `${i}`;
             return [
                 { key: `ears_${id}-outer`, path: `/assets/spritesheets/ears_${id}-outer.png`, animate: true },
@@ -138,23 +214,22 @@ export const assets = {
         { key: 'headAccessories_05', path: '/assets/spritesheets/headAccessories_05.png', animate: true },
 
         // Heads & Secondary Heads
-        ...Array.from({ length: 6 }, (_, i) => i + 1).flatMap(i => {
+        ...Array.from({ length: HEAD_COUNT }, (_, i) => i + 1).flatMap(i => {
             const id = `0${i}`;
-            const secondaryCount = 5;
             const list = [{ key: `head_${id}`, path: `/assets/spritesheets/head_${id}.png`, animate: true }];
             if (i === 5) list.push({ key: 'head_05_beak', path: '/assets/spritesheets/head_05_beak.png', animate: true });
 
-            for (let j = 1; j <= secondaryCount; j++) {
+            for (let j = 1; j <= HEAD_SECONDARY_COUNT; j++) {
                 list.push({ key: `head_${id}-secondary_0${j}`, path: `/assets/spritesheets/head_${id}-secondary_0${j}.png`, animate: true });
             }
             return list;
         }),
 
-        // Tails (1-10 & Secondary)
-        ...Array.from({ length: 10 }, (_, i) => i + 1).flatMap(i => {
+        // Tails (1 to TAIL_COUNT & Secondary)
+        ...Array.from({ length: TAIL_COUNT }, (_, i) => i + 1).flatMap(i => {
             const id = i < 10 ? `0${i}` : `${i}`;
             const list = [{ key: `tail_${id}`, path: `/assets/spritesheets/tail_${id}.png`, animate: true }];
-            for (let j = 1; j <= 6; j++) {
+            for (let j = 1; j <= TAIL_SECONDARY_COUNT; j++) {
                 list.push({ key: `tail_${id}-secondary_0${j}`, path: `/assets/spritesheets/tail_${id}-secondary_0${j}.png`, animate: true });
             }
             return list;
@@ -165,31 +240,8 @@ export const assets = {
         { key: 'hair-front_02', path: '/assets/spritesheets/hair-front_02.png', animate: true },
         { key: 'hair-front_03', path: '/assets/spritesheets/hair-front_03.png', animate: true },
 
-        // Dynamic Clothing items & secondary patterns
-        ...Object.values(itemData)
-            .filter(item => item.itemType === 'clothing')
-            .flatMap(item => {
-                const entries = [];
-                const baseTex = item.texture || item.itemId;
-                if (baseTex) {
-                    entries.push({
-                        key: baseTex,
-                        path: `/assets/clothes/${baseTex}.png`,
-                        animate: true
-                    });
-                }
-                if (item.secondaryPatterns && Array.isArray(item.secondaryPatterns)) {
-                    item.secondaryPatterns.forEach(pattern => {
-                        const patternId = typeof pattern === 'string' ? pattern : pattern.id;
-                        entries.push({
-                            key: `${baseTex}-${patternId}`,
-                            path: `/assets/clothes/${baseTex}-${patternId}.png`,
-                            animate: true
-                        });
-                    });
-                }
-                return entries;
-            }),
+        // Dynamic Clothing items & secondary patterns (extracted via single-pass helper)
+        ...itemClothingSheets,
 
         // Doors
         { key: 'door_clothing_store', path: '/assets/spritesheets/door_clothing_store.png', frameWidth: 197, frameHeight: 255 },
@@ -197,26 +249,28 @@ export const assets = {
         { key: 'door_spa', path: '/assets/spritesheets/door_spa.png', frameWidth: 197, frameHeight: 255 },
         { key: 'alpha_door', path: '/assets/tilemaps/alpha_door.png', frameWidth: 96, frameHeight: 288 },
 
-        // Dynamically loaded layered/spritesheet items
-        ...Object.entries(itemData)
-            .filter(([key, def]) => def.texture && def.rendering)
-            .map(([key, def]) => ({
-                key: def.texture,
-                path: `/assets/tilemaps/${def.texture}.png`,
-                frameWidth: 12,
-                frameHeight: 64
-            })),
+        // Dynamically loaded layered/spritesheet items (extracted via single-pass helper)
+        ...itemRenderSheets,
 
-        //animals
+        // Animals
         { key: 'sheep', path: '/assets/animals/sheep.png', frameWidth: 215, frameHeight: 198 },
 
-        // Dynamic resource nodes
-        ...Object.entries(resourceNodeData).map(([key, def]) => ({
-            key: key,
-            path: `/assets/tilemaps/${key}.png`,
-            frameWidth: def.frameWidth,
-            frameHeight: def.frameHeight
-        }))
+        // Dynamic resource nodes (skip layered crop nodes that load individual layer textures)
+        ...Object.entries(resourceNodeData)
+            .filter(([key, def]) => {
+                if (def.rendering?.type === 'layered' || def.skipPreload) return false;
+                if (!def.frameWidth || !def.frameHeight) {
+                    console.warn(`[AssetsList] Resource node '${key}' missing frame dimensions. Skipping tilemap preload.`);
+                    return false;
+                }
+                return true;
+            })
+            .map(([key, def]) => ({
+                key: key,
+                path: `/assets/tilemaps/${key}.png`,
+                frameWidth: def.frameWidth,
+                frameHeight: def.frameHeight
+            }))
     ],
 
     // Emotes
@@ -224,3 +278,4 @@ export const assets = {
         'typing'
     ]
 };
+

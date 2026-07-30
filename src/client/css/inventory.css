@@ -1,3 +1,17 @@
+/**
+ * @fileoverview inventory.css - Cozy RPG Dashboard Cluster & Satchel Pockets Stylesheet
+ * 
+ * @description
+ * Defines design tokens, spatial layout, and animation transitions for the bottom-anchored
+ * Dashboard Cluster (#dashboard-cluster), Master Adventurer Command Bar (#hands-hud),
+ * Pop-Out Target Lens (.target-lens-popout), and upward-expanding parchment Satchel Drawer (#satchel-drawer).
+ * 
+ * OPTIMIZATIONS APPLIED:
+ * 1. Zero-Reflow Accordion: Uses CSS Grid fraction rows (grid-template-rows: 0fr -> 1fr) to animate drawer height without layout thrashing.
+ * 2. GPU Compositing Hints: Uses will-change: transform, opacity and optimized backdrop-filter blur on popouts.
+ * 3. Pass-Through Container: Uses pointer-events: none on #dashboard-cluster so world canvas clicks fall through cleanly.
+ */
+
 /* =========================================
    THEME VARIABLES
    =========================================
@@ -191,6 +205,7 @@
 }
 
 /* Floating Pop-Out Target Lens Card (180px x 240px) */
+/* OPTIMIZATION: will-change promotes element to GPU compositing layer to prevent overdraw during lensPopIn animation */
 .target-lens-popout {
     position: absolute;
     bottom: calc(100% + 14px);
@@ -199,8 +214,9 @@
     width: 200px;
     height: 270px;
     background: rgba(18, 14, 11, 0.94);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    will-change: transform, opacity;
     border: 2px solid #5a422d;
     border-radius: 8px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.85), 0 0 15px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 0, 0, 0.6);
@@ -338,6 +354,7 @@
 .tabs-dock-group {
     display: flex;
     align-items: center;
+    height: 48px;
 }
 
 #inventory-tabs-slot {
@@ -402,6 +419,7 @@
     width: 100%;
 }
 
+/* OPTIMIZATION: Uses CSS Grid grid-template-rows (0fr -> 1fr) instead of max-height to eliminate layout reflow thrashing on 60 FPS drawer toggles */
 #satchel-drawer {
     background: var(--parchment);
     background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
@@ -411,22 +429,25 @@
     width: 540px;
     max-width: 90vw;
     box-sizing: border-box;
-    max-height: 0;
+    display: grid;
+    grid-template-rows: 0fr;
     opacity: 0;
-    overflow: hidden;
-    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, padding 0.35s ease;
+    transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, padding 0.35s ease;
     transform-origin: bottom center;
     box-shadow: var(--shadow-deep);
-    display: flex;
-    flex-direction: column;
     margin-bottom: 0;
     pointer-events: auto;
     line-height: normal;
     padding: 0 12px;
 }
 
+#satchel-drawer > * {
+    min-height: 0;
+    overflow: hidden;
+}
+
 #satchel-drawer.open {
-    max-height: 260px;
+    grid-template-rows: 1fr;
     opacity: 1;
     padding: 10px 12px 6px 12px;
 }
@@ -599,19 +620,64 @@
     background: rgba(0, 0, 0, 0.4);
     border: 1px solid var(--wood-mid);
     border-radius: 6px;
-    padding: 5px 10px;
+    padding: 3px 8px;
+    height: 48px;
+    max-width: 100px;
+    box-sizing: border-box;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
+    justify-content: center;
+    gap: 5px;
+    transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+    user-select: none;
+    overflow: hidden;
+}
+
+.active-apparel-pill .pill-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+}
+
+.active-apparel-pill .pill-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    line-height: 1.15;
+    overflow: hidden;
+}
+
+.active-apparel-pill .pill-name {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--gold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+}
+
+.active-apparel-pill .pill-count {
+    font-size: 0.6rem;
+    font-family: 'Lato', sans-serif;
+    color: #a8947d;
     white-space: nowrap;
 }
 
 .active-apparel-pill:hover {
-    background: var(--wood-light);
-    border-color: var(--gold);
-    transform: translateY(-1px);
+    background: rgba(0, 0, 0, 0.6);
+    border-color: var(--gold-light);
+    color: #ffffff;
+}
+
+.active-apparel-pill:hover .pill-name {
+    color: #ffffff;
 }
 
 /* Capacity Indicator Pip on Apparel Tab */
@@ -780,8 +846,6 @@
 
 .hidden-hud {
     display: none !important;
-}
-    background: var(--leather-accent);
 }
 
 /* Items (Unified Style for Hands & Pockets) */
@@ -976,3 +1040,18 @@
     white-space: nowrap;
     z-index: 200;
 }
+
+/* High-Contrast Icon & Aura Enhancements for Satchel Pockets & Hands HUD */
+.hud-item i,
+.item i,
+.hand-slot .item i {
+    color: var(--gold, #ffd700);
+    filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.45)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
+    transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.hud-item:hover i,
+.item:hover i,
+.hand-slot:hover .item i {
+    filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.75)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.95));
+}

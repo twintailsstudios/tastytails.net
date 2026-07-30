@@ -1,7 +1,11 @@
 /**
- * digestion.js
+ * @fileoverview digestion.js - Digestive Mechanics & Prey Death System
  * 
- * Handles periodic digestion damage for players trapped inside a "Digest" vore destination.
+ * @description
+ * Manages periodic digestion damage ticks, probabilistic limb targeting, real-time UI state sync,
+ * and death/release pipelines for swallowed prey trapped in 'Digest' vore nodes on TastyTails.net.
+ * 
+ * Invoked continuously by the server tick loop (`src/server-loop.js`) using an O(K) active tracking set.
  */
 
 const log = require('../../logger');
@@ -25,51 +29,79 @@ const DAMAGE_CHANCE = {
     'Very High': 0.50
 };
 
+// OPTIMIZATION: Module-scoped list of body parts to prevent per-tick object allocations in hot loops
+const ALL_BODY_PARTS = Object.freeze([
+    'head', 'torso', 'leftArm', 'rightArm', 'leftHand', 'rightHand',
+    'leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'tail'
+]);
+
 /**
- * Iterates through all players and applies digestion damage if applicable.
- * 
- * @param {Object} players - The global players object.
- * @param {Object} User - The Mongoose User model.
- * @param {Object} io - The Socket.io instance for emitting events.
+ * Escapes special regex characters in player names for safe dynamic RegExp creation.
+ * @param {string} string - Raw player username or character name
+ * @returns {string} Regex-escaped string
+ */
+function escapeRegExp(string) {
+    return string ? string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
+}
+
+/**
+ * Resolves a valid socketId from either a socketId or a playerId.
+ * @param {string} id - Socket ID or character UUID
+ * @param {Object} players - Global players object
+ * @returns {string} Valid socket ID if found, or original ID
+ */
+function resolveSocketId(id, players) {
+    if (!id || !players) return id;
+    if (players[id]) return id;
+    const foundSid = Object.keys(players).find(sid => players[sid] && players[sid].playerId === id);
+    return foundSid || id;
+}
+
+/**
+ * Global tracking set containing active victim socket IDs or player IDs.
+ * Used to restrict digestion ticks to an O(K) subset of online players.
  */
 const activeDigestions = new Set();
-const digestionTimers = new Map(); // Stores next eligible process time for each victim
+
+/**
+ * Next eligible epoch execution timestamp (in ms) per victim ID.
+ * Decouples digestion tick frequency (5s) from server frame rate.
+ */
+const digestionTimers = new Map();
 
 
 /**
- * Adds a player to the active digestion list.
- * @param {string} victimSocketId 
+ * Registers a player into the active digestion loop.
+ * @param {string} victimSocketId - Socket ID or Player UUID of swallowed victim
  */
 function trackVictim(victimSocketId) {
     if (victimSocketId) {
         activeDigestions.add(victimSocketId);
         // Initialize timer for 5 seconds from now (standard tick rate)
         digestionTimers.set(victimSocketId, Date.now() + 5000);
-        // log.debug(`[Digestion] Tracking ${victimSocketId}. Total: ${activeDigestions.size}`);
     }
 }
 
 /**
- * Removes a player from the active digestion list.
- * @param {string} victimSocketId 
+ * Unregisters a player from the active digestion loop.
+ * @param {string} victimSocketId - Socket ID or Player UUID of victim to untrack
  */
 function untrackVictim(victimSocketId) {
     if (victimSocketId) {
         activeDigestions.delete(victimSocketId);
         digestionTimers.delete(victimSocketId);
-        // log.debug(`[Digestion] Untracked ${victimSocketId}. Total: ${activeDigestions.size}`);
     }
 }
 
 /**
- * Iterates through all players and applies digestion damage if applicable.
+ * Iterates through active digestion victims and applies periodic burn damage if applicable.
  * 
- * @param {Object} players - The global players object.
- * @param {Object} User - The Mongoose User model.
- * @param {Object} io - The Socket.io instance for emitting events.
- * @param {Function} addCorpse - Function to add a corpse.
- * @param {Object} messageSystem - The message system.
- * @param {number} delta - Time since last update (in seconds).
+ * @param {Object} players - The global active players state map.
+ * @param {Object} User - Mongoose User database model.
+ * @param {Object} io - Socket.io server instance.
+ * @param {Function} addCorpse - Global helper to spawn player corpses on map.
+ * @param {Object} messageSystem - Central messaging system for chat channels.
+ * @param {number} delta - Frame delta time in seconds.
  */
 async function processDigestion(players, User, io, addCorpse, messageSystem, delta) {
     // log.debug(`[Digestion] Running digestion cycle (O(K)). Active: ${activeDigestions.size}, Delta: ${delta}`);
@@ -78,134 +110,142 @@ async function processDigestion(players, User, io, addCorpse, messageSystem, del
     const now = Date.now();
 
     for (const victimId of activeDigestions) {
-        // Check Timer
-        const nextCheck = digestionTimers.get(victimId) || 0;
-        if (now < nextCheck) {
-            continue; // Not yet time for this victim
-        }
+        try {
+            // Check Timer
+            const nextCheck = digestionTimers.get(victimId) || 0;
+            if (now < nextCheck) {
+                continue; // Not yet time for this victim
+            }
 
-        const victim = players[victimId];
+            const victim = players[victimId] || players[resolveSocketId(victimId, players)];
 
-        // Validation: If player disconnected or is no longer consumed
-        if (!victim || !victim.consumedBy || !victim.isInGame) {
-            victimsToRemove.push(victimId);
-            continue;
-        }
+            // Validation: If player disconnected or is no longer consumed
+            if (!victim || !victim.consumedBy || !victim.isInGame) {
+                victimsToRemove.push(victimId);
+                continue;
+            }
 
-        // Update Timer irrespective of outcome (probabilistic check should happen every 5s)
-        digestionTimers.set(victimId, now + 5000);
+            // Update Timer irrespective of outcome (probabilistic check should happen every 5s)
+            digestionTimers.set(victimId, now + 5000);
 
-        // Find the Predator
-        // consumedBy stores the predator's 'playerId' (string), NOT socketId.
-        const predatorSocketId = Object.keys(players).find(sid => players[sid].playerId === victim.consumedBy);
-        const predator = players[predatorSocketId];
+            // Find the Predator (Reconnection-Safe Cache with O(N) Fallback)
+            let predatorSocketId = victim.consumedBySocketId;
+            let predator = predatorSocketId ? players[predatorSocketId] : null;
 
-        if (!predator) {
-            // Predator disconnected? Release victim?
-            // For now, just stop digesting. Cleanup handled elsewhere.
-            victimsToRemove.push(victimId);
-            continue;
-        }
-
-        // Check Anatomy / Vore Mode
-        const currentNodeId = victim.currentVoreNodeId;
-
-        if (!currentNodeId) {
-            continue;
-        }
-
-        let digestivePower = 'Normal';
-        let shouldDigest = false;
-        let nodeName = 'Stomach';
-        let internalFate = "You have been digested.";
-        let externalOutcome = null;
-
-        // OPTIMIZATION: Rely ONLY on voreTypes (Runtime Array)
-        if (predator.voreTypes) {
-            const vt = predator.voreTypes.find(v => String(v.graphNodeId) === String(currentNodeId) || String(v.id) === String(currentNodeId));
-
-            if (vt) {
-                // Check if it's a destination that digests
-                if (vt.type === 'destination' && vt.mode === 'Digest') {
-                    shouldDigest = true;
-                    digestivePower = vt.digestivePower || 'Normal';
-                    nodeName = vt.destination;
-                    if (vt.digestionInsideMsgDescrip) internalFate = vt.digestionInsideMsgDescrip;
-                    if (vt.digestionOutsideMsgDescrip) externalOutcome = vt.digestionOutsideMsgDescrip;
+            if (!predator || predator.playerId !== victim.consumedBy) {
+                predatorSocketId = Object.keys(players).find(sid => players[sid] && players[sid].playerId === victim.consumedBy);
+                predator = players[predatorSocketId];
+                if (predator && predatorSocketId) {
+                    victim.consumedBySocketId = predatorSocketId; // Cache for subsequent ticks
                 }
             }
-        }
 
-        if (shouldDigest) {
-            // Probability Check
-            const chance = DAMAGE_CHANCE[digestivePower] || 0.30;
-            const roll = Math.random();
+            if (!predator) {
+                // Predator disconnected? Release victim?
+                // For now, just stop digesting. Cleanup handled elsewhere.
+                victimsToRemove.push(victimId);
+                continue;
+            }
 
-            if (roll < chance) {
-                const damageAmount = DAMAGE_VALUES[digestivePower] || 3;
+            // Check Anatomy / Vore Mode
+            const currentNodeId = victim.currentVoreNodeId;
 
-                // Check death state BEFORE damage
-                const wasDead = victim.isDead;
+            if (!currentNodeId) {
+                continue;
+            }
 
-                // Equal proportion selection among limbs that have >0 HP
-                const ALL_BODY_PARTS = [
-                    'head', 'torso', 'leftArm', 'rightArm', 'leftHand', 'rightHand',
-                    'leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'tail'
-                ];
-                let availableParts = ALL_BODY_PARTS;
-                if (victim.stats && victim.stats.bodyParts) {
-                    const activeLimbs = ALL_BODY_PARTS.filter(partKey => {
-                        const pObj = victim.stats.bodyParts[partKey];
-                        return pObj && typeof pObj.hp === 'number' && pObj.hp > 0;
-                    });
-                    if (activeLimbs.length > 0) {
-                        availableParts = activeLimbs;
+            let digestivePower = 'Normal';
+            let shouldDigest = false;
+            let nodeName = 'Stomach';
+            let internalFate = "You have been digested.";
+            let externalOutcome = null;
+
+            // OPTIMIZATION: Rely ONLY on voreTypes (Runtime Array)
+            if (predator.voreTypes) {
+                const vt = predator.voreTypes.find(v => String(v.graphNodeId) === String(currentNodeId) || String(v.id) === String(currentNodeId));
+
+                if (vt) {
+                    // Check if it's a destination that digests
+                    if (vt.type === 'destination' && vt.mode === 'Digest') {
+                        shouldDigest = true;
+                        digestivePower = vt.digestivePower || 'Normal';
+                        nodeName = vt.destination;
+                        if (vt.digestionInsideMsgDescrip) internalFate = vt.digestionInsideMsgDescrip;
+                        if (vt.digestionOutsideMsgDescrip) externalOutcome = vt.digestionOutsideMsgDescrip;
                     }
                 }
-                const randomTargetPart = availableParts[Math.floor(Math.random() * availableParts.length)];
+            }
 
-                // Apply Burn Damage to randomly chosen active body part
-                const result = await applyDamage(players, User, victimId, damageAmount, predatorSocketId, 'burn', null, io, randomTargetPart);
+            if (shouldDigest) {
+                // Probability Check
+                const chance = DAMAGE_CHANCE[digestivePower] || 0.30;
+                const roll = Math.random();
 
-                if (result.success) {
-                    // Log / Message
-                    log.info(`[Digestion] ${predator.firstName} digested ${victim.firstName} for ${damageAmount} damage (${digestivePower}). Health: ${result.newHealth}`);
+                if (roll < chance) {
+                    const damageAmount = DAMAGE_VALUES[digestivePower] || 3;
 
-                    // Live update predator Vore Controls UI with new target health
-                    if (!result.dead) {
-                        io.emit('voreStageUpdate', {
-                            playerId: victim.playerId,
-                            predatorId: predator.playerId,
-                            stage: victim.voreStage || 3,
-                            nodeName: nodeName,
-                            targetName: victim.Username || (victim.firstName + ' ' + victim.lastName),
-                            targetHp: Math.round(result.newHealth),
-                            targetMaxHp: victim.stats ? Math.round(victim.stats.maxHealth) : 100,
-                            destinationMode: 'Digest',
-                            nodeVoreTypeId: currentNodeId,
-                            clenchSuppressedUntil: victim.clenchSuppressedUntil || 0,
-                            clenchCooldownUntil: predator.clenchCooldownUntil || 0
+                    // Equal proportion selection among limbs that have >0 HP
+                    let availableParts = ALL_BODY_PARTS;
+                    if (victim.stats && victim.stats.bodyParts) {
+                        const activeLimbs = ALL_BODY_PARTS.filter(partKey => {
+                            const pObj = victim.stats.bodyParts[partKey];
+                            return pObj && typeof pObj.hp === 'number' && pObj.hp > 0;
                         });
+                        if (activeLimbs.length > 0) {
+                            availableParts = activeLimbs;
+                        }
                     }
+                    const randomTargetPart = availableParts[Math.floor(Math.random() * availableParts.length)];
 
-                    // Check for Death Transition
-                    if (result.dead || victim.isDead || (victim.stats && victim.stats.health <= 0)) {
-                        victimsToRemove.push(victimId);
-                        await processDigestionDeath(
-                            victim,
-                            predator,
-                            players,
-                            User,
-                            io,
-                            addCorpse,
-                            messageSystem,
-                            nodeName,
-                            internalFate,
-                            externalOutcome
-                        );
+                    // Apply Burn Damage to randomly chosen active body part
+                    const result = await applyDamage(players, User, victimId, damageAmount, predatorSocketId, 'burn', null, io, randomTargetPart);
+
+                    if (result.success) {
+                        // Log / Message
+                        log.info(`[Digestion] ${predator.firstName} digested ${victim.firstName} for ${damageAmount} damage (${digestivePower}). Health: ${result.newHealth}`);
+
+                        // Live update predator and victim Vore Controls UI with new target health (Targeted Socket Emission)
+                        if (!result.dead && io) {
+                            const targetSockets = [victimId, predatorSocketId].filter(sid => sid && io.sockets && io.sockets.sockets.has(sid));
+                            targetSockets.forEach(sid => {
+                                io.to(sid).emit('voreStageUpdate', {
+                                    playerId: victim.playerId,
+                                    predatorId: predator.playerId,
+                                    stage: victim.voreStage || 3,
+                                    nodeName: nodeName,
+                                    targetName: victim.Username || (victim.firstName + ' ' + victim.lastName),
+                                    targetHp: Math.round(result.newHealth),
+                                    targetMaxHp: victim.stats ? Math.round(victim.stats.maxHealth) : 100,
+                                    destinationMode: 'Digest',
+                                    nodeVoreTypeId: currentNodeId,
+                                    clenchSuppressedUntil: victim.clenchSuppressedUntil || 0,
+                                    clenchCooldownUntil: predator.clenchCooldownUntil || 0
+                                });
+                            });
+                        }
+
+                        // Check for Death Transition
+                        if (result.dead || victim.isDead || (victim.stats && victim.stats.health <= 0)) {
+                            victimsToRemove.push(victimId);
+                            await processDigestionDeath(
+                                victim,
+                                predator,
+                                players,
+                                User,
+                                io,
+                                addCorpse,
+                                messageSystem,
+                                nodeName,
+                                internalFate,
+                                externalOutcome
+                            );
+                        }
                     }
                 }
             }
+        } catch (err) {
+            log.error(`[Digestion] Error processing digestion for victim ${victimId}:`, err);
+            victimsToRemove.push(victimId);
         }
     }
 
@@ -217,7 +257,19 @@ async function processDigestion(players, User, io, addCorpse, messageSystem, del
 
 /**
  * Processes digestion death and release sequence for a victim player.
- * Resolves digestionInsideMsgDescrip and digestionOutsideMsgDescrip from the destination node.
+ * Resolves node descriptions, updates player/predator states, teleports victim spirit,
+ * emits targeted UI events, and dispatches roleplay chat messages.
+ * 
+ * @param {Object} victim - Victim player object
+ * @param {Object} predator - Predator player object
+ * @param {Object} players - Global players object
+ * @param {Object} User - Mongoose User model
+ * @param {Object} io - Socket.io instance
+ * @param {Function} addCorpse - Corpse addition function
+ * @param {Object} messageSystem - Messaging system
+ * @param {string} [customNodeName=null] - Optional destination node name override
+ * @param {string} [customInternalFate=null] - Optional inside message override
+ * @param {string} [customExternalOutcome=null] - Optional outside message override
  */
 async function processDigestionDeath(victim, predator, players, User, io, addCorpse, messageSystem, customNodeName = null, customInternalFate = null, customExternalOutcome = null) {
     if (!victim) return;
@@ -303,13 +355,16 @@ async function processDigestionDeath(victim, predator, players, User, io, addCor
         }
     }
 
-    // Emit UI updates to close Vore Controls Window
+    // Emit UI updates to close Vore Controls Window (Targeted Socket Emission)
     if (io) {
-        io.emit('voreStageUpdate', {
-            playerId: victim.playerId,
-            predatorId: predator ? predator.playerId : null,
-            stage: 0,
-            nodeName: null
+        const targetSockets = [victimId, predatorSocketId].filter(sid => sid && io.sockets && io.sockets.sockets.has(sid));
+        targetSockets.forEach(sid => {
+            io.to(sid).emit('voreStageUpdate', {
+                playerId: victim.playerId,
+                predatorId: predator ? predator.playerId : null,
+                stage: 0,
+                nodeName: null
+            });
         });
     }
 
@@ -326,14 +381,16 @@ async function processDigestionDeath(victim, predator, players, User, io, addCor
                 .replace(/<node>/gi, nodeName);
 
             if (isPred) {
-                const nameRegex = new RegExp(`\\b${predName}\\b`, 'gi');
+                const safePredName = escapeRegExp(predName);
+                const nameRegex = new RegExp(`\\b${safePredName}\\b`, 'gi');
                 processed = processed.replace(nameRegex, 'You');
                 processed = processed.replace(/\btheir\b/gi, 'your');
                 processed = processed.replace(/\btheirs\b/gi, 'yours');
                 processed = processed.replace(/\bYou's\b/gi, 'Your');
             }
             if (isPrey) {
-                const nameRegex = new RegExp(`\\b${preyName}\\b`, 'gi');
+                const safePreyName = escapeRegExp(preyName);
+                const nameRegex = new RegExp(`\\b${safePreyName}\\b`, 'gi');
                 processed = processed.replace(nameRegex, 'you');
             }
             return processed;

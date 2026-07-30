@@ -1117,13 +1117,32 @@
             ]
         },
         "ears_11": {
-            "internal_id": "",
+            "internal_id": "ears_lynx_tufted",
             "visual_primitives": {
-                "shape": [],
-                "texture": [],
-                "motion": []
+                "shape": [
+                    "triangular",
+                    "tufted-tips",
+                    "tasseled",
+                    "cupped",
+                    "perked"
+                ],
+                "texture": [
+                    "dense-fur",
+                    "black-tufted-tips",
+                    "velvety"
+                ],
+                "motion": [
+                    "swiveling",
+                    "alert",
+                    "twitching"
+                ]
             },
-            "negatives": []
+            "negatives": [
+                "floppy",
+                "drooping",
+                "rounded",
+                "bare"
+            ]
         },
         "head_01": {
             "internal_id": "head_vulpine_style",

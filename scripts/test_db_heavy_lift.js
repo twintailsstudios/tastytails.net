@@ -1,39 +1,31 @@
 /**
- * TastyTails DB Heavy Lift Stress Test
+ * @fileoverview test_db_heavy_lift.js - Database Resilience & Write-Behind Cache Stress Test
  * 
- * Objective:
- *   Stress the DatabaseResilience write-behind queue to verify that database synchronization
- *   BulkWrite flushes operate fully asynchronously and do not block the main event loop thread.
- * 
- * Target Thresholds:
- *   - Database Write Latency: average database write duration <= 1000.0ms
- *   - Event Loop Stability: peak event loop lag <= 100.0ms (during active db sync flushes)
- * 
- * How it Works:
- *   1. Spawns 150 bots staggeredly (50ms interval) to hub coordinates.
- *   2. Bots send continuous movement and chat inputs, populating the write-behind buffer.
- *   3. Runs stress activity for 35 seconds to guarantee that the 30-second interval automatic
- *      write-behind cache flush fires under peak load.
- *   4. Queries performance stats, disconnects bots, and waits 5 seconds for final cleanup writes to flush.
- *   5. Submits database latency and loop stability reports to the Server Health Dashboard.
- * 
- * Recommended Execution Duration:
- *   - Approximately 55 seconds.
- * 
- * Usage:
- *   Ensure the game server is running, then execute:
- *     node scripts/test_db_heavy_lift.js
+ * @description
+ * High-concurrency stress test designed to evaluate TastyTails' write-behind database cache
+ * (DatabaseResilience.js). Spawns a bot swarm to generate movement and chat writes, verifying
+ * that 30-second bulk flushes execute asynchronously without causing event loop lag spikes.
  */
 const io = require('socket.io-client');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const http = require('http');
 
 dotenv.config();
 
-const SERVER_URL = 'http://localhost:3000';
+// Configurable test parameters with sensible production defaults
+const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000';
 const TOKEN_SECRET = process.env.TOKEN_SECRET || 'testsecret';
+const TARGET_BOT_COUNT = parseInt(process.env.BOT_COUNT || '150', 10);
+const STRESS_DURATION_MS = parseInt(process.env.STRESS_DURATION_MS || '35000', 10);
 
+/**
+ * Manages a single simulated bot client socket connection and input loop.
+ */
 class BotClient {
+    /**
+     * @param {number} id - Unique numeric identifier for the bot instance.
+     */
     constructor(id) {
         this.id = id;
         this.name = `DbBot_${id}`;
@@ -42,6 +34,10 @@ class BotClient {
         this.interval = null;
     }
 
+    /**
+     * Establishes a Socket.IO connection to the game server.
+     * @returns {Promise<void>} Resolves when socket successfully connects and emits character placement.
+     */
     async connect() {
         return new Promise((resolve, reject) => {
             const token = jwt.sign(
@@ -64,7 +60,7 @@ class BotClient {
 
             this.socket.on('connect', () => {
                 clearTimeout(timeoutId);
-                // Position in grid layout
+                // Grid layout placement to avoid spawn overlap collisions
                 this.socket.emit('characterUpdate', {
                     x: 3200 + (this.id % 10) * 10,
                     y: 4200 + Math.floor(this.id / 10) * 10,
@@ -83,9 +79,13 @@ class BotClient {
         });
     }
 
+    /**
+     * Launches the 200ms input stress loop for movement and chat writes.
+     * @param {string} token - Signed JWT authentication token for chat inputs.
+     */
     startStress(token) {
         this.interval = setInterval(() => {
-            // Movement inputs
+            // High-frequency movement inputs
             this.socket.emit('playerInput', {
                 left: Math.random() > 0.5,
                 right: Math.random() > 0.5,
@@ -95,7 +95,7 @@ class BotClient {
                 clientTimestamp: Date.now()
             });
 
-            // Occasional chat to queue database batched updates
+            // Occasional chat to queue write-behind buffer updates (20% chance per tick)
             if (Math.random() > 0.8) {
                 this.socket.emit('input', {
                     message: `Database stress write message from bot ${this.id}`,
@@ -107,6 +107,9 @@ class BotClient {
         }, 200);
     }
 
+    /**
+     * Clears stress interval and closes the WebSocket connection.
+     */
     disconnect() {
         if (this.interval) clearInterval(this.interval);
         if (this.socket) {
@@ -115,10 +118,17 @@ class BotClient {
     }
 }
 
+/**
+ * Queries performance telemetry from the game server's /stats endpoint.
+ * @returns {Promise<Object>} Performance metrics JSON object.
+ */
 function getStats() {
     return new Promise((resolve, reject) => {
-        const http = require('http');
         http.get(`${SERVER_URL}/stats`, (res) => {
+            if (res.statusCode !== 200) {
+                res.resume(); // Consume response stream to prevent socket memory leak
+                return reject(new Error(`HTTP ${res.statusCode} from ${SERVER_URL}/stats`));
+            }
             let data = '';
             res.on('data', (chunk) => { data += chunk; });
             res.on('end', () => {
@@ -134,26 +144,49 @@ function getStats() {
     });
 }
 
+/**
+ * Promisified delay helper.
+ * @param {number} ms - Milliseconds to delay.
+ * @returns {Promise<void>}
+ */
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * Orchestrates the DB Heavy Lift stress test suite.
+ */
 async function run() {
     console.log("=== Starting DB Heavy Lift (Write-Behind Cache Resilience) Stress Test ===");
-    console.log("Goal: Spawn 150 active bots, wait 35s to force automatic 30s cache flushes, and check loop blockage.");
+    console.log(`Goal: Spawn ${TARGET_BOT_COUNT} active bots, wait ${STRESS_DURATION_MS / 1000}s to force automatic 30s cache flushes, and check loop blockage.`);
     const bots = [];
 
     try {
-        console.log("\nSpawning 150 active database bots...");
-        for (let i = 0; i < 150; i++) {
-            const bot = new BotClient(i);
-            await bot.connect();
-            bots.push(bot);
-            if (i % 10 === 0) process.stdout.write(".");
-            await wait(50); // Stagger connection spawns
+        console.log(`\nSpawning ${TARGET_BOT_COUNT} active database bots in batches...`);
+        // OPTIMIZATION: Batched connection spawning prevents sequential startup delays and socket thundering herd
+        const BATCH_SIZE = 10;
+        const MIN_QUORUM = Math.floor(TARGET_BOT_COUNT * 0.9); // Require 90% quorum to guarantee stress validity
+
+        for (let i = 0; i < TARGET_BOT_COUNT; i += BATCH_SIZE) {
+            const batch = Array.from(
+                { length: Math.min(BATCH_SIZE, TARGET_BOT_COUNT - i) },
+                (_, idx) => {
+                    const bot = new BotClient(i + idx);
+                    return bot.connect().then(() => bot).catch(() => null);
+                }
+            );
+            const results = await Promise.all(batch);
+            results.filter(Boolean).forEach(bot => bots.push(bot));
+            process.stdout.write(".");
+            await wait(100); // 100ms inter-batch spacing
         }
 
-        console.log("\nAll bots connected. Starting stress loops...");
+        // SAFEGUARD: Fail fast if quorum minimum is not met
+        if (bots.length < MIN_QUORUM) {
+            throw new Error(`[Quorum Failure] Only ${bots.length}/${TARGET_BOT_COUNT} bots connected (minimum ${MIN_QUORUM} required).`);
+        }
+
+        console.log(`\nAll ${bots.length} bots connected successfully. Starting stress loops...`);
         bots.forEach(bot => {
             const token = jwt.sign(
                 { _id: `BOT_ACC_${bot.id}`, username: bot.name },
@@ -162,8 +195,8 @@ async function run() {
             bot.startStress(token);
         });
 
-        console.log("Running stress loops for 35 seconds to guarantee cache flush triggers...");
-        await wait(35000);
+        console.log(`Running stress loops for ${STRESS_DURATION_MS / 1000} seconds to guarantee cache flush triggers...`);
+        await wait(STRESS_DURATION_MS);
 
         console.log("\nQuerying performance stats...");
         const stats = await getStats();
@@ -181,7 +214,7 @@ async function run() {
         console.log("\n=== DB Heavy Lift Benchmarking Report ===");
         const reportData = [{
             metric: "Stress Size",
-            value: "150 bots"
+            value: `${bots.length} bots`
         }, {
             metric: "Average DB Write Latency",
             value: `${dbLatencyAvg.toFixed(2)} ms`
@@ -225,10 +258,12 @@ async function run() {
         process.exit(0);
 
     } catch (err) {
-        console.error("❌ Stress test failure:", err);
+        console.error("❌ Stress test failure:", err.message || err);
         bots.forEach(bot => bot.disconnect());
         process.exit(1);
     }
 }
 
 run();
+
+

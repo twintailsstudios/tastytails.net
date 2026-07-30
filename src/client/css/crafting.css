@@ -61,11 +61,6 @@
     background: transparent;
     backdrop-filter: none;
     z-index: 1000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding-bottom: 20vh;
-    /* Offset center to avoid bottom UI overlap */
     box-sizing: border-box;
     pointer-events: none;
     /* Let clicks pass through to game */
@@ -80,12 +75,11 @@
 .crafting-window {
     pointer-events: auto;
     /* Re-enable clicks for the window itself */
-    position: relative;
-    /* Allow JS to switch to absolute */
+    position: absolute;
 
     width: 800px;
     max-width: 98vw;
-    min-height: 500px;
+    min-height: 320px;
     height: auto;
 
     display: flex;
@@ -163,13 +157,48 @@
     display: flex;
     flex: 1;
     overflow: hidden;
+    min-height: 0;
 }
 
 .recipe-book {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.recipe-header {
+    flex-shrink: 0;
+}
+
+.recipe-list {
+    flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.recipe-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.recipe-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.recipe-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 3px;
+}
+
+.recipe-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.45);
 }
 
 .workstation {
@@ -599,7 +628,25 @@
     background: #212121;
     /* Slate color */
     border-right: 4px solid #000;
-    padding: 15px;
+    padding: 12px;
+    box-sizing: border-box;
+}
+
+.theme-forge .recipe-list {
+    padding-right: 6px;
+    scrollbar-color: #546e7a rgba(0, 0, 0, 0.3);
+}
+
+.theme-forge .recipe-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.theme-forge .recipe-list::-webkit-scrollbar-thumb {
+    background: #546e7a;
+}
+
+.theme-forge .recipe-list::-webkit-scrollbar-thumb:hover {
+    background: #ff5722;
 }
 
 .theme-forge .recipe-header {
@@ -653,14 +700,14 @@
 /* Workstation */
 .theme-forge .workstation {
     background: radial-gradient(circle at 80% 80%, #3e2723 0%, #1a1a1a 70%);
-    padding: 20px;
+    padding: 12px 16px;
     display: flex;
     flex-direction: column;
 }
 
 .theme-forge .crafting-info {
     background: rgba(0, 0, 0, 0.6);
-    padding: 10px;
+    padding: 8px 10px;
     border: 1px solid #455a64;
     display: flex;
     justify-content: space-between;
@@ -668,9 +715,9 @@
 }
 
 .theme-forge .preview-icon-lg {
-    font-size: 2rem;
-    width: 50px;
-    height: 50px;
+    font-size: 1.6rem;
+    width: 42px;
+    height: 42px;
     background: #263238;
     border: 1px solid #78909c;
     display: grid;
@@ -679,17 +726,17 @@
 
 /* Inputs: Hexagonal indentations (Per Request) */
 .theme-forge .input-zone {
-    gap: 10px;
+    gap: 8px;
     background: rgba(0, 0, 0, 0.4);
     border: 2px solid #37474f;
-    padding: 15px;
-    margin-top: 10px;
+    padding: 10px;
+    margin-top: 8px;
     box-shadow: inset 0 0 10px #000;
 }
 
 .theme-forge .anvil-slot {
-    width: 60px;
-    height: 60px;
+    width: 52px;
+    height: 52px;
     background: #263238;
     clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
     display: grid;
@@ -719,7 +766,7 @@
     background: #3e2723;
     border: 2px solid #ff5722;
     color: #ff5722;
-    padding: 15px 40px;
+    padding: 10px 30px;
     font-family: 'Cinzel', serif;
     font-weight: bold;
     text-transform: uppercase;
@@ -744,9 +791,9 @@
 /* Progress: Heat Gradient (Dark Grey -> Red -> Orange) */
 .theme-forge .progress-container {
     width: 100%;
-    height: 15px;
+    height: 12px;
     background: #000;
-    margin-top: 15px;
+    margin-top: 10px;
     border: 1px solid #333;
 }
 
@@ -758,14 +805,14 @@
 
 /* Output */
 .theme-forge .output-slot {
-    width: 100px;
-    height: 100px;
+    width: 70px;
+    height: 70px;
     background: rgba(0, 0, 0, 0.5);
     border: 2px dashed #546e7a;
-    margin-top: 20px;
+    margin-top: 10px;
     display: grid;
     place-items: center;
-    font-size: 2.5rem;
+    font-size: 2rem;
 }
 
 .theme-forge .output-slot.has-item {
@@ -3309,8 +3356,7 @@
 .crafting-window.theme-seamstress {
     width: 900px;
     height: 750px;
-    /* Lift window up to avoid Active Hands UI overlap */
-    transform: translateY(-80px);
+    transform: none;
 
     background-color: #d7ccc8;
     /* Green Cutting Mat Texture */
@@ -4377,3 +4423,21 @@
     background: #fff;
     color: #c62828;
 }
+
+/* --- High-Contrast Item Icon Visual Enhancement & Aura System --- */
+.recipe-icon i,
+.preview-icon-lg i,
+#previewIcon i,
+.anvil-slot i,
+#outputSlot i {
+    color: var(--gold, #ffd700);
+    filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.45)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
+    transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.recipe-list-item:hover .recipe-icon i,
+.anvil-slot:hover i,
+#outputSlot:hover i {
+    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.75)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
+    transform: scale(1.1);
+}

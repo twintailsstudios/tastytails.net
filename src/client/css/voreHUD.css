@@ -1,25 +1,50 @@
 /* ==========================================================================
    VORE ACTION HUD & STRUGGLE WINDOW DESIGN SYSTEM
    TastyTails.net - "Warm Medieval Tavern" Visual Theme
+
+   @fileoverview voreHUD.css
+   Defines component styles, parchment modal frames, 3D keycap pushbuttons,
+   struggle monitors, physical condition gauges, and side-dock pills for vore HUDs.
+   Triggered by: src/views/play.ejs, src/client/js/game/ui.js, WindowManager.js
    ========================================================================== */
 
-/* --- Main Window Container --- */
+/* --- Central Design System Tokens --- */
+:root {
+    --vore-bg-parchment: #f3e5ab;
+    --vore-bg-parchment-grad: #e6d598;
+    --vore-border-wood: #3e2723;
+    --vore-wood-dark: #4e342e;
+    --vore-wood-medium: #5d4037;
+    --vore-wood-light: #6d4c41;
+    --vore-accent-gold: #ffc107;
+    --vore-accent-amber: #d97706;
+    --vore-green-primary: #6b8c42;
+    --vore-green-hover: #7ea34f;
+    --vore-red-danger: #8b0000;
+    --vore-red-hover: #a80000;
+}
+
+/* --- Main Window Container ---
+   OPTIMIZATION: Promoted to GPU layer via will-change: transform, left, top and
+   backface-visibility: hidden for smooth, low-overhead dragging with WindowManager.js. */
 .vore-window {
     position: absolute;
     width: 360px;
-    background-color: #f3e5ab;
-    background-image: radial-gradient(#e6d598 1px, transparent 0);
+    background-color: var(--vore-bg-parchment);
+    background-image: radial-gradient(var(--vore-bg-parchment-grad) 1px, transparent 0);
     background-size: 16px 16px;
-    border: 4px solid #3e2723;
+    border: 4px solid var(--vore-border-wood);
     border-radius: 8px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), inset 0 0 30px rgba(62, 39, 35, 0.15);
-    color: #3e2723;
+    color: var(--vore-border-wood);
     font-family: 'Philosopher', serif;
     z-index: 10000;
     user-select: none;
     overflow: hidden;
     pointer-events: auto !important;
-    transition: box-shadow 0.2s ease, bottom 0.2s ease-out;
+    transition: box-shadow 0.2s ease;
+    will-change: transform, left, top;
+    backface-visibility: hidden;
 }
 
 .vore-window:not([data-has-been-dragged="true"]) {
@@ -457,12 +482,15 @@
     height: 14px;
 }
 
+/* OPTIMIZATION: Uses transform scaleY transition with bottom-center origin to eliminate
+   DOM layout reflows during active struggle pulse updates. */
 .pulse-bar {
     width: 3px;
     height: 100%;
     background: #6b8c42;
     border-radius: 2px;
-    transition: height 0.2s ease, background-color 0.2s ease;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    transform-origin: bottom center;
 }
 
 .struggle-activity-container.active-struggle .pulse-bar {
@@ -659,50 +687,61 @@
 
 /* --- Clench Button Timers --- */
 .btn-vore-clench {
-    background-color: #d97706 !important;
-    box-shadow: 0 4px 0 #92400e !important;
+    background-color: var(--vore-accent-amber);
+    box-shadow: 0 4px 0 #92400e;
+    position: relative;
 }
 
 .btn-vore-clench:hover:not(:disabled) {
-    background-color: #b45309 !important;
+    background-color: #b45309;
 }
 
 .btn-vore-clench.clench-active {
-    background-color: #8b0000 !important;
-    box-shadow: 0 4px 0 #500000 !important;
-    animation: clenchActivePulse 1.2s infinite alternate;
+    background-color: var(--vore-red-danger);
+    box-shadow: 0 4px 0 #500000;
+}
+
+/* OPTIMIZATION: Uses pseudo-element opacity keyframes with pointer-events: none to achieve
+   a smooth glowing pulse without expensive CPU/GPU box-shadow raster repaints on every frame. */
+.btn-vore-clench.clench-active::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    box-shadow: 0 0 12px #dc2626;
+    animation: clenchGlowOpacity 1.2s infinite alternate;
+    pointer-events: none;
 }
 
 .btn-vore-clench.clench-suppressing {
-    background-color: #8b0000 !important;
-    box-shadow: 0 4px 0 #500000 !important;
-    animation: clenchGlow 1s infinite alternate;
+    background-color: var(--vore-red-danger);
+    box-shadow: 0 4px 0 #500000;
 }
 
 .btn-vore-clench.clench-cooldown {
-    background-color: #6b7280 !important;
-    box-shadow: 0 4px 0 #374151 !important;
+    background-color: #6b7280;
+    box-shadow: 0 4px 0 #374151;
     cursor: not-allowed;
     opacity: 0.8;
 }
 
 #struggle-btn:disabled,
 #struggle-btn.btn-disabled {
-    background-color: #4b5563 !important;
-    box-shadow: 0 4px 0 #1f2937 !important;
-    cursor: not-allowed !important;
+    background-color: #4b5563;
+    box-shadow: 0 4px 0 #1f2937;
+    cursor: not-allowed;
     opacity: 0.65;
     pointer-events: none;
 }
 
 @keyframes clenchActivePulse {
-    0% { box-shadow: 0 4px 0 #500000, 0 0 4px #dc2626; }
-    100% { box-shadow: 0 4px 0 #500000, 0 0 14px #dc2626; }
+    0% { transform: translateY(2px); }
+    100% { transform: translateY(0); }
 }
 
-@keyframes clenchGlow {
-    0% { box-shadow: 0 4px 0 #500000, 0 0 4px #dc2626; }
-    100% { box-shadow: 0 4px 0 #500000, 0 0 12px #dc2626; }
+@keyframes clenchGlowOpacity {
+    0% { opacity: 0.25; }
+    100% { opacity: 0.95; }
 }
 
 /* --- Vore Destinations Dashboard Card & Badge Enhancements --- */
@@ -727,99 +766,124 @@
 }
 
 .occupant-badge {
-    font-size: 9px;
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
     font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 3px 8px;
+    border-radius: 10px;
+    background: rgba(62, 39, 35, 0.12);
+    color: #3e2723;
+    border: 1px solid rgba(62, 39, 35, 0.25);
     text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.accordion.is-open .occupant-badge,
+.accordion:hover .occupant-badge {
+    background: rgba(0, 0, 0, 0.35);
+    color: #f3e5ab;
+    border-color: rgba(243, 229, 171, 0.3);
 }
 
 .occupant-badge.active {
-    background: rgba(217, 119, 6, 0.25);
-    color: #f59e0b;
-    border-color: rgba(245, 158, 11, 0.4);
-}
-
-.mode-badge {
-    padding: 2px 7px !important;
-    border-radius: 4px !important;
-    font-size: 9px !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
+    background: #d97706 !important;
     color: #ffffff !important;
+    border-color: #b45309 !important;
+    font-weight: 800;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-.mode-badge.mode-hold { background-color: #0284c7 !important; }
-.mode-badge.mode-digest { background-color: #dc2626 !important; }
-.mode-badge.mode-absorb { background-color: #7c3aed !important; }
+.vore-window .mode-badge,
+.anatomy-card .mode-badge {
+    font-family: 'Cinzel', serif;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.vore-window .mode-badge.mode-hold,
+.anatomy-card .mode-badge.mode-hold { background-color: #0284c7; }
+
+.vore-window .mode-badge.mode-digest,
+.anatomy-card .mode-badge.mode-digest { background-color: #dc2626; }
+
+.vore-window .mode-badge.mode-absorb,
+.anatomy-card .mode-badge.mode-absorb { background-color: #7c3aed; }
 
 /* Segmented Mode Selector Inside Accordion Panel */
 .mode-selector {
     display: flex;
-    gap: 4px;
-    margin-bottom: 10px;
-    background: rgba(0, 0, 0, 0.25);
-    padding: 4px;
+    gap: 6px;
+    margin-bottom: 12px;
+    background: rgba(62, 39, 35, 0.1);
+    padding: 5px;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--wood-light, #5d4037);
 }
 
 .mode-label {
     flex: 1;
     text-align: center;
-    padding: 5px 6px;
+    padding: 6px 8px;
     font-family: 'Cinzel', serif;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     border-radius: 4px;
     cursor: pointer;
-    color: rgba(255, 255, 255, 0.6);
+    color: #3e2723;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(62, 39, 35, 0.2);
     transition: all 0.2s ease;
-    border: 1px solid transparent;
 }
 
 .mode-label:hover {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.08);
+    color: #3e2723;
+    background: #ffffff;
+    border-color: #3e2723;
 }
 
 .mode-label.selected.mode-hold {
-    background: #0284c7;
-    color: #ffffff;
-    border-color: #38bdf8;
-    box-shadow: 0 0 6px rgba(2, 132, 199, 0.4);
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    border-color: #0369a1 !important;
+    box-shadow: 0 2px 4px rgba(2, 132, 199, 0.4);
 }
 
 .mode-label.selected.mode-digest {
-    background: #dc2626;
-    color: #ffffff;
-    border-color: #f87171;
-    box-shadow: 0 0 6px rgba(220, 38, 38, 0.4);
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    border-color: #991b1b !important;
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.4);
 }
 
 .mode-label.selected.mode-absorb {
-    background: #7c3aed;
-    color: #ffffff;
-    border-color: #c084fc;
-    box-shadow: 0 0 6px rgba(124, 58, 237, 0.4);
+    background: #7c3aed !important;
+    color: #ffffff !important;
+    border-color: #6d28d9 !important;
+    box-shadow: 0 2px 4px rgba(124, 58, 237, 0.4);
 }
 
 /* Eject All Button */
 .btn-eject-all {
     width: 100%;
-    margin-top: 8px;
-    padding: 5px 8px;
-    background: rgba(220, 38, 38, 0.15);
-    color: #f87171;
-    border: 1px solid rgba(220, 38, 38, 0.3);
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #8b0000;
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 3px 0 #500000;
     border-radius: 4px;
-    font-size: 10px;
-    font-weight: bold;
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -827,7 +891,8 @@
 }
 
 .btn-eject-all:hover {
-    background: rgba(220, 38, 38, 0.35);
-    color: #ffffff;
+    background: #a80000;
+    transform: translateY(1px);
+    box-shadow: 0 2px 0 #500000;
 }
 

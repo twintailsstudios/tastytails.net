@@ -1,9 +1,12 @@
 /**
- * medicalUI.js
+ * @fileoverview medicalUI.js - Client-Side Medical Paper Doll HUD & Sensory Overlay Manager
  * 
- * Client-side interface manager for the Medieval Parchment Medical Paper Doll HUD
- * and sensory feedback overlays. Integrates WindowManager & DockManager for drag,
- * resize, minimize, and restore functionality.
+ * @description
+ * Manages the interactive Medieval Parchment Medical Paper Doll window, sensory screen overlays
+ * (eye damage vignette, blood loss darkness), and Socket.IO real-time anatomical updates.
+ * Integrates WindowManager & DockManager for dragging, resizing, minimizing, and side-docking.
+ * 
+ * Triggered by: Socket.IO 'anatomyStatsUpdate' server events, HUD health bar clicks, and EJS remedy buttons.
  */
 
 import { WindowManager } from './utils/WindowManager.js';
@@ -13,6 +16,28 @@ let currentStats = null;
 let selectedLimb = 'torso';
 let socketRef = null;
 let windowInitialized = false;
+
+// OPTIMIZATION: Module-scoped DOM Element Cache with .isConnected validation to eliminate redundant document.getElementById lookups
+const domCache = new Map();
+
+/**
+ * Retrieves a cached DOM element by ID, re-querying if the element is missing or detached from the document.
+ * @param {string} id - DOM element ID
+ * @returns {HTMLElement|null} Valid DOM element reference
+ */
+function getCachedEl(id) {
+    const cached = domCache.get(id);
+    if (cached && cached.isConnected) {
+        return cached;
+    }
+    const fresh = document.getElementById(id);
+    if (fresh) domCache.set(id, fresh);
+    return fresh;
+}
+
+// OPTIMIZATION: Per-limb/remedy action cooldown map preventing Socket.IO command flooding on button spam
+const remedyCooldowns = new Map();
+const REMEDY_COOLDOWN_MS = 200;
 
 // Body Limb SVG Layout Paths
 const LIMB_PATHS = {
@@ -29,27 +54,43 @@ const LIMB_PATHS = {
     tail: 'M 105 125 C 145 145, 140 190, 155 220 C 140 210, 125 170, 100 135 Z'
 };
 
+const LIMB_KEYS = Object.keys(LIMB_PATHS);
+
 /**
- * Initializes the Medical Paper Doll UI and registers socket listeners.
+ * Socket listener callback for anatomy updates.
+ * @param {Object} data - Server event payload containing anatomical stats
+ */
+function handleAnatomyStatsUpdate(data) {
+    if (data && data.stats) {
+        updateMedicalStats(data.stats);
+    }
+}
+
+/**
+ * Initializes the Medical Paper Doll UI, registers WindowManager drag/resize hooks, and sets up Socket.IO listeners.
+ * @param {Object} socket - Active Socket.IO client instance reference
  */
 export function initMedicalUI(socket) {
+    domCache.clear();
+    remedyCooldowns.clear();
+
+    // Clean up existing listener to prevent handler stacking on reconnect
+    if (socketRef) {
+        socketRef.off('anatomyStatsUpdate', handleAnatomyStatsUpdate);
+    }
     socketRef = socket;
 
     // Listen for anatomy updates from server
     if (socketRef) {
-        socketRef.on('anatomyStatsUpdate', (data) => {
-            if (data && data.stats) {
-                updateMedicalStats(data.stats);
-            }
-        });
+        socketRef.on('anatomyStatsUpdate', handleAnatomyStatsUpdate);
     }
 
-    const windowEl = document.getElementById('medical-window');
-    const headerEl = document.getElementById('medical-header');
-    const minimizeBtn = document.getElementById('medical-btn-minimize');
-    const closeBtn = document.getElementById('medical-btn-close');
-    const minimizedTab = document.getElementById('medical-minimized-tab');
-    const restoreBtn = document.getElementById('medical-tab-restore');
+    const windowEl = getCachedEl('medical-window');
+    const headerEl = getCachedEl('medical-header');
+    const minimizeBtn = getCachedEl('medical-btn-minimize');
+    const closeBtn = getCachedEl('medical-btn-close');
+    const minimizedTab = getCachedEl('medical-minimized-tab');
+    const restoreBtn = getCachedEl('medical-tab-restore');
 
     // Register Draggable & Resizable Window controls once
     if (windowEl && !windowInitialized) {
@@ -92,17 +133,17 @@ export function initMedicalUI(socket) {
                 showMedicalModal();
             });
         }
-    }
 
-    // Attach click listener to health bar container
-    const healthContainer = document.getElementById('health-bar-container') || document.getElementById('health-bar-fill')?.parentElement;
-    if (healthContainer) {
-        healthContainer.style.pointerEvents = 'auto';
-        healthContainer.style.cursor = 'pointer';
-        healthContainer.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleMedicalModal();
-        });
+        // Attach click listener to health bar container once
+        const healthContainer = getCachedEl('health-bar-container') || document.getElementById('health-bar-fill')?.parentElement;
+        if (healthContainer) {
+            healthContainer.style.pointerEvents = 'auto';
+            healthContainer.style.cursor = 'pointer';
+            healthContainer.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleMedicalModal();
+            });
+        }
     }
 
     // Render initial paper doll SVG paths if container exists
@@ -114,13 +155,20 @@ window.toggleMedicalModal = toggleMedicalModal;
 window.showMedicalModal = showMedicalModal;
 window.hideMedicalModal = hideMedicalModal;
 window.minimizeMedicalModal = minimizeMedicalModal;
+window.selectMedicalLimb = (limbKey) => {
+    selectedLimb = limbKey;
+    renderMedicalView();
+};
+window.triggerRemedy = (remedyType) => {
+    sendRemedyAction(remedyType);
+};
 
 /**
  * Shows/Restores the Medical Paper Doll window.
  */
 export function showMedicalModal() {
-    const windowEl = document.getElementById('medical-window');
-    const minimizedTab = document.getElementById('medical-minimized-tab');
+    const windowEl = getCachedEl('medical-window');
+    const minimizedTab = getCachedEl('medical-minimized-tab');
 
     if (minimizedTab) minimizedTab.style.display = 'none';
 
@@ -139,8 +187,8 @@ export function showMedicalModal() {
  * Hides the Medical Paper Doll window.
  */
 export function hideMedicalModal() {
-    const windowEl = document.getElementById('medical-window');
-    const minimizedTab = document.getElementById('medical-minimized-tab');
+    const windowEl = getCachedEl('medical-window');
+    const minimizedTab = getCachedEl('medical-minimized-tab');
     if (windowEl) windowEl.style.display = 'none';
     if (minimizedTab) minimizedTab.style.display = 'none';
 }
@@ -149,8 +197,8 @@ export function hideMedicalModal() {
  * Minimizes the Medical Paper Doll window into a docked side pill.
  */
 export function minimizeMedicalModal() {
-    const windowEl = document.getElementById('medical-window');
-    const minimizedTab = document.getElementById('medical-minimized-tab');
+    const windowEl = getCachedEl('medical-window');
+    const minimizedTab = getCachedEl('medical-minimized-tab');
 
     if (windowEl) windowEl.style.display = 'none';
     if (minimizedTab) {
@@ -163,8 +211,8 @@ export function minimizeMedicalModal() {
  * Toggles the Medical Paper Doll window visibility.
  */
 export function toggleMedicalModal() {
-    const windowEl = document.getElementById('medical-window');
-    const minimizedTab = document.getElementById('medical-minimized-tab');
+    const windowEl = getCachedEl('medical-window');
+    const minimizedTab = getCachedEl('medical-minimized-tab');
 
     const isVisible = (windowEl && windowEl.style.display !== 'none') || (minimizedTab && minimizedTab.style.display !== 'none');
     if (isVisible) {
@@ -200,7 +248,15 @@ export function updateMedicalStats(stats) {
     if (typeof stats.bleedingRate !== 'number') stats.bleedingRate = 0;
 
     currentStats = stats;
-    renderMedicalView();
+
+    // OPTIMIZATION: Only trigger DOM view updates if either modal window or dock pill is visible, preventing layout thrashing while hidden
+    const windowEl = getCachedEl('medical-window');
+    const minimizedTab = getCachedEl('medical-minimized-tab');
+    const isVisible = (windowEl && windowEl.style.display !== 'none') || (minimizedTab && minimizedTab.style.display !== 'none');
+
+    if (isVisible) {
+        renderMedicalView();
+    }
     updateSensoryOverlays(stats);
 }
 
@@ -208,7 +264,7 @@ export function updateMedicalStats(stats) {
  * Updates sensory visual overlays (eye damage darkness vignette & pain flash).
  */
 function updateSensoryOverlays(stats) {
-    const vignette = document.getElementById('eye-damage-vignette');
+    const vignette = getCachedEl('eye-damage-vignette');
     if (vignette) {
         const eyeDmg = (stats.sensory && stats.sensory.eyeDamage) || 0;
         const bloodVol = stats.bloodVolume || 5000;
@@ -224,12 +280,13 @@ function updateSensoryOverlays(stats) {
  * Renders the Paper Doll SVG element dynamically.
  */
 function renderPaperDollSVG() {
-    const container = document.getElementById('paper-doll-svg-container');
+    const container = getCachedEl('paper-doll-svg-container');
     if (!container) return;
 
     let svgHtml = `<svg viewBox="0 0 180 250" class="doll-svg-wrapper" xmlns="http://www.w3.org/2000/svg">`;
 
-    for (const [limbKey, pathD] of Object.entries(LIMB_PATHS)) {
+    for (const limbKey of LIMB_KEYS) {
+        const pathD = LIMB_PATHS[limbKey];
         svgHtml += `
             <path id="doll-node-${limbKey}"
                   class="doll-limb-node"
@@ -244,8 +301,8 @@ function renderPaperDollSVG() {
     container.innerHTML = svgHtml;
 
     // Attach click events to nodes
-    for (const limbKey of Object.keys(LIMB_PATHS)) {
-        const nodeEl = document.getElementById(`doll-node-${limbKey}`);
+    for (const limbKey of LIMB_KEYS) {
+        const nodeEl = getCachedEl(`doll-node-${limbKey}`);
         if (nodeEl) {
             nodeEl.addEventListener('click', () => {
                 selectedLimb = limbKey;
@@ -276,8 +333,8 @@ function renderMedicalView() {
     const parts = currentStats.bodyParts;
 
     // 1. Update SVG Node Colors
-    for (const limbKey of Object.keys(LIMB_PATHS)) {
-        const nodeEl = document.getElementById(`doll-node-${limbKey}`);
+    for (const limbKey of LIMB_KEYS) {
+        const nodeEl = getCachedEl(`doll-node-${limbKey}`);
         if (nodeEl) {
             const part = parts[limbKey];
             const color = getLimbColor(part);
@@ -293,10 +350,10 @@ function renderMedicalView() {
     }
 
     // 2. Update Overview Summary
-    const bloodVolEl = document.getElementById('med-blood-volume');
-    const bleedRateEl = document.getElementById('med-bleed-rate');
-    const totalHealthEl = document.getElementById('med-total-health');
-    const dockHealthEl = document.getElementById('dock-health-text');
+    const bloodVolEl = getCachedEl('med-blood-volume');
+    const bleedRateEl = getCachedEl('med-bleed-rate');
+    const totalHealthEl = getCachedEl('med-total-health');
+    const dockHealthEl = getCachedEl('dock-health-text');
 
     const hpText = `${Math.round(currentStats.health || 100)} / ${currentStats.maxHealth || 100}`;
     if (bloodVolEl) bloodVolEl.innerText = `${Math.round(currentStats.bloodVolume || 5000)} / ${currentStats.maxBloodVolume || 5000} mL`;
@@ -305,10 +362,12 @@ function renderMedicalView() {
     if (dockHealthEl) dockHealthEl.innerText = `${Math.round(currentStats.health || 100)} HP`;
 
     // 3. Render Limb List Items
-    const listContainer = document.getElementById('med-limb-list');
+    const listContainer = getCachedEl('med-limb-list');
     if (listContainer) {
         let listHtml = '';
-        for (const [limbKey, part] of Object.entries(parts)) {
+        for (const limbKey of LIMB_KEYS) {
+            const part = parts[limbKey];
+            if (!part) continue;
             const isSelected = limbKey === selectedLimb;
             let badgeClass = 'badge-ok';
             let badgeText = 'OK';
@@ -335,12 +394,6 @@ function renderMedicalView() {
         }
         listContainer.innerHTML = listHtml;
     }
-
-    // Expose select helper on window
-    window.selectMedicalLimb = (limbKey) => {
-        selectedLimb = limbKey;
-        renderMedicalView();
-    };
 }
 
 /**
@@ -348,11 +401,17 @@ function renderMedicalView() {
  */
 export function sendRemedyAction(remedyType) {
     if (!socketRef) return;
+
+    const key = `${remedyType}:${selectedLimb}`;
+    const lastUsed = remedyCooldowns.get(key) || 0;
+    const now = Date.now();
+
+    if (now - lastUsed < REMEDY_COOLDOWN_MS) {
+        return; // Throttled duplicate action
+    }
+    remedyCooldowns.set(key, now);
+
     const command = `/remedy ${remedyType} ${selectedLimb}`;
     socketRef.emit('chatMessage', { message: command });
 }
 
-// Expose remedy trigger on window for HTML button onclicks
-window.triggerRemedy = (remedyType) => {
-    sendRemedyAction(remedyType);
-};

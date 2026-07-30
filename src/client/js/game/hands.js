@@ -1,32 +1,93 @@
+/**
+ * @fileoverview src/client/js/game/hands.js - Client-Side Action Hands HUD Manager
+ *
+ * @description
+ * Manages the player's active action hands UI component (left and right hands).
+ * Tracks held item states, handles optimistic hand item swapping and active hand toggling,
+ * manages item dropping into the game world, and syncs hand slot states with the server snapshot loop.
+ *
+ * Triggered by:
+ * - Game scene initialization (`create.js`)
+ * - Server player snapshot updates (`create.js` -> `actionHands.update()`)
+ * - User DOM interactions on hand slots (`#leftHandSlot`, `#rightHandSlot`) and drop button (`#drop-btn`)
+ */
+
+import itemData from './itemData.js';
+
 export const actionHands = {
+    /** @type {'left' | 'right'} Current active hand slot. */
     activeHand: 'right',
+
+    /** @type {Object | null} Item object currently held in the left hand. */
     leftNode: null,
+
+    /** @type {Object | null} Item object currently held in the right hand. */
     rightNode: null,
+
+    /** @type {Object | null} Client Socket.IO instance reference. */
     socket: null,
 
+    /** @type {boolean} Flag tracking listener initialization state. */
+    _isInitialized: false,
+
+    /** @type {HTMLElement | null} Cached DOM element for the left hand slot. */
+    _cachedLeftSlot: null,
+
+    /** @type {HTMLElement | null} Cached DOM element for the right hand slot. */
+    _cachedRightSlot: null,
+
+    /**
+     * Initializes socket binding, attaches HUD button listeners, and performs initial render.
+     * 
+     * @param {Object} socket - Active Socket.IO client instance
+     */
     init(socket) {
+        // ALWAYS refresh socket reference to ensure reconnection safety
         this.socket = socket;
+
+        // Prevent duplicate listener attachments if already initialized
+        if (this._isInitialized) {
+            this.render();
+            return;
+        }
+
         this.render();
+
+        // Suppress pointer/mouse/touch events on Master Command Bar HUD to prevent canvas movement
+        const handsHud = document.getElementById('hands-hud');
+        if (handsHud) {
+            let hudTimer = null;
+            const suppressHudPointer = (e) => {
+                window.isPointerDownOnUI = true;
+                if (hudTimer) clearTimeout(hudTimer);
+                hudTimer = setTimeout(() => {
+                    window.isPointerDownOnUI = false;
+                }, 150);
+            };
+            ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'touchstart', 'touchend'].forEach(evt => {
+                handsHud.addEventListener(evt, suppressHudPointer, true);
+            });
+        }
 
         const dropBtn = document.getElementById('drop-btn');
         if (dropBtn) {
-            // Prevent browser context menu from displaying on right-clicking dropBtn
+            // Prevent default browser context menu on right-clicking dropBtn
             dropBtn.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
             });
 
-            // Listen to mousedown to detect which button was clicked
+            // Listen to mousedown to differentiate mouse button clicks
             dropBtn.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 if (e.button === 2) {
-                    // Right Click -> Drop Right Hand
+                    // Right Click -> Drop Right Hand Item
                     this.dropItem('right');
                     if (window.completeTutorialTask) {
                         window.completeTutorialTask('right_drop');
                     }
                 } else if (e.button === 0) {
-                    // Left Click -> Drop Left Hand
+                    // Left Click -> Drop Left Hand Item
                     this.dropItem('left');
                     if (window.completeTutorialTask) {
                         window.completeTutorialTask('left_drop');
@@ -34,10 +95,14 @@ export const actionHands = {
                 }
             });
         }
+
+        this._isInitialized = true;
     },
 
+    /**
+     * Toggles active hand selection between 'left' and 'right' with optimistic local rendering.
+     */
     toggleActiveHand() {
-        // Optimistic update
         console.log('[Client] Toggling active hand (optimistic)');
         this.activeHand = this.activeHand === 'left' ? 'right' : 'left';
         this.render();
@@ -49,25 +114,35 @@ export const actionHands = {
         }
     },
 
-    onSlotClick(hand) {
+    /**
+     * Handles slot click events when the player clicks a hand HUD slot.
+     * 
+     * @param {'left' | 'right'} hand - Clicked hand slot identifier
+     * @param {MouseEvent} [e] - Optional DOM event object
+     */
+    onSlotClick(hand, e) {
+        if (e && typeof e.stopPropagation === 'function') {
+            e.stopPropagation();
+        }
         console.log('Slot clicked:', hand);
         if (hand !== this.activeHand) {
-            // If clicking the inactive hand, swap
+            // Optimistic hand item swap when clicking inactive hand
             if (this.socket) {
                 console.log('Emitting swapHandItems');
                 this.socket.emit('swapHandItems');
-                // Optimistic swap?
                 const temp = this.leftNode;
                 this.leftNode = this.rightNode;
                 this.rightNode = temp;
                 this.render();
             }
-        } else {
-            // Clicking active hand
-            // Maybe inspect?
         }
     },
 
+    /**
+     * Initiates item dropping for the target hand.
+     * 
+     * @param {'left' | 'right'} [hand] - Hand slot to drop item from (defaults to activeHand)
+     */
     dropItem(hand) {
         const scene = window.gameScene;
         if (!scene) {
@@ -75,10 +150,7 @@ export const actionHands = {
             return;
         }
 
-        // Default to activeHand if undefined
         const targetHand = hand || this.activeHand;
-
-        // Get item to drop matching the clicked hand
         const itemToDrop = targetHand === 'left' ? this.leftNode : this.rightNode;
 
         if (!itemToDrop) {
@@ -86,6 +158,7 @@ export const actionHands = {
             return;
         }
 
+        // Delegate spatial drop targeting to dropMode module, or fallback to socket emission
         if (window.dropMode) {
             window.dropMode.start(scene, itemToDrop, targetHand);
         } else {
@@ -94,59 +167,105 @@ export const actionHands = {
         }
     },
 
+    /**
+     * Generates a composite string key representing item state for dirty checking.
+     * 
+     * @param {Object | null} item - Item object to fingerprint
+     * @returns {string} Composite state key
+     */
+    getItemFingerprint(item) {
+        if (!item) return 'empty';
+        const uid = item.uid || item.uniqueId || item.id || '';
+        const name = item.name || item.Name || '';
+        const icon = item.icon || item.Icon || '';
+        const qty = item.quantity || item.Quantity || 1;
+        const dur = item.durability || item.Durability || 0;
+        return `${uid}:${name}:${icon}:${qty}:${dur}`;
+    },
+
+    /**
+     * Synchronizes action hand state with incoming server player snapshot payload.
+     * 
+     * @param {Object} playerInfo - Player snapshot state payload from server tick
+     */
     update(playerInfo) {
         if (playerInfo.actionHands) {
-            // console.log('Updating Action Hands:', playerInfo.actionHands);
-            this.activeHand = playerInfo.actionHands.activeHand;
-            this.leftNode = playerInfo.actionHands.leftNode;
-            this.rightNode = playerInfo.actionHands.rightNode;
-            this.render();
+            const newActive = playerInfo.actionHands.activeHand;
+            const newLeft = playerInfo.actionHands.leftNode;
+            const newRight = playerInfo.actionHands.rightNode;
+
+            // OPTIMIZATION: Fingerprint item states to prevent unnecessary DOM re-rendering on every server tick (20-60Hz)
+            const isUnchanged =
+                this.activeHand === newActive &&
+                this.getItemFingerprint(this.leftNode) === this.getItemFingerprint(newLeft) &&
+                this.getItemFingerprint(this.rightNode) === this.getItemFingerprint(newRight);
+
+            this.activeHand = newActive;
+            this.leftNode = newLeft;
+            this.rightNode = newRight;
+
+            if (!isUnchanged) {
+                this.render();
+            }
         }
     },
 
+    /**
+     * Re-renders hand slot DOM elements and applies active styling.
+     */
     render() {
-        const leftSlot = document.getElementById('leftHandSlot');
-        const rightSlot = document.getElementById('rightHandSlot');
-        const toggle = document.getElementById('handToggle');
+        // OPTIMIZATION: Cache DOM slot references with document attachment validation
+        if (!this._cachedLeftSlot || !document.body.contains(this._cachedLeftSlot)) {
+            this._cachedLeftSlot = document.getElementById('leftHandSlot');
+        }
+        if (!this._cachedRightSlot || !document.body.contains(this._cachedRightSlot)) {
+            this._cachedRightSlot = document.getElementById('rightHandSlot');
+        }
+
+        const leftSlot = this._cachedLeftSlot;
+        const rightSlot = this._cachedRightSlot;
 
         if (!leftSlot || !rightSlot) {
-            // console.warn('Hands HUD elements not found');
             return;
         }
 
-        // Both hands are equal action slots (no single active hand)
-        leftSlot.classList.remove('active');
-        rightSlot.classList.remove('active');
+        // Apply active CSS highlight class to active hand slot
+        leftSlot.classList.toggle('active', this.activeHand === 'left');
+        rightSlot.classList.toggle('active', this.activeHand === 'right');
 
-        // Render Items
+        // Render Items in hand slots
         this.renderItem(leftSlot, this.leftNode, 'LEFT');
         this.renderItem(rightSlot, this.rightNode, 'RIGHT');
     },
 
+    /**
+     * Renders item details, click handlers, context menus, and labels into a hand slot.
+     * 
+     * @param {HTMLElement} slot - DOM element container for hand slot
+     * @param {Object | null} item - Held item object or null
+     * @param {'LEFT' | 'RIGHT'} labelText - Display text label for slot
+     */
     renderItem(slot, item, labelText) {
         slot.innerHTML = '';
 
-        // Remove old listeners to prevent duplicates (though innerHTML='' clears children, events on slot need care if persistent)
-        // Here we just attach new properties which overwrites old ones
+        // Slot click handler
         slot.onclick = () => this.onSlotClick(labelText === 'LEFT' ? 'left' : 'right');
 
-        // Context Menu Handler for holding items
+        // Context menu handler for inspecting/using held item
         slot.oncontextmenu = (e) => {
             e.preventDefault();
             if (item) {
                 console.log(`[Client] Right-clicked held item: ${item.uid}`);
-                // Emit standard right-click event but with heldItem identifier
                 if (this.socket) {
                     this.socket.emit('playerRightClicked', {
                         rightClickedList: [{
                             Identifier: 'heldItem',
-                            uniqueId: item.uid, // This might be item_UID or just name? Check server logic.
+                            uniqueId: item.uid,
                             name: item.name || item.Name || 'Held Item',
                             description: item.description || item.Description || 'An item you are holding.',
-                            // Pass slot info if needed?
                             slot: labelText === 'LEFT' ? 'left' : 'right'
                         }],
-                        playerIntent: 'friendly', // Context menu implies friendly/inspect
+                        playerIntent: 'friendly',
                         pointerX: e.clientX,
                         pointerY: e.clientY
                     });
@@ -157,23 +276,22 @@ export const actionHands = {
 
         if (item) {
             const div = document.createElement('div');
-            div.className = 'item'; // Changed to match inventory.css
-            // Assuming item has Icon property
-            // We can use a font awesome icon or sprite if available
-            // server-loop.js: spells.push({ Identifier: "spell", Name: "Spell #0", Icon: "scroll2", ... })
-            // We can try to match icon name to an image path if we have assets
+            div.className = 'item';
 
-            // [FIX] Check for 'icon' (standard) or 'Icon' (legacy)
-            const iconClass = item.icon || item.Icon;
+            let iconClass = item.icon || item.Icon || (item.itemId && itemData[item.itemId] ? itemData[item.itemId].icon : null);
+            if (!iconClass) iconClass = 'fa-solid fa-box-open';
 
-            if (iconClass) {
-                // display simple text for now or icon name
-                // If the icon string looks like a FA class (e.g. 'fa-scroll'), use it
-                if (iconClass.startsWith('fa-')) {
-                    div.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
-                } else {
-                    div.innerText = iconClass;
+            if (typeof iconClass === 'string' && (iconClass.includes('fa-') || iconClass.startsWith('fa-'))) {
+                const iconElem = document.createElement('i');
+                const fullClass = iconClass.includes('fa-') ? (iconClass.includes('fa-solid') ? iconClass : `fa-solid ${iconClass}`) : `fa-solid ${iconClass}`;
+                const sanitizedClasses = fullClass.split(/\s+/).filter(cls => /^[a-zA-Z0-9_-]+$/.test(cls));
+                iconElem.className = sanitizedClasses.join(' ');
+                if (item.color) {
+                    iconElem.style.color = '#' + item.color.toString(16).padStart(6, '0');
                 }
+                div.appendChild(iconElem);
+            } else if (iconClass) {
+                div.innerText = iconClass;
             } else {
                 div.innerText = item.name || item.Name || 'Item';
             }
@@ -189,5 +307,5 @@ export const actionHands = {
     }
 };
 
-// Make global so onclick in HTML works
+// Bind to window object for global inline HTML handler support
 window.actionHands = actionHands;

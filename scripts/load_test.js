@@ -1,3 +1,14 @@
+/**
+ * @fileoverview High-Player Load Simulator (scripts/load_test.js)
+ * 
+ * @description
+ * Primary End-to-End (E2E) load testing harness for TastyTails.net.
+ * Simulates 250 concurrent, autonomous WebSocket client bots executing 30Hz movement inputs,
+ * hotspot zone navigation, chat broadcasting, DB stress flushes, and player vore/grapple interactions.
+ * 
+ * Triggered by: `npm run test:load` or `node scripts/load_test.js`
+ */
+
 const io = require('socket.io-client');
 const http = require('http');
 
@@ -39,14 +50,20 @@ if (interactionStressMode) {
 }
 
 let connectedCount = 0;
-const clients = [];
+const clients = new Set();
 const latencies = [];
 
 function recordLatency(ms) {
     latencies.push(ms);
-    if (latencies.length > 2000) latencies.shift();
+    if (latencies.length > 2000) {
+        latencies.splice(0, 1000);
+    }
 }
 
+/**
+ * Selects a spawn zone based on weighted probabilities defined in ZONES.
+ * @returns {Object} Selected zone metadata.
+ */
 function selectZoneByProbability() {
     const roll = Math.random();
     let sum = 0;
@@ -59,6 +76,11 @@ function selectZoneByProbability() {
     return ZONES[0];
 }
 
+/**
+ * Computes geometric centroid coordinates for a quadrilateral zone.
+ * @param {Object} coords - Quadrilateral corner coordinates (tl, tr, bl, br).
+ * @returns {{x: number, y: number}} Center point.
+ */
 function getZoneCenter(coords) {
     return {
         x: Math.round((coords.tl.x + coords.tr.x + coords.bl.x + coords.br.x) / 4),
@@ -66,19 +88,31 @@ function getZoneCenter(coords) {
     };
 }
 
+/**
+ * Fetches non-colliding valid spawn coordinates from server REST API.
+ * OPTIMIZATION: Includes 3000ms socket timeout and error handler safeguards to prevent stalled bot state machines.
+ * @param {Object} coords - Quadrilateral zone coordinates.
+ * @returns {Promise<{x: number, y: number}>} Valid spawn coordinates.
+ */
 function fetchValidPoint(coords) {
     return new Promise((resolve, reject) => {
+        let resolved = false;
         const queryParams = `tlx=${coords.tl.x}&tly=${coords.tl.y}&trx=${coords.tr.x}&try=${coords.tr.y}&blx=${coords.bl.x}&bly=${coords.bl.y}&brx=${coords.br.x}&bry=${coords.br.y}`;
         const url = `${SERVER_URL}/api/valid-point?${queryParams}`;
         
-        http.get(url, (res) => {
+        const req = http.get(url, (res) => {
             if (res.statusCode !== 200) {
-                reject(new Error(`Failed to get spawn point: ${res.statusCode}`));
+                if (!resolved) {
+                    resolved = true;
+                    reject(new Error(`Failed to get spawn point: ${res.statusCode}`));
+                }
                 return;
             }
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
+                if (resolved) return;
+                resolved = true;
                 try {
                     const parsed = JSON.parse(data);
                     resolve({ x: parsed.x, y: parsed.y });
@@ -86,7 +120,21 @@ function fetchValidPoint(coords) {
                     reject(e);
                 }
             });
-        }).on('error', (err) => reject(err));
+        });
+
+        req.on('error', (err) => {
+            if (!resolved) {
+                resolved = true;
+                reject(err);
+            }
+        });
+
+        req.setTimeout(3000, () => {
+            if (!resolved) {
+                resolved = true;
+                req.destroy(new Error('Spawn point request timed out'));
+            }
+        });
     });
 }
 
@@ -183,7 +231,7 @@ class BotClient {
 
     onConnect() {
         connectedCount++;
-        clients.push(this);
+        clients.add(this);
 
         if (connectedCount % 50 === 0) {
             console.log(`[LoadTest] Connected: ${connectedCount}/${CLIENT_COUNT}`);
@@ -198,6 +246,7 @@ class BotClient {
 
     onDisconnect() {
         connectedCount--;
+        clients.delete(this);
         this.stopLoop();
     }
 
@@ -308,9 +357,9 @@ class BotClient {
         if (this.state === 'MOVING' && this.targetX !== null && this.targetY !== null) {
             const dx = this.targetX - this.x;
             const dy = this.targetY - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const distSq = dx * dx + dy * dy;
             
-            if (dist < 60) {
+            if (distSq < 3600) { // 60px * 60px = 3600
                 // Arrived! Hang out here.
                 this.state = 'IDLE';
                 const idleDwell = this.zone.archetype === 'gather' ? 1000 + Math.random() * 2000 : 2000 + Math.random() * 6000;
@@ -389,21 +438,21 @@ class BotClient {
 
         // Find nearest target player
         let nearestTarget = null;
-        let minDist = Infinity;
+        let minDistSq = Infinity;
 
         targets.forEach(id => {
             const p = this.visiblePlayers[id];
             const dx = p.x - this.x;
             const dy = p.y - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < minDist) {
-                minDist = dist;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < minDistSq) {
+                minDistSq = distSq;
                 nearestTarget = id;
             }
         });
 
-        // Only interact if within reach (120px)
-        if (nearestTarget && minDist < 120) {
+        // Only interact if within reach (120px -> 14400px^2)
+        if (nearestTarget && minDistSq < 14400) {
             const roll = Math.random();
             if (roll < 0.45) {
                 // 45% chance to Grab
@@ -496,7 +545,6 @@ const monitorInterval = setInterval(() => {
         max = Math.max(...latencies);
     }
     console.log(`[LoadTest] Stats: ${connectedCount} connected. Client Latency (Avg/Max): ${avg.toFixed(1)}ms / ${max}ms`);
-    if (latencies.length > 5000) latencies.splice(0, latencies.length - 1000);
 }, 5000);
 
 // --- Integration with check-performance.js stats endpoint ---
@@ -563,7 +611,7 @@ async function handleShutdown() {
     clearInterval(monitorInterval);
 
     // Disconnect all clients
-    clients.forEach(client => client.disconnect());
+    Array.from(clients).forEach(client => client.disconnect());
 
     // Fetch and print final server performance stats
     await printFinalStats();
@@ -581,7 +629,7 @@ function reportGlobalError(err) {
     const errorStack = err.stack || '';
     
     // Find the first connected client to transmit the error
-    const activeClient = clients.find(c => c.socket && c.socket.connected);
+    const activeClient = Array.from(clients).find(c => c.socket && c.socket.connected);
     if (activeClient) {
         activeClient.socket.emit('clientError', {
             message: errorMsg,

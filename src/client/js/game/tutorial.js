@@ -1,9 +1,23 @@
 /**
- * tutorial.js
- * Controls the dynamic in-game tutorial checklist dashboard,
- * handles task completions, options menu bindings, and refresher lists.
+ * @fileoverview src/client/js/game/tutorial.js - In-Game Tutorial & Control Checklist Manager
+ *
+ * @description
+ * Manages the dynamic in-game tutorial checklist dashboard overlay (`#tutorial-widget`),
+ * tracks player completion of core gameplay mechanics (pickup, drop, grab, context menu, crafting),
+ * persists completion state locally via `localStorage`, and renders a categorized control refresher
+ * reference panel inside the options menu (`#tutorial-refresher-list`).
+ *
+ * Triggered by:
+ * - Client boot sequence (`index.js` -> `TutorialManager.init()`)
+ * - Global window hook calls (`window.completeTutorialTask('taskId')`)
+ * - Custom DOM event dispatching (`document.dispatchEvent(new CustomEvent('tutorialTaskComplete', ...))`)
+ * - User interactions on floating widget buttons and options menu toggle switches (`#tutorialToggle`)
  */
 
+/**
+ * Master registry of available tutorial tasks categorized by game feature area.
+ * @type {Array<{id: string, text: string, category: string}>}
+ */
 const ALL_TASKS = [
     { id: 'left_pickup', text: 'Left-click a ground item to pick it up with your Left Hand', category: 'Hand Controls' },
     { id: 'right_pickup', text: 'Right-click a ground item to pick it up with your Right Hand', category: 'Hand Controls' },
@@ -15,21 +29,44 @@ const ALL_TASKS = [
     { id: 'pocket_deposit', text: 'Double-click an item in pockets to deposit into station', category: 'Crafting' }
 ];
 
+/**
+ * Singleton manager object controlling tutorial state, storage persistence, and UI widget rendering.
+ */
 export const TutorialManager = {
+    /** @type {Array<string>} Array of completed task IDs. */
     completedTasks: [],
+
+    /** @type {boolean} User preference flag indicating if the tutorial widget is hidden. */
     isDismissed: false,
+
+    /** @type {HTMLElement | null} Cached DOM element reference for the floating tutorial widget. */
     widgetEl: null,
 
+    /** @type {number | null} Active timeout timer handle for debouncing widget re-renders. */
+    _renderTimer: null,
+
+    /** @type {number | null} Active timeout timer handle for auto-dismissing widget upon full completion. */
+    _dismissTimer: null,
+
+    /**
+     * Initializes tutorial manager state from browser LocalStorage, creates widget DOM elements,
+     * attaches event listeners, performs initial renders, and registers global completion hooks.
+     */
     init: function () {
-        // 1. Load State from LocalStorage
+        // 1. Load State safely from LocalStorage with defensive error boundaries
         try {
             const completed = localStorage.getItem('tastytails_tutorial_completed');
             this.completedTasks = completed ? JSON.parse(completed) : [];
         } catch (e) {
+            console.warn('[Tutorial] Failed to load completed tasks from localStorage:', e);
             this.completedTasks = [];
         }
 
-        this.isDismissed = localStorage.getItem('tastytails_tutorial_dismissed') === 'true';
+        try {
+            this.isDismissed = localStorage.getItem('tastytails_tutorial_dismissed') === 'true';
+        } catch (e) {
+            this.isDismissed = false;
+        }
 
         // 2. Build Checklist HTML Widget
         this.buildWidgetDOM();
@@ -41,10 +78,38 @@ export const TutorialManager = {
         this.renderWidget();
         this.renderRefresher();
 
-        // Expose helper globally
-        window.completeTutorialTask = (taskId) => this.completeTask(taskId);
+        // DECOUPLING / COMPATIBILITY: Expose global helper for backward compatibility with external game modules
+        window.completeTutorialTask = (taskId) => {
+            if (typeof taskId === 'string') {
+                this.completeTask(taskId);
+            }
+        };
+
+        // CustomEvent listener for modern decoupled event dispatching
+        document.addEventListener('tutorialTaskComplete', (e) => {
+            if (e.detail && e.detail.taskId) {
+                this.completeTask(e.detail.taskId);
+            }
+        });
     },
 
+    /**
+     * Clears all pending setTimeout timer handles to prevent race conditions during rapid task completion.
+     */
+    clearTimers: function () {
+        if (this._renderTimer) {
+            clearTimeout(this._renderTimer);
+            this._renderTimer = null;
+        }
+        if (this._dismissTimer) {
+            clearTimeout(this._dismissTimer);
+            this._dismissTimer = null;
+        }
+    },
+
+    /**
+     * Dynamically creates and injects the floating tutorial checklist widget DOM structure into Phaser container or body.
+     */
     buildWidgetDOM: function () {
         if (document.getElementById('tutorial-widget')) return;
 
@@ -91,22 +156,31 @@ export const TutorialManager = {
         }
     },
 
+    /**
+     * Binds document-level event delegation for the options menu toggle switch (`#tutorialToggle`).
+     */
     bindOptionsUI: function () {
-        const toggle = document.getElementById('tutorialToggle');
-        if (toggle) {
-            // Checked if NOT dismissed
-            toggle.checked = !this.isDismissed;
-            toggle.onchange = (e) => {
+        // OPTIMIZATION: Document-level event delegation ensures dynamic EJS re-renders retain listener bindings
+        document.addEventListener('change', (e) => {
+            if (e.target && e.target.id === 'tutorialToggle') {
                 const checked = e.target.checked;
                 this.dismissWidget(!checked);
-                
-                // Keep the widget footer checkbox in sync
+
                 const footerChk = document.getElementById('tutorial-dismiss-checkbox');
                 if (footerChk) footerChk.checked = !checked;
-            };
+            }
+        });
+
+        // Initial sync if element is present on boot
+        const toggle = document.getElementById('tutorialToggle');
+        if (toggle) {
+            toggle.checked = !this.isDismissed;
         }
     },
 
+    /**
+     * Renders active pending tutorial tasks (up to 3 items) inside the floating widget overlay.
+     */
     renderWidget: function () {
         if (!this.widgetEl) return;
 
@@ -115,7 +189,7 @@ export const TutorialManager = {
             return;
         }
 
-        // Get max 3 active pending tasks
+        // OPTIMIZATION: Display a maximum of 3 pending tasks to keep HUD lightweight
         const activeTasks = this.getPendingTasks().slice(0, 3);
         const listContainer = document.getElementById('tutorial-task-list');
         if (!listContainer) return;
@@ -135,6 +209,9 @@ export const TutorialManager = {
         this.widgetEl.style.display = 'block';
     },
 
+    /**
+     * Renders a categorized reference list of all tutorial tasks into the options menu (`#tutorial-refresher-list`).
+     */
     renderRefresher: function () {
         const refresherList = document.getElementById('tutorial-refresher-list');
         if (!refresherList) return;
@@ -150,21 +227,14 @@ export const TutorialManager = {
 
         for (const [catName, tasks] of Object.entries(categories)) {
             const catHeader = document.createElement('div');
-            catHeader.style.fontWeight = 'bold';
-            catHeader.style.marginTop = '10px';
-            catHeader.style.marginBottom = '4px';
-            catHeader.style.color = 'var(--wood-light)';
+            catHeader.className = 'tutorial-refresher-category-header';
             catHeader.innerText = catName;
             refresherList.appendChild(catHeader);
 
             tasks.forEach(task => {
                 const isDone = this.completedTasks.includes(task.id);
                 const taskRow = document.createElement('div');
-                taskRow.style.display = 'flex';
-                taskRow.style.alignItems = 'center';
-                taskRow.style.marginBottom = '4px';
-                taskRow.style.paddingLeft = '5px';
-                taskRow.style.opacity = isDone ? '0.7' : '1';
+                taskRow.className = `tutorial-refresher-item-row${isDone ? ' completed' : ''}`;
 
                 const icon = isDone 
                     ? '<i class="fa-solid fa-square-check" style="color: green; margin-right: 8px;"></i>' 
@@ -172,17 +242,25 @@ export const TutorialManager = {
 
                 taskRow.innerHTML = `
                     ${icon}
-                    <span style="${isDone ? 'text-decoration: line-through; color: #555;' : ''}">${task.text}</span>
+                    <span class="tutorial-refresher-item-text${isDone ? ' completed' : ''}">${task.text}</span>
                 `;
                 refresherList.appendChild(taskRow);
             });
         }
     },
 
+    /**
+     * Filters and returns all uncompleted tasks from `ALL_TASKS`.
+     * @returns {Array<{id: string, text: string, category: string}>} Array of pending task objects
+     */
     getPendingTasks: function () {
         return ALL_TASKS.filter(task => !this.completedTasks.includes(task.id));
     },
 
+    /**
+     * Marks a tutorial task as completed by ID, saves progress to LocalStorage, and animates UI checkoff.
+     * @param {string} taskId - Unique task identifier
+     */
     completeTask: function (taskId) {
         if (this.completedTasks.includes(taskId)) return;
 
@@ -191,9 +269,13 @@ export const TutorialManager = {
 
         console.log(`[Tutorial] Task Completed: ${taskId}`);
 
-        // Update active array
+        // Update active array and persist safely
         this.completedTasks.push(taskId);
-        localStorage.setItem('tastytails_tutorial_completed', JSON.stringify(this.completedTasks));
+        try {
+            localStorage.setItem('tastytails_tutorial_completed', JSON.stringify(this.completedTasks));
+        } catch (e) {
+            console.warn('[Tutorial] Failed to write completed tasks to localStorage:', e);
+        }
 
         // Animate checkoff in the checklist if visible
         const taskItem = document.querySelector(`.tutorial-task-item[data-id="${taskId}"]`);
@@ -207,9 +289,11 @@ export const TutorialManager = {
             }
             if (txt) txt.classList.add('completed');
 
-            // Brief fadeout transition delay
-            setTimeout(() => {
+            // OPTIMIZATION: Debounce widget re-render to prevent overlapping animation cycles
+            if (this._renderTimer) clearTimeout(this._renderTimer);
+            this._renderTimer = setTimeout(() => {
                 this.renderWidget();
+                this._renderTimer = null;
             }, 1000);
         } else {
             // Update widget immediately if not currently shown/rendered
@@ -219,20 +303,31 @@ export const TutorialManager = {
         // Refresh Options Refresher
         this.renderRefresher();
 
-        // If that was the last task:
+        // If all tasks completed:
         if (this.getPendingTasks().length === 0) {
             if (window.showWorldToast) {
                 window.showWorldToast(window.innerWidth / 2, window.innerHeight / 2, "Tutorial Completed!");
             }
-            setTimeout(() => {
+            if (this._dismissTimer) clearTimeout(this._dismissTimer);
+            this._dismissTimer = setTimeout(() => {
                 this.dismissWidget(true);
+                this._dismissTimer = null;
             }, 1500);
         }
     },
 
+    /**
+     * Updates the tutorial widget's dismissed state and persists preference in LocalStorage.
+     * @param {boolean} dismiss - True to hide the widget, false to show it
+     */
     dismissWidget: function (dismiss) {
+        this.clearTimers();
         this.isDismissed = dismiss;
-        localStorage.setItem('tastytails_tutorial_dismissed', dismiss ? 'true' : 'false');
+        try {
+            localStorage.setItem('tastytails_tutorial_dismissed', dismiss ? 'true' : 'false');
+        } catch (e) {
+            console.warn('[Tutorial] Failed to write dismissed status to localStorage:', e);
+        }
         
         // Sync EJS Toggle Switch
         const toggle = document.getElementById('tutorialToggle');

@@ -1,45 +1,124 @@
 /**
- * TastyTails CLI Performance Benchmark Utility
+ * @fileoverview TastyTails CLI Performance Benchmark & Telemetry Audit Utility
+ * 
+ * @description
+ * High-level architectural role: CLI diagnostic, benchmarking, and regression detection utility for TastyTails.net.
+ * Connects via HTTP GET to the running game server's `/stats` endpoint to sample vital server statistics, tick breakdowns,
+ * GC pauses, DB latencies, memory usage, and diagnostic logs.
  * 
  * Usage:
- *   node scripts/check-performance.js                  - Runs a live performance audit.
- *   node scripts/check-performance.js --save-baseline  - Audits and saves metrics as baseline.
- *   node scripts/check-performance.js --compare        - Audits and compares against baseline.
+ *   node scripts/check-performance.js                                  - Runs a live performance audit.
+ *   node scripts/check-performance.js --save-baseline                  - Audits and saves metrics as baseline.
+ *   node scripts/check-performance.js --compare                        - Audits and compares against baseline.
+ *   node scripts/check-performance.js --compare --fail-on-regression   - Compares metrics and exits code 1 if regressed.
+ *   node scripts/check-performance.js --port=3000 --timeout=5000       - Custom port and socket timeout.
+ *   node scripts/check-performance.js --help                           - Displays usage documentation.
  */
 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = process.env.PORT || 3000;
-const URL = `http://localhost:${PORT}/stats?_t=`;
+// CLI Argument Extraction & Configuration
+const args = process.argv.slice(2);
+
+// Display Help Manual if requested
+if (args.includes('--help') || args.includes('-h')) {
+    console.log(`
+TastyTails CLI Performance Benchmark Utility
+
+Usage:
+  node scripts/check-performance.js [options]
+
+Options:
+  --save-baseline          Audits server stats and saves results to scripts/perf-baseline.json
+  --compare                Compares live audit results against the saved baseline
+  --fail-on-regression     When used with --compare, exits code 1 if metrics exceed tolerance
+  --threshold=<PCT>        Tolerance percentage for regression checks (default: 5.0%)
+  --port=<PORT>            Target server port (default: process.env.PORT || 3000)
+  --host=<HOST>            Target server host (default: localhost)
+  --timeout=<MS>           HTTP request socket timeout in milliseconds (default: 5000ms)
+  --help, -h               Displays this help documentation
+`);
+    process.exit(0);
+}
+
+const saveMode = args.includes('--save-baseline');
+const compareMode = args.includes('--compare');
+const failOnRegression = args.includes('--fail-on-regression');
+
+const portArg = args.find(a => a.startsWith('--port='));
+const PORT = portArg ? parseInt(portArg.split('=')[1], 10) : (process.env.PORT || 3000);
+
+const hostArg = args.find(a => a.startsWith('--host='));
+const HOST = hostArg ? hostArg.split('=')[1] : 'localhost';
+
+const timeoutArg = args.find(a => a.startsWith('--timeout='));
+const TIMEOUT_MS = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 5000;
+
+const thresholdArg = args.find(a => a.startsWith('--threshold='));
+const TOLERANCE_PCT = thresholdArg ? parseFloat(thresholdArg.split('=')[1]) : 5.0;
+
+const URL = `http://${HOST}:${PORT}/stats?_t=`;
 const BASELINE_PATH = path.join(__dirname, 'perf-baseline.json');
 const SAMPLE_COUNT = 5;
 const SAMPLE_INTERVAL = 1000;
 
-const args = process.argv.slice(2);
-const saveMode = args.includes('--save-baseline');
-const compareMode = args.includes('--compare');
-
+/**
+ * Fetches server telemetry stats snapshot via HTTP GET request.
+ * 
+ * OPTIMIZATION: Uses Buffer chunk accumulation instead of string concatenation to avoid transient
+ * string allocation overhead during multi-kb log payloads, and enforces a socket timeout safeguard.
+ * 
+ * @returns {Promise<Object>} Resolves to parsed telemetry stats object from /stats.
+ */
 function getStats() {
     return new Promise((resolve, reject) => {
-        http.get(`${URL}${Date.now()}`, (res) => {
+        let settled = false;
+
+        // OPTIMIZATION: Append timestamp query parameter to defeat proxy/client HTTP caching
+        const req = http.get(`${URL}${Date.now()}`, (res) => {
             if (res.statusCode !== 200) {
+                settled = true;
                 return reject(new Error(`Server returned status code ${res.statusCode}`));
             }
-            let data = '';
-            res.on('data', chunk => data += chunk);
+            const chunks = [];
+            res.on('data', chunk => chunks.push(chunk));
             res.on('end', () => {
+                if (settled) return;
+                settled = true;
                 try {
+                    const data = Buffer.concat(chunks).toString('utf8');
                     resolve(JSON.parse(data));
                 } catch (e) {
                     reject(e);
                 }
             });
-        }).on('error', reject);
+        });
+
+        // SAFGUARD: Enforce request socket timeout to prevent indefinite hanging when server deadlocks
+        req.setTimeout(TIMEOUT_MS, () => {
+            if (!settled) {
+                settled = true;
+                req.destroy(new Error(`Request timed out after ${TIMEOUT_MS}ms`));
+            }
+        });
+
+        req.on('error', (err) => {
+            if (!settled) {
+                settled = true;
+                reject(err);
+            }
+        });
     });
 }
 
+/**
+ * Formats raw byte counts into human-readable strings (e.g. 101.21 MB).
+ * 
+ * @param {number} bytes - Raw byte count.
+ * @returns {string} Human readable formatted memory string.
+ */
 function formatBytes(bytes) {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
@@ -48,6 +127,11 @@ function formatBytes(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+/**
+ * Executes multi-sample audit sequence, collecting metrics across sample window.
+ * 
+ * @returns {Promise<{avg: Object, samples: Array<Object>}>} Aggregated stats and raw sample array.
+ */
 async function runAudit() {
     console.log(`[Performance Benchmark] Sampling server stats ${SAMPLE_COUNT} times at ${SAMPLE_INTERVAL}ms intervals...`);
     const samples = [];
@@ -59,7 +143,7 @@ async function runAudit() {
         } catch (err) {
             console.log('\n');
             console.error(`\x1b[31m[Error] Connection Failed: ${err.message}\x1b[0m`);
-            console.error(`\x1b[33mPlease ensure the server is running locally on port ${PORT}.\x1b[0m`);
+            console.error(`\x1b[33mPlease ensure the server is running on ${HOST}:${PORT}.\x1b[0m`);
             process.exit(1);
         }
         await new Promise(r => setTimeout(r, SAMPLE_INTERVAL));
@@ -125,31 +209,73 @@ async function runAudit() {
     return { avg, samples };
 }
 
+/**
+ * Formats metric comparison deltas between current audit and baseline snapshot.
+ * 
+ * SAFEGUARD: Guarantees defensive numeric coercion to prevent TypeError on missing baseline fields.
+ * 
+ * @param {number} current - Current metric value.
+ * @param {number} baseline - Baseline metric value.
+ * @param {string} unit - Measurement unit label (e.g. ' ms', ' Hz', '%').
+ * @param {boolean} isTime - True if metric represents latency/resource load (lower is better); false for throughput (higher is better).
+ * @returns {string} Formatted comparison string with status indicator.
+ */
 function formatDiff(current, baseline, unit = '', isTime = true) {
-    const diff = current - baseline;
-    if (!baseline || baseline === 0) return `${current.toFixed(2)}${unit} (No Baseline)`;
-    const pct = (diff / baseline) * 100;
+    const currVal = typeof current === 'number' && !isNaN(current) ? current : 0;
+    const baseVal = typeof baseline === 'number' && !isNaN(baseline) ? baseline : 0;
+
+    if (!baseVal || baseVal === 0) return `${currVal.toFixed(2)}${unit} (No Baseline)`;
+    const diff = currVal - baseVal;
+    const pct = (diff / baseVal) * 100;
     const sign = diff >= 0 ? '+' : '';
     
     // Status assessment
     let status = '🟡';
-    if (Math.abs(pct) > 5) {
+    if (Math.abs(pct) > TOLERANCE_PCT) {
         if (isTime) {
             status = diff < 0 ? '🟢 (Improved)' : '🔴 (Regressed)';
-        } else { // Tick Rate
+        } else { // Tick Rate / Throughput
             status = diff > 0 ? '🟢 (Improved)' : '🔴 (Regressed)';
         }
     }
-    return `${current.toFixed(2)}${unit} [Baseline: ${baseline.toFixed(2)}${unit} | ${sign}${pct.toFixed(1)}% | ${status}]`;
+    return `${currVal.toFixed(2)}${unit} [Baseline: ${baseVal.toFixed(2)}${unit} | ${sign}${pct.toFixed(1)}% | ${status}]`;
 }
 
+/**
+ * Formats metrics object for baseline persistence with metadata header and rounded numbers.
+ * 
+ * @param {Object} stats - Raw metrics object from audit run.
+ * @returns {Object} Cleaned baseline object with metadata and formatted floats.
+ */
+function formatBaselineForSave(stats) {
+    const formatted = {
+        _metadata: {
+            schemaVersion: "1.0",
+            createdAt: new Date().toISOString(),
+            environment: process.env.NODE_ENV || 'development'
+        }
+    };
+    for (const [key, value] of Object.entries(stats)) {
+        if (typeof value === 'number') {
+            formatted[key] = Number(value.toFixed(4));
+        } else {
+            formatted[key] = value;
+        }
+    }
+    return formatted;
+}
+
+/**
+ * Controller function executing Audit, Save Baseline, or Compare Baseline modes.
+ */
 async function main() {
     const { avg: current, samples } = await runAudit();
 
     if (saveMode) {
-        fs.writeFileSync(BASELINE_PATH, JSON.stringify(current, null, 2));
+        const payload = formatBaselineForSave(current);
+        fs.writeFileSync(BASELINE_PATH, JSON.stringify(payload, null, 2));
         console.log(`\n\x1b[32m[Success] Saved performance baseline to: ${BASELINE_PATH}\x1b[0m`);
-        console.log(JSON.stringify(current, null, 2));
+        console.log(JSON.stringify(payload, null, 2));
         return;
     }
 
@@ -160,8 +286,18 @@ async function main() {
             process.exit(1);
         }
 
-        const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+        let baseline;
+        try {
+            baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+        } catch (e) {
+            console.error(`\n\x1b[31m[Error] Failed to read or parse baseline file at ${BASELINE_PATH}: ${e.message}\x1b[0m`);
+            process.exit(1);
+        }
+
         console.log('\n# Performance Benchmark Comparison Report\n');
+        if (baseline._metadata) {
+            console.log(`* **Baseline Version:** ${baseline._metadata.schemaVersion || '1.0'} (Saved: ${baseline._metadata.createdAt || 'N/A'})\n`);
+        }
         console.log(`* **Tick Rate:** ${formatDiff(current.tickRate, baseline.tickRate, ' Hz', false)}`);
         console.log(`* **Avg Tick Duration:** ${formatDiff(current.avgTickDuration, baseline.avgTickDuration, ' ms', true)}`);
         console.log(`* **Peak Tick Duration:** ${formatDiff(current.maxTickDuration, baseline.maxTickDuration, ' ms', true)}`);
@@ -180,6 +316,31 @@ async function main() {
         console.log('\n### Memory Usage');
         console.log(`* **RSS Memory:** ${formatBytes(current.memoryRss)} (Baseline: ${formatBytes(baseline.memoryRss)})`);
         console.log(`* **Heap Used:** ${formatBytes(current.memoryHeapUsed)} (Baseline: ${formatBytes(baseline.memoryHeapUsed)})`);
+
+        // Check for regressions if --fail-on-regression is enabled
+        let regressedCount = 0;
+        const checkRegressed = (currVal, baseVal, isTime, absThreshold = 10.0) => {
+            if (baseVal === undefined || baseVal === null || isNaN(baseVal)) return false;
+            
+            let isRegressed = false;
+            if (baseVal === 0) {
+                isRegressed = isTime ? (currVal > absThreshold) : false;
+            } else {
+                const pct = ((currVal - baseVal) / baseVal) * 100;
+                isRegressed = isTime ? pct > TOLERANCE_PCT : pct < -TOLERANCE_PCT;
+            }
+            if (isRegressed) regressedCount++;
+            return isRegressed;
+        };
+
+        checkRegressed(current.tickRate, baseline.tickRate, false);
+        checkRegressed(current.avgTickDuration, baseline.avgTickDuration, true);
+        checkRegressed(current.eventLoopLag, baseline.eventLoopLag, true);
+
+        if (failOnRegression && regressedCount > 0) {
+            console.error(`\n\x1b[31m[Error] CI Verification Failed: ${regressedCount} core metric(s) regressed beyond ${TOLERANCE_PCT}% tolerance!\x1b[0m`);
+            process.exit(1);
+        }
         return;
     }
 

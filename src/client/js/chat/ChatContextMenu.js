@@ -1,28 +1,53 @@
 /**
- * ChatContextMenu.js
+ * @fileoverview ChatContextMenu.js - Client-Side Chat Context Menu Manager
  * 
- * Manages the contextual interactions for chat messages (the "Three Dots" menu).
- * Handles:
- * - Opening the settings menu (Edit/Delete/Spoiler/Reactions)
- * - Toggling spoiler visibility (Click to reveal)
- * - Rendering sub-menus for spoiler types and reactions
- * - Confirmation dialogues for deletion
+ * @description
+ * Manages contextual interaction menus for chat messages (the "Three Dots" menu).
+ * Handles edit/delete triggers, spoiler label tagging, emoji reaction picker,
+ * revealable spoiler toggles, and deletion confirmation dialogs.
+ * 
+ * Triggered by: Delegated DOM click events on #messages container.
  */
 class ChatContextMenu {
+    /**
+     * Creates an instance of ChatContextMenu.
+     * @param {Object} chatNetwork - Network client for sending socket events.
+     * @param {Object} chatSystem - Master chat system coordinator.
+     */
     constructor(chatNetwork, chatSystem) {
         this.network = chatNetwork;
         this.chatSystem = chatSystem;
+        this.activeCloseListener = null;
         this.bindEvents();
     }
 
+    /**
+     * Binds event delegation listener to the #messages container.
+     */
     bindEvents() {
         const messagesContainer = document.getElementById('messages');
         if (messagesContainer) {
-            // Uses event delegation for all message clicks
+            // OPTIMIZATION: Event delegation on #messages handles dynamic chat bubble clicks without memory leaks
             messagesContainer.addEventListener('click', (e) => this.handleClick(e));
         }
     }
 
+    /**
+     * Closes and cleans up active context menus and unbinds outside-click event listeners.
+     * OPTIMIZATION: Prevents memory leaks by ensuring document click listeners are explicitly removed.
+     */
+    closeActiveMenu() {
+        if (this.activeCloseListener) {
+            document.removeEventListener('click', this.activeCloseListener);
+            this.activeCloseListener = null;
+        }
+        document.querySelectorAll('.msg-settings-menu').forEach(el => el.remove());
+    }
+
+    /**
+     * Main event delegation router for message clicks.
+     * @param {Event} e - The DOM click event.
+     */
     handleClick(e) {
         // 1. Spoiler Clicks (Reveal/Hide)
         const spoilerContainer = e.target.closest('.spoiled-content');
@@ -38,6 +63,7 @@ class ChatContextMenu {
             const msgId = settingsBtn.getAttribute('data-id');
             const senderId = settingsBtn.getAttribute('data-sender-id');
             const msgEl = document.getElementById(msgId);
+            if (!msgEl) return;
             const contentEl = msgEl.querySelector('.message-content');
             const spoilerEl = msgEl.querySelector('[data-spoiler-type]');
 
@@ -68,17 +94,22 @@ class ChatContextMenu {
     }
 
     /**
-     * Renders the main floating context menu.
+     * Renders and positions the main floating context menu.
+     * OPTIMIZATION: Uses visibility:hidden during measurement to calculate layout in a single frame without flicker.
+     * @param {number} x - Mouse click X position.
+     * @param {number} y - Mouse click Y position.
+     * @param {string} msgId - Target message ID.
+     * @param {string} senderId - Message sender character ID.
+     * @param {HTMLElement} contentEl - Message content container element.
+     * @param {HTMLElement} spoilerEl - Spoiler attribute container element.
      */
     createMenu(x, y, msgId, senderId, contentEl, spoilerEl) {
-        // Remove existing if any
-        document.querySelectorAll('.msg-settings-menu').forEach(el => el.remove());
+        this.closeActiveMenu();
 
         const menu = document.createElement('div');
         menu.className = 'msg-settings-menu';
         menu.style.position = 'fixed';
-        menu.style.left = `${x}px`;
-        menu.style.top = `${y}px`;
+        menu.style.visibility = 'hidden';
 
         const myCharId = this.chatSystem.getCharId();
         const isMyMessage = (senderId === myCharId);
@@ -94,34 +125,47 @@ class ChatContextMenu {
         menu.innerHTML = html;
         document.body.appendChild(menu);
 
-        // Bounds check to keep within viewport
+        // Single-frame bounds calculation to prevent layout thrashing
         const rect = menu.getBoundingClientRect();
-        if (rect.right > window.innerWidth) menu.style.left = `${x - rect.width}px`;
-        if (rect.bottom > window.innerHeight) menu.style.top = `${y - rect.height}px`;
+        const finalX = (x + rect.width > window.innerWidth) ? (x - rect.width) : x;
+        const finalY = (y + rect.height > window.innerHeight) ? (y - rect.height) : y;
+        menu.style.left = `${finalX}px`;
+        menu.style.top = `${finalY}px`;
+        menu.style.visibility = 'visible';
 
         menu.addEventListener('click', (e) => {
             const action = e.target.getAttribute('data-action');
-            if (action === 'edit') this.chatSystem.input.startEditing(msgId, contentEl.innerHTML);
+            if (action === 'edit' && contentEl) this.chatSystem.input.startEditing(msgId, contentEl.innerHTML);
             if (action === 'delete') this.confirmDelete(msgId);
             if (action === 'spoiler') this.showSpoilerOptions(e.target, msgId, spoilerEl);
             if (action === 'reaction') this.showReactionOptions(e.target, msgId);
 
-            if (action !== 'spoiler' && action !== 'reaction') menu.remove();
+            if (action !== 'spoiler' && action !== 'reaction') this.closeActiveMenu();
         });
 
-        // Close on click outside (deferred)
+        // Close on click outside (deferred to allow event propagation)
         setTimeout(() => {
             const closeMenu = (e) => {
                 if (!menu.contains(e.target)) {
-                    menu.remove();
-                    document.removeEventListener('click', closeMenu);
+                    this.closeActiveMenu();
                 }
             };
+            this.activeCloseListener = closeMenu;
             document.addEventListener('click', closeMenu);
         }, 0);
     }
 
+    /**
+     * Renders a modal confirmation dialog before deleting a message.
+     * @param {string} msgId - Target message ID to delete.
+     */
     confirmDelete(msgId) {
+        const chatHolder = document.querySelector('.chat-holder');
+        if (!chatHolder) return;
+
+        // Clean up any existing deletion dialogue boxes
+        chatHolder.querySelectorAll('.dialogueBox').forEach(el => el.remove());
+
         const dialogue = document.createElement('div');
         dialogue.className = 'dialogueBox';
         dialogue.innerHTML = `
@@ -130,7 +174,7 @@ class ChatContextMenu {
             <button id="cancelDelete">Cancel</button>
             <button id="confirmDelete">Delete</button>
         `;
-        document.querySelector('.chat-holder').appendChild(dialogue);
+        chatHolder.appendChild(dialogue);
 
         dialogue.querySelector('#cancelDelete').onclick = () => dialogue.remove();
         dialogue.querySelector('#confirmDelete').onclick = () => {
@@ -144,85 +188,93 @@ class ChatContextMenu {
     }
 
     /**
-     * Renders a sub-menu for choosing a spoiler type.
+     * Renders a generic sub-menu attached to a parent option element.
+     * @param {HTMLElement} targetEl - The parent option element.
+     * @param {Array<{html: string, value: string}>} items - List of option items to render.
+     * @param {string} className - Additional CSS class name for the sub-menu.
+     * @param {Function} onSelect - Selection callback taking the chosen value.
      */
-    showSpoilerOptions(targetEl, msgId, spoilerEl) {
-        if (targetEl.querySelector('.spoiler-sub-menu')) return;
-
-        const currentStatus = spoilerEl ? spoilerEl.getAttribute('data-spoiler-type') : 'none';
-        const options = ['general', 'watersports', 'disposal', 'gore', 'none'];
+    renderSubMenu(targetEl, items, className, onSelect) {
+        if (targetEl.querySelector(`.${className}`)) return;
 
         const list = document.createElement('div');
-        list.className = 'msg-settings-menu spoiler-sub-menu';
+        list.className = `msg-settings-menu ${className}`;
         targetEl.style.position = 'relative';
 
-        options.forEach(opt => {
+        items.forEach(opt => {
             const item = document.createElement('div');
-            item.className = 'msg-settings-option';
+            item.className = opt.className || 'msg-settings-option';
+            item.innerHTML = opt.html;
 
-            const label = opt.charAt(0).toUpperCase() + opt.slice(1);
-            const isSelected = currentStatus === opt;
-            const icon = isSelected ? '<i class="fas fa-check" style="margin-right: 8px; color: var(--gold);"></i>' : '<span style="display:inline-block; width:20px;"></span>';
-
-            item.innerHTML = `${icon}${label}`;
             item.onclick = (e) => {
                 e.stopPropagation();
-                this.network.sendSpoilerEdit({
-                    _id: msgId,
-                    spoiler: opt,
-                    token: this.chatSystem.getToken(),
-                    charId: this.chatSystem.getCharId()
-                });
-                targetEl.closest('.msg-settings-menu').remove();
+                onSelect(opt.value);
+                this.closeActiveMenu();
             };
             list.appendChild(item);
         });
 
         targetEl.appendChild(list);
 
-        // Bounds
+        // Position sub-menu relative to viewport
         const rect = list.getBoundingClientRect();
         if (rect.right > window.innerWidth) { list.style.left = 'auto'; list.style.right = '100%'; }
         if (rect.bottom > window.innerHeight) { list.style.top = 'auto'; list.style.bottom = '0'; }
     }
 
     /**
-     * Renders a sub-menu for adding reactions.
+     * Renders a sub-menu for choosing a spoiler category tag.
+     * @param {HTMLElement} targetEl - Target option node.
+     * @param {string} msgId - Target message ID.
+     * @param {HTMLElement} spoilerEl - Element carrying data-spoiler-type.
      */
-    showReactionOptions(targetEl, msgId) {
-        if (targetEl.querySelector('.reaction-sub-menu')) return;
+    showSpoilerOptions(targetEl, msgId, spoilerEl) {
+        const currentStatus = spoilerEl ? spoilerEl.getAttribute('data-spoiler-type') : 'none';
+        const options = ['general', 'watersports', 'disposal', 'gore', 'none'];
 
-        const options = ['heart', 'blush', 'laugh', 'thumbsup', 'thumbsdown'];
-        const reactionMap = { heart: '❤️', blush: '😳', laugh: '😂', thumbsup: '👍', thumbsdown: '👎' };
-
-        const list = document.createElement('div');
-        list.className = 'msg-settings-menu reaction-sub-menu';
-        targetEl.style.position = 'relative';
-
-        options.forEach(opt => {
-            const item = document.createElement('div');
-            item.className = 'msg-settings-option reaction-menu-option';
-            item.innerHTML = `${reactionMap[opt]} ${opt.charAt(0).toUpperCase() + opt.slice(1)}`;
-
-            item.onclick = (e) => {
-                e.stopPropagation();
-                this.network.toggleReaction({
-                    _id: msgId,
-                    reaction: opt,
-                    token: this.chatSystem.getToken(),
-                    charId: this.chatSystem.getCharId()
-                });
-                list.remove();
+        const items = options.map(opt => {
+            const label = opt.charAt(0).toUpperCase() + opt.slice(1);
+            const isSelected = currentStatus === opt;
+            const icon = isSelected ? '<i class="fas fa-check" style="margin-right: 8px; color: var(--gold);"></i>' : '<span style="display:inline-block; width:20px;"></span>';
+            return {
+                html: `${icon}${label}`,
+                value: opt
             };
-            list.appendChild(item);
         });
 
-        targetEl.appendChild(list);
+        this.renderSubMenu(targetEl, items, 'spoiler-sub-menu', (spoiler) => {
+            this.network.sendSpoilerEdit({
+                _id: msgId,
+                spoiler: spoiler,
+                token: this.chatSystem.getToken(),
+                charId: this.chatSystem.getCharId()
+            });
+        });
+    }
 
-        // Bounds
-        const rect = list.getBoundingClientRect();
-        if (rect.right > window.innerWidth) { list.style.left = 'auto'; list.style.right = '100%'; }
-        if (rect.bottom > window.innerHeight) { list.style.top = 'auto'; list.style.bottom = '0'; }
+    /**
+     * Renders a sub-menu for choosing an emoji reaction.
+     * @param {HTMLElement} targetEl - Target option node.
+     * @param {string} msgId - Target message ID.
+     */
+    showReactionOptions(targetEl, msgId) {
+        const reactionMap = (window.ChatMessage && window.ChatMessage.REACTION_MAP) || { heart: '❤️', blush: '😳', laugh: '😂', thumbsup: '👍', thumbsdown: '👎' };
+        const options = Object.keys(reactionMap);
+
+        const items = options.map(opt => ({
+            html: `${reactionMap[opt]} ${opt.charAt(0).toUpperCase() + opt.slice(1)}`,
+            value: opt,
+            className: 'msg-settings-option reaction-menu-option'
+        }));
+
+        this.renderSubMenu(targetEl, items, 'reaction-sub-menu', (reaction) => {
+            this.network.toggleReaction({
+                _id: msgId,
+                reaction: reaction,
+                token: this.chatSystem.getToken(),
+                charId: this.chatSystem.getCharId()
+            });
+        });
     }
 }
 

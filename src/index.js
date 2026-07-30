@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Main Server Application Entry Point - TastyTails.net
+ * 
+ * @description
+ * Primary application bootstrapper. Orchestrates the Express HTTP server,
+ * Socket.IO real-time WebSocket server, Mongoose MongoDB connectivity,
+ * security/compression middleware, REST routing, real-time chat routing,
+ * and the core server-side game tick loop.
+ * 
+ * Triggered by: `npm start` / `node src/index.js`
+ */
+
 // Basic server and database requirements
 const express = require('express');
 const app = express();
@@ -23,16 +35,34 @@ const serverGame = require('./server-loop');
 dotenv.config();
 
 // --- Graceful Shutdown Logic ---
+let isShuttingDown = false;
+
+/**
+ * Initiates an idempotent, graceful shutdown of the server process.
+ * Notifies connected Socket.IO clients of a critical server error before exiting.
+ * 
+ * @param {string} reason - The trigger reason (e.g. 'Uncaught Exception', 'Unhandled Rejection', 'Database Failure').
+ * @param {Error} [err] - Optional error object causing the shutdown.
+ */
 const gracefulShutdown = (reason, err) => {
   log.error(`CRITICAL ERROR (${reason}): Initiating graceful shutdown...`, err);
+
+  if (isShuttingDown) {
+    return; // Guard against recursive shutdown calls
+  }
+  isShuttingDown = true;
 
   // Notify connected clients (if possible)
   if (io) {
     log.important('Notifying players of critical server error...');
-    io.emit('serverCriticalError', {
-      message: 'The server has encountered a critical error and is restarting. Please reconnect in a moment.',
-      reason: reason
-    });
+    try {
+      io.emit('serverCriticalError', {
+        message: 'The server has encountered a critical error and is restarting. Please reconnect in a moment.',
+        reason: reason
+      });
+    } catch (emitErr) {
+      log.error('Failed to broadcast critical shutdown message:', emitErr);
+    }
   }
 
   // Give the server a moment to send the email/logs/socket-events before dying
@@ -40,6 +70,11 @@ const gracefulShutdown = (reason, err) => {
     log.important('Exiting process now.');
     process.exit(1);
   }, 1000);
+
+  // Force exit backup timer if event loop hangs
+  setTimeout(() => {
+    process.exit(1);
+  }, 3000).unref();
 };
 
 // --- Global Error Handlers ---
@@ -99,8 +134,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(expressLayouts);
-// Serve static files from the 'client' directory
-app.use(express.static(path.join(__dirname, 'client')));
+// Serve static files from 'client' and 'public' directories
+const ONE_HOUR_MS = 3600000;
+app.use(express.static(path.join(__dirname, 'client'), { maxAge: ONE_HOUR_MS }));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: ONE_HOUR_MS }));
 
 // --- Routes ---
 const authRoute = require('./routes/auth');
@@ -109,11 +146,7 @@ const indexRoute = require('./routes/index');
 const editRoute = require('./routes/edit');
 const playRoute = require('./routes/play');
 
-// --- Global Middleware Error Handler ---
-app.use((err, req, res, next) => {
-  log.error(`Unhandled Express Error on path: ${req.path}`, err);
-  res.status(500).send('Something broke!');
-});
+
 
 app.use('/api/user', authRoute);
 app.use('/api/dbInterface', dbInterfaceRoute);
@@ -128,7 +161,16 @@ app.get('/stats', (req, res) => {
   res.json(monitoring.getStats());
 });
 
-// --- Valid Point Spawning Endpoint ---
+/**
+ * GET /api/valid-point
+ * Generates valid, non-colliding spawn coordinates within a quadrilateral bounding box.
+ * 
+ * @query {number} tlx, tly - Top-Left Quad coordinates
+ * @query {number} trx, try - Top-Right Quad coordinates
+ * @query {number} blx, bly - Bottom-Left Quad coordinates
+ * @query {number} brx, bry - Bottom-Right Quad coordinates
+ * @returns {Object} JSON object with { x, y, success: boolean }
+ */
 app.get('/api/valid-point', (req, res) => {
   const tlx = parseFloat(req.query.tlx);
   const tly = parseFloat(req.query.tly);
@@ -147,6 +189,15 @@ app.get('/api/valid-point', (req, res) => {
   let attempts = 0;
   const players = serverGame.getAllPlayers() || {};
 
+  // Pre-extract immutable coordinate snapshots to prevent concurrency race conditions
+  const playerPositions = [];
+  for (const id in players) {
+    const p = players[id];
+    if (p && p.position && typeof p.position.x === 'number' && typeof p.position.y === 'number') {
+      playerPositions.push({ x: p.position.x, y: p.position.y });
+    }
+  }
+
   while (attempts < 100) {
     const u = Math.random();
     const v = Math.random();
@@ -155,15 +206,13 @@ app.get('/api/valid-point', (req, res) => {
 
     if (!serverGame.checkPointCollision(x, y)) {
       let tooClose = false;
-      for (const id in players) {
-        const other = players[id];
-        if (other && other.position) {
-          const dx = other.position.x - x;
-          const dy = other.position.y - y;
-          if (dx * dx + dy * dy < 256) { // 16px minimum distance
-            tooClose = true;
-            break;
-          }
+      for (let i = 0; i < playerPositions.length; i++) {
+        const pos = playerPositions[i];
+        const dx = pos.x - x;
+        const dy = pos.y - y;
+        if (dx * dx + dy * dy < 256) { // 16px minimum distance
+          tooClose = true;
+          break;
         }
       }
       if (!tooClose) {
@@ -174,8 +223,21 @@ app.get('/api/valid-point', (req, res) => {
   }
 
   // Fallback to center of the quad
-  const centerX = Math.round((tlx + trx + blx + brx) / 4);
-  const centerY = Math.round((tly + try_ + bly + bry) / 4);
+  let centerX = Math.round((tlx + trx + blx + brx) / 4);
+  let centerY = Math.round((tly + try_ + bly + bry) / 4);
+
+  // If center collides, attempt a small 16px cardinal search to find a non-colliding fallback
+  if (serverGame.checkPointCollision(centerX, centerY)) {
+    const offsets = [[16, 0], [-16, 0], [0, 16], [0, -16]];
+    for (const [ox, oy] of offsets) {
+      if (!serverGame.checkPointCollision(centerX + ox, centerY + oy)) {
+        centerX += ox;
+        centerY += oy;
+        break;
+      }
+    }
+  }
+
   res.json({ x: centerX, y: centerY, success: false });
 });
 
@@ -209,7 +271,7 @@ io.on('connection', (socket) => {
   // Allow test client bots to report action success/failure stats
   socket.on('reportAction', (data) => {
     if (data && data.actionType) {
-      require('./server/monitoring').recordAction(data.actionType, !!data.success);
+      monitoring.recordAction(data.actionType, !!data.success);
     }
   });
 
