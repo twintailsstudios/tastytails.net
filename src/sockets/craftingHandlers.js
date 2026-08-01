@@ -18,10 +18,7 @@ const { createDynamicItem } = require('../utils/itemUtils');
 let recipes = {};
 
 try {
-    const recipesData = require('../data/recipes');
-    recipes = { ...recipesData };
-
-    // Compile co-located recipes from itemData
+    // Compile recipes directly from itemData
     Object.entries(itemData).forEach(([itemId, def]) => {
         if (def.recipe) {
             const station = def.recipe.station;
@@ -47,7 +44,7 @@ try {
         }
     });
 } catch (e) {
-    log.error('[Crafting] Failed to load recipes', e);
+    log.error('[Crafting] Failed to load recipes from itemData', e);
 }
 
 let stationConfigs = {};
@@ -399,12 +396,10 @@ const init = function (io, socket, players, itemData, saveCharacter, craftingSta
                         baseUses = ing.usesConsumed;
                     }
 
-                    // For sewing machine:
-                    // Spool 0 (base garment) consumes baseUses (e.g. 2 for shirt, 3 for pants).
-                    // Spools 1..N (secondary patterns) consume 1 use each.
+                    const ingCount = (ing.count !== undefined && ing.count !== null) ? ing.count : 1;
                     const totalUsesNeeded = isSewing 
-                        ? baseUses + Math.max(0, ing.count - 1)
-                        : baseUses * ing.count;
+                        ? baseUses + Math.max(0, ingCount - 1)
+                        : baseUses * ingCount;
                         
                     let usesNeeded = totalUsesNeeded;
 

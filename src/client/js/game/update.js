@@ -150,6 +150,14 @@ export function update(time, delta) {
     const debugGraphics = this.debugGraphics;
     const serverBlockedTiles = window.serverBlockedTiles;
 
+    // --- SPATIAL MUSIC ZONE TICK (Throttled 10Hz / 100ms) ---
+    if (this.midiEngine && this.playerContainer) {
+        if (!this._lastMusicZoneTick || (time - this._lastMusicZoneTick) >= 100) {
+            this._lastMusicZoneTick = time;
+            this.midiEngine.updatePlayerPosition(this.playerContainer.x, this.playerContainer.y);
+        }
+    }
+
     // Always update UI even if chat is focused
     if (this.playerContainer && this.playerContainer.playerInfo) {
         // --- STATE CACHE (DIRTY FLAG) ---
@@ -549,6 +557,17 @@ export function update(time, delta) {
         // but we could clear the text if desired. For now, leaving last known coords is fine.
     }
 
+    // --- Music Tiles & Spatial Zones Debug Visualizer ---
+    if (this.showMusicTiles) {
+        renderMusicTilesDebug(this);
+    } else if (this.musicDebugGraphics) {
+        this.musicDebugGraphics.clear();
+        if (this.musicDebugTexts && this.musicDebugTexts.length > 0) {
+            this.musicDebugTexts.forEach(t => t.destroy());
+            this.musicDebugTexts = [];
+        }
+    }
+
     // --- Shadow System Update (Client Prediction) ---
     if (this.shadowSystem) {
         this.shadowSystem.update();
@@ -644,5 +663,160 @@ export function update(time, delta) {
     // --- Drop Mode Update ---
     if (window.dropMode && window.dropMode.active) {
         window.dropMode.update();
+    }
+}
+
+/**
+ * Renders visual debug overlay for client-side spatial music zones and tilemap music layers.
+ * @param {Phaser.Scene} scene - Active Phaser GameScene context.
+ */
+function renderMusicTilesDebug(scene) {
+    if (!scene.musicDebugGraphics) return;
+
+    const g = scene.musicDebugGraphics;
+    g.clear();
+
+    // Clean up previous frame text labels if any
+    if (scene.musicDebugTexts && scene.musicDebugTexts.length > 0) {
+        scene.musicDebugTexts.forEach(t => t.destroy());
+        scene.musicDebugTexts = [];
+    } else {
+        scene.musicDebugTexts = [];
+    }
+
+    const cam = scene.cameras?.main;
+    const view = cam ? cam.worldView : null;
+
+    // 1. Render Tilemap Music Layers & Tiles
+    if (scene.map && scene.map.layers) {
+        const musicLayers = scene.map.layers.filter(l => l.name && l.name.toLowerCase().includes('music'));
+        musicLayers.forEach(layerData => {
+            const tileLayer = layerData.tilemapLayer;
+            if (!tileLayer) return;
+
+            const data = layerData.data;
+            if (!data) return;
+
+            const tileWidth = scene.map.tileWidth || 32;
+            const tileHeight = scene.map.tileHeight || 32;
+
+            for (let r = 0; r < data.length; r++) {
+                const row = data[r];
+                if (!row) continue;
+                for (let c = 0; c < row.length; c++) {
+                    const tile = row[c];
+                    if (tile && tile.index > -1) {
+                        const px = tile.pixelX !== undefined ? tile.pixelX : c * tileWidth;
+                        const py = tile.pixelY !== undefined ? tile.pixelY : r * tileHeight;
+
+                        // Viewport culling optimization
+                        if (view && (px + tileWidth < view.x || px > view.right || py + tileHeight < view.y || py > view.bottom)) {
+                            continue;
+                        }
+
+                        // Fill and border for music tile
+                        g.fillStyle(0x9370DB, 0.45); // Medium purple translucent fill
+                        g.fillRect(px, py, tileWidth, tileHeight);
+                        g.lineStyle(1.5, 0x8A2BE2, 0.9); // BlueViolet border
+                        g.strokeRect(px, py, tileWidth, tileHeight);
+
+                        // Draw miniature label if specific zone property exists
+                        const zoneProp = tile.properties?.zoneKey || tile.properties?.musicZone || tile.properties?.zone;
+                        if (zoneProp) {
+                            const txt = scene.add.text(px + 2, py + 2, String(zoneProp), {
+                                font: '9px monospace',
+                                fill: '#ffffff',
+                                backgroundColor: '#4b0082'
+                            });
+                            txt.setDepth(19001);
+                            scene.musicDebugTexts.push(txt);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Render Registered Spatial Music Zones (Geometry & Doors)
+    const zones = scene.midiEngine?.spatialZones?.zones || [];
+    let currentEvaluatedZone = null;
+
+    if (scene.playerContainer && scene.midiEngine?.spatialZones) {
+        const evalRes = scene.midiEngine.spatialZones.evaluatePosition(
+            scene.playerContainer.x + 30,
+            scene.playerContainer.y
+        );
+        currentEvaluatedZone = evalRes.targetZone;
+    }
+
+    zones.forEach(z => {
+        const isCurrentActive = currentEvaluatedZone && z.key.toLowerCase() === currentEvaluatedZone.toLowerCase();
+
+        // Polygon vs Box check
+        if (z.polygon && z.polygon.length >= 3) {
+            g.beginPath();
+            const firstPt = z.polygon[0];
+            g.moveTo(z.x + firstPt.x, z.y + firstPt.y);
+            for (let i = 1; i < z.polygon.length; i++) {
+                g.lineTo(z.x + z.polygon[i].x, z.y + z.polygon[i].y);
+            }
+            g.closePath();
+
+            g.fillStyle(isCurrentActive ? 0x00FFFF : 0xBA55D3, isCurrentActive ? 0.4 : 0.25);
+            g.fillPath();
+
+            g.lineStyle(isCurrentActive ? 3 : 2, isCurrentActive ? 0x00FFFF : 0xDA70D6, 0.95);
+            g.strokePath();
+        } else if (z.width > 0 && z.height > 0) {
+            // Viewport culling optimization for bounding box
+            if (!view || (z.x + z.width >= view.x && z.x <= view.right && z.y + z.height >= view.y && z.y <= view.bottom)) {
+                g.fillStyle(isCurrentActive ? 0x00FFFF : 0x8A2BE2, isCurrentActive ? 0.35 : 0.2);
+                g.fillRect(z.x, z.y, z.width, z.height);
+
+                g.lineStyle(isCurrentActive ? 3 : 2, isCurrentActive ? 0x00FFFF : 0x9400D3, 0.9);
+                g.strokeRect(z.x, z.y, z.width, z.height);
+            }
+        }
+
+        // Render Entrance Door & Proximity Blend Radius
+        if (z.doorX !== undefined && z.doorY !== undefined) {
+            if (!view || (z.doorX + z.proximityRadius >= view.x && z.doorX - z.proximityRadius <= view.right && z.doorY + z.proximityRadius >= view.y && z.doorY - z.proximityRadius <= view.bottom)) {
+                // Proximity Radius Circle
+                g.lineStyle(1.5, 0x00FFFF, 0.5);
+                g.strokeCircle(z.doorX, z.doorY, z.proximityRadius);
+
+                // Door Center Marker
+                g.fillStyle(0xFFD700, 1.0);
+                g.fillCircle(z.doorX, z.doorY, 5);
+                g.lineStyle(2, 0x000000, 1.0);
+                g.strokeCircle(z.doorX, z.doorY, 5);
+            }
+        }
+
+        // Draw Zone Title Label
+        const labelX = z.x + 6;
+        const labelY = z.y + 6;
+        if (!view || (labelX >= view.x - 100 && labelX <= view.right + 100 && labelY >= view.y - 50 && labelY <= view.bottom + 50)) {
+            const labelText = `🎵 Zone: ${z.key}${isCurrentActive ? ' (ACTIVE)' : ''}`;
+            const txt = scene.add.text(labelX, labelY, labelText, {
+                font: isCurrentActive ? 'bold 11px sans-serif' : '10px sans-serif',
+                fill: isCurrentActive ? '#00ffff' : '#ffffff',
+                backgroundColor: isCurrentActive ? 'rgba(0, 0, 139, 0.85)' : 'rgba(75, 0, 130, 0.75)',
+                padding: { x: 4, y: 2 }
+            });
+            txt.setDepth(19001);
+            scene.musicDebugTexts.push(txt);
+        }
+    });
+
+    // 3. Highlight Player Position & Active Zone Indicator
+    if (scene.playerContainer && currentEvaluatedZone) {
+        const px = scene.playerContainer.x + 30;
+        const py = scene.playerContainer.y;
+
+        g.lineStyle(2, 0xFFD700, 0.9);
+        g.strokeCircle(px, py, 12);
+        g.fillStyle(0xFFD700, 0.6);
+        g.fillCircle(px, py, 3);
     }
 }

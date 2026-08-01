@@ -15,10 +15,12 @@
     content="vore, game, vore game, unbirth, anal vore, tail vore, transformation, TF, tasty, tails, tastytails, tasty tails, furry, yiff, role-playing, role-play, role play, RP, lewd, OwO,">
   <meta name="author" content="Kimberly Tilson">
   <title><%= typeof title !== 'undefined' ? title : 'TastyTails | Home' %></title>
+  <script>window.APP_VERSION = "<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>";</script>
+  <script src="/js/versionManager.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
   <!-- OPTIMIZATION: Preconnect to Font CDNs for Fast Layout Paint -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="/css/master.css?v=<%= Date.now() %>">
+  <link rel="stylesheet" href="/css/master.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Caveat+Brush&family=Crimson+Pro:ital,wght@0,400;0,700;1,400&family=Philosopher:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">

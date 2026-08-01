@@ -2,19 +2,19 @@
   <meta charset="UTF-8">
   <title>TastyTails | Play</title>
 
-  <link rel="stylesheet" type="text/css" href="/css/play.css" />
+  <link rel="stylesheet" type="text/css" href="/css/play.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>" />
 
-  <link rel="stylesheet" type="text/css" href="/css/chat.css" />
-  <link rel="stylesheet" type="text/css" href="/css/contextMenu.css" />
-  <link rel="stylesheet" type="text/css" href="/css/inventory.css" />
-  <link rel="stylesheet" type="text/css" href="/css/crafting.css" />
-  <link rel="stylesheet" type="text/css" href="/css/apparel.css" />
+  <link rel="stylesheet" type="text/css" href="/css/chat.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>" />
+  <link rel="stylesheet" type="text/css" href="/css/contextMenu.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>" />
+  <link rel="stylesheet" type="text/css" href="/css/inventory.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>" />
+  <link rel="stylesheet" type="text/css" href="/css/crafting.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>" />
+  <link rel="stylesheet" type="text/css" href="/css/apparel.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>" />
 
-  <link rel="stylesheet" type="text/css" href="/css/options.css" />
-  <link rel="stylesheet" type="text/css" href="/css/loading.css" />
-  <link rel="stylesheet" type="text/css" href="/css/stats.css" />
-  <link rel="stylesheet" type="text/css" href="/css/medical.css" />
-  <link rel="stylesheet" type="text/css" href="/css/voreHUD.css" />
+  <link rel="stylesheet" type="text/css" href="/css/options.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>" />
+  <link rel="stylesheet" type="text/css" href="/css/loading.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>" />
+  <link rel="stylesheet" type="text/css" href="/css/stats.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>" />
+  <link rel="stylesheet" type="text/css" href="/css/medical.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>" />
+  <link rel="stylesheet" type="text/css" href="/css/voreHUD.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>" />
 
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css">
-  <link rel="stylesheet" href="/css/anatomy_forge.css">
+  <link rel="stylesheet" href="/css/anatomy_forge.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>">
 </head>
 
 <script>
@@ -417,17 +417,23 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.90.0/phaser.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
-<script src="/js/AvatarRenderer.js"></script>
-<script src="/js/chat/ChatFormatter.js"></script>
-<script src="/js/chat/ChatNetwork.js"></script>
-<script src="/js/chat/ChatMessage.js"></script>
-<script src="/js/chat/ChatUI.js"></script>
-<script src="/js/chat/ChatInput.js"></script>
-<script src="/js/chat/ChatContextMenu.js"></script>
-<script src="/js/chat/ChatSystem.js"></script>
-<script src="/js/contextMenu.js"></script>
-<script src="/js/anatomy_forge.js"></script>
-<script src="/js/playView.js"></script>
+<script src="/js/AvatarRenderer.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script type="module" src="/js/game/audio/PhonemeLoader.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script type="module" src="/js/game/audio/PunctuationParser.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script type="module" src="/js/game/audio/VoiceSynthEngine.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script type="module" src="/js/game/audio/CrowdVoiceManager.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script type="module" src="/js/game/audio/VoiceProfilePresets.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script type="module" src="/js/chat/VoiceChatAdapter.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script src="/js/chat/ChatFormatter.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script src="/js/chat/ChatNetwork.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script src="/js/chat/ChatMessage.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script src="/js/chat/ChatUI.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script src="/js/chat/ChatInput.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script src="/js/chat/ChatContextMenu.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script src="/js/chat/ChatSystem.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script src="/js/contextMenu.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script src="/js/anatomy_forge.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script src="/js/playView.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
 
 <div id="loading-overlay">
   <div id="loading-board">
@@ -450,5 +456,5 @@
   </div>
 </div>
 
-<script type="module" src="/js/game/index.js"></script>
+<script type="module" src="/js/game/index.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
 </section>

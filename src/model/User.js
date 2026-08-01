@@ -172,6 +172,11 @@ const userSchema = new mongoose.Schema({
         default: ""
       },
 
+      voiceProfile: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null
+      },
+
       // NOTE: Equipment uses Mixed type. Remember to call `user.markModified('characters')` when updating nested keys!
       equipment: {
         type: mongoose.Schema.Types.Mixed,

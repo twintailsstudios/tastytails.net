@@ -11,6 +11,7 @@
 
 import resourceNodeData from './resourceNodeData.js';
 import itemData from './itemData.js';
+import craftingStations from './craftingStations.js';
 
 // Configuration constants for avatar customization layer bounds
 const EAR_COUNT = 11;
@@ -85,7 +86,36 @@ function extractItemAssets(itemDefinitions) {
     return { itemImages, itemClothingSheets, itemRenderSheets };
 }
 
+/**
+ * Single-pass extractor for static crafting station image textures from craftingStations.js.
+ * @param {Object} stationDefinitions - Map of crafting station definitions from craftingStations.js
+ * @returns {Array<Object>} Extracted image asset objects for Phaser preloading.
+ */
+function extractStationAssets(stationDefinitions) {
+    if (!stationDefinitions || typeof stationDefinitions !== 'object') {
+        return [];
+    }
+
+    const stationImages = [];
+    const addedKeys = new Set();
+
+    for (const [key, def] of Object.entries(stationDefinitions)) {
+        if (!def || typeof def !== 'object') continue;
+        const texKey = def.texture || key;
+        if (!addedKeys.has(texKey)) {
+            addedKeys.add(texKey);
+            stationImages.push({
+                key: String(texKey),
+                path: `/assets/tilemaps/${texKey}.png`
+            });
+        }
+    }
+
+    return stationImages;
+}
+
 const { itemImages, itemClothingSheets, itemRenderSheets } = extractItemAssets(itemData);
+const stationImages = extractStationAssets(craftingStations);
 
 export const assets = {
     // Map Tilesets (Must match Tiled Tileset Names)
@@ -93,7 +123,8 @@ export const assets = {
         { key: 'Demo_tileset', path: '/assets/tilemaps/tileset.png' },
         { key: 'alpha_tileset', path: '/assets/tilemaps/alpha_tileset.png' },
         { key: 'alpha_ground_set', path: '/assets/tilemaps/alpha_ground_set.png' },
-        { key: 'alpha_zones', path: '/assets/tilemaps/alpha_zones.png' }
+        { key: 'alpha_zones', path: '/assets/tilemaps/alpha_zones.png' },
+        { key: 'music_zones', path: '/assets/tilemaps/music_zones.png' }
     ],
 
     // UI & Misc Images
@@ -133,15 +164,8 @@ export const assets = {
         { key: 'counter_side_base', path: '/assets/tilemaps/counter_side_base.png' },
         { key: 'counter_corner_left_noBase', path: '/assets/tilemaps/counter_corner_left_noBase.png' },
         { key: 'counter_corner_right_noBase', path: '/assets/tilemaps/counter_corner_right_noBase.png' },
-        // Crafting Stations
-        { key: 'smelter', path: '/assets/tilemaps/smelter.png' },
-        { key: 'anvil_01', path: '/assets/tilemaps/anvil_01.png' },
-        { key: 'cocktail_bar', path: '/assets/tilemaps/cocktail_bar.png' },
-        { key: 'juicer', path: '/assets/tilemaps/juicer.png' },
-        { key: 'distillery', path: '/assets/tilemaps/distillery.png' },
-        { key: 'spinning_wheel', path: '/assets/tilemaps/spinning_wheel.png' },
-        { key: 'sewing_machine', path: '/assets/tilemaps/sewing_machine.png' },
-        { key: 'cauldron', path: '/assets/tilemaps/cauldron.png' },
+        // Dynamically loaded crafting station textures (extracted via extractStationAssets helper)
+        ...stationImages,
         { key: 'toilet', path: '/assets/tilemaps/toilet.png' },
         { key: 'sink', path: '/assets/tilemaps/sink.png' },
         { key: 'spa_massage_bed', path: '/assets/tilemaps/spa_massage_bed.png' },
@@ -276,6 +300,12 @@ export const assets = {
     // Emotes
     emotes: [
         'typing'
+    ],
+
+    // Background Music (MIDI Tracks)
+    music: [
+        { key: 'test_theme', path: '/assets/music/test_theme.mid' }
     ]
 };
+
 

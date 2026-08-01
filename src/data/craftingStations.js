@@ -39,6 +39,7 @@ const craftingStations = Object.freeze({
 
     anvil: {
         title: "The Hearthside Forge",
+        texture: "anvil_01",
         recipeBookTitle: "Blueprints",
         recipeSelectPrompt: "Select a Blueprint",
         inputLabel: "Crucible (Deposit Materials)",
@@ -48,6 +49,8 @@ const craftingStations = Object.freeze({
         defaultRecipeIcon: "fa-scroll",
         inputSlots: 6,
         theme: "theme-forge",
+        layoutType: "standard",
+        interactionVerb: "Forge",
         modules: {
             recipeList: true,
             craftingInfo: true
@@ -55,6 +58,7 @@ const craftingStations = Object.freeze({
     },
     furnace: {
         title: "Smelter",
+        texture: "smelter",
         recipeBookTitle: "Smelting Recipes",
         recipeSelectPrompt: "Select Ore",
         inputLabel: "Fuel & Ore Input",
@@ -64,13 +68,17 @@ const craftingStations = Object.freeze({
         defaultRecipeIcon: "fa-fire",
         inputSlots: 3,
         theme: "theme-smelter",
+        layoutType: "single_input",
+        interactionVerb: "Smelt",
+        autoMatch: true,
         modules: {
-            recipeList: false, // Hidden for furnace
+            recipeList: false,
             craftingInfo: true
         }
     },
     cocktail_bar: {
         title: "The Tipsy Tail",
+        texture: "cocktail_bar",
         recipeBookTitle: "Menu",
         recipeSelectPrompt: "Select a Drink",
         inputLabel: "Mixing Glass",
@@ -80,6 +88,8 @@ const craftingStations = Object.freeze({
         defaultRecipeIcon: "fa-cocktail",
         inputSlots: 4,
         theme: "theme-cocktail",
+        layoutType: "standard",
+        interactionVerb: "Mix",
         modules: {
             recipeList: true,
             craftingInfo: true
@@ -87,6 +97,7 @@ const craftingStations = Object.freeze({
     },
     juicer: {
         title: "Juicer",
+        texture: "juicer",
         recipeBookTitle: "Juicing Recipes",
         recipeSelectPrompt: "Select a Fruit",
         inputLabel: "Fruit Input",
@@ -96,6 +107,9 @@ const craftingStations = Object.freeze({
         defaultRecipeIcon: "fa-cocktail",
         inputSlots: 1,
         theme: "theme-juicer",
+        layoutType: "single_input",
+        interactionVerb: "Juice",
+        autoMatch: true,
         modules: {
             recipeList: false,
             craftingInfo: true
@@ -103,6 +117,7 @@ const craftingStations = Object.freeze({
     },
     distillery: {
         title: "Distillery",
+        texture: "distillery",
         recipeBookTitle: "Distilling Recipes",
         recipeSelectPrompt: "Select a Fruit",
         inputLabel: "Fruit Input",
@@ -112,6 +127,9 @@ const craftingStations = Object.freeze({
         defaultRecipeIcon: "fa-cocktail",
         inputSlots: 1,
         theme: "theme-distillery",
+        layoutType: "single_input",
+        interactionVerb: "Distill",
+        autoMatch: true,
         modules: {
             recipeList: false,
             craftingInfo: true
@@ -119,22 +137,27 @@ const craftingStations = Object.freeze({
     },
     spinning_wheel: {
         title: "Spinning Wheel",
+        texture: "spinning_wheel",
         recipeBookTitle: "Spinning Recipes",
-        recipeSelectPrompt: "Select a Fiber",
-        inputLabel: "Fiber Input",
-        outputLabel: "Output Tray",
-        buttonLabel: "Spin",
-        actionProgressLabel: "Spinning...",
-        defaultRecipeIcon: "fa-cocktail",
+        recipeSelectPrompt: "Deposit Fiber & Dye",
+        inputLabel: "Fiber & Dye Input",
+        outputLabel: "Spool Rack",
+        buttonLabel: "Spin Thread",
+        actionProgressLabel: "Spinning Thread...",
+        defaultRecipeIcon: "fa-solid fa-scroll",
         inputSlots: 2,
         theme: "theme-spinner",
+        layoutType: "single_input",
+        interactionVerb: "Spin",
+        autoMatch: true,
         modules: {
-            recipeList: true,
+            recipeList: false,
             craftingInfo: true
         }
     },
     sewing_machine: {
         title: "Sewing Machine",
+        texture: "sewing_machine",
         recipeBookTitle: "Sewing Recipes",
         recipeSelectPrompt: "Select a Fiber",
         inputLabel: "Fiber Input",
@@ -144,6 +167,8 @@ const craftingStations = Object.freeze({
         defaultRecipeIcon: "fa-cocktail",
         inputSlots: 4,
         theme: "theme-seamstress",
+        layoutType: "pattern_grid",
+        interactionVerb: "Sew",
         modules: {
             recipeList: false,
             craftingInfo: false,
@@ -152,6 +177,7 @@ const craftingStations = Object.freeze({
     },
     cauldron: {
         title: "Cauldron",
+        texture: "cauldron",
         recipeBookTitle: "Cauldron Recipes",
         recipeSelectPrompt: "Select an Ingredient",
         inputLabel: "Ingredient Input",
@@ -161,12 +187,35 @@ const craftingStations = Object.freeze({
         defaultRecipeIcon: "fa-cocktail",
         inputSlots: 1,
         theme: "theme-alchemy",
+        layoutType: "standard",
+        interactionVerb: "Brew",
         modules: {
             recipeList: true,
             craftingInfo: true
         }
     },
+    alembic: {
+        title: "The Alchemist's Alembic",
+        texture: "alembic",
+        recipeBookTitle: "Distillation Recipes",
+        recipeSelectPrompt: "Select Ingredients & Adjust Ratio",
+        inputLabel: "Distillate Ingredients (2 Slots)",
+        outputLabel: "Distillate Receiver",
+        buttonLabel: "Blend & Distill",
+        actionProgressLabel: "Distilling...",
+        defaultRecipeIcon: "fa-solid fa-vial",
+        inputSlots: 2,
+        theme: "theme-alembic",
+        layoutType: "stepper_ratio",
+        interactionVerb: "Distill",
+        modules: {
+            recipeList: false,
+            craftingInfo: false,
+            type: 'alembic_custom'
+        }
+    },
 });
 
 module.exports = craftingStations;
+
 

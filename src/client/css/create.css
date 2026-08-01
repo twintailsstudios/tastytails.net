@@ -758,3 +758,281 @@ canvas {
         width: 100%;
     }
 }
+
+/* --- VOICE SYNTHESIZER STUDIO PANEL --- */
+.voice-studio-panel {
+    background: rgba(25, 20, 28, 0.85);
+    border: 2px solid rgba(212, 175, 55, 0.4);
+    border-radius: 12px;
+    padding: 20px;
+    color: #e0e0e0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    margin-top: 10px;
+}
+
+.voice-studio-header h3 {
+    font-family: var(--font-title, 'Cinzel', serif);
+    color: var(--gold, #d4af37);
+    margin: 0 0 4px 0;
+    font-size: 1.4rem;
+}
+
+.voice-studio-header p {
+    font-size: 0.9rem;
+    color: #a0a0a0;
+    margin: 0 0 16px 0;
+}
+
+.voice-preset-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.voice-preset-row label {
+    font-weight: bold;
+    color: #d4af37;
+    white-space: nowrap;
+}
+
+.voice-select {
+    background-color: var(--palette-parchment, #f3e5ab);
+    color: var(--palette-text-dark, #3e2723);
+    border: 2px solid var(--palette-wood-light, #5d4037);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: 'Caveat Brush', cursive, var(--font-body, sans-serif);
+    font-size: 1.05rem;
+    font-weight: bold;
+    flex-grow: 1;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.voice-select:focus {
+    outline: none;
+    border-color: var(--palette-gold, #ffc107);
+    box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
+}
+
+.voice-select option {
+    background-color: #f3e5ab;
+    color: #3e2723;
+    font-family: 'Caveat Brush', cursive, sans-serif;
+    font-size: 1rem;
+    padding: 6px;
+}
+
+/* --- VOICE STUDIO CUSTOM SELECT & PARCHMENT INPUT OVERRIDES --- */
+.voice-studio-panel .custom-select-wrapper {
+    flex-grow: 1;
+    width: 100%;
+}
+
+.voice-studio-panel .custom-select__trigger {
+    background-color: var(--palette-parchment, #f3e5ab);
+    color: var(--palette-text-dark, #3e2723);
+    border: 2px solid var(--palette-wood-light, #5d4037);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-weight: bold;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.voice-studio-panel .custom-select__trigger:hover {
+    background-color: var(--palette-parchment-light, #faf3e0);
+    border-color: var(--palette-gold, #ffc107);
+}
+
+.voice-studio-panel .custom-select.open .custom-select__trigger {
+    border-color: var(--palette-gold, #ffc107);
+    box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
+}
+
+.voice-studio-panel .arrow::before,
+.voice-studio-panel .arrow::after {
+    background-color: var(--palette-wood-dark, #3e2723);
+}
+
+.voice-studio-panel .custom-select.open .arrow::before,
+.voice-studio-panel .custom-select.open .arrow::after {
+    background-color: var(--palette-wood-dark, #3e2723);
+}
+
+.voice-studio-panel .custom-options {
+    background-color: var(--palette-parchment, #f3e5ab);
+    background-image: url('/assets/images/patterns/cream-paper.png');
+    border: 2px solid var(--palette-wood-dark, #3e2723);
+    border-radius: 6px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.75);
+}
+
+.voice-studio-panel .custom-option {
+    color: var(--palette-text-dark, #3e2723);
+    font-weight: bold;
+    padding: 8px 12px;
+    transition: all 0.2s ease;
+}
+
+.voice-studio-panel .custom-option:hover {
+    background-color: rgba(212, 175, 55, 0.3);
+    color: var(--palette-text-dark, #3e2723);
+    padding-left: 28px;
+}
+
+.voice-studio-panel .custom-option.selected {
+    background-color: var(--palette-gold, #ffc107);
+    color: var(--palette-text-dark, #3e2723);
+    font-weight: bold;
+}
+
+.voice-controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.voice-controls-grid .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.voice-controls-grid label {
+    font-size: 0.85rem;
+    color: #c0c0c0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* --- INFO TOKEN & HOVER TOOLTIP --- */
+.info-token {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: var(--palette-wood-light, #5d4037);
+    color: var(--palette-parchment, #f3e5ab);
+    border: 1px solid var(--palette-gold, #ffc107);
+    font-family: 'Philosopher', serif;
+    font-size: 0.75rem;
+    font-weight: bold;
+    font-style: italic;
+    cursor: help;
+    position: relative;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    user-select: none;
+}
+
+.info-token:hover,
+.info-token:focus {
+    background-color: var(--palette-gold, #ffc107);
+    color: var(--palette-text-dark, #3e2723);
+    transform: scale(1.15);
+    outline: none;
+}
+
+.info-token[data-tooltip]:hover::after,
+.info-token[data-tooltip]:focus::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 125%;
+    right: 50%;
+    transform: translateX(50%);
+    background-color: var(--palette-parchment, #f3e5ab);
+    color: var(--palette-text-dark, #3e2723);
+    border: 2px solid var(--palette-wood-dark, #3e2723);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: 'Philosopher', serif;
+    font-size: 0.85rem;
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1.35;
+    width: 220px;
+    text-align: left;
+    white-space: normal;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.75);
+    z-index: 1000;
+    pointer-events: none;
+    animation: fadeInTooltip 0.2s ease-out forwards;
+}
+
+@keyframes fadeInTooltip {
+    from { opacity: 0; transform: translate(50%, 6px); }
+    to { opacity: 1; transform: translate(50%, 0); }
+}
+
+.voice-controls-grid input[type="range"] {
+    accent-color: #d4af37;
+    cursor: pointer;
+}
+
+.voice-test-studio {
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.voice-studio-panel input[type="text"].voice-input,
+.voice-input {
+    background: var(--palette-parchment, #f3e5ab) !important;
+    color: var(--palette-text-dark, #3e2723) !important;
+    border: 2px solid var(--palette-wood-light, #5d4037);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-family: 'Caveat Brush', cursive, var(--font-body, sans-serif);
+    font-size: 1.1rem;
+    font-weight: bold;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.voice-studio-panel input[type="text"].voice-input:focus,
+.voice-input:focus {
+    outline: none;
+    border-color: var(--palette-gold, #ffc107);
+    background: var(--palette-parchment-light, #faf3e0) !important;
+    box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
+}
+
+.voice-test-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.btn-voice {
+    background: linear-gradient(135deg, #4a2c5a, #2a1536);
+    color: #ffffff;
+    border: 1px solid #8a5aa0;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-voice:hover {
+    background: linear-gradient(135deg, #6a3c8a, #4a2566);
+    border-color: #d4af37;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(212, 175, 55, 0.3);
+}

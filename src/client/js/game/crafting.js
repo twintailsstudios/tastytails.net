@@ -13,7 +13,9 @@
 import { WindowManager } from './utils/WindowManager.js';
 import { DockManager } from './utils/DockManager.js';
 import { SewingModule } from './modules/SewingModule.js';
+import { AlembicModule } from './modules/AlembicModule.js';
 import itemData from './itemData.js';
+import craftingStations from './craftingStations.js';
 
 export class CraftingUI {
     /**
@@ -25,6 +27,7 @@ export class CraftingUI {
         this.socket = socket;
         this.player = player;
         this.isOpen = false;
+        window.craftingStations = craftingStations;
         this.activeRecipe = null;
         this.currentStationId = null;
         this.localStationInventory = [];
@@ -52,6 +55,8 @@ export class CraftingUI {
         // Window Controls
         this.closeBtn = document.getElementById('crafting-btn-close');
         this.minimizeBtn = document.getElementById('crafting-btn-minimize');
+        // Minimized Tab Registry (Multi-station support)
+        this.minimizedPills = new Map(); // stationId -> HTMLElement
         this.minimizedTab = document.getElementById('crafting-minimized-tab');
         this.tabStatusText = this.minimizedTab ? this.minimizedTab.querySelector('.tab-title') : null;
         this.tabProgressBar = document.getElementById('crafting-tab-progress');
@@ -260,19 +265,43 @@ export class CraftingUI {
 
         this.activeRecipe = null;
         this.localStationInventory = data.stationInventory || [];
+        this.allRecipes = data.recipes || [];
 
-        // Reset Base UI State
-        this.progressBar.style.transition = 'none';
-        this.progressBar.style.width = '0%';
-        this.progressLabel.textContent = "";
-        if (this.tabProgressBar) this.tabProgressBar.style.width = '0%';
-        if (this.tabStatusText) this.tabStatusText.textContent = "";
-
-        // [FIX] Store recipes BEFORE applying config, so custom modules can access them via this.craftingUI.allRecipes
-        this.allRecipes = data.recipes;
-
-        // [NEW] Apply Custom Text & Config FIRST so renderers use it
+        // Apply Custom Text & Config FIRST (which will mount custom module if config specifies it)
         this.applyStationConfig(data.uiConfig || {});
+
+        // Hide active minimized pill for this station while window is open
+        if (data.stationId && this.minimizedPills.has(data.stationId)) {
+            const pill = this.minimizedPills.get(data.stationId);
+            if (pill) pill.style.display = 'none';
+            DockManager.updateLayout();
+        }
+
+        // If standard station (no custom module mounted)
+        if (!this.currentModule) {
+            // Reset Base UI State
+            if (this.progressBar) {
+                this.progressBar.style.transition = 'none';
+                this.progressBar.style.width = '0%';
+            }
+            if (this.progressLabel) this.progressLabel.textContent = "";
+            if (this.tabProgressBar) this.tabProgressBar.style.width = '0%';
+            if (this.tabStatusText) this.tabStatusText.textContent = "";
+
+            this.renderRecipes(data.recipes || []);
+            this.updateStationInventory(data.stationInventory || []);
+
+            // Render Output Slot if item exists (Persistent persistent)
+            if (data.outputItem) {
+                this.renderOutputSlot(data.outputItem);
+            } else if (this.outputSlot && this.outputHint) {
+                this.outputSlot.innerHTML = '';
+                this.outputHint.textContent = (this.currentConfig && this.currentConfig.outputLabel) ? this.currentConfig.outputLabel : "Cooling Rack";
+            }
+        } else {
+            // Custom module update
+            this.updateStationInventory(data.stationInventory || []);
+        }
 
         // [NEW] Check for Resume State from Server
         if (data.craftingState) {
@@ -285,21 +314,9 @@ export class CraftingUI {
             this.pausedState = null;
         }
 
-        // this.allRecipes already set above
-        this.renderRecipes(data.recipes);
-        this.updateStationInventory(data.stationInventory);
-
-        // Render Output Slot if item exists (Persistent persistent)
-        if (data.outputItem) {
-            this.renderOutputSlot(data.outputItem);
-        } else {
-            this.outputSlot.innerHTML = '';
-            this.outputHint.textContent = (this.currentConfig && this.currentConfig.outputLabel) ? this.currentConfig.outputLabel : "Cooling Rack";
-        }
-
         // [NEW] Auto-select recipe AND update Bar if resuming
-        if (this.pausedState) {
-            const resumedRecipe = data.recipes.find(r => r.id === this.pausedState.recipeId);
+        if (this.pausedState && !this.currentModule) {
+            const resumedRecipe = (data.recipes || []).find(r => r.id === this.pausedState.recipeId);
             if (resumedRecipe) {
                 this.selectRecipe(resumedRecipe, data.recipes);
 
@@ -309,14 +326,14 @@ export class CraftingUI {
                 const startPercent = Math.max(0, Math.min(100, ((totalTime - remaining) / totalTime) * 100));
 
                 // Update Bar Visually (No transition, static state)
-                this.progressBar.style.width = `${startPercent}%`;
+                if (this.progressBar) this.progressBar.style.width = `${startPercent}%`;
                 const progressText = "PAUSED";
-                this.progressLabel.textContent = progressText;
+                if (this.progressLabel) this.progressLabel.textContent = progressText;
 
                 if (this.tabProgressBar) this.tabProgressBar.style.width = `${startPercent}%`;
                 if (this.tabStatusText) this.tabStatusText.textContent = "Paused";
             }
-        } else {
+        } else if (!this.currentModule) {
             this.updateUI(); // Reset UI state check
         }
     }
@@ -331,13 +348,24 @@ export class CraftingUI {
     }
 
     restoreDefaultUI() {
-        if (!this.isCustomLayout) return;
+        if (this.currentModule && typeof this.currentModule.destroy === 'function') {
+            try {
+                this.currentModule.destroy();
+            } catch (e) {
+                console.error("[CraftingUI] Error destroying custom module:", e);
+            }
+        }
 
-        console.log("Restoring Default Crafting UI...");
-        const bodyEl = this.window.querySelector('.window-body');
-        if (bodyEl) bodyEl.innerHTML = this.defaultBodyHTML;
+        this.currentModule = null;
 
-        // Re-query DOM Elements that were lost
+        const bodyEl = this.window ? this.window.querySelector('.window-body') : null;
+        if (bodyEl && this.defaultBodyHTML) {
+            bodyEl.innerHTML = this.defaultBodyHTML;
+        }
+
+        this.isCustomLayout = false;
+
+        // Re-query DOM Elements that were restored
         this.recipeList = document.getElementById('recipe-list');
         this.craftBtn = document.getElementById('crafting-action-btn');
         this.inventoryList = document.getElementById('station-input-slot');
@@ -354,13 +382,67 @@ export class CraftingUI {
 
         // Re-attach listeners for the restored elements
         if (this.craftBtn) this.craftBtn.onclick = () => this.startCrafting();
+    }
 
-        if (this.currentModule && typeof this.currentModule.destroy === 'function') {
-            this.currentModule.destroy();
+    getOrCreateMinimizedPill(stationId, config) {
+        if (!stationId) return null;
+        let pill = this.minimizedPills.get(stationId);
+        if (!pill) {
+            const pillId = `crafting-minimized-tab-${stationId}`;
+            pill = document.getElementById(pillId);
+
+            if (!pill) {
+                pill = document.createElement('div');
+                pill.id = pillId;
+                pill.className = `minimized-tab ${config.theme || ''}`;
+                pill.dataset.stationId = stationId;
+                pill.style.display = 'none';
+
+                const iconClass = config.defaultRecipeIcon
+                    ? (config.defaultRecipeIcon.includes('fa-') ? config.defaultRecipeIcon : `fa-solid ${config.defaultRecipeIcon}`)
+                    : 'fa-solid fa-hammer';
+
+                const titleStr = config.title || 'Crafting Station';
+
+                pill.innerHTML = `
+                    <div class="tab-icon"><i class="${iconClass}"></i></div>
+                    <div class="tab-content">
+                        <div class="tab-title">${titleStr}</div>
+                        <div class="tab-progress-bg">
+                            <div class="tab-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="tab-controls">
+                        <div class="restore-btn">☐</div>
+                    </div>
+                `;
+
+                document.body.appendChild(pill);
+            }
+
+            pill.onclick = (e) => {
+                if (pill.dataset.isDragging !== 'true') {
+                    this.restoreStation(stationId);
+                }
+            };
+
+            const restoreBtn = pill.querySelector('.restore-btn');
+            if (restoreBtn) {
+                restoreBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.restoreStation(stationId);
+                };
+            }
+
+            DockManager.register(pill, 'left');
+            this.minimizedPills.set(stationId, pill);
+        } else {
+            pill.className = `minimized-tab ${config.theme || ''}`;
+            const titleEl = pill.querySelector('.tab-title');
+            if (titleEl && config.title) titleEl.textContent = config.title;
         }
 
-        this.isCustomLayout = false;
-        this.currentModule = null;
+        return pill;
     }
 
     applyStationConfig(config) {
@@ -378,16 +460,9 @@ export class CraftingUI {
         const outputHintEl = document.getElementById('outputHint');
         if (outputHintEl) outputHintEl.textContent = config.outputLabel || "Cooling Rack";
 
-        // [NEW] Restore Default UI if needed (switching from Custom back to Standard)
-        if (this.isCustomLayout && (!config.modules || config.modules.type !== 'sewing_custom')) {
-            this.restoreDefaultUI();
-        }
-
         // Apply Theme Class
-        // Reset to base class first
         this.window.className = 'crafting-window';
 
-        // [FIX] Clear inline styles that might interfere with theme dimensions (e.g. from previous resizing)
         this.window.style.width = '';
         this.window.style.height = '';
         this.window.style.fontFamily = '';
@@ -396,80 +471,84 @@ export class CraftingUI {
             this.window.classList.add(config.theme);
         }
 
-        // [NEW] Update Minimized Tab Theme & Title
-        if (this.minimizedTab) {
-            this.minimizedTab.className = 'minimized-tab'; // Reset
-            if (config.theme) {
-                this.minimizedTab.classList.add(config.theme);
-            }
-
-            const titleEl = this.minimizedTab.querySelector('.tab-title, #minimized-tab-title');
-            if (titleEl) {
-                const titleStr = config.title || "Crafting Paused";
-                titleEl.textContent = titleStr;
-                titleEl.style.display = 'block';
-                titleEl.style.opacity = '1';
-                titleEl.style.visibility = 'visible';
+        // Update Minimized Tab for current station
+        if (this.currentStationId) {
+            const pill = this.getOrCreateMinimizedPill(this.currentStationId, config);
+            if (pill) {
+                this.minimizedTab = pill;
+                this.tabStatusText = pill.querySelector('.tab-title');
+                this.tabProgressBar = pill.querySelector('.tab-progress-bar');
             }
         }
 
-        // [NEW] Dynamic Modules
+        // Dynamic Modules
         if (config.modules) {
             if (config.modules.recipeList === false) {
                 this.window.classList.add('layout-single-col');
             }
 
-            // [NEW] Check for Custom UI Module
             if (config.modules.type === 'sewing_custom') {
                 this.mountCustomModule(new SewingModule(this.window.querySelector('.window-body'), this.socket, this));
-                return; // Stop default rendering
+                return;
+            }
+            if (config.modules.type === 'alembic_custom') {
+                this.mountCustomModule(new AlembicModule(this.window.querySelector('.window-body'), this.socket, this));
+                return;
             }
         }
 
-        // If no recipe is selected, update the preview text to the prompt
-        if (!this.activeRecipe) {
+        if (!this.activeRecipe && this.previewName && this.craftBtn) {
             this.previewName.textContent = config.recipeSelectPrompt || "Select a Blueprint";
             this.craftBtn.textContent = "Select Recipe";
         }
     }
 
     close() {
+        if (!this.isOpen && this.uiContainer.style.display === 'none') return;
         this.isOpen = false;
+
+        if (this.currentStationId) {
+            const pill = this.minimizedPills.get(this.currentStationId);
+            if (pill) {
+                pill.style.display = 'none';
+                DockManager.unregister(pill);
+                pill.remove();
+                this.minimizedPills.delete(this.currentStationId);
+            }
+        }
+
         this.currentStationId = null;
         this.uiContainer.classList.remove('active');
 
-        // [NEW] Notify server to pause/stop crafting so we can move
         this.socket.emit('craftingPause');
 
-        // [NEW] Optimistically clear local crafting state to allow immediate movement
         if (this.player && this.player.playerInfo) {
             this.player.playerInfo.isCrafting = false;
         } else if (window.game && window.game.playerContainer && window.game.playerContainer.playerInfo) {
             window.game.playerContainer.playerInfo.isCrafting = false;
         }
 
-        // Ensure minimized tab is hidden immediately
-        if (this.minimizedTab) this.minimizedTab.style.display = 'none';
-
-        // Re-parent window back to overlay container if detached by dragging
-        if (this.window && this.uiContainer && this.window.parentElement !== this.uiContainer) {
-            this.uiContainer.appendChild(this.window);
-        }
-
-        if (this.window) {
-            delete this.window.dataset.hasBeenDragged;
-            this.window.style.position = '';
-            this.window.style.left = '';
-            this.window.style.top = '';
-            this.window.style.transform = '';
-            this.window.style.margin = '';
-        }
-
-        // Delay display:none to allow transition
+        // Delay layout reset and display:none until 200ms fade-out completes
         setTimeout(() => {
             if (!this.isOpen) {
                 this.uiContainer.style.display = 'none';
-                if (this.window) this.window.style.display = 'none';
+                if (this.window) {
+                    this.window.style.display = 'none';
+                    delete this.window.dataset.hasBeenDragged;
+                    this.window.style.position = '';
+                    this.window.style.left = '';
+                    this.window.style.top = '';
+                    this.window.style.transform = '';
+                    this.window.style.margin = '';
+                }
+
+                // Always restore standard UI and clean up sub-modules after hidden
+                this.restoreDefaultUI();
+
+                // Re-parent window back to overlay container if detached by dragging
+                if (this.window && this.uiContainer && this.window.parentElement !== this.uiContainer) {
+                    this.uiContainer.appendChild(this.window);
+                }
             }
         }, 200);
     }
@@ -567,7 +646,7 @@ export class CraftingUI {
 
         // [NEW] Delegate to Custom Module
         if (this.currentModule) {
-            this.currentModule.updateInventory(inventory);
+            this.currentModule.updateInventory(inventory, this.outputItem);
             return;
         }
 
@@ -644,54 +723,119 @@ export class CraftingUI {
         this.tryAutoSelectRecipe();
     }
 
-    tryAutoSelectRecipe() {
-        // Only run if the module config says recipeList is HIDDEN
-        if (!this.currentConfig || !this.currentConfig.modules || this.currentConfig.modules.recipeList !== false) {
-            return;
+    findRecipeByIngredients(inventory, recipes) {
+        if (!inventory || inventory.length === 0) return { matched: null, hint: null };
+
+        const allRecipes = recipes || this.allRecipes || [];
+        const depositedItems = inventory.filter(Boolean);
+        const depositedItemIds = depositedItems.map(item => item.itemId);
+        if (depositedItemIds.length === 0) return { matched: null, hint: null };
+
+        // 1. EXACT MULTISET MATCH
+        for (const recipe of allRecipes) {
+            const ingList = recipe.ingredients || [];
+            if (ingList.length === 0) continue;
+
+            const reqItemIds = [];
+            ingList.forEach(ing => {
+                const count = ing.count || 1;
+                for (let i = 0; i < count; i++) {
+                    reqItemIds.push(ing.itemId);
+                }
+            });
+
+            if (reqItemIds.length !== depositedItemIds.length) continue;
+
+            const sortedReq = [...reqItemIds].sort();
+            const sortedDep = [...depositedItemIds].sort();
+
+            const isExactMatch = sortedReq.every((id, idx) => id === sortedDep[idx]);
+            if (isExactMatch) {
+                return { matched: recipe, hint: null };
+            }
         }
 
-        if (!this.allRecipes || this.allRecipes.length === 0) return;
-
-        // Count current inventory
-        const inventoryCounts = {};
-        this.localStationInventory.forEach(item => {
-            inventoryCounts[item.itemId] = (inventoryCounts[item.itemId] || 0) + 1;
+        // 2. DYNAMIC PARTIAL MATCH GUIDANCE HINT
+        const partialCandidates = allRecipes.filter(recipe => {
+            const ingList = recipe.ingredients || [];
+            return ingList.some(ing => depositedItemIds.includes(ing.itemId));
         });
 
-        // Find first matching recipe
-        let matchedRecipe = null;
+        if (partialCandidates.length > 0) {
+            const missingNamesSet = new Set();
+            let targetResultName = '';
 
-        for (const recipe of this.allRecipes) {
-            if (!recipe.ingredients) continue;
-
-            let possible = true;
-            for (const ing of recipe.ingredients) {
-                const has = inventoryCounts[ing.itemId] || 0;
-                if (has < ing.count) {
-                    possible = false;
-                    break;
+            partialCandidates.forEach(recipe => {
+                const resultDef = itemData[recipe.result.itemId] || {};
+                if (!targetResultName) {
+                    targetResultName = (resultDef.name || recipe.name || '').toLowerCase();
                 }
-            }
 
-            if (possible) {
-                matchedRecipe = recipe;
-                break; // Found one!
+                (recipe.ingredients || []).forEach(ing => {
+                    if (!depositedItemIds.includes(ing.itemId)) {
+                        const ingDef = itemData[ing.itemId] || {};
+                        const name = (ingDef.name || ing.itemId || '').toLowerCase();
+                        if (name) missingNamesSet.add(name);
+                    }
+                });
+            });
+
+            if (missingNamesSet.size > 0) {
+                const missingArray = Array.from(missingNamesSet);
+                let formattedMissing = '';
+                if (missingArray.length === 1) {
+                    formattedMissing = missingArray[0];
+                } else if (missingArray.length === 2) {
+                    formattedMissing = `${missingArray[0]} or ${missingArray[1]}`;
+                } else {
+                    formattedMissing = `${missingArray.slice(0, -1).join(', ')}, or ${missingArray[missingArray.length - 1]}`;
+                }
+
+                const verb = (this.currentConfig && this.currentConfig.interactionVerb)
+                    ? this.currentConfig.interactionVerb.toLowerCase()
+                    : 'craft';
+
+                const hintText = `Add ${formattedMissing} to ${verb} ${targetResultName}`;
+                return { matched: null, hint: hintText };
             }
         }
 
-        if (matchedRecipe) {
-            // Only switch if different to avoid flickering? 
-            // Actually, selectRecipe handles re-render, so it's fine.
-            if (!this.activeRecipe || this.activeRecipe.id !== matchedRecipe.id) {
-                console.log("[CraftingUI] Auto-selecting recipe:", matchedRecipe.name);
-                this.selectRecipe(matchedRecipe, this.allRecipes);
+        return { matched: null, hint: "Invalid material combination" };
+    }
+
+    tryAutoSelectRecipe() {
+        const isAutoMatch = this.currentConfig && (this.currentConfig.autoMatch || (this.currentConfig.modules && this.currentConfig.modules.recipeList === false));
+        if (!isAutoMatch) return;
+
+        const { matched, hint } = this.findRecipeByIngredients(this.localStationInventory, this.allRecipes);
+
+        if (matched) {
+            if (!this.activeRecipe || this.activeRecipe.id !== matched.id) {
+                this.activeRecipe = matched;
+                this.updateUI();
             }
         } else {
-            // Optional: If no match, clear selection?
-            // Usually safer to clear so they don't craft the wrong thing if they pull items out.
-            if (this.activeRecipe) {
-                this.activeRecipe = null;
-                this.updateUI();
+            this.activeRecipe = null;
+            if (hint && this.previewDesc && this.previewName) {
+                this.previewName.textContent = "Add Required Materials";
+                this.previewDesc.textContent = hint;
+                if (this.previewIcon) this.previewIcon.innerHTML = `<i class="fa-solid fa-flask-vial" style="font-size: 28px; color: #38bdf8;"></i>`;
+                if (this.costDisplay) this.costDisplay.innerHTML = `<div class="cost-hint" style="color: #94a3b8; font-size: 13px; font-style: italic;">${hint}</div>`;
+                if (this.craftBtn) {
+                    this.craftBtn.classList.remove('ready');
+                    this.craftBtn.disabled = true;
+                    this.craftBtn.textContent = (this.currentConfig && this.currentConfig.buttonLabel) ? this.currentConfig.buttonLabel : "Craft";
+                }
+            } else if (this.previewName) {
+                this.previewName.textContent = (this.currentConfig && this.currentConfig.recipeSelectPrompt) ? this.currentConfig.recipeSelectPrompt : "Deposit Materials";
+                this.previewDesc.textContent = "Deposit materials into the crucible.";
+                if (this.previewIcon) this.previewIcon.innerHTML = `<i class="fa-solid fa-box-open" style="font-size: 28px;"></i>`;
+                if (this.costDisplay) this.costDisplay.innerHTML = "";
+                if (this.craftBtn) {
+                    this.craftBtn.classList.remove('ready');
+                    this.craftBtn.disabled = true;
+                    this.craftBtn.textContent = (this.currentConfig && this.currentConfig.buttonLabel) ? this.currentConfig.buttonLabel : "Craft";
+                }
             }
         }
     }
@@ -959,10 +1103,18 @@ export class CraftingUI {
             }
         }
 
+        // Delegate to custom module if active
+        if (this.currentModule && typeof this.currentModule.finishCrafting === 'function') {
+            this.currentModule.finishCrafting(data);
+            return;
+        }
+
         // Reset Bar
-        this.progressBar.style.transition = 'none';
-        this.progressBar.style.width = '0%';
-        this.progressLabel.textContent = "";
+        if (this.progressBar) {
+            this.progressBar.style.transition = 'none';
+            this.progressBar.style.width = '0%';
+        }
+        if (this.progressLabel) this.progressLabel.textContent = "";
 
         // Restore Station Title
         if (this.tabStatusText && this.currentConfig) {
@@ -1051,20 +1203,41 @@ export class CraftingUI {
     }
 
     minimize() {
-        if (!this.isOpen) return;
-        this.uiContainer.style.display = 'none'; // Hide main overlay
-        this.window.style.display = 'none';
-        if (this.minimizedTab) {
-            this.minimizedTab.style.display = 'flex';
+        if (!this.isOpen || !this.currentStationId) return;
+
+        const stationId = this.currentStationId;
+        const config = this.currentConfig || {};
+        const pill = this.getOrCreateMinimizedPill(stationId, config);
+
+        if (pill) {
+            pill.style.display = 'flex';
             DockManager.updateLayout();
+        }
+
+        this.uiContainer.style.display = 'none';
+        this.window.style.display = 'none';
+    }
+
+    restoreStation(stationId) {
+        const targetId = stationId || this.currentStationId;
+        if (!targetId) return;
+
+        const pill = this.minimizedPills.get(targetId);
+        if (pill) {
+            pill.style.display = 'none';
+            DockManager.updateLayout();
+        }
+
+        if (this.currentStationId === targetId && this.isOpen) {
+            this.uiContainer.style.display = 'flex';
+            this.window.style.display = '';
+        } else {
+            this.socket.emit('openCrafting', { stationId: targetId });
         }
     }
 
     restore() {
-        if (!this.isOpen) return;
-        this.uiContainer.style.display = 'flex'; // Restore overlay
-        this.window.style.display = ''; // Revert to CSS default (block/flex)
-        if (this.minimizedTab) this.minimizedTab.style.display = 'none';
+        this.restoreStation(this.currentStationId);
     }
 
     showFloatingText(text, isError = false) {

@@ -28,6 +28,7 @@ import { initCorpses } from './corpses.js';
 import { Animal } from './entity/Animal.js'; // NEW
 import { initMedicalUI } from './medicalUI.js';
 import { initTargetSelection } from './targetSelection.js';
+import { MidiEngine } from './audio/MidiEngine.js';
 
 let debugGraphics;
 let playerDebugGraphics;
@@ -56,6 +57,24 @@ export function create() {
     window.gameScene = self; // Expose globally for UI interactions
     initDebugGraph(); // Initialize HTML debug graph
     initTargetSelection(); // Initialize Target Selection Paper Doll Widget
+
+    // Initialize MIDI Background Music Subsystem & Start Default Track
+    this.midiEngine = new MidiEngine();
+    this.midiEngine.init();
+    this.midiEngine.isReadyToPlay = false;
+    this.midiEngine.loadMidi('/assets/music/test_theme.mid')
+        .then(() => {
+            console.log('[create] Background music sequence preloaded.');
+            this.midiEngine.isReadyToPlay = true;
+            // If player container is already spawned, start BGM with initial spawn zone state
+            if (this.playerContainer) {
+                this.midiEngine.applyInitialZoneState(this.playerContainer.x, this.playerContainer.y);
+                this.midiEngine.play();
+            }
+        })
+        .catch(err => {
+            console.warn('[create] Could not load default background music:', err);
+        });
 
     // OPTIMIZATION: Fast O(1) lookup Maps for map objects and animal entities
     this.mapObjectsMap = new Map();
@@ -157,6 +176,7 @@ export function create() {
     this.playerInfo = localPlayerInfo; // Ensure it's attached to the scene so self.playerInfo works
     this.input.topOnly = false;
     self.showDebug = false;
+    self.showMusicTiles = false;
 
     //----- Window Resize -----//
 
@@ -452,6 +472,9 @@ export function create() {
     this.debugGraphics = this.add.graphics();
     debugGraphics = this.debugGraphics; // Assign to module-level variable if needed
     playerDebugGraphics = this.add.graphics(); // Initialize player debug graphics
+    this.musicDebugGraphics = this.add.graphics(); // Initialize music debug graphics layer
+    this.musicDebugGraphics.setDepth(19000);
+    this.musicDebugTexts = [];
 
     // --- DEBUG TOGGLE LISTENER ---
     // --- DEBUG TOGGLE LISTENER ---
@@ -491,6 +514,60 @@ export function create() {
                             layer.alpha = 0;
                         }
                     });
+                }
+            }
+        });
+    }
+
+    // --- AUDIO & MUSIC OPTIONS UI BINDING ---
+    const musicMuteToggle = document.getElementById('musicMuteToggle');
+    const musicVolumeSlider = document.getElementById('musicVolumeSlider');
+    const musicVolumeValue = document.getElementById('musicVolumeValue');
+    const showMusicTilesToggle = document.getElementById('showMusicTilesToggle');
+
+    if (this.midiEngine) {
+        if (musicMuteToggle) {
+            musicMuteToggle.checked = this.midiEngine.isMuted;
+            musicMuteToggle.addEventListener('change', (e) => {
+                this.midiEngine.toggleMute();
+            });
+        }
+
+        if (musicVolumeSlider) {
+            const initialVol = Math.round(this.midiEngine.masterVolume * 100);
+            musicVolumeSlider.value = initialVol;
+            if (musicVolumeValue) musicVolumeValue.innerText = `${initialVol}%`;
+
+            musicVolumeSlider.addEventListener('input', (e) => {
+                const val = Number(e.target.value);
+                if (musicVolumeValue) musicVolumeValue.innerText = `${val}%`;
+                this.midiEngine.setMasterVolume(val / 100);
+            });
+        }
+    }
+
+    if (showMusicTilesToggle) {
+        showMusicTilesToggle.checked = Boolean(self.showMusicTiles);
+        showMusicTilesToggle.addEventListener('change', (e) => {
+            self.showMusicTiles = e.target.checked;
+
+            // Toggle visibility of tilemap music layers
+            if (self.mapLayers) {
+                self.mapLayers.forEach(layer => {
+                    const lname = layer.layer?.name?.toLowerCase() || '';
+                    if (lname.includes('music')) {
+                        layer.alpha = self.showMusicTiles ? 0.75 : 0;
+                    }
+                });
+            }
+
+            if (!self.showMusicTiles) {
+                if (self.musicDebugGraphics) {
+                    self.musicDebugGraphics.clear();
+                }
+                if (self.musicDebugTexts && self.musicDebugTexts.length > 0) {
+                    self.musicDebugTexts.forEach(t => t.destroy());
+                    self.musicDebugTexts = [];
                 }
             }
         });
@@ -538,6 +615,16 @@ export function create() {
         Object.keys(players).forEach(function (id) {
             if (players[id].playerId === self.socket.id) {
                 displayPlayers(self, players[id]);
+
+                // Evaluate spawn location audio gains and start BGM BEFORE loading overlay fades out
+                if (self.midiEngine) {
+                    self.midiEngine.applyInitialZoneState(players[id].x, players[id].y);
+                    if (self.midiEngine.isReadyToPlay && !self.midiEngine.isPlaying) {
+                        console.log('[create] Starting background music sequence for spawned character.');
+                        self.midiEngine.play();
+                    }
+                }
+
                 // Sync Equipment on Load
                 if (equipmentManager) {
                     console.log('[Client] Syncing initial equipment:', players[id].equipment);

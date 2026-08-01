@@ -19,10 +19,10 @@
 -%>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css" />
-<link rel="stylesheet" href="/css/create.css?v=<%= Date.now() %>">
-<link rel="stylesheet" href="/css/anatomy_forge.css?v=<%= Date.now() %>">
-<link rel="stylesheet" href="/css/loading.css?v=<%= Date.now() %>">
-<script src="/js/anatomy_forge.js?v=<%= Date.now() %>"></script>
+<link rel="stylesheet" href="/css/create.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>">
+<link rel="stylesheet" href="/css/anatomy_forge.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>">
+<link rel="stylesheet" href="/css/loading.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>">
+<script src="/js/anatomy_forge.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
 
 
 
@@ -64,6 +64,8 @@
               onclick="if(window.AnatomyForge) window.AnatomyForge.refreshLayout()"><span><i
                   class="fa-solid fa-utensils"></i> Vore
               </span></button></li>
+          <li><button type="button" id="voice" class="button main"><span><i class="fa-solid fa-microphone"></i>
+                Voice </span></button></li>
         </ul>
       </div>
 
@@ -776,6 +778,12 @@
                       <div id="legacy-shim-container"></div>
                     </div>
 
+                    <!-- 5. VOICE TAB -->
+                    <div id="voicePullout" class="pullout" style="display:none;">
+                      <div id="voiceStudioContainer"></div>
+                      <input type="hidden" name="voiceProfile" id="voiceProfileInput" value='<%= charList && charList.voiceProfile ? JSON.stringify(charList.voiceProfile) : "" %>'>
+                    </div>
+
                     <!-- NAVIGATION BUTTONS -->
                     <div id="buttonHolder">
                       <button type="button" id="next" class="btn btn-secondary button main" style="width:auto;"><span>Next <i
@@ -783,6 +791,8 @@
                       <button type="button" id="next2" class="btn btn-secondary button main" style="width:auto; display:none;"><span>Next
                           <i class="fa-solid fa-arrow-right"></i></span></button>
                       <button type="button" id="next3" class="btn btn-secondary button main" style="width:auto; display:none;"><span>Next
+                          <i class="fa-solid fa-arrow-right"></i></span></button>
+                      <button type="button" id="next4" class="btn btn-secondary button main" style="width:auto; display:none;"><span>Next
                           <i class="fa-solid fa-arrow-right"></i></span></button>
                       <button type="submit" id="finish" class="btn btn-primary button main"
                         style="width:auto; display:none;"><span>Finish <i
@@ -857,9 +867,9 @@
     .replace(/\u2029/g, '\\u2029') %>`;
   window.TASTY_TAILS_CHAR_DATA = rawCharList === 'new' ? 'new' : JSON.parse(rawCharList.replace(/&quot;/g, '"'));
 </script>
-<script src="/js/creator/CharacterPreviewScene.js?v=<%= Date.now() %>"></script>
-<script src="/js/creator/ColorPickerManager.js?v=<%= Date.now() %>"></script>
-<script src="/js/creator/CharacterCreatorApp.js?v=<%= Date.now() %>"></script>
+<script src="/js/creator/CharacterPreviewScene.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script src="/js/creator/ColorPickerManager.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script type="module" src="/js/creator/CharacterCreatorApp.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
 
 <!-- UTILITIES (Moved to Body Root for Z-Index Safety) -->
 <div id="af-ghost-node" class="af-node ghost" style="display: none;"></div>

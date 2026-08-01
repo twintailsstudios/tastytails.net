@@ -395,6 +395,20 @@ function saveSettings(self) {
     console.warn("saveSettings called but functionality moved to Anatomy Forge.");
 }
 
+// Global helper for music master volume control
+window.setMusicVolume = function (vol) {
+    if (window.gameScene && window.gameScene.midiEngine) {
+        window.gameScene.midiEngine.setMasterVolume(vol);
+    }
+};
+
+window.toggleMusicMute = function () {
+    if (window.gameScene && window.gameScene.midiEngine) {
+        return window.gameScene.midiEngine.toggleMute();
+    }
+    return false;
+};
+
 // Global helper for audio preview (called by inline onclick)
 window.toggleAudioPreview = function (btn, type) {
     const icon = btn.querySelector("i");

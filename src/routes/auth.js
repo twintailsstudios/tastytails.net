@@ -237,9 +237,22 @@ const parseCharacterCustomization = (body) => {
     headAccessories: { ...headAccessories, color: generateSpiritColor(headAccessories.color) }
   };
 
+  let voiceProfile = null;
+  if (body.voiceProfile) {
+    if (typeof body.voiceProfile === 'string') {
+      try {
+        voiceProfile = JSON.parse(body.voiceProfile);
+      } catch (e) {
+        voiceProfile = null;
+      }
+    } else if (typeof body.voiceProfile === 'object') {
+      voiceProfile = body.voiceProfile;
+    }
+  }
+
   return {
     ratings, voreTypes, head, headAccessories, bodyShape, body: bodyComp,
-    tail, eyes, hair, ear, genitals, hands, feet, beak, spiritSprite
+    tail, eyes, hair, ear, genitals, hands, feet, beak, spiritSprite, voiceProfile
   };
 };
 
@@ -430,7 +443,8 @@ router.post('/createcharacter', async (req, res) => {
               "tail": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0, "fractured": false }
             }
           },
-          "anatomyData": req.body.anatomyData || ""
+          "anatomyData": req.body.anatomyData || "",
+          "voiceProfile": custom.voiceProfile
         }
       }
     });
@@ -501,7 +515,8 @@ router.post('/editcharacter', async (req, res) => {
         "characters.$.feet": custom.feet,
         "characters.$.beak": custom.beak,
         "characters.$.spiritSprite": custom.spiritSprite,
-        "characters.$.anatomyData": req.body.anatomyData || ""
+        "characters.$.anatomyData": req.body.anatomyData || "",
+        "characters.$.voiceProfile": custom.voiceProfile
       }
     }, { new: true });
 

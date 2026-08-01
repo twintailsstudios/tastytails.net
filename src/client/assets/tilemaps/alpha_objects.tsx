@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.12.2" name="alpha_objects" tilewidth="252" tileheight="511" tilecount="48" columns="0" objectalignment="bottomleft">
+<tileset version="1.10" tiledversion="1.12.2" name="alpha_objects" tilewidth="252" tileheight="511" tilecount="49" columns="0" objectalignment="bottomleft">
  <editorsettings>
   <export target="alpha_objects..tsx" format="tsx"/>
  </editorsettings>
@@ -148,7 +148,7 @@
    <property name="bodyWidth" type="int" value="30"/>
    <property name="texture" value="tree_02"/>
   </properties>
-  <image source="tree_02.png" width="230" height="511"/>
+  <image source="tree_02.png" width="230" height="299"/>
  </tile>
  <tile id="18">
   <properties>
@@ -418,5 +418,15 @@
  </tile>
  <tile id="61">
   <image source="tilled_soil_watered.png" width="32" height="32"/>
+ </tile>
+ <tile id="62">
+  <properties>
+   <property name="bodyHeight" type="int" value="15"/>
+   <property name="bodyOffsetY" type="int" value="5"/>
+   <property name="bodyWidth" type="int" value="70"/>
+   <property name="stationType" value="alembic"/>
+   <property name="texture" value="alembic"/>
+  </properties>
+  <image source="alembic.png" width="70" height="84"/>
  </tile>
 </tileset>

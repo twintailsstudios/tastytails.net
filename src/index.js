@@ -120,7 +120,21 @@ app.set('view engine', 'ejs');
 app.set('views', __dirname + '/views');
 app.set('layout', 'layouts/layout');
 
+// App Version Configuration & Global Locals
+const packageJson = require('../package.json');
+const APP_VERSION = process.env.APP_VERSION || packageJson.version;
+app.locals.appVersion = APP_VERSION;
+log.info(`[Version] TastyTails.net running app version: ${APP_VERSION}`);
+
 // --- Middleware ---
+// HTML Cache-Control Middleware: Ensure HTML pages are never cached stale by browser
+app.use((req, res, next) => {
+  if (req.method === 'GET' && req.accepts('html')) {
+    res.set('Cache-Control', 'no-cache, must-revalidate, max-age=0');
+  }
+  next();
+});
+
 // Security Middleware
 const helmet = require('helmet');
 app.use(helmet({
@@ -263,6 +277,9 @@ serverGame.start(io, messageSystem);
 // Set up a separate listener for chat-related events.
 io.on('connection', (socket) => {
   log.info(`A user connected for chat: ${socket.id}`);
+
+  // Emit current application version to client for runtime cache checking
+  socket.emit('serverVersion', { version: APP_VERSION });
 
   // Handle chat events
   // Use MessageSystem to handle all incoming chat messages.

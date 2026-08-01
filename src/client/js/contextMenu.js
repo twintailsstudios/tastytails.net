@@ -813,9 +813,12 @@ function initializeContextMenu(scene, socket) {
                         })
                     });
                 } else if (hasCraft) {
+                    const stationCfg = (window.craftingStations && currentItem.stationType) ? window.craftingStations[currentItem.stationType] : null;
+                    const actionLabel = stationCfg && stationCfg.interactionVerb ? stationCfg.interactionVerb : 'Craft';
+                    const iconClass = (stationCfg && stationCfg.defaultRecipeIcon) ? (stationCfg.defaultRecipeIcon.includes('fa-') ? stationCfg.defaultRecipeIcon : `fa-solid ${stationCfg.defaultRecipeIcon}`) : 'fa-solid fa-hammer';
                     innerActions.push({
-                        label: 'Craft',
-                        icon: 'fa-solid fa-hammer',
+                        label: actionLabel,
+                        icon: iconClass,
                         onClick: (e) => checkReach(targetId, targetType, e, () => {
                             socket.emit('openCrafting', { stationId: currentItem.uniqueId, hand: (mouseDownButton === 2) ? 'right' : 'left' });
                         })
@@ -1195,17 +1198,19 @@ function initializeContextMenu(scene, socket) {
             } else if (info.interactType === 'gather') {
                 actionText = '<i class="fa-solid fa-hand-holding"></i> L-click or R-click to gather';
             } else if (info.stationType) {
+                const stationCfg = window.craftingStations ? window.craftingStations[info.stationType] : null;
+                const verb = stationCfg && stationCfg.interactionVerb ? stationCfg.interactionVerb.toLowerCase() : 'craft';
                 const leftIsIng = leftHandNode && isIngredientForStation(leftHandNode.itemId, info.stationType);
                 const rightIsIng = rightHandNode && isIngredientForStation(rightHandNode.itemId, info.stationType);
 
                 if (leftIsIng && rightIsIng) {
-                    actionText = '<i class="fa-solid fa-hammer"></i> L-click or R-click to deposit & craft';
+                    actionText = `<i class="fa-solid fa-hammer"></i> L-click or R-click to deposit & ${verb}`;
                 } else if (leftIsIng) {
-                    actionText = '<i class="fa-solid fa-hammer"></i> L-click to deposit & craft';
+                    actionText = `<i class="fa-solid fa-hammer"></i> L-click to deposit & ${verb}`;
                 } else if (rightIsIng) {
-                    actionText = '<i class="fa-solid fa-hammer"></i> R-click to deposit & craft';
+                    actionText = `<i class="fa-solid fa-hammer"></i> R-click to deposit & ${verb}`;
                 } else {
-                    actionText = '<i class="fa-solid fa-hammer"></i> L-click or R-click to open Crafting';
+                    actionText = `<i class="fa-solid fa-hammer"></i> L-click or R-click to open ${info.name || 'Crafting'}`;
                 }
             } else if (info.uniqueId && info.uniqueId.startsWith('doors_')) {
                 actionText = '<i class="fa-solid fa-door-open"></i> L-click to open/close';

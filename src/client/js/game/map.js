@@ -145,12 +145,18 @@ export function createMap(scene, onProgress) {
                 layer.depth = 0; // Default
             }
 
-            // Hide 'zones' layer by default
-            if (layerData.name.toLowerCase().includes('zones')) {
-                layer.alpha = 0;
+            // Hide 'zones' and 'music' utility layers by default (unless music tiles toggle is enabled)
+            const lname = layerData.name.toLowerCase();
+            if (lname.includes('music')) {
+                layer.alpha = scene.showMusicTiles ? 0.75 : 0;
+            } else if (lname.includes('zones')) {
+                layer.alpha = scene.showDebug ? 0.5 : 0;
             }
         }
     });
+
+    // Store tilemap reference on scene for spatial queries
+    scene.map = map;
 
     // Collide animals with world blocked tiles only on collidable layers
     if (scene.mapLayers && scene.animals) {
@@ -317,6 +323,30 @@ function spawnObject(scene, map, obj, rawTilesets, layerName) {
     // Extract & normalize properties
     const objPropsMap = extractObjectProperties(obj.properties);
     const mergedProps = { ...tileProps, ...objPropsMap };
+
+    // Check for Spatial MusicZone object definition
+    const isMusicZone = obj.type === 'MusicZone' || 
+                        Boolean(mergedProps.zoneKey) || 
+                        Boolean(mergedProps.musicZone) || 
+                        (layerName && layerName.toLowerCase().includes('music'));
+
+    if (isMusicZone && scene.midiEngine && scene.midiEngine.spatialZones) {
+        const zoneKey = mergedProps.zoneKey || mergedProps.musicZone || obj.name;
+        if (zoneKey) {
+            scene.midiEngine.spatialZones.registerZone({
+                key: zoneKey,
+                x: obj.x,
+                y: obj.y,
+                width: obj.width,
+                height: obj.height,
+                polygon: obj.polygon,
+                doorX: mergedProps.doorX,
+                doorY: mergedProps.doorY,
+                fadeTimeMs: mergedProps.fadeTimeMs,
+                proximityRadius: mergedProps.proximityRadius
+            });
+        }
+    }
 
     // Treat as item if layer is 'items' or isItem property is true
     const isItem = mergedProps.isItem === true || 

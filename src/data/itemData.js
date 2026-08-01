@@ -599,6 +599,132 @@ const itemData = {
             ]
         }
     },
+    'thread_wool_green': {
+        size: 1,
+        name: 'Green Wool Thread',
+        icon: 'fa-solid fa-scroll',
+        texture: 'alpha_thread',
+        maxUses: 9,
+        isDynamic: true,
+        color: 0x00FF00,
+        variant: 'thread_wool_green',
+        flavor: 'tastes like wool.',
+        description: 'Green, soft, warm, and fiberous thread',
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
+        recipe: {
+            station: 'spinning_wheel',
+            time: 1000,
+            ingredients: [
+                { itemId: 'fiber_wool', count: 1 },
+                { itemId: 'dye_green', count: 1, usesConsumed: 1 }
+            ]
+        }
+    },
+    'thread_wool_orange': {
+        size: 1,
+        name: 'Orange Wool Thread',
+        icon: 'fa-solid fa-scroll',
+        texture: 'alpha_thread',
+        maxUses: 9,
+        isDynamic: true,
+        color: 0xFF8000,
+        variant: 'thread_wool_orange',
+        flavor: 'tastes like wool.',
+        description: 'Orange, soft, warm, and fiberous thread',
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
+        recipe: {
+            station: 'spinning_wheel',
+            time: 1000,
+            ingredients: [
+                { itemId: 'fiber_wool', count: 1 },
+                { itemId: 'dye_orange', count: 1, usesConsumed: 1 }
+            ]
+        }
+    },
+    'thread_wool_purple': {
+        size: 1,
+        name: 'Purple Wool Thread',
+        icon: 'fa-solid fa-scroll',
+        texture: 'alpha_thread',
+        maxUses: 9,
+        isDynamic: true,
+        color: 0x800080,
+        variant: 'thread_wool_purple',
+        flavor: 'tastes like wool.',
+        description: 'Purple, soft, warm, and fiberous thread',
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
+        recipe: {
+            station: 'spinning_wheel',
+            time: 1000,
+            ingredients: [
+                { itemId: 'fiber_wool', count: 1 },
+                { itemId: 'dye_purple', count: 1, usesConsumed: 1 }
+            ]
+        }
+    },
+    'thread_wool_teal': {
+        size: 1,
+        name: 'Teal Wool Thread',
+        icon: 'fa-solid fa-scroll',
+        texture: 'alpha_thread',
+        maxUses: 9,
+        isDynamic: true,
+        color: 0x008080,
+        variant: 'thread_wool_teal',
+        flavor: 'tastes like wool.',
+        description: 'Teal, soft, warm, and fiberous thread',
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
+        recipe: {
+            station: 'spinning_wheel',
+            time: 1000,
+            ingredients: [
+                { itemId: 'fiber_wool', count: 1 },
+                { itemId: 'dye_teal', count: 1, usesConsumed: 1 }
+            ]
+        }
+    },
+    'thread_wool_lime': {
+        size: 1,
+        name: 'Lime Wool Thread',
+        icon: 'fa-solid fa-scroll',
+        texture: 'alpha_thread',
+        maxUses: 9,
+        isDynamic: true,
+        color: 0x80FF00,
+        variant: 'thread_wool_lime',
+        flavor: 'tastes like wool.',
+        description: 'Lime, soft, warm, and fiberous thread',
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
+        recipe: {
+            station: 'spinning_wheel',
+            time: 1000,
+            ingredients: [
+                { itemId: 'fiber_wool', count: 1 },
+                { itemId: 'dye_lime', count: 1, usesConsumed: 1 }
+            ]
+        }
+    },
+    'thread_wool_amber': {
+        size: 1,
+        name: 'Amber Wool Thread',
+        icon: 'fa-solid fa-scroll',
+        texture: 'alpha_thread',
+        maxUses: 9,
+        isDynamic: true,
+        color: 0xFFBF00,
+        variant: 'thread_wool_amber',
+        flavor: 'tastes like wool.',
+        description: 'Amber, soft, warm, and fiberous thread',
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
+        recipe: {
+            station: 'spinning_wheel',
+            time: 1000,
+            ingredients: [
+                { itemId: 'fiber_wool', count: 1 },
+                { itemId: 'dye_amber', count: 1, usesConsumed: 1 }
+            ]
+        }
+    },
     'dye_blue': {
         size: 1,
         name: 'Blue Dye',
@@ -656,6 +782,132 @@ const itemData = {
             time: 1000,
             ingredients: [
                 { itemId: 'weld', count: 1, usesConsumed: 1 }
+            ]
+        }
+    },
+    'dye_green': {
+        size: 1,
+        name: 'Green Dye',
+        icon: 'fa-solid fa-bottle-droplet',
+        texture: 'alpha_dye',
+        maxUses: 9,
+        isDynamic: true,
+        color: 0x00FF00,
+        variant: 'dye_green',
+        flavor: 'A lush green dye distilled from blue and yellow pigments.',
+        description: 'A green dye.',
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
+        recipe: {
+            station: 'alembic',
+            time: 2000,
+            ingredients: [
+                { itemId: 'dye_blue', count: 1, usesConsumed: 5 },
+                { itemId: 'dye_yellow', count: 1, usesConsumed: 5 }
+            ]
+        }
+    },
+    'dye_orange': {
+        size: 1,
+        name: 'Orange Dye',
+        icon: 'fa-solid fa-bottle-droplet',
+        texture: 'alpha_dye',
+        maxUses: 9,
+        isDynamic: true,
+        color: 0xFF8000,
+        variant: 'dye_orange',
+        flavor: 'A warm orange dye distilled from red and yellow pigments.',
+        description: 'An orange dye.',
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
+        recipe: {
+            station: 'alembic',
+            time: 2000,
+            ingredients: [
+                { itemId: 'dye_red', count: 1, usesConsumed: 5 },
+                { itemId: 'dye_yellow', count: 1, usesConsumed: 5 }
+            ]
+        }
+    },
+    'dye_purple': {
+        size: 1,
+        name: 'Purple Dye',
+        icon: 'fa-solid fa-bottle-droplet',
+        texture: 'alpha_dye',
+        maxUses: 9,
+        isDynamic: true,
+        color: 0x800080,
+        variant: 'dye_purple',
+        flavor: 'A regal purple dye distilled from red and blue pigments.',
+        description: 'A purple dye.',
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
+        recipe: {
+            station: 'alembic',
+            time: 2000,
+            ingredients: [
+                { itemId: 'dye_red', count: 1, usesConsumed: 5 },
+                { itemId: 'dye_blue', count: 1, usesConsumed: 5 }
+            ]
+        }
+    },
+    'dye_teal': {
+        size: 1,
+        name: 'Teal Dye',
+        icon: 'fa-solid fa-bottle-droplet',
+        texture: 'alpha_dye',
+        maxUses: 9,
+        isDynamic: true,
+        color: 0x008080,
+        variant: 'dye_teal',
+        flavor: 'A deep teal dye distilled from 7 parts blue and 3 parts yellow.',
+        description: 'A teal dye.',
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
+        recipe: {
+            station: 'alembic',
+            time: 2000,
+            ingredients: [
+                { itemId: 'dye_blue', count: 1, usesConsumed: 7 },
+                { itemId: 'dye_yellow', count: 1, usesConsumed: 3 }
+            ]
+        }
+    },
+    'dye_lime': {
+        size: 1,
+        name: 'Lime Dye',
+        icon: 'fa-solid fa-bottle-droplet',
+        texture: 'alpha_dye',
+        maxUses: 9,
+        isDynamic: true,
+        color: 0x80FF00,
+        variant: 'dye_lime',
+        flavor: 'A bright lime dye distilled from 7 parts yellow and 3 parts blue.',
+        description: 'A lime dye.',
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
+        recipe: {
+            station: 'alembic',
+            count: 1,
+            ingredients: [
+                { itemId: 'dye_yellow', count: 1, usesConsumed: 7 },
+                { itemId: 'dye_blue', count: 1, usesConsumed: 3 }
+            ]
+        }
+    },
+    'dye_amber': {
+        size: 1,
+        name: 'Amber Dye',
+        icon: 'fa-solid fa-bottle-droplet',
+        texture: 'alpha_dye',
+        maxUses: 9,
+        isDynamic: true,
+        color: 0xFFBF00,
+        variant: 'dye_amber',
+        flavor: 'A golden amber dye distilled from 7 parts yellow and 3 parts red.',
+        description: 'An amber dye.',
+        rendering: { type: 'layered', layers: [{ frameOffset: 0 }, { frameOffset: 10, tintParam: 'color', interactive: true }] },
+        recipe: {
+            station: 'alembic',
+            time: 2000,
+            ingredients: [
+                { itemId: 'dye_yellow', count: 1, usesConsumed: 7 },
+                { itemId: 'dye_red', count: 1, usesConsumed: 3 }
             ]
         }
     },

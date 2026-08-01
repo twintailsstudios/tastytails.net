@@ -45,6 +45,13 @@ class ChatSystem {
         // MessageRenderer: Helper class to generate HTML from message objects
         this.messageRenderer = new ChatMessage();
 
+        // VoiceAdapter: Bridges chat message broadcasts to spatial procedural voice synthesis
+        if (typeof window !== 'undefined' && window.VoiceChatAdapter) {
+            this.voiceAdapter = new window.VoiceChatAdapter(this);
+        } else {
+            this.voiceAdapter = null;
+        }
+
         // OPTIMIZATION: Store named bound listener references to enable clean unbinding during teardown
         this._boundOlderChatsHandler = (e) => {
             if (this.network && e?.detail?.timestamp) {
@@ -143,6 +150,17 @@ class ChatSystem {
      */
     onMessageOutput(data) {
         if (!data || !Array.isArray(data) || !data.length) return;
+
+        const isInitialHistory = !Boolean(this.ui?.messagesContainer?.dataset?.initialized);
+
+        // Trigger spatial voice synthesis only for live incoming RP dialogue messages (suppress initial history load)
+        if (this.voiceAdapter && !isInitialHistory) {
+            try {
+                this.voiceAdapter.processIncomingMessages(data);
+            } catch (err) {
+                // Ignore voice synthesis errors to prevent blocking DOM chat rendering
+            }
+        }
 
         const batch = [];
         const myCharId = this.getCharId();
@@ -271,6 +289,15 @@ class ChatSystem {
      * @param {Object} msg - The temporary message object with clientMsgId
      */
     renderGhostMessage(msg) {
+        // Trigger immediate optimistic voice playback for sent message
+        if (this.voiceAdapter) {
+            try {
+                this.voiceAdapter.processIncomingMessages(msg);
+            } catch (err) {
+                // Ignore audio errors
+            }
+        }
+
         const html = this.messageRenderer.render(msg);
         this.ui.appendMessage(html, msg.scope, true);
 

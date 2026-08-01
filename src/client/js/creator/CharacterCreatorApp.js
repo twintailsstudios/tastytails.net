@@ -6,6 +6,8 @@
  * rotation controls, and state binding between HTML form inputs and Phaser character engine.
  */
 
+import { VoiceStudioPanel } from './VoiceStudioPanel.js';
+
 window.CharacterCreatorApp = {
   initialSetup: true,
   isReady: false
@@ -354,18 +356,21 @@ function setupTabs() {
     gender: document.getElementById('genderPullout'),
     about: document.getElementById('aboutPullout'),
     kinks: document.getElementById('kinksPullout'),
-    vore: document.getElementById('vorePullout')
+    vore: document.getElementById('vorePullout'),
+    voice: document.getElementById('voicePullout')
   };
   const buttons = {
     gender: document.getElementById('gender'),
     about: document.getElementById('about'),
     kinks: document.getElementById('kinks'),
-    vore: document.getElementById('vore')
+    vore: document.getElementById('vore'),
+    voice: document.getElementById('voice')
   };
   const navButtons = {
     next: document.getElementById('next'),
     next2: document.getElementById('next2'),
     next3: document.getElementById('next3'),
+    next4: document.getElementById('next4'),
     finish: document.getElementById('finish')
   };
 
@@ -380,17 +385,20 @@ function setupTabs() {
     if (name === 'gender' && navButtons.next) navButtons.next.style.display = 'block';
     else if (name === 'about' && navButtons.next2) navButtons.next2.style.display = 'block';
     else if (name === 'kinks' && navButtons.next3) navButtons.next3.style.display = 'block';
-    else if (name === 'vore' && navButtons.finish) navButtons.finish.style.display = 'block';
+    else if (name === 'vore' && navButtons.next4) navButtons.next4.style.display = 'block';
+    else if (name === 'voice' && navButtons.finish) navButtons.finish.style.display = 'block';
   }
 
   if (buttons.gender) buttons.gender.addEventListener('click', () => switchTab('gender'));
   if (buttons.about) buttons.about.addEventListener('click', () => switchTab('about'));
   if (buttons.kinks) buttons.kinks.addEventListener('click', () => switchTab('kinks'));
   if (buttons.vore) buttons.vore.addEventListener('click', () => switchTab('vore'));
+  if (buttons.voice) buttons.voice.addEventListener('click', () => switchTab('voice'));
 
   if (navButtons.next) navButtons.next.addEventListener('click', () => switchTab('about'));
   if (navButtons.next2) navButtons.next2.addEventListener('click', () => switchTab('kinks'));
   if (navButtons.next3) navButtons.next3.addEventListener('click', () => switchTab('vore'));
+  if (navButtons.next4) navButtons.next4.addEventListener('click', () => switchTab('voice'));
 }
 
 function setupCollapsibles() {
@@ -663,6 +671,27 @@ document.addEventListener('DOMContentLoaded', function () {
     const charList = window.TASTY_TAILS_CHAR_DATA || {};
     const initialData = charList.anatomyData || null;
     AnatomyForge.init('anatomy-forge-container', initialData, window.voreList);
+  }
+
+  // Mount VoiceStudioPanel if container exists
+  const voiceContainer = document.getElementById('voiceStudioContainer');
+  if (voiceContainer) {
+    const charList = window.TASTY_TAILS_CHAR_DATA || {};
+    const initialVoice = charList.voiceProfile || null;
+    window.voiceStudioPanel = new VoiceStudioPanel(voiceContainer, initialVoice);
+  }
+
+  // Sync voice profile JSON on form submit
+  const charForm = document.querySelector('form[action*="character"]');
+  if (charForm) {
+    charForm.addEventListener('submit', function () {
+      if (window.voiceStudioPanel) {
+        const voiceInput = document.getElementById('voiceProfileInput');
+        if (voiceInput) {
+          voiceInput.value = JSON.stringify(window.voiceStudioPanel.getProfileJSON());
+        }
+      }
+    });
   }
 
   // Initialize Pickr color pickers

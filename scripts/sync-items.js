@@ -11,6 +11,11 @@ const filesToSync = [
         source: '../src/data/resourceNodeData.js',
         dest: '../src/client/js/game/resourceNodeData.js',
         name: 'resourceNodeData.js'
+    },
+    {
+        source: '../src/data/craftingStations.js',
+        dest: '../src/client/js/game/craftingStations.js',
+        name: 'craftingStations.js'
     }
 ];
 

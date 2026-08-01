@@ -102,6 +102,11 @@ class ChatNetwork {
         this.on('tooManyChars', (data, message) => this.chatSystem?.onTooManyChars(data, message));
 
         // Connection Stability & System Messages
+        this.on('serverVersion', (data) => {
+            if (data && data.version && typeof window.checkAppVersion === 'function') {
+                window.checkAppVersion(data.version);
+            }
+        });
         this.on('serverUnstable', () => this.chatSystem?.ui?.showConnectionBanner('Connection Unstable: Changes are being queued...', 'orange'));
         this.on('serverStable', () => this.chatSystem?.ui?.hideConnectionBanner());
         this.on('serverCriticalWarning', (data) => this.chatSystem?.ui?.showConnectionBanner(`CRITICAL WARNING: Server shutting down in ${data?.seconds ?? 'a few'} seconds!`, 'red'));
