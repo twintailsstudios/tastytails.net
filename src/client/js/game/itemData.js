@@ -47,7 +47,90 @@ const itemData = {
     'scroll_01': { size: 1, name: 'Test Scroll', icon: 'fa-scroll', texture: 'scroll2', description: 'A testing scroll.' },
 
     // Tools/Weapons
-    'stick': { size: 4, name: 'Sturdy Stick', icon: 'fa-solid fa-tree' },
+    'stick': {
+        size: 4,
+        name: 'Sturdy Stick',
+        icon: 'fa-solid fa-tree',
+        equipmentSlot: 'hands',
+        weapon: {
+            handsRequired: 1,
+            versatile: true,
+            intents: {
+                hostile: { action: 'Whack', damage: 12, damageType: 'blunt', bleedMult: 0.1, fractureMult: 0.3, message: 'whacks with a sturdy stick across' },
+                grabbing: { action: 'Stick Jab', damage: 6, damageType: 'blunt', staminaDrain: 10, bleedMult: 0.0, fractureMult: 0.1, message: 'pokes with a stick into' },
+                friendly: { action: 'Tap', damage: 0, damageType: 'brute', bleedMult: 0, fractureMult: 0, message: 'playfully taps with a stick on' }
+            }
+        }
+    },
+    'weapon_dagger_iron': {
+        size: 2,
+        name: 'Iron Dagger',
+        icon: 'fa-solid fa-hand-knife',
+        texture: 'weapon_dagger_iron',
+        flavor: 'Cold and lethal',
+        description: 'A sharp iron dagger designed for quick, lethal thrusts and slashes.',
+        equipmentSlot: 'hands',
+        weapon: {
+            handsRequired: 1,
+            versatile: false,
+            intents: {
+                hostile: { action: 'Thrust', damage: 22, damageType: 'pierce', bleedMult: 1.5, fractureMult: 0.2, message: 'stabs deep into' },
+                grabbing: { action: 'Blade Threat', damage: 8, damageType: 'pierce', staminaDrain: 15, bleedMult: 0.8, fractureMult: 0.1, message: 'holds a razor blade against' },
+                friendly: { action: 'Offer Hilt', damage: 0, damageType: 'brute', bleedMult: 0, fractureMult: 0, message: 'offers the hilt of the dagger to' }
+            },
+            targetZoneModifiers: {
+                head: { damageMultiplier: 1.3 },
+                torso: { damageMultiplier: 1.1 },
+                groin: { damageMultiplier: 1.2 }
+            }
+        }
+    },
+    'weapon_sword_iron': {
+        size: 4,
+        name: 'Iron Broadsword',
+        icon: 'fa-solid fa-sword',
+        texture: 'weapon_sword_iron',
+        flavor: 'Well-balanced steel',
+        description: 'A balanced double-edged iron broadsword for sweeping slashes and thrusts.',
+        equipmentSlot: 'hands',
+        weapon: {
+            handsRequired: 1,
+            versatile: true,
+            intents: {
+                hostile: { action: 'Slash', damage: 30, damageType: 'slash', bleedMult: 1.8, fractureMult: 0.4, message: 'slashes broad steel across' },
+                grabbing: { action: 'Pommel Strike', damage: 14, damageType: 'blunt', staminaDrain: 25, bleedMult: 0.2, fractureMult: 0.6, message: 'bashes with the heavy pommel against' },
+                friendly: { action: 'Salute', damage: 0, damageType: 'brute', bleedMult: 0, fractureMult: 0, message: 'taps gently on' }
+            },
+            targetZoneModifiers: {
+                head: { damageMultiplier: 1.25 },
+                arms: { damageMultiplier: 1.1 },
+                legs: { damageMultiplier: 1.1 }
+            }
+        }
+    },
+    'weapon_hammer_iron': {
+        size: 5,
+        name: 'Iron War Hammer',
+        icon: 'fa-solid fa-hammer',
+        texture: 'weapon_hammer_iron',
+        flavor: 'Heavy and crushing',
+        description: 'A colossal iron war hammer capable of shattering bones and crushing armor.',
+        equipmentSlot: 'hands',
+        weapon: {
+            handsRequired: 2,
+            versatile: false,
+            intents: {
+                hostile: { action: 'Crushing Blow', damage: 42, damageType: 'blunt', bleedMult: 0.3, fractureMult: 2.5, message: 'smashes heavy iron into' },
+                grabbing: { action: 'Shaft Hook', damage: 18, damageType: 'blunt', staminaDrain: 35, bleedMult: 0.1, fractureMult: 1.2, message: 'hooks the hammer shaft around' },
+                friendly: { action: 'Rest Hammer', damage: 0, damageType: 'brute', bleedMult: 0, fractureMult: 0, message: 'rests the head of the war hammer near' }
+            },
+            targetZoneModifiers: {
+                head: { damageMultiplier: 1.4 },
+                torso: { damageMultiplier: 1.2 },
+                legs: { damageMultiplier: 1.15 }
+            }
+        }
+    },
 
     // Crafting Items
     'ore_iron': { size: 2, name: 'Iron Ore', icon: 'fa-solid fa-gem', texture: 'ore_iron', flavor: `Hard and metallic`, description: `A chunk of iron ore.`, verb: 'use', maxUses: 1, playerUse: false },
@@ -150,6 +233,18 @@ const itemData = {
         playerUse: true,
         isDynamic: true,
         remedyType: 'salve'
+    },
+    'debug_splint': {
+        size: 1,
+        name: 'Splint',
+        icon: 'fa-solid fa-splint',
+        texture: 'debug_splint',
+        description: 'A splint used to heal fractures.',
+        verb: 'apply',
+        maxUses: 3,
+        playerUse: true,
+        isDynamic: true,
+        remedyType: 'splint'
     },
 
     // Default
@@ -446,6 +541,21 @@ const itemData = {
         icon: 'fa-solid fa-khanda',
         texture: 'weapon_iron_sword',
         description: 'A standard iron sword.',
+        equipmentSlot: 'hands',
+        weapon: {
+            handsRequired: 1,
+            versatile: true,
+            intents: {
+                hostile: { action: 'Slash', damage: 30, damageType: 'slash', bleedMult: 1.8, fractureMult: 0.4, message: 'slashes broad steel across' },
+                grabbing: { action: 'Pommel Strike', damage: 14, damageType: 'blunt', staminaDrain: 25, bleedMult: 0.2, fractureMult: 0.6, message: 'bashes with the heavy pommel against' },
+                friendly: { action: 'Salute', damage: 0, damageType: 'brute', bleedMult: 0, fractureMult: 0, message: 'taps gently on' }
+            },
+            targetZoneModifiers: {
+                head: { damageMultiplier: 1.25 },
+                arms: { damageMultiplier: 1.1 },
+                legs: { damageMultiplier: 1.1 }
+            }
+        },
         recipe: {
             station: 'anvil',
             time: 5000,
@@ -461,6 +571,21 @@ const itemData = {
         icon: 'fa-solid fa-syringe',
         texture: 'weapon_iron_dagger',
         description: 'A small but sharp dagger.',
+        equipmentSlot: 'hands',
+        weapon: {
+            handsRequired: 1,
+            versatile: false,
+            intents: {
+                hostile: { action: 'Thrust', damage: 22, damageType: 'pierce', bleedMult: 1.5, fractureMult: 0.2, message: 'stabs deep into' },
+                grabbing: { action: 'Blade Threat', damage: 8, damageType: 'pierce', staminaDrain: 15, bleedMult: 0.8, fractureMult: 0.1, message: 'holds a razor blade against' },
+                friendly: { action: 'Offer Hilt', damage: 0, damageType: 'brute', bleedMult: 0, fractureMult: 0, message: 'offers the hilt of the dagger to' }
+            },
+            targetZoneModifiers: {
+                head: { damageMultiplier: 1.3 },
+                torso: { damageMultiplier: 1.1 },
+                groin: { damageMultiplier: 1.2 }
+            }
+        },
         recipe: {
             station: 'anvil',
             time: 3000,
@@ -468,6 +593,36 @@ const itemData = {
                 { itemId: 'ingot_iron', count: 1 }
             ],
             icon: 'fa-solid fa-syringe'
+        }
+    },
+    'weapon_war_hammer': {
+        size: 15,
+        name: 'War Hammer',
+        icon: 'fa-solid fa-hammer',
+        texture: 'weapon_war_hammer',
+        description: 'A large and heavy war hammer.',
+        equipmentSlot: 'hands',
+        weapon: {
+            handsRequired: 2,
+            versatile: false,
+            intents: {
+                hostile: { action: 'Crushing Blow', damage: 42, damageType: 'blunt', bleedMult: 0.3, fractureMult: 2.5, message: 'smashes heavy iron into' },
+                grabbing: { action: 'Shaft Hook', damage: 18, damageType: 'blunt', staminaDrain: 35, bleedMult: 0.1, fractureMult: 1.2, message: 'hooks the hammer shaft around' },
+                friendly: { action: 'Rest Hammer', damage: 0, damageType: 'brute', bleedMult: 0, fractureMult: 0, message: 'rests the head of the war hammer near' }
+            },
+            targetZoneModifiers: {
+                head: { damageMultiplier: 1.4 },
+                torso: { damageMultiplier: 1.2 },
+                legs: { damageMultiplier: 1.15 }
+            }
+        },
+        recipe: {
+            station: 'anvil',
+            time: 10000,
+            ingredients: [
+                { itemId: 'ingot_iron', count: 5 }
+            ],
+            icon: 'fa-solid fa-hammer'
         }
     },
     'screwdriver': {

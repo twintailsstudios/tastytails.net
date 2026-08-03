@@ -50,7 +50,7 @@ function safeClone(obj) {
  * 
  * @returns {Object} Result - { success: boolean, newHealth: number, dead: boolean, bodyPart: string, damageType: string }
  */
-async function applyDamage(players, User, targetId, amount, sourceId = null, damageType = 'generic', addCorpse = null, io = null, targetPart = null, messageSystem = null) {
+async function applyDamage(players, User, targetId, amount, sourceId = null, damageType = 'generic', addCorpse = null, io = null, targetPart = null, messageSystem = null, options = {}) {
     const target = players[targetId];
     if (!target) {
         log.error(`[Damage] Target player ${targetId} not found.`);
@@ -58,15 +58,26 @@ async function applyDamage(players, User, targetId, amount, sourceId = null, dam
     }
 
     // Apply multi-typed anatomical damage engine
-    const outcome = applyAnatomyDamage(target, amount, damageType, targetPart);
+    const outcome = applyAnatomyDamage(target, amount, damageType, targetPart, options);
     const dead = outcome.dead;
 
-    // Check for Death Transition
-    const isVictimDead = dead || (target.stats && target.stats.health <= 0);
+    // Check for Death vs Downed Transition
+    const healthDepleted = dead || (target.stats && target.stats.health <= 0);
+    const isDigestionDeath = !!target.consumedBy;
+    const isTimerExpired = target.isDowned && target.downedTimer <= 0;
+    const isExecution = amount >= 100;
+
+    const isVictimDead = healthDepleted && (isDigestionDeath || isTimerExpired || isExecution);
+
+    if (healthDepleted && !isVictimDead && !target.isDead) {
+        target.isDowned = true;
+        if (!target.downedTimer || target.downedTimer <= 0) target.downedTimer = 90;
+    }
 
     if (isVictimDead) {
         const wasAlreadyDead = target.isDead;
         target.isDead = true;
+        target.isDowned = false;
 
         // If victim is consumed by a predator, trigger digestion death & UI release pipeline
         if (target.consumedBy) {

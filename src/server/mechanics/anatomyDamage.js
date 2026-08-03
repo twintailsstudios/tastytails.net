@@ -155,11 +155,13 @@ function recalculateTotalHealth(target) {
     // Update cumulative bleeding rate (rounded to 1 decimal place)
     target.stats.bleedingRate = Math.round(cumulativeLimbBleed * 10) / 10;
 
-    // Composite Total Health Calculation (80% Limb HP + 20% Blood Volume)
+    // Total Health Calculation: lower of Body Percent or Blood Percent
     const bodyPercent = totalMaxHpSum > 0 ? (totalHpSum / totalMaxHpSum) : 0;
-    const bloodPercent = target.stats.maxBloodVolume > 0 ? Math.max(0, target.stats.bloodVolume / target.stats.maxBloodVolume) : 0;
+    const maxVol = (typeof target.stats.maxBloodVolume === 'number' && target.stats.maxBloodVolume > 0) ? target.stats.maxBloodVolume : 5000;
+    const currentVol = typeof target.stats.bloodVolume === 'number' ? target.stats.bloodVolume : maxVol;
+    const bloodPercent = maxVol > 0 ? Math.max(0, currentVol / maxVol) : 0;
 
-    let combinedPercent = Math.max(0, Math.min(1, (bodyPercent * 0.8) + (bloodPercent * 0.2)));
+    let combinedPercent = Math.max(0, Math.min(1, Math.min(bodyPercent, bloodPercent)));
     let finalHealth = Math.round(combinedPercent * (target.stats.maxHealth || 100));
 
     target.stats.health = finalHealth;
@@ -175,7 +177,17 @@ function recalculateTotalHealth(target) {
  * @param {string|null} targetPart - Specified body part ('leftFoot', 'head', etc.) or null for random.
  * @returns {Object} Outcome details.
  */
-function applyAnatomyDamage(target, amount, rawDamageType = 'brute', targetPart = null) {
+/**
+ * Applies anatomical multi-typed damage to a target player.
+ * 
+ * @param {Object} target - The player object reference.
+ * @param {number} amount - Raw damage amount.
+ * @param {string} rawDamageType - Damage type ('brute', 'burn', 'toxin', 'suffocation', etc.)
+ * @param {string|null} targetPart - Specified body part ('leftFoot', 'head', etc.) or null for random.
+ * @param {Object} [options={}] - Weapon modifiers ({ bleedMult, fractureMult }).
+ * @returns {Object} Outcome details.
+ */
+function applyAnatomyDamage(target, amount, rawDamageType = 'brute', targetPart = null, options = {}) {
     ensureAnatomyStats(target);
     
     const damageType = normalizeDamageType(rawDamageType);
@@ -220,17 +232,27 @@ function applyAnatomyDamage(target, amount, rawDamageType = 'brute', targetPart 
         part.hp = Math.max(0, part.hp - amount);
     }
     newLimbHp = part.hp;
+    const maxLimbHp = part.maxHp || 100;
+    const deficitRatio = Math.max(0, (maxLimbHp - newLimbHp) / maxLimbHp);
 
-    // Condition Trigger Checks
-    // 1. Slashing/Sharp brute hit triggers bonus bleeding
-    if (damageType === 'brute' && (rawDamageType.includes('slash') || rawDamageType.includes('cut') || rawDamageType.includes('glass') || Math.random() < 0.35)) {
-        bleedingTriggered = true;
-        part.bleeding = Math.min(3.0, (part.bleeding || 0) + 0.5); // Add 0.5 mL/s bleed per cut (max 3.0 mL/s per limb)
+    // Condition Trigger Checks: Dynamic Probability scaling based on Limb HP
+    // 1. Bleeding probability (Guaranteed at HP <= 30)
+    const defaultBleedMult = (rawDamageType.includes('slash') || rawDamageType.includes('pierce') || rawDamageType.includes('cut') || rawDamageType.includes('glass')) ? 1.5 : 0.4;
+    const bleedMult = typeof options.bleedMult === 'number' ? options.bleedMult : defaultBleedMult;
+    if (bleedMult > 0) {
+        const bleedProb = newLimbHp <= 30 ? 1.0 : Math.min(1.0, Math.pow(deficitRatio, 1.5) * 1.5 * bleedMult);
+        if (Math.random() < bleedProb) {
+            bleedingTriggered = true;
+            part.bleeding = Math.min(3.0, (part.bleeding || 0) + 0.5); // Add 0.5 mL/s bleed per cut (max 3.0 mL/s per limb)
+        }
     }
 
-    // 2. Bone Fracture check on Arms/Legs/Tail
-    if (['leftLeg', 'rightLeg', 'leftArm', 'rightArm', 'tail'].includes(bodyPart)) {
-        if (part.hp <= 30 && !part.fractured) {
+    // 2. Bone Fracture check on Arms/Legs/Tail (Guaranteed at HP <= 30 if fractureMult > 0)
+    const defaultFractureMult = damageType === 'brute' ? 1.0 : 0.0;
+    const fractureMult = typeof options.fractureMult === 'number' ? options.fractureMult : defaultFractureMult;
+    if (['leftLeg', 'rightLeg', 'leftArm', 'rightArm', 'tail'].includes(bodyPart) && !part.fractured && fractureMult > 0) {
+        const fractureProb = newLimbHp <= 30 ? 1.0 : Math.min(1.0, Math.pow(deficitRatio, 1.8) * 1.5 * fractureMult);
+        if (Math.random() < fractureProb) {
             part.fractured = true;
             fractured = true;
             log.info(`[AnatomyDamage] ${target.firstName || target.Username}'s ${bodyPart} has been FRACTURED.`);
@@ -278,11 +300,43 @@ function applyAnatomyDamage(target, amount, rawDamageType = 'brute', targetPart 
     };
 }
 
+/**
+ * Applies burn damage across limbs proportional to accumulated digestion progress upon release.
+ * Does NOT trigger active bleeding (per user design guidance).
+ * 
+ * @param {Object} target - The prey player character object.
+ * @param {number} digestionProgressPct - Digestion progress percentage (0.0 to 1.0).
+ */
+function applyDigestionReleaseBurn(target, digestionProgressPct = 0) {
+    ensureAnatomyStats(target);
+    if (!digestionProgressPct || digestionProgressPct <= 0) return;
+
+    const parts = target.stats.bodyParts;
+    // Burn amount per limb based on digestion progress (e.g. 50% progress = up to 50 burn damage per limb)
+    const burnAmountPerLimb = Math.round(digestionProgressPct * 60);
+
+    for (const partKey of BODY_PARTS) {
+        const part = parts[partKey];
+        if (part && part.hp > 0) {
+            const actualBurn = Math.min(part.hp - 10, burnAmountPerLimb); // Keep at least 10 HP per limb on release
+            if (actualBurn > 0) {
+                part.burn = (part.burn || 0) + actualBurn;
+                part.hp = Math.max(10, part.hp - actualBurn);
+            }
+        }
+    }
+
+    recalculateTotalHealth(target);
+    log.info(`[AnatomyDamage] Applied post-digestion release burn (${Math.round(digestionProgressPct * 100)}% progress) to ${target.firstName || target.Username}. Health: ${target.stats.health}`);
+}
+
 module.exports = {
     createDefaultBodyParts,
     ensureAnatomyStats,
     normalizeDamageType,
     recalculateTotalHealth,
     applyAnatomyDamage,
+    applyDigestionReleaseBurn,
     BODY_PARTS
 };
+

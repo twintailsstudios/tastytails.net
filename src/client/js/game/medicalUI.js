@@ -267,7 +267,7 @@ function updateSensoryOverlays(stats) {
     const vignette = getCachedEl('eye-damage-vignette');
     if (vignette) {
         const eyeDmg = (stats.sensory && stats.sensory.eyeDamage) || 0;
-        const bloodVol = stats.bloodVolume || 5000;
+        const bloodVol = typeof stats.bloodVolume === 'number' ? stats.bloodVolume : 5000;
         const maxBlood = stats.maxBloodVolume || 5000;
         const bloodLossRatio = Math.max(0, 1 - (bloodVol / maxBlood));
 
@@ -355,8 +355,9 @@ function renderMedicalView() {
     const totalHealthEl = getCachedEl('med-total-health');
     const dockHealthEl = getCachedEl('dock-health-text');
 
+    const bloodVal = typeof currentStats.bloodVolume === 'number' ? currentStats.bloodVolume : 5000;
     const hpText = `${Math.round(currentStats.health || 100)} / ${currentStats.maxHealth || 100}`;
-    if (bloodVolEl) bloodVolEl.innerText = `${Math.round(currentStats.bloodVolume || 5000)} / ${currentStats.maxBloodVolume || 5000} mL`;
+    if (bloodVolEl) bloodVolEl.innerText = `${Math.round(bloodVal)} / ${currentStats.maxBloodVolume || 5000} mL`;
     if (bleedRateEl) bleedRateEl.innerText = currentStats.bleedingRate > 0 ? `${currentStats.bleedingRate.toFixed(1)} mL/s (BLEEDING)` : '0 mL/s (None)';
     if (totalHealthEl) totalHealthEl.innerText = hpText;
     if (dockHealthEl) dockHealthEl.innerText = `${Math.round(currentStats.health || 100)} HP`;

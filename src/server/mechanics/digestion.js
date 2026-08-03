@@ -177,69 +177,88 @@ async function processDigestion(players, User, io, addCorpse, messageSystem, del
             }
 
             if (shouldDigest) {
-                // Probability Check
-                const chance = DAMAGE_CHANCE[digestivePower] || 0.30;
-                const roll = Math.random();
+                // Suppress open wound bleeding inside the stomach
+                if (victim.stats) {
+                    victim.stats.bleedingRate = 0;
+                }
 
-                if (roll < chance) {
-                    const damageAmount = DAMAGE_VALUES[digestivePower] || 3;
+                // Predictable Digestion Damage Values per 5s tick (scaled by digestivePower setting)
+                const TICK_DAMAGE = {
+                    'Very Low': 2,
+                    'Low': 4,
+                    'Normal': 6,
+                    'High': 10,
+                    'Very High': 15
+                };
 
-                    // Equal proportion selection among limbs that have >0 HP
-                    let availableParts = ALL_BODY_PARTS;
-                    if (victim.stats && victim.stats.bodyParts) {
-                        const activeLimbs = ALL_BODY_PARTS.filter(partKey => {
-                            const pObj = victim.stats.bodyParts[partKey];
-                            return pObj && typeof pObj.hp === 'number' && pObj.hp > 0;
-                        });
-                        if (activeLimbs.length > 0) {
-                            availableParts = activeLimbs;
-                        }
+                const damageAmount = TICK_DAMAGE[digestivePower] || 6;
+
+                // Select an active limb (>0 HP) to apply burn damage evenly
+                let availableParts = ALL_BODY_PARTS;
+                if (victim.stats && victim.stats.bodyParts) {
+                    const activeLimbs = ALL_BODY_PARTS.filter(partKey => {
+                        const pObj = victim.stats.bodyParts[partKey];
+                        return pObj && typeof pObj.hp === 'number' && pObj.hp > 0;
+                    });
+                    if (activeLimbs.length > 0) {
+                        availableParts = activeLimbs;
                     }
-                    const randomTargetPart = availableParts[Math.floor(Math.random() * availableParts.length)];
+                }
+                const randomTargetPart = availableParts[Math.floor(Math.random() * availableParts.length)];
 
-                    // Apply Burn Damage to randomly chosen active body part
-                    const result = await applyDamage(players, User, victimId, damageAmount, predatorSocketId, 'burn', null, io, randomTargetPart);
+                // Apply Burn Damage to randomly chosen active body part
+                const result = await applyDamage(players, User, victimId, damageAmount, predatorSocketId, 'burn', null, io, randomTargetPart);
 
-                    if (result.success) {
-                        // Log / Message
-                        log.info(`[Digestion] ${predator.firstName} digested ${victim.firstName} for ${damageAmount} damage (${digestivePower}). Health: ${result.newHealth}`);
+                if (result.success) {
+                    const maxHp = victim.stats ? (victim.stats.maxHealth || 100) : 100;
+                    const newHp = Math.max(0, result.newHealth);
+                    const progressPct = Math.max(0, Math.min(1.0, (maxHp - newHp) / maxHp));
+                    victim.digestionProgressPct = progressPct;
 
-                        // Live update predator and victim Vore Controls UI with new target health (Targeted Socket Emission)
-                        if (!result.dead && io) {
-                            const targetSockets = [victimId, predatorSocketId].filter(sid => sid && io.sockets && io.sockets.sockets.has(sid));
-                            targetSockets.forEach(sid => {
-                                io.to(sid).emit('voreStageUpdate', {
-                                    playerId: victim.playerId,
-                                    predatorId: predator.playerId,
-                                    stage: victim.voreStage || 3,
-                                    nodeName: nodeName,
-                                    targetName: victim.Username || (victim.firstName + ' ' + victim.lastName),
-                                    targetHp: Math.round(result.newHealth),
-                                    targetMaxHp: victim.stats ? Math.round(victim.stats.maxHealth) : 100,
-                                    destinationMode: 'Digest',
-                                    nodeVoreTypeId: currentNodeId,
-                                    clenchSuppressedUntil: victim.clenchSuppressedUntil || 0,
-                                    clenchCooldownUntil: predator.clenchCooldownUntil || 0
-                                });
+                    const secPerTick = 5;
+                    const ticksRemaining = damageAmount > 0 ? Math.ceil(newHp / damageAmount) : 0;
+                    const secondsRemaining = ticksRemaining * secPerTick;
+
+                    log.info(`[Digestion] ${predator.firstName} digested ${victim.firstName} for ${damageAmount} burn damage (${digestivePower}). Health: ${newHp}/${maxHp} (${Math.round(progressPct * 100)}%). Est. Time Remaining: ${secondsRemaining}s`);
+
+                    // Live update predator and victim Vore Controls UI with synchronized target health & progress
+                    if (!result.dead && io) {
+                        const targetSockets = [victimId, predatorSocketId].filter(sid => sid && io.sockets && io.sockets.sockets.has(sid));
+                        targetSockets.forEach(sid => {
+                            io.to(sid).emit('voreStageUpdate', {
+                                playerId: victim.playerId,
+                                predatorId: predator.playerId,
+                                stage: victim.voreStage || 3,
+                                nodeName: nodeName,
+                                targetName: victim.Username || (victim.firstName + ' ' + victim.lastName),
+                                targetHp: Math.round(newHp),
+                                targetMaxHp: Math.round(maxHp),
+                                digestionProgressPct: progressPct,
+                                estimatedSecondsRemaining: secondsRemaining,
+                                digestivePower: digestivePower,
+                                destinationMode: 'Digest',
+                                nodeVoreTypeId: currentNodeId,
+                                clenchSuppressedUntil: victim.clenchSuppressedUntil || 0,
+                                clenchCooldownUntil: predator.clenchCooldownUntil || 0
                             });
-                        }
+                        });
+                    }
 
-                        // Check for Death Transition
-                        if (result.dead || victim.isDead || (victim.stats && victim.stats.health <= 0)) {
-                            victimsToRemove.push(victimId);
-                            await processDigestionDeath(
-                                victim,
-                                predator,
-                                players,
-                                User,
-                                io,
-                                addCorpse,
-                                messageSystem,
-                                nodeName,
-                                internalFate,
-                                externalOutcome
-                            );
-                        }
+                    // Check for Death Transition
+                    if (result.dead || victim.isDead || (victim.stats && victim.stats.health <= 0)) {
+                        victimsToRemove.push(victimId);
+                        await processDigestionDeath(
+                            victim,
+                            predator,
+                            players,
+                            User,
+                            io,
+                            addCorpse,
+                            messageSystem,
+                            nodeName,
+                            internalFate,
+                            externalOutcome
+                        );
                     }
                 }
             }

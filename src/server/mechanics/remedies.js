@@ -74,13 +74,11 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
             const hasBruteOnPart = part && (part.brute || 0) > 0;
 
             if (!hasBleeding && !hasBruteOnPart) {
-                // OPTIMIZATION: Fallback search uses zero-allocation helper instead of Object.entries()
                 const bestPartKey = findWorstDamagedLimb(parts, 'brute');
-
                 if (bestPartKey) {
                     bodyPart = bestPartKey;
                     part = parts[bodyPart];
-                } else if (!hasBleeding) {
+                } else {
                     return {
                         success: false,
                         remedyType,
@@ -90,27 +88,20 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
                 }
             }
 
-            if (part) {
-                part.bleeding = Math.max(0, (part.bleeding || 0) - 2.0);
+            // Clear all active bleeding on target and limbs
+            target.stats.bleedingRate = 0;
+            for (const pKey in parts) {
+                if (parts[pKey]) parts[pKey].bleeding = 0;
             }
 
-            if (target.stats.bleedingRate > 0) {
-                target.stats.bleedingRate = Math.max(0, target.stats.bleedingRate - 2.0);
-                if (part && (part.brute || 0) > 0) {
-                    const healAmt = Math.min(15, part.brute);
-                    part.brute = Math.max(0, part.brute - healAmt);
-                    part.hp = Math.min(part.maxHp, part.hp + healAmt);
-                    healedAmount = healAmt;
-                    message = `Applied clean linen bandages to ${target.firstName || target.Username}'s ${bodyPart}, slowing bleeding and dressing wounds.`;
-                } else {
-                    message = `Applied clean linen bandages to ${target.firstName || target.Username}'s ${bodyPart}, slowing bleeding.`;
-                }
-            } else {
-                const healAmt = Math.min(15, part.brute || 15);
-                part.brute = Math.max(0, (part.brute || 0) - healAmt);
+            if (part && (part.brute || 0) > 0) {
+                const healAmt = Math.min(25, part.brute);
+                part.brute = Math.max(0, part.brute - healAmt);
                 part.hp = Math.min(part.maxHp, part.hp + healAmt);
                 healedAmount = healAmt;
-                message = `Dressed wounds on ${target.firstName || target.Username}'s ${bodyPart} with bandages.`;
+                message = `Applied clean linen bandages to ${target.firstName || target.Username}'s ${bodyPart}, stopping all bleeding and dressing wounds.`;
+            } else {
+                message = `Applied clean linen bandages to ${target.firstName || target.Username}'s ${bodyPart}, stopping all bleeding.`;
             }
             break;
         }
@@ -143,7 +134,6 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
             if (part.hp <= 10) {
                 const hpGain = 15 - part.hp;
                 part.hp = 15;
-                // SYNCHRONIZATION: Reduce brute damage by equivalent hpGain so recalculateTotalHealth() stays in sync
                 if ((part.brute || 0) > 0) {
                     part.brute = Math.max(0, part.brute - hpGain);
                 }
@@ -172,18 +162,17 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
                 }
             }
 
-            const healAmt = Math.min(25, part.burn || 25);
+            const healAmt = Math.min(30, part.burn || 30);
             part.burn = Math.max(0, (part.burn || 0) - healAmt);
             part.hp = Math.min(part.maxHp, part.hp + healAmt);
             healedAmount = healAmt;
-            message = `Applied sovereign salve to soothe burns on ${target.firstName || target.Username}'s ${bodyPart}.`;
+            message = `Applied soothing salve to burns on ${target.firstName || target.Username}'s ${bodyPart}.`;
             break;
         }
 
         case 'antidote':
             // Cleanses toxin damage across limbs and restores stamina
             for (const pKey in parts) {
-                // DEFENSIVE GUARD: Avoid undefined - 20 = NaN on limbs lacking default toxin properties
                 if (parts[pKey].toxin !== undefined) {
                     parts[pKey].toxin = Math.max(0, parts[pKey].toxin - 20);
                 }
@@ -206,7 +195,7 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
 
         case 'bloodElixir':
             // Restores blood volume
-            target.stats.bloodVolume = Math.min(target.stats.maxBloodVolume, target.stats.bloodVolume + 1500);
+            target.stats.bloodVolume = Math.min(target.stats.maxBloodVolume, (target.stats.bloodVolume || 0) + 1500);
             message = `Drank blood-replenishing elixir, restoring vital blood reserve.`;
             break;
 
@@ -217,9 +206,11 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
 
     const newHealth = recalculateTotalHealth(target);
 
-    // RECOVERY TIMING: Revive target if smelling salts restored positive total health (evaluated after recalculateTotalHealth)
-    if ((remedyType === 'smellingSalts' || remedyType === 'spiritAir') && target.isDead && newHealth > 0) {
+    // Revive target from downed or dead state if health > 0
+    if (newHealth > 0 && (target.isDead || target.isDowned)) {
         target.isDead = false;
+        target.isDowned = false;
+        target.downedTimer = 0;
     }
 
     log.info(`[Remedies] ${target.firstName || target.Username} used ${remedyType} on ${bodyPart}. New Health: ${newHealth}`);

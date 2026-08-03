@@ -6,6 +6,95 @@ const { resolveItemDef } = require('../utils/itemUtils');
 const { trackVictim, untrackVictim } = require('../server/mechanics/digestion');
 
 /**
+ * Helper to resolve weapon intent actions, 2-handed off-hand penalties, and damage options.
+ */
+function resolveWeaponAction(player, hand, intent, targetZone) {
+    log.info(`[resolveWeaponAction DEBUG] Input hand: '${hand}', intent: '${intent}', targetZone: '${targetZone}'`);
+    if (!player || !player.actionHands) {
+        log.info(`[resolveWeaponAction DEBUG] Player or actionHands is nullish.`);
+        return null;
+    }
+    const slotKey = hand === 'right' ? 'rightNode' : 'leftNode';
+    const held = player.actionHands[slotKey];
+    log.info(`[resolveWeaponAction DEBUG] Inspecting slotKey '${slotKey}'. Held item:`, JSON.stringify(held));
+    if (!held) {
+        log.info(`[resolveWeaponAction DEBUG] No item held in '${slotKey}'.`);
+        return null;
+    }
+
+    const { resolveItemDef } = require('../utils/itemUtils');
+    let def = (held && held.weapon) ? held : (resolveItemDef(held, itemData) || {});
+    if (!def.weapon) {
+        const key = held.itemId || held.id || held.texture || held.type || held.name;
+        def = (key && itemData[key]) ? itemData[key] : {};
+        if (!def.weapon && key) {
+            const aliasMap = {
+                'weapon_iron_dagger': 'weapon_dagger_iron',
+                'weapon_dagger_iron': 'weapon_iron_dagger',
+                'dagger': 'weapon_iron_dagger',
+                'weapon_iron_sword': 'weapon_sword_iron',
+                'weapon_sword_iron': 'weapon_iron_sword',
+                'sword': 'weapon_iron_sword',
+                'weapon_war_hammer': 'weapon_hammer_iron',
+                'weapon_hammer_iron': 'weapon_war_hammer',
+                'hammer': 'weapon_war_hammer'
+            };
+            const aliasKey = aliasMap[key];
+            if (aliasKey && itemData[aliasKey] && itemData[aliasKey].weapon) {
+                def = itemData[aliasKey];
+            }
+        }
+    }
+    log.info(`[resolveWeaponAction DEBUG] Resolved item name: '${def?.name}', weapon schema present: ${Boolean(def?.weapon)}`);
+    if (!def || !def.weapon || !def.weapon.intents) {
+        log.info(`[resolveWeaponAction DEBUG] Item '${def?.name || 'unknown'}' has no weapon schema or intents.`);
+        return null;
+    }
+
+    const w = def.weapon;
+    const sanitizedIntent = String(intent || 'friendly').toLowerCase().trim();
+    const intentConfig = w.intents[sanitizedIntent];
+    log.info(`[resolveWeaponAction DEBUG] Looking up intent '${sanitizedIntent}'. Found:`, JSON.stringify(intentConfig));
+    if (!intentConfig) {
+        log.info(`[resolveWeaponAction DEBUG] Weapon '${def.name}' does not support intent '${sanitizedIntent}'.`);
+        return null;
+    }
+
+    // Check off-hand occupancy for two-handed penalty or versatile bonus
+    const offSlotKey = slotKey === 'rightNode' ? 'leftNode' : 'rightNode';
+    const offHeld = player.actionHands[offSlotKey];
+    const isOffHandOccupied = Boolean(offHeld && (offHeld.itemId || offHeld.id || offHeld.texture));
+
+    let penaltyMultiplier = 1.0;
+    if (w.handsRequired === 2 && isOffHandOccupied) {
+        penaltyMultiplier = 0.75; // 25% damage penalty when wielding 2-handed weapon with off-hand occupied!
+    } else if (w.versatile && !isOffHandOccupied) {
+        penaltyMultiplier = 1.20; // +20% damage bonus when wielding versatile 1-handed weapon with off-hand free!
+    }
+
+    // Target Zone Multiplier
+    const zoneMult = (w.targetZoneModifiers && w.targetZoneModifiers[targetZone] && w.targetZoneModifiers[targetZone].damageMultiplier) || 1.0;
+
+    const baseDmg = intentConfig.damage || 0;
+    const finalDamage = Math.round(baseDmg * penaltyMultiplier * zoneMult);
+
+    const suffix = `${intentConfig.message} ${targetZone}!${penaltyMultiplier < 1.0 ? ' (Penalty for occupied off-hand!)' : ''}`;
+
+    return {
+        isWeapon: true,
+        actionName: intentConfig.action || 'Strike',
+        damage: finalDamage,
+        damageType: intentConfig.damageType || 'brute',
+        bleedMult: (intentConfig.bleedMult !== undefined ? intentConfig.bleedMult : 1.0) * penaltyMultiplier,
+        fractureMult: (intentConfig.fractureMult !== undefined ? intentConfig.fractureMult : 1.0) * penaltyMultiplier,
+        staminaDrain: Math.round((intentConfig.staminaDrain || 0) * penaltyMultiplier),
+        messageSuffix: suffix,
+        penaltyMultiplier,
+        itemName: def.name || 'Weapon'
+    };
+}
+
+/**
  * @fileoverview interactionHandlers.js - Player Interaction & Combat Socket Event Router
  * 
  * @description
@@ -156,12 +245,14 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
         }
     });
 
+
+
     /**
      * Main handler for clicking on another player/target.
      * Evaluates reach, intent (Friendly, Grabbing, Hostile), and triggers effects.
      */
     socket.on('playerPerformAction', (data) => {
-        log.info(`${logPrefix} Received playerPerformAction from ${socket.id} with intent: ${data.intent}, targetZone: ${data.targetZone}`);
+        log.info(`${logPrefix} Received playerPerformAction from ${socket.id} with intent: ${data.intent}, targetZone: ${data.targetZone}, hand: ${data.hand}`);
         try {
             const { targetId, intent, targetZone } = data;
             const player = players[socket.id];
@@ -187,19 +278,71 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
             const targetName = getFullName(targetPlayer);
             const sanitizedIntent = (intent || 'neutral').replace(/[^a-zA-Z0-9]/g, '');
+            const activeHandSlot = (data.hand === 'right') ? 'right' : 'left';
 
-            // 2. Handle Intents
-            if (sanitizedIntent === 'friendly') {
-                handleFriendlyAction(io, socket, player, targetPlayer, itemData, saveCharacter, messageSystem, targetZone || 'torso');
-            } else if (sanitizedIntent === 'grabbing') {
-                if (player.playerId === targetPlayer.playerId || (player._id && targetPlayer._id && player._id.toString() === targetPlayer._id.toString())) {
-                    sendSystemMsg(socket, messageSystem, "You cannot grab yourself.");
-                    require('../server/monitoring').recordAction('grapple', false);
-                    return;
+            log.info(`[playerPerformAction DEBUG] socket: ${socket.id}, activeHandSlot: '${activeHandSlot}', player.actionHands:`, JSON.stringify(player.actionHands));
+
+            // Check if player is holding a weapon in the acting hand slot
+            const weaponAction = resolveWeaponAction(player, activeHandSlot, sanitizedIntent, targetZone || 'torso');
+
+            log.info(`[playerPerformAction DEBUG] weaponAction result:`, JSON.stringify(weaponAction));
+
+            if (weaponAction && weaponAction.isWeapon) {
+                // Execute Weapon Intent Action
+                const { applyDamage } = require('../server/mechanics/damage');
+                const User = require('../model/User');
+                const resolvedLimb = resolveTargetLimb(targetPlayer, targetZone || 'torso');
+                const msg = `${player.firstName || player.Username} ${weaponAction.messageSuffix}`;
+
+                sendSystemMsg(socket, messageSystem, msg);
+                log.info(`[WeaponAction] ${player.firstName} (${activeHandSlot}) -> ${targetName} (${targetZone} -> ${resolvedLimb}). Action: ${weaponAction.actionName}, Dmg: ${weaponAction.damage} (${weaponAction.damageType}), 2HPenalty: ${weaponAction.penaltyMultiplier}`);
+
+                if (weaponAction.staminaDrain > 0 && targetPlayer.stats) {
+                    targetPlayer.stats.stamina = Math.max(0, (targetPlayer.stats.stamina || 100) - weaponAction.staminaDrain);
                 }
-                handleGrabbingAction(socket, player, targetPlayer, messageSystem, targetZone || 'torso');
-            } else if (sanitizedIntent === 'hostile') {
-                handleHostileAction(io, socket, player, targetPlayer, messageSystem, targetZone || 'torso');
+
+                if (weaponAction.damage > 0) {
+                    const playersDict = players || { [targetPlayer.playerId]: targetPlayer, [player.playerId]: player };
+                    applyDamage(
+                        playersDict,
+                        User,
+                        targetPlayer.playerId,
+                        weaponAction.damage,
+                        player.playerId,
+                        weaponAction.damageType,
+                        null,
+                        io,
+                        resolvedLimb,
+                        messageSystem,
+                        { bleedMult: weaponAction.bleedMult, fractureMult: weaponAction.fractureMult }
+                    );
+                }
+
+                if (socket) {
+                    socket.emit('anatomyStatsUpdate', { stats: player.stats });
+                }
+                if (io.sockets.sockets.get(targetPlayer.playerId)) {
+                    io.sockets.sockets.get(targetPlayer.playerId).emit('anatomyStatsUpdate', { stats: targetPlayer.stats });
+                }
+            } else {
+                // Unarmed / Generic Intent Action Fallback
+                if (sanitizedIntent === 'grabbing') {
+                    if (player.playerId === targetPlayer.playerId || (player._id && targetPlayer._id && player._id.toString() === targetPlayer._id.toString())) {
+                        sendSystemMsg(socket, messageSystem, "You cannot grab yourself.");
+                        require('../server/monitoring').recordAction('grapple', false);
+                        return;
+                    }
+                    const activeNode = activeHandSlot === 'left' ? player.actionHands?.leftNode : player.actionHands?.rightNode;
+                    if (activeNode && (activeNode.itemId || activeNode.id)) {
+                        sendSystemMsg(socket, messageSystem, `Your ${activeHandSlot} hand is holding an item and cannot grab someone.`);
+                        return;
+                    }
+                    handleGrabbingAction(socket, player, targetPlayer, messageSystem, targetZone || 'torso');
+                } else if (sanitizedIntent === 'friendly') {
+                    handleFriendlyAction(io, socket, player, targetPlayer, itemData, saveCharacter, messageSystem, targetZone || 'torso');
+                } else if (sanitizedIntent === 'hostile') {
+                    handleHostileAction(io, socket, player, targetPlayer, messageSystem, targetZone || 'torso');
+                }
             }
 
             require('../server/monitoring').recordAction('grapple', true);
@@ -1622,6 +1765,18 @@ function handleRelease(io, socket, players, messageSystem, saveCharacter, data) 
     const isPredator = targetPlayer.consumedBy === player.playerId;
 
     if (isHolder || isPredator) {
+        // Apply post-digestion release burn damage to prey limbs based on accumulated digestion progress
+        if (isPredator && targetPlayer.stats) {
+            const { applyDigestionReleaseBurn } = require('../server/mechanics/anatomyDamage');
+            const maxHp = targetPlayer.stats.maxHealth || 100;
+            const currentHp = targetPlayer.stats.health;
+            const progressPct = targetPlayer.digestionProgressPct || Math.max(0, (maxHp - currentHp) / maxHp);
+            if (progressPct > 0) {
+                applyDigestionReleaseBurn(targetPlayer, progressPct);
+            }
+            targetPlayer.digestionProgressPct = 0;
+        }
+
         resetGrappleState(targetPlayer);
         untrackVictim(targetPlayer.playerId);
         resetVoreState(targetPlayer);
@@ -1877,3 +2032,4 @@ module.exports.handleGrabbingAction = handleGrabbingAction;
 module.exports.handleHostileAction = handleHostileAction;
 module.exports.resolveTargetLimb = resolveTargetLimb;
 module.exports.broadcastVoreStageUpdate = broadcastVoreStageUpdate;
+module.exports.resolveWeaponAction = resolveWeaponAction;

@@ -2944,10 +2944,18 @@ module.exports.start = (io, _messageSystem) => {
                 }
                 const activeNode = activeHand === 'left' ? player.actionHands.leftNode : player.actionHands.rightNode;
 
+                log.info(`[playerHandClicked DEBUG] Socket ${socket.id} (${player.Username}) clicked hand: '${hand}', playerIntent: '${playerIntent}', targetZone: '${selectedZone}', clickedItem:`, JSON.stringify(clickedItem));
+                log.info(`[playerHandClicked DEBUG] player.actionHands state:`, JSON.stringify(player.actionHands));
+
                 // --- Scenario A: Clicked a Player ---
-                if (clickedItem.Identifier === 'player' && players[clickedItem.playerId]) {
-                    const targetPlayer = players[clickedItem.playerId];
-                    const interactionHandlers = require('./sockets/interactionHandlers');
+                if (clickedItem.Identifier === 'player') {
+                    let targetPlayer = players[clickedItem.playerId];
+                    if (!targetPlayer && clickedItem.playerId) {
+                        targetPlayer = Object.values(players).find(p => p && (p.playerId === clickedItem.playerId || String(p._id) === String(clickedItem.playerId) || p.socketId === clickedItem.playerId));
+                    }
+                    log.info(`[playerHandClicked DEBUG] Scenario A Target Player: ${targetPlayer ? targetPlayer.Username + ' (' + targetPlayer.playerId + ')' : 'NULL (clickedItem.playerId was ' + clickedItem.playerId + ')'}`);
+                    if (targetPlayer) {
+                        const interactionHandlers = require('./sockets/interactionHandlers');
                     
                     // Verify reach
                     const distance = Math.sqrt(Math.pow(player.position.x - targetPlayer.position.x, 2) + Math.pow(player.position.y - targetPlayer.position.y, 2));
@@ -2956,45 +2964,85 @@ module.exports.start = (io, _messageSystem) => {
                         return;
                     }
 
-                    // Grabbing Intent
-                    if (playerIntent === 'grabbing') {
-                        if (targetPlayer.playerId === socket.id || (player._id && targetPlayer._id && player._id.toString() === targetPlayer._id.toString())) {
-                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', 'You cannot grab yourself.', null, [], 'local', socket);
-                            return;
+                    const weaponAction = interactionHandlers.resolveWeaponAction ? interactionHandlers.resolveWeaponAction(player, activeHand, playerIntent, selectedZone || 'torso') : null;
+                    log.info(`[playerHandClicked DEBUG] weaponAction result:`, JSON.stringify(weaponAction));
+
+                    if (weaponAction && weaponAction.isWeapon) {
+                        // Perform Item / Weapon Intent Action
+                        const { applyDamage } = require('./server/mechanics/damage');
+                        const User = require('./model/User');
+                        const resolvedLimb = interactionHandlers.resolveTargetLimb(targetPlayer, selectedZone || 'torso');
+                        const msg = `${player.firstName || player.Username} ${weaponAction.messageSuffix}`;
+
+                        if (messageSystem) messageSystem.sendSystemMessage('Interactional', msg, null, [], 'local', socket);
+                        log.info(`[WeaponAction] ${player.firstName} (${activeHand}) -> ${targetPlayer.Username} (${selectedZone} -> ${resolvedLimb}). Action: ${weaponAction.actionName}, Dmg: ${weaponAction.damage} (${weaponAction.damageType}), 2HPenalty: ${weaponAction.penaltyMultiplier}`);
+
+                        if (weaponAction.staminaDrain > 0 && targetPlayer.stats) {
+                            targetPlayer.stats.stamina = Math.max(0, (targetPlayer.stats.stamina || 100) - weaponAction.staminaDrain);
                         }
 
-                        // Empty active hand is required to grab a player
-                        if (activeNode) {
-                            if (messageSystem) messageSystem.sendSystemMessage('Interactional', `Your ${activeHand} hand must be empty to grab someone.`, null, [], 'local', socket);
-                            return;
+                        if (weaponAction.damage > 0) {
+                            applyDamage(
+                                players,
+                                User,
+                                targetPlayer.playerId,
+                                weaponAction.damage,
+                                player.playerId,
+                                weaponAction.damageType,
+                                null,
+                                io,
+                                resolvedLimb,
+                                messageSystem,
+                                { bleedMult: weaponAction.bleedMult, fractureMult: weaponAction.fractureMult }
+                            );
                         }
 
-                        if (targetPlayer.heldBySocketId === socket.id && targetPlayer.grippedFirmly) {
-                            // Stage 3: Already gripped firmly -> Open Vore radial menu
-                            const voreOptions = getPlayerVoreOptions(player);
-                            const predatorInfo = {
-                                name: player.Username,
-                                voreTypes: voreOptions
-                            };
-                            const responseInfo = [{
-                                Identifier: 'player',
-                                playerId: targetPlayer.playerId,
-                                name: targetPlayer.Username,
-                                availableActions: ['Examine', 'Vore', 'Release']
-                            }];
-                            socket.emit('playerRightClickedResponse', { responseInfo, predatorInfo, pointerX, pointerY });
-                        } else {
-                            interactionHandlers.handleGrabbingAction(socket, player, targetPlayer, messageSystem, selectedZone);
+                        if (socket) socket.emit('anatomyStatsUpdate', { stats: player.stats });
+                        if (io.sockets.sockets.get(targetPlayer.playerId)) {
+                            io.sockets.sockets.get(targetPlayer.playerId).emit('anatomyStatsUpdate', { stats: targetPlayer.stats });
                         }
-                    } 
-                    // Friendly Intent
-                    else if (playerIntent === 'friendly') {
-                        interactionHandlers.handleFriendlyAction(io, socket, player, targetPlayer, itemData, saveCharacter, messageSystem, selectedZone);
+                    } else {
+                        // Unarmed / Generic Hand Actions
+                        if (playerIntent === 'grabbing') {
+                            if (targetPlayer.playerId === socket.id || (player._id && targetPlayer._id && player._id.toString() === targetPlayer._id.toString())) {
+                                if (messageSystem) messageSystem.sendSystemMessage('Interactional', 'You cannot grab yourself.', null, [], 'local', socket);
+                                return;
+                            }
+
+                            // Empty active hand is required to grab a player unarmed
+                            if (activeNode) {
+                                if (messageSystem) messageSystem.sendSystemMessage('Interactional', `Your ${activeHand} hand must be empty to grab someone.`, null, [], 'local', socket);
+                                return;
+                            }
+
+                            if (targetPlayer.heldBySocketId === socket.id && targetPlayer.grippedFirmly) {
+                                // Stage 3: Already gripped firmly -> Open Vore radial menu
+                                const voreOptions = getPlayerVoreOptions(player);
+                                const predatorInfo = {
+                                    name: player.Username,
+                                    voreTypes: voreOptions
+                                };
+                                const responseInfo = [{
+                                    Identifier: 'player',
+                                    playerId: targetPlayer.playerId,
+                                    name: targetPlayer.Username,
+                                    availableActions: ['Examine', 'Vore', 'Release']
+                                }];
+                                socket.emit('playerRightClickedResponse', { responseInfo, predatorInfo, pointerX, pointerY });
+                            } else {
+                                interactionHandlers.handleGrabbingAction(socket, player, targetPlayer, messageSystem, selectedZone);
+                            }
+                        } 
+                        // Friendly Intent
+                        else if (playerIntent === 'friendly') {
+                            interactionHandlers.handleFriendlyAction(io, socket, player, targetPlayer, itemData, saveCharacter, messageSystem, selectedZone);
+                        }
+                        // Hostile Intent
+                        else if (playerIntent === 'hostile') {
+                            interactionHandlers.handleHostileAction(io, socket, player, targetPlayer, messageSystem, selectedZone, players);
+                        }
                     }
-                    // Hostile Intent
-                    else if (playerIntent === 'hostile') {
-                        interactionHandlers.handleHostileAction(io, socket, player, targetPlayer, messageSystem, selectedZone, players);
-                    }
+                }
                 }
                 
                 // --- Scenario B: Clicked a Map Object ---
@@ -3715,17 +3763,43 @@ module.exports.start = (io, _messageSystem) => {
 
                 let statsChanged = false;
 
-                // 1. Process Bleeding Rate
+                // 1. Process Bleeding & Natural Clotting
                 if (p.stats.bleedingRate && p.stats.bleedingRate > 0) {
                     const bloodLoss = p.stats.bleedingRate * 5; // 5mL per rate point / sec
-                    p.stats.bloodVolume = Math.max(0, (p.stats.bloodVolume || 5000) - bloodLoss);
+                    const curVol = typeof p.stats.bloodVolume === 'number' ? p.stats.bloodVolume : 5000;
+                    p.stats.bloodVolume = Math.max(0, curVol - bloodLoss);
+
+                    // Natural Clotting: Bleeding rate on each open limb cut decays by 0.05 mL/s every second
+                    if (p.stats.bodyParts) {
+                        for (const partKey in p.stats.bodyParts) {
+                            const part = p.stats.bodyParts[partKey];
+                            if (part && part.bleeding && part.bleeding > 0) {
+                                part.bleeding = Math.max(0, Math.round((part.bleeding - 0.05) * 100) / 100);
+                            }
+                        }
+                    }
+
                     const { recalculateTotalHealth } = require('./server/mechanics/anatomyDamage');
                     recalculateTotalHealth(p);
                     statsChanged = true;
+                }
 
-                    if (p.stats.health <= 0 || p.stats.bloodVolume <= 0) {
-                        const { applyDamage } = require('./server/mechanics/damage');
-                        await applyDamage(players, User, socketId, 10, null, 'suffocation', module.exports.addCorpse, io, 'torso', messageSystem);
+                // 1b. Process Downed RP State & Exsanguination / Vital Collapse
+                if ((p.stats.health <= 0 || (typeof p.stats.bloodVolume === 'number' && p.stats.bloodVolume <= 0)) && !p.isDead) {
+                    if (!p.isDowned) {
+                        p.isDowned = true;
+                        p.downedTimer = 90; // 90 seconds downed grace timer for RP/revival
+                        statsChanged = true;
+                        log.info(`[ServerLoop] ${p.firstName || p.Username} entered Downed RP State (Timer: 90s).`);
+                    } else {
+                        p.downedTimer = Math.max(0, (p.downedTimer || 90) - 1);
+                        statsChanged = true;
+
+                        if (p.downedTimer <= 0) {
+                            // Downed timer expired -> trigger true death
+                            const { applyDamage } = require('./server/mechanics/damage');
+                            await applyDamage(players, User, socketId, 100, null, 'suffocation', module.exports.addCorpse, io, 'torso', messageSystem);
+                        }
                     }
                 }
 
@@ -3799,7 +3873,9 @@ module.exports.start = (io, _messageSystem) => {
                     if (socketObj) {
                         socketObj.emit('anatomyStatsUpdate', {
                             stats: p.stats,
-                            isDead: p.isDead
+                            isDead: p.isDead,
+                            isDowned: !!p.isDowned,
+                            downedTimer: p.downedTimer || 0
                         });
                     }
                 }

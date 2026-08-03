@@ -334,7 +334,7 @@ function initializeContextMenu(scene, socket) {
                     console.log('[ContextMenu] Cannot perform Grab action on yourself.');
                     return;
                 }
-                console.log(`[HandClick] Emitting playerHandClicked. Hand: ${hand}, Intent: ${intent}, targetZone: ${window.currentTargetZone}`);
+                console.log(`[HandClick DEBUG] Emitting playerHandClicked. Hand: ${hand}, Button: ${mouseDownButton}, Intent: ${intent}, targetZone: ${window.currentTargetZone || 'torso'}, Target:`, primaryTarget);
                 socket.emit('playerHandClicked', {
                     hand: hand,
                     clickedItem: primaryTarget,
@@ -451,7 +451,8 @@ function initializeContextMenu(scene, socket) {
                     socket.emit('playerPerformAction', {
                         targetId: target.playerId,
                         intent: playerIntent,
-                        targetZone: window.currentTargetZone || 'torso'
+                        targetZone: window.currentTargetZone || 'torso',
+                        hand: (mouseDownButton === 2) ? 'right' : 'left'
                     });
                     destroySelectionMenu();
                 };
@@ -477,7 +478,8 @@ function initializeContextMenu(scene, socket) {
             socket.emit('playerPerformAction', {
                 targetId: target.playerId,
                 intent: playerIntent,
-                targetZone: window.currentTargetZone || 'torso'
+                targetZone: window.currentTargetZone || 'torso',
+                hand: (mouseDownButton === 2) ? 'right' : 'left'
             });
         }
     });
@@ -801,7 +803,7 @@ function initializeContextMenu(scene, socket) {
                         label: 'Hold',
                         icon: 'fa-solid fa-hand-back-fist',
                         onClick: (e) => checkReach(targetId, targetType, e, () => {
-                            socket.emit('playerPerformAction', { targetId: currentItem.playerId, intent: 'grabbing', targetZone: window.currentTargetZone || 'torso' });
+                            socket.emit('playerPerformAction', { targetId: currentItem.playerId, intent: 'grabbing', targetZone: window.currentTargetZone || 'torso', hand: (mouseDownButton === 2) ? 'right' : 'left' });
                         })
                     });
                 } else if (hasGrip && !isSelf) {
@@ -907,7 +909,7 @@ function initializeContextMenu(scene, socket) {
                     innerActions.push({
                         label: 'Punch',
                         icon: 'fa-solid fa-hand-fist',
-                        onClick: () => socket.emit('playerPerformAction', { targetId: currentItem.playerId, intent: 'hostile', targetZone: window.currentTargetZone || 'torso' })
+                        onClick: () => socket.emit('playerPerformAction', { targetId: currentItem.playerId, intent: 'hostile', targetZone: window.currentTargetZone || 'torso', hand: (mouseDownButton === 2) ? 'right' : 'left' })
                     });
                 } else if (actions.includes('Haunt')) {
                     innerActions.push({
