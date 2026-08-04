@@ -16,6 +16,7 @@ const app = express();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const path = require('path');
+const { spawn } = require('child_process');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
@@ -169,10 +170,131 @@ app.use('/edit', editRoute);
 app.use('/play', playRoute);
 app.use('/api/chat-archives', require('./routes/chatArchives'));
 
-// --- Monitoring Endpoint ---
+// --- Monitoring & Admin Dashboard API Endpoints ---
+const sseClients = new Set();
+let lastManualFlushTime = 0;
+let activeTestProcess = null;
+let activeTestName = null;
+
+// Server-Sent Events (SSE) Stream for zero-overhead telemetry pushing
+app.get('/api/stats/stream', (req, res) => {
+  if (sseClients.size >= 5) {
+    return res.status(429).json({ error: 'Maximum active telemetry dashboard streams reached (max 5).' });
+  }
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Connection': 'keep-alive',
+    'X-No-Compression': '1'
+  });
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
+
+  const sendSnapshot = () => {
+    try {
+      res.write(`data: ${JSON.stringify(monitoring.getStats())}\n\n`);
+      if (typeof res.flush === 'function') {
+        res.flush();
+      }
+    } catch (e) {
+      // client connection closed
+    }
+  };
+
+  sendSnapshot();
+  const intervalId = setInterval(sendSnapshot, 1000);
+  sseClients.add(res);
+
+  req.on('close', () => {
+    clearInterval(intervalId);
+    sseClients.delete(res);
+  });
+});
+
 app.get('/stats', (req, res) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.json(monitoring.getStats());
+});
+
+// Client-Side Error Telemetry Ingestion Endpoint
+app.post('/api/client-error', express.json({ limit: '50kb' }), (req, res) => {
+  const { message, stack } = req.body || {};
+  if (!message || typeof message !== 'string') {
+    return res.status(400).json({ error: 'Invalid error payload: message string is required.' });
+  }
+  const safeMessage = message.substring(0, 500);
+  const safeStack = typeof stack === 'string' ? stack.substring(0, 3000) : '';
+  monitoring.recordClientError(safeMessage, safeStack);
+  res.json({ success: true });
+});
+
+// Admin Manual DB Queue Flush API (10s Cooldown Guard)
+app.post('/api/admin/flush-db-queue', express.json(), async (req, res) => {
+  const now = Date.now();
+  if (now - lastManualFlushTime < 10000) {
+    return res.status(429).json({ error: 'Manual DB flush cooldown active. Please wait 10 seconds.' });
+  }
+  lastManualFlushTime = now;
+  try {
+    const dbResilience = serverGame.dbResilience;
+    if (dbResilience && typeof dbResilience._flushBuffer === 'function') {
+      await dbResilience._flushBuffer();
+      return res.json({ success: true, message: 'Database resilience buffer flushed successfully.' });
+    }
+    res.status(500).json({ error: 'Database resilience engine not initialized.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Admin In-Dashboard Test Controller API (Mutex Lock & 120s Auto-Kill Timeout)
+app.post('/api/admin/run-test', express.json(), (req, res) => {
+  const { testName } = req.body || {};
+  const validTests = {
+    'cluster_storm': 'scripts/test_cluster_storm.js',
+    'bottleneck_taxonomy': 'scripts/test_bottleneck_taxonomy.js',
+    'memory_leaker': 'scripts/test_memory_leaker.js',
+    'chatterbox': 'scripts/test_chatterbox.js',
+    'db_heavy_lift': 'scripts/test_db_heavy_lift.js',
+    'check_performance': 'scripts/check-performance.js'
+  };
+
+  if (!testName || !validTests[testName]) {
+    return res.status(400).json({ error: 'Invalid test script name specified.' });
+  }
+
+  if (activeTestProcess) {
+    return res.status(409).json({ error: `Test script '${activeTestName}' is currently running. Please wait for completion.` });
+  }
+
+  const scriptPath = path.join(__dirname, '..', validTests[testName]);
+  log.info(`[DashboardController] Spawning diagnostic test script: ${testName} (${scriptPath})`);
+
+  try {
+    activeTestName = testName;
+    activeTestProcess = spawn('node', [scriptPath], { cwd: path.join(__dirname, '..') });
+
+    const autoKillTimeout = setTimeout(() => {
+      if (activeTestProcess) {
+        log.warn(`[DashboardController] Auto-killing timed out test process: ${testName}`);
+        activeTestProcess.kill('SIGKILL');
+      }
+    }, 120000); // 120s timeout limit
+
+    activeTestProcess.on('exit', (code) => {
+      clearTimeout(autoKillTimeout);
+      log.info(`[DashboardController] Test script '${activeTestName}' exited with code ${code}`);
+      activeTestProcess = null;
+      activeTestName = null;
+    });
+
+    res.json({ success: true, message: `Started diagnostic test script: ${testName}`, testName });
+  } catch (e) {
+    activeTestProcess = null;
+    activeTestName = null;
+    res.status(500).json({ error: `Failed to spawn test script: ${e.message}` });
+  }
 });
 
 /**
@@ -289,6 +411,13 @@ io.on('connection', (socket) => {
   socket.on('reportAction', (data) => {
     if (data && data.actionType) {
       monitoring.recordAction(data.actionType, !!data.success);
+    }
+  });
+
+  // Client telemetry ping & fps heartbeat
+  socket.on('clientTelemetry', (data) => {
+    if (data) {
+      monitoring.recordClientPingFps(data.ping, data.fps);
     }
   });
 

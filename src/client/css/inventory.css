@@ -343,6 +343,40 @@
     margin-top: 1px;
 }
 
+/* Floating Anatomical Parchment Hover Tooltip */
+.anatomy-hover-tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 50000;
+    background: #1c140c;
+    background: linear-gradient(135deg, #2b1f14 0%, #150f09 100%);
+    border: 1px solid #7a5a3a;
+    border-radius: 6px;
+    padding: 6px 10px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.85), 0 0 10px rgba(240, 201, 135, 0.2);
+    min-width: 120px;
+    text-align: center;
+    transform: translate(-50%, -120%);
+    transition: opacity 0.12s ease-out, transform 0.12s ease-out;
+}
+
+.anatomy-tooltip-title {
+    font-family: 'Cinzel', 'Georgia', serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #f0c987;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}
+
+.anatomy-tooltip-hint {
+    font-family: 'Lato', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #d1b894;
+    margin-top: 2px;
+}
+
 /* Hands Group (Center Core) */
 .hands-dock-group {
     display: flex;

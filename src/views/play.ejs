@@ -65,6 +65,7 @@
     <div class="medical-body">
       <div class="paper-doll-container">
         <div id="paper-doll-svg-container"></div>
+        <div id="paper-doll-pills-container" class="paper-doll-pills-container"></div>
       </div>
       <div class="medical-status-panel">
         <div class="summary-card">
@@ -72,14 +73,15 @@
           <div class="summary-row"><span class="summary-label">Bleeding Rate:</span> <span id="med-bleed-rate" class="summary-value">0 mL/s</span></div>
           <div class="summary-row"><span class="summary-label">Total Health:</span> <span id="med-total-health" class="summary-value">100 / 100</span></div>
         </div>
-        <div id="med-limb-list" class="limb-list"></div>
-        <div class="remedy-actions">
-          <button class="remedy-btn" onclick="window.triggerRemedy('bandage')"><i class="fa-solid fa-bandage"></i> Bandage</button>
-          <button class="remedy-btn" onclick="window.triggerRemedy('splint')"><i class="fa-solid fa-bone"></i> Splint</button>
-          <button class="remedy-btn" onclick="window.triggerRemedy('salve')"><i class="fa-solid fa-jar"></i> Salve</button>
-          <button class="remedy-btn" onclick="window.triggerRemedy('antidote')"><i class="fa-solid fa-flask-vial"></i> Antidote</button>
-          <button class="remedy-btn" onclick="window.triggerRemedy('smellingSalts')"><i class="fa-solid fa-wind"></i> Spirit Salts</button>
-          <button class="remedy-btn" onclick="window.triggerRemedy('bloodElixir')"><i class="fa-solid fa-vial"></i> Blood Elixir</button>
+        <!-- Anatomical Condition & Status Description Panel -->
+        <div id="med-detail-panel" class="med-detail-panel">
+          <div class="detail-panel-header">
+            <span class="detail-title" id="med-detail-title">SELECTED: TORSO</span>
+            <span class="detail-badge badge-ok" id="med-detail-badge">HEALTHY</span>
+          </div>
+          <div class="detail-panel-body" id="med-detail-body">
+            <!-- Diagnostic rows injected dynamically by medicalUI.js -->
+          </div>
         </div>
       </div>
     </div>
@@ -100,6 +102,33 @@
     </div>
     <div class="tab-controls">
       <div class="restore-btn" id="medical-tab-restore" title="Restore Window">☐</div>
+    </div>
+  </div>
+
+  <!-- Second Wind Recovery Window (Pop-Out Overlay) -->
+  <div class="window-container second-wind-window" id="second-wind-window" style="display: none; position: absolute; top: 35%; left: 40%; width: 320px; z-index: 10500;">
+    <div class="rivet tl"></div>
+    <div class="rivet tr"></div>
+    <div class="rivet bl"></div>
+    <div class="rivet br"></div>
+
+    <div class="window-header" id="second-wind-header">
+      <div class="header-left">
+        <i class="fa-solid fa-person-rising header-icon" style="color: #e67e22;"></i>
+        <h2 class="window-title">Second Wind Recovery</h2>
+      </div>
+      <div class="window-controls">
+        <div class="close-btn" id="second-wind-btn-close" title="Close Window">✕</div>
+      </div>
+    </div>
+
+    <div class="window-body" style="padding: 16px; text-align: center; display: flex; flex-direction: column; gap: 12px; background: var(--medical-bg-dark);">
+      <p style="margin: 0; font-size: 0.9rem; color: #d4c5b9; line-height: 1.4;">
+        You have caught your breath and regained enough strength to stand back up.
+      </p>
+      <button id="second-wind-action-btn" class="second-wind-action-btn" onclick="window.triggerSecondWind()">
+        <i class="fa-solid fa-person-rising"></i> Catch Breath & Stand Up
+      </button>
     </div>
   </div>
 
@@ -277,11 +306,17 @@
             </div>
 
             <!-- Target Selection Paper Doll Widget (Option A: Pop-Out Anatomical Target Lens) -->
-            <div class="target-doll-dock-group" id="target-doll-widget" title="Target Zone: Torso">
+            <div class="target-doll-dock-group" id="target-doll-widget">
               <!-- Mini Status Indicator Bar in HUD Dock -->
               <div class="target-dock-mini-btn" id="target-dock-mini-btn">
                 <i class="fa-solid fa-bullseye target-dock-icon"></i>
                 <div class="target-zone-label" id="target-zone-label">TORSO</div>
+              </div>
+
+              <!-- Floating Anatomical Hover Tooltip Card -->
+              <div class="anatomy-hover-tooltip" id="target-anatomy-tooltip" style="display: none;">
+                <div class="anatomy-tooltip-title" id="anatomy-tooltip-title">EAR (L)</div>
+                <div class="anatomy-tooltip-hint" id="anatomy-tooltip-hint">SCRATCH LEFT EAR</div>
               </div>
 
               <!-- Floating Pop-Out Target Lens Card (180px x 240px) -->
@@ -299,24 +334,31 @@
 
                 <div class="target-lens-body">
                   <svg viewBox="0 0 180 240" class="target-lens-svg" xmlns="http://www.w3.org/2000/svg">
-                    <!-- Head -->
+                    <!-- Head Base -->
                     <path class="target-zone-node node-head" data-zone="head" d="M 90 18 C 70 18, 70 58, 90 58 C 110 58, 110 18, 90 18 Z" />
+                    <!-- Anime Cat Ears (Left & Right - Enlarged Hit Targets) -->
+                    <path class="target-zone-node node-leftEar" data-zone="leftEar" d="M 80 22 L 56 0 C 56 0, 62 18, 72 28 Z" />
+                    <path class="target-zone-node node-rightEar" data-zone="rightEar" d="M 100 22 L 124 0 C 124 0, 118 18, 108 28 Z" />
+                    <!-- Eyes Zone (Unified Mask - Enlarged Hit Target) -->
+                    <path class="target-zone-node node-eyes" data-zone="eyes" d="M 72 32 C 72 24, 85 24, 90 31 C 95 24, 108 24, 108 32 C 108 40, 95 40, 90 35 C 85 40, 72 40, 72 32 Z" />
+                    <!-- Catgirl Mouth / Snout (:3 Shape - Enlarged Hit Target) -->
+                    <path class="target-zone-node node-mouth" data-zone="mouth" d="M 76 43 C 76 54, 86 58, 90 49 C 94 58, 104 54, 104 43 C 104 54, 94 60, 90 60 C 86 60, 76 54, 76 43 Z" />
                     <!-- Torso -->
                     <path class="target-zone-node node-torso active" data-zone="torso" d="M 68 64 L 112 64 L 106 132 L 74 132 Z" />
                     <!-- Groin -->
                     <path class="target-zone-node node-groin" data-zone="groin" d="M 74 134 L 106 134 L 90 148 Z" />
-                    <!-- Arms (Left & Right Grouped) -->
-                    <path class="target-zone-node node-arms" data-zone="arms" d="M 40 68 L 64 68 L 56 128 L 36 128 Z" />
-                    <path class="target-zone-node node-arms" data-zone="arms" d="M 116 68 L 140 68 L 144 128 L 124 128 Z" />
-                    <!-- Hands (Left & Right Grouped) -->
-                    <path class="target-zone-node node-hands" data-zone="hands" d="M 34 132 L 54 132 L 50 158 L 30 158 Z" />
-                    <path class="target-zone-node node-hands" data-zone="hands" d="M 126 132 L 146 132 L 150 158 L 130 158 Z" />
-                    <!-- Legs (Left & Right Grouped) -->
-                    <path class="target-zone-node node-legs" data-zone="legs" d="M 73 150 L 87 150 L 84 198 L 70 198 Z" />
-                    <path class="target-zone-node node-legs" data-zone="legs" d="M 93 150 L 107 150 L 110 198 L 96 198 Z" />
-                    <!-- Feet (Left & Right Grouped) -->
-                    <path class="target-zone-node node-feet" data-zone="feet" d="M 64 202 L 82 202 L 78 226 L 60 226 Z" />
-                    <path class="target-zone-node node-feet" data-zone="feet" d="M 98 202 L 116 202 L 120 226 L 102 226 Z" />
+                    <!-- Arms (Left & Right Separated) -->
+                    <path class="target-zone-node node-leftArm" data-zone="leftArm" d="M 40 68 L 64 68 L 56 128 L 36 128 Z" />
+                    <path class="target-zone-node node-rightArm" data-zone="rightArm" d="M 116 68 L 140 68 L 144 128 L 124 128 Z" />
+                    <!-- Hands (Left & Right Separated) -->
+                    <path class="target-zone-node node-leftHand" data-zone="leftHand" d="M 34 132 L 54 132 L 50 158 L 30 158 Z" />
+                    <path class="target-zone-node node-rightHand" data-zone="rightHand" d="M 126 132 L 146 132 L 150 158 L 130 158 Z" />
+                    <!-- Legs (Left & Right Separated) -->
+                    <path class="target-zone-node node-leftLeg" data-zone="leftLeg" d="M 73 150 L 87 150 L 84 198 L 70 198 Z" />
+                    <path class="target-zone-node node-rightLeg" data-zone="rightLeg" d="M 93 150 L 107 150 L 110 198 L 96 198 Z" />
+                    <!-- Feet (Left & Right Separated) -->
+                    <path class="target-zone-node node-leftFoot" data-zone="leftFoot" d="M 64 202 L 82 202 L 78 226 L 60 226 Z" />
+                    <path class="target-zone-node node-rightFoot" data-zone="rightFoot" d="M 98 202 L 116 202 L 120 226 L 102 226 Z" />
                     <!-- Tail -->
                     <path class="target-zone-node node-tail" data-zone="tail" d="M 106 128 C 142 138, 142 178, 162 198 C 147 188, 132 158, 102 140 Z" />
                   </svg>

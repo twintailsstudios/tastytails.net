@@ -17,6 +17,7 @@
   <title><%= typeof title !== 'undefined' ? title : 'TastyTails | Home' %></title>
   <script>window.APP_VERSION = "<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>";</script>
   <script src="/js/versionManager.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+  <script src="/js/clientErrorReporter.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
   <!-- OPTIMIZATION: Preconnect to Font CDNs for Fast Layout Paint -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

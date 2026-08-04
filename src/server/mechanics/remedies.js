@@ -63,7 +63,10 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
     ensureAnatomyStats(target);
 
     const parts = target.stats.bodyParts;
-    let part = parts[bodyPart] || parts.torso;
+    const isSubPart = ['leftEar', 'rightEar', 'eyes', 'mouth', 'groin'].includes(bodyPart);
+    const parentPartKey = isSubPart ? (bodyPart === 'groin' ? 'torso' : 'head') : bodyPart;
+    let part = parts[bodyPart] || parts[parentPartKey] || parts.torso;
+    let parentPart = parts[parentPartKey] || parts.torso;
     let message = '';
     let healedAmount = 0;
 
@@ -71,13 +74,14 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
         case 'bandage':
         case 'gauze': {
             const hasBleeding = target.stats.bleedingRate > 0;
-            const hasBruteOnPart = part && (part.brute || 0) > 0;
+            const hasBruteOnPart = (part && (part.brute || 0) > 0) || (parentPart && (parentPart.brute || 0) > 0);
 
             if (!hasBleeding && !hasBruteOnPart) {
                 const bestPartKey = findWorstDamagedLimb(parts, 'brute');
                 if (bestPartKey) {
                     bodyPart = bestPartKey;
                     part = parts[bodyPart];
+                    parentPart = parts[bodyPart === 'groin' ? 'torso' : ['leftEar', 'rightEar', 'eyes', 'mouth'].includes(bodyPart) ? 'head' : bodyPart] || part;
                 } else {
                     return {
                         success: false,
@@ -94,14 +98,24 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
                 if (parts[pKey]) parts[pKey].bleeding = 0;
             }
 
-            if (part && (part.brute || 0) > 0) {
-                const healAmt = Math.min(25, part.brute);
-                part.brute = Math.max(0, part.brute - healAmt);
-                part.hp = Math.min(part.maxHp, part.hp + healAmt);
+            const bruteVal = (part && part.brute) || (parentPart && parentPart.brute) || 0;
+            if (bruteVal > 0) {
+                const healAmt = Math.min(25, bruteVal);
+                if (part) part.brute = Math.max(0, (part.brute || 0) - healAmt);
+                if (parentPart) {
+                    parentPart.brute = Math.max(0, (parentPart.brute || 0) - healAmt);
+                    parentPart.hp = Math.min(parentPart.maxHp || 100, (parentPart.hp || 0) + healAmt);
+                }
                 healedAmount = healAmt;
                 message = `Applied clean linen bandages to ${target.firstName || target.Username}'s ${bodyPart}, stopping all bleeding and dressing wounds.`;
             } else {
                 message = `Applied clean linen bandages to ${target.firstName || target.Username}'s ${bodyPart}, stopping all bleeding.`;
+            }
+
+            // Cleanse sensory impairment if treating eyes or ears
+            if (target.stats.sensory) {
+                if (bodyPart === 'eyes') target.stats.sensory.eyeDamage = Math.max(0, target.stats.sensory.eyeDamage - 50);
+                if (bodyPart === 'leftEar' || bodyPart === 'rightEar') target.stats.sensory.earDamage = Math.max(0, target.stats.sensory.earDamage - 50);
             }
             break;
         }
@@ -131,6 +145,7 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
             }
 
             part.splinted = true;
+            part.mendTimer = 600; // 10 minutes (600s) natural bone mending timer
             if (part.hp <= 10) {
                 const hpGain = 15 - part.hp;
                 part.hp = 15;
@@ -144,7 +159,9 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
 
         case 'salve':
         case 'ointment': {
-            const hasBurnOnPart = part && (part.burn || 0) > 0;
+            const sensory = target.stats.sensory || {};
+            const hasSensoryDmg = (bodyPart === 'eyes' && sensory.eyeDamage > 0) || ((bodyPart === 'leftEar' || bodyPart === 'rightEar') && sensory.earDamage > 0);
+            const hasBurnOnPart = (part && (part.burn || 0) > 0) || (parentPart && (parentPart.burn || 0) > 0) || hasSensoryDmg;
 
             if (!hasBurnOnPart) {
                 const bestPartKey = findWorstDamagedLimb(parts, 'burn');
@@ -152,6 +169,7 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
                 if (bestPartKey) {
                     bodyPart = bestPartKey;
                     part = parts[bodyPart];
+                    parentPart = parts[bodyPart === 'groin' ? 'torso' : ['leftEar', 'rightEar', 'eyes', 'mouth'].includes(bodyPart) ? 'head' : bodyPart] || part;
                 } else {
                     return {
                         success: false,
@@ -162,10 +180,21 @@ function applyRemedy(target, remedyType, bodyPart = 'torso') {
                 }
             }
 
-            const healAmt = Math.min(30, part.burn || 30);
-            part.burn = Math.max(0, (part.burn || 0) - healAmt);
-            part.hp = Math.min(part.maxHp, part.hp + healAmt);
+            const burnVal = (part && part.burn) || (parentPart && parentPart.burn) || 30;
+            const healAmt = Math.min(30, burnVal > 0 ? burnVal : 30);
+            if (part) part.burn = Math.max(0, (part.burn || 0) - healAmt);
+            if (parentPart) {
+                parentPart.burn = Math.max(0, (parentPart.burn || 0) - healAmt);
+                parentPart.hp = Math.min(parentPart.maxHp || 100, (parentPart.hp || 0) + healAmt);
+            }
             healedAmount = healAmt;
+
+            // Cleanse sensory impairment when applying salve to eyes/ears
+            if (target.stats.sensory) {
+                if (bodyPart === 'eyes') target.stats.sensory.eyeDamage = Math.max(0, target.stats.sensory.eyeDamage - 50);
+                if (bodyPart === 'leftEar' || bodyPart === 'rightEar') target.stats.sensory.earDamage = Math.max(0, target.stats.sensory.earDamage - 50);
+            }
+
             message = `Applied soothing salve to burns on ${target.firstName || target.Username}'s ${bodyPart}.`;
             break;
         }

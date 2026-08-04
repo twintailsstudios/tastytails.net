@@ -1,70 +1,82 @@
 ---
 name: file-refactoring-implementation-plan
-description: Synthesizes findings from Phase 1, Phase 2, and Phase 3 along with developer comments to generate an actionable, step-by-step implementation plan for executing code refactors and optimizations.
+description: Synthesizes findings from Phase 1, Phase 2, and Phase 3 along with developer comments to generate an actionable, step-by-step implementation plan for executing code refactors and optimizations in TastyTails.net.
 ---
 
-# Refactoring Implementation Plan Synthesizer
+# TastyTails Refactoring Implementation Plan Synthesizer Skill
 
-This skill guides the agent in synthesizing the reports from Phase 1 (`file-onboarding-analyzer`), Phase 2 (`file-performance-health-auditor`), and Phase 3 (`file-refactoring-risk-analyzer`), together with any developer feedback or inline comments, into a step-by-step **Implementation Plan**.
-
----
-
-### Step 1: Input & Developer Feedback Synthesis
-
-1. Identify the target file path.
-2. Read the target file using `view_file`.
-3. Gather and synthesize:
-   - Developer comments or feedback on previous reports.
-   - Phase 1 Onboarding Guide.
-   - Phase 2 Performance Audit.
-   - Phase 3 Risk Assessment & Hardened Diffs.
+> **Usage Instruction**: Reference or invoke this skill whenever synthesizing Phase 1 (Onboarding), Phase 2 (Performance Audit), Phase 3 (Risk Analysis), and developer feedback into a milestone-driven `implementation_plan_[filename].md` artifact for **TastyTails.net**.
 
 ---
 
-### Step 2: Implementation Sequencing Protocol
+## 1. Synthesis & Sequencing Protocol
 
-1. **Incorporate Developer Decisions**: Exclude any Phase 2/3 suggestions explicitly rejected in developer feedback. Prioritize developer-requested modifications.
-2. **Sequence Changes**:
-   - Step 1: Core abstractions, type updates, and safety guards.
-   - Step 2: Main file performance refactoring (hot loops, GC allocation pooling, throttling).
-   - Step 3: Downstream caller updates across dependent files.
-3. **Attach Empirical Verification**: Include exact diagnostic commands (`npm test`, `npm run test:load`) after each execution step.
+### Step 1: Input Gathering & Developer Feedback Integration
+1. Read target file completely using `view_file`.
+2. Gather developer feedback, approved refactors, and rejected proposals.
+3. Audit for underspecified requirements or architectural ambiguities.
+
+### Step 2: Contract & Interface Migration Mapping
+Map all function signatures, Socket.io event schemas, or Mongoose model changes being modified:
+- Identify every downstream caller file in the workspace using `grep_search`.
+- Ensure changes preserve API backward compatibility or schedule caller updates in Milestone 3.
+
+### Step 3: Milestone Sequencing with Verification Gates
+Structure implementation into 3 ordered milestones:
+- **Milestone 1: Foundational Abstractions & Defensive Guards**:
+  - Reusable helpers, memory pools, type guards.
+  - *Verification Gate*: Run `npm test` (unit tests pass 100%).
+- **Milestone 2: Core Refactoring & Performance Optimizations**:
+  - Refactor hot loops, GC allocations, 30Hz tick throttling, and `DatabaseResilience.js` cache routing.
+  - *Verification Gate*: Run `node scripts/benchmark-gameloop.js` (tick duration < 33.3ms).
+- **Milestone 3: Downstream Caller Sync & Regression Check**:
+  - Update all caller sites across dependent workspace files.
+  - *Verification Gate*: Run `npm run test:auto` & `npm run test:load`.
 
 ---
 
-### Step 3: Produce the Implementation Plan
+## 2. Implementation Plan Artifact Blueprint
 
-Generate a Markdown artifact titled `implementation_plan_[filename].md` formatted as follows:
+Generate `implementation_plan_[filename].md` structured as follows:
 
 ```markdown
-# Implementation Plan: Refactoring [File Name]
+# 🛠️ Implementation Plan: Refactoring [File Name]
 
-Synthesizing Phase 1 (Onboarding), Phase 2 (Performance Audit), Phase 3 (Risk Mitigation), and Developer Feedback.
+## 1. Developer Directives & Feedback Incorporated
+- **Approved Refactors**: Accepted performance & DX fixes.
+- **Developer Overrides**: Rejected proposals or custom developer guidelines.
 
-## Developer Feedback & Guidance Incorporated
-- **Approved Refactors**: List of accepted performance & DX fixes.
-- **Developer Directives**: Notes on overrides, adjustments, or rejections from comments.
+## 2. Clarifying Questions & Open Ambiguities
+> [!IMPORTANT]
+> Highlight any underspecified requirements, breaking schema changes, or design choices requiring developer review before execution.
 
-## Proposed Code Changes
+## 3. Pre-Execution Safety & Regression Audit
+- **UI & Styles**: Confirms design tokens ([`docs/UNIVERSAL_STYLE_GUIDE.md`](file:///c:/Users/kkmcl/Documents/GitHub/tastytails.net/docs/UNIVERSAL_STYLE_GUIDE.md)) and button handlers are preserved.
+- **Gameplay & Mechanics**: Confirms sliding collision ([`src/server/mapConfig.js`](file:///c:/Users/kkmcl/Documents/GitHub/tastytails.net/src/server/mapConfig.js)), combat, and crafting operate without side effects.
+- **Server & Netcode**: Confirms 30Hz loop budget (< 33.3ms) and write-behind cache ([`DatabaseResilience.js`](file:///c:/Users/kkmcl/Documents/GitHub/tastytails.net/src/classes/DatabaseResilience.js)) compliance.
 
-### [Component / Module Name]
-#### [MODIFY] [file basename](file:///absolute/path/to/targetfile)
-#### [MODIFY / NEW] [file basename](file:///absolute/path/to/dependentfile)
+## 4. API & Socket Schema Contract Mapping
+| Symbol / Socket Event | Changes | Downstream Caller Files |
+| :--- | :--- | :--- |
+| `functionName()` ([`file.js:LXX`](file:///path/to/file.js#LXX)) | Add parameter `delta` | [`caller.js`](file:///path/to/caller.js#LYY) |
 
-## Execution Milestones
+## 5. Milestone Execution Plan & Verification Gates
 
 ### Milestone 1: Foundational Abstractions & Safety Guards
-- [ ] Implement reusable data structures or helper functions.
-- [ ] Add defensive error handling and fallbacks.
+- [ ] Implement memory pools or helper utilities.
+- **Verification Gate**: `npm test`
 
 ### Milestone 2: Core File Refactoring
-- [ ] Refactor hot loops, memory allocations, and execution frequencies.
-- [ ] Re-organize code for DRY reusability and developer ergonomics.
+- [ ] Refactor hot loops and memory allocations.
+- **Verification Gate**: `node scripts/benchmark-gameloop.js`
 
 ### Milestone 3: Downstream System Sync
-- [ ] Update callers in dependent files to align with refactored interfaces.
-
-## Verification & Quality Assurance
-- **Automated Benchmarks**: Commands to execute (`npm test`, `npm run test:load`).
-- **Target Metrics**: Specific latency/tick duration goals.
+- [ ] Update callers across dependent workspace files.
+- **Verification Gate**: `npm run test:auto` & `npm run test:load`
 ```
+
+---
+
+## 3. Core Execution Rules
+- **No Unverifiable Milestones**: Every milestone must have a clear automated verification command.
+- **Clickable Links**: All file and symbol references must use clickable markdown syntax (`[file.js](file:///path/to/file.js#L10)`).

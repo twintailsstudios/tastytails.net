@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TastyTails Server Dashboard</title>
+    <script src="/js/clientErrorReporter.js"></script>
     <!-- Modern Premium Font -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -221,8 +222,31 @@
 
 <body>
     <h1>TastyTails Server Health Dashboard</h1>
+    
+    <!-- Connection Error Banner -->
     <div id="connection-error" style="display: none; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: bold;">⚠️ Connection to server lost. Retrying...</div>
 
+    <!-- DB Resilience Connection State Banner -->
+    <div id="db-resilience-banner" style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #10b981; padding: 14px 20px; border-radius: 8px; margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between; font-weight: 600;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span id="db-status-dot" style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #10b981;"></span>
+            <span id="db-status-text">Database Connection: 🟢 ONLINE (Write-Behind Cache Active)</span>
+        </div>
+        <button id="btn-flush-db" onclick="triggerManualDbFlush()" style="background: #5d4037; color: #f3e5ab; border: 1px solid #795548; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-family: 'Outfit', sans-serif;">⚡ Force Flush DB Queue</button>
+    </div>
+
+    <!-- In-Dashboard Test Suite Controller -->
+    <h2>In-Dashboard Test Suite Controller</h2>
+    <div class="card" style="border-left-color: #3b82f6; margin-bottom: 30px; padding: 20px;">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+            <button onclick="runDiagnosticTest('cluster_storm')" class="test-btn" style="background: #3b82f6; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer;">🌪️ Run Cluster Storm</button>
+            <button onclick="runDiagnosticTest('bottleneck_taxonomy')" class="test-btn" style="background: #8b5cf6; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer;">📊 Bottleneck Taxonomy</button>
+            <button onclick="runDiagnosticTest('memory_leaker')" class="test-btn" style="background: #ec4899; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer;">💧 Memory Leaker</button>
+            <button onclick="runDiagnosticTest('chatterbox')" class="test-btn" style="background: #06b6d4; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer;">💬 Chatterbox</button>
+            <button onclick="runDiagnosticTest('check_performance')" class="test-btn" style="background: #10b981; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer;">⚡ Check Performance Baseline</button>
+            <span id="test-status-indicator" style="font-size: 13px; color: #94a3b8; margin-left: 10px; font-weight: 600;">Status: Ready</span>
+        </div>
+    </div>
 
     <div class="grid">
         <div class="card" style="border-left-color: #3b82f6;">
@@ -283,6 +307,20 @@
             <div class="sub-value">Sweeps | Max Pause</div>
         </div>
 
+        <!-- Target Anatomy & Combat Telemetry Card -->
+        <div class="card" style="border-left-color: #ef4444;">
+            <h3>Target Anatomy & Combat</h3>
+            <div id="anatomyLatency" class="value" style="font-size: 18px; font-weight: normal; font-family: sans-serif; margin-top: 8px;">-- ms</div>
+            <div id="anatomyHits" class="sub-value" style="font-size: 11px; margin-top: 8px;">Head: 0 | Torso: 0 | Arms: 0 | Legs: 0</div>
+        </div>
+
+        <!-- Client RTT Ping & Phaser FPS Card -->
+        <div class="card" style="border-left-color: #10b981;">
+            <h3>Client Ping & Render FPS</h3>
+            <div id="clientPingFps" class="value" style="font-size: 18px; font-weight: normal; font-family: sans-serif; margin-top: 8px;">-- ms | -- FPS</div>
+            <div class="sub-value">Aggregated Client Telemetry</div>
+        </div>
+
         <div class="card" style="border-left-color: #ec4899;">
             <h3>Memory (RSS)</h3>
             <div id="memory" class="value">--</div>
@@ -291,6 +329,16 @@
         <div class="card" style="border-left-color: #854d0e;">
             <h3>Uptime</h3>
             <div id="uptime" class="value">--</div>
+        </div>
+    </div>
+
+    <!-- Sparse Spatial Hash 2D Density Visualizer -->
+    <h2>Real-Time Spatial Hash & AOI Grid Density</h2>
+    <div class="chart-container" style="padding: 20px;">
+        <canvas id="spatialHeatmap" width="1200" height="240" style="width: 100%; height: 240px; display: block; background: #0b090f; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);"></canvas>
+        <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; color: #94a3b8;">
+            <span>Visualizing 400px x 400px AOI Grid Buckets (World Coordinate Heatmap)</span>
+            <span id="spatial-bucket-count">Active Buckets: 0</span>
         </div>
     </div>
 
@@ -370,11 +418,11 @@
          * 
          * @description
          * Real-time performance monitoring dashboard for the TastyTails game server.
-         * Operates independently of the main game client via lightweight 1-second HTTP polling.
-         * Displays engine tick benchmarks, CPU/memory telemetry, database write queue stats,
-         * live load test metrics, buffered server logs, and deduplicated client error traces.
-         * 
-         * Triggered by: Express static route `/dashboard.html` -> Polling `GET /stats?_t=<timestamp>`
+         * Connects via Server-Sent Events (SSE) `/api/stats/stream` for zero-overhead live pushing,
+         * with automatic fallback to 1-second HTTP polling.
+         * Displays engine tick benchmarks, CPU/memory telemetry, sparse spatial hash AOI density,
+         * DB resilience connection state, target anatomy combat metrics, live load test reports,
+         * server log streams, and client error traces.
          */
 
         /** @type {Array<{avgTick: number, peakTick: number, lag: number}>} Rolling 60-second performance history dataset */
@@ -390,11 +438,14 @@
         let lastLogCount = 0;
 
         /** @constant {number} Maximum DOM nodes allowed in log terminal to prevent memory bloat */
-        const MAX_DOM_LOGS = 200;
+        const MAX_DOM_LOGS = 1000;
+
+        /** @type {EventSource|null} SSE Stream connection object */
+        let sseSource = null;
 
         /** 
          * Global DOM Element Cache Map
-         * OPTIMIZATION: Caching DOM references once at startup eliminates 19+ document.getElementById calls per second.
+         * OPTIMIZATION: Caching DOM references once at startup eliminates 25+ document.getElementById calls per second.
          * @type {Object.<string, HTMLElement>} 
          */
         const DOM = {};
@@ -404,6 +455,12 @@
          */
         function initDOMCache() {
             DOM.connectionError = document.getElementById('connection-error');
+            DOM.dbResilienceBanner = document.getElementById('db-resilience-banner');
+            DOM.dbStatusText = document.getElementById('db-status-text');
+            DOM.dbStatusDot = document.getElementById('db-status-dot');
+            DOM.btnFlushDb = document.getElementById('btn-flush-db');
+            DOM.testStatusIndicator = document.getElementById('test-status-indicator');
+
             DOM.tickRate = document.getElementById('tickRate');
             DOM.tickDuration = document.getElementById('tickDuration');
             DOM.peakTick = document.getElementById('peakTick');
@@ -416,9 +473,15 @@
             DOM.dbQueue = document.getElementById('dbQueue');
             DOM.dbLatency = document.getElementById('dbLatency');
             DOM.gcStats = document.getElementById('gcStats');
+            DOM.anatomyLatency = document.getElementById('anatomyLatency');
+            DOM.anatomyHits = document.getElementById('anatomyHits');
+            DOM.clientPingFps = document.getElementById('clientPingFps');
             DOM.memory = document.getElementById('memory');
             DOM.memoryHeap = document.getElementById('memoryHeap');
             DOM.uptime = document.getElementById('uptime');
+
+            DOM.spatialHeatmap = document.getElementById('spatialHeatmap');
+            DOM.spatialBucketCount = document.getElementById('spatial-bucket-count');
             DOM.actionStatsBody = document.getElementById('action-stats-body');
             DOM.logTerminal = document.getElementById('log-terminal');
             DOM.clientErrorsBody = document.getElementById('client-errors-body');
@@ -466,6 +529,139 @@
             if (type === 'cpu') return value < 40 ? 'good' : (value < 75 ? 'warn' : 'bad');
             if (type === 'db') return value < 45 ? 'good' : (value < 150 ? 'warn' : 'bad');
             return '';
+        }
+
+        /**
+         * Triggers a manual Database Resilience buffer flush request.
+         */
+        async function triggerManualDbFlush() {
+            if (DOM.btnFlushDb) DOM.btnFlushDb.disabled = true;
+            try {
+                const res = await fetch('/api/admin/flush-db-queue', { method: 'POST' });
+                const json = await res.json();
+                if (res.ok) {
+                    alert('✅ ' + json.message);
+                } else {
+                    alert('⚠️ ' + (json.error || 'Failed to flush DB buffer.'));
+                }
+            } catch (e) {
+                alert('❌ Error requesting DB flush: ' + e.message);
+            } finally {
+                setTimeout(() => { if (DOM.btnFlushDb) DOM.btnFlushDb.disabled = false; }, 10000);
+            }
+        }
+
+        /**
+         * Triggers a diagnostic test script execution from the in-dashboard controller.
+         * @param {string} testName - Name of test script
+         */
+        async function runDiagnosticTest(testName) {
+            if (DOM.testStatusIndicator) {
+                DOM.testStatusIndicator.textContent = `Status: Launching ${testName}...`;
+                DOM.testStatusIndicator.style.color = '#3b82f6';
+            }
+            const buttons = document.querySelectorAll('.test-btn');
+            buttons.forEach(b => b.disabled = true);
+
+            try {
+                const res = await fetch('/api/admin/run-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ testName })
+                });
+                const json = await res.json();
+                if (res.ok) {
+                    if (DOM.testStatusIndicator) {
+                        DOM.testStatusIndicator.textContent = `Status: 🟢 Running ${testName} (auto-refreshing telemetry)`;
+                        DOM.testStatusIndicator.style.color = '#10b981';
+                    }
+                } else {
+                    alert('⚠️ ' + (json.error || 'Failed to run test.'));
+                    if (DOM.testStatusIndicator) {
+                        DOM.testStatusIndicator.textContent = 'Status: Ready';
+                        DOM.testStatusIndicator.style.color = '#94a3b8';
+                    }
+                    buttons.forEach(b => b.disabled = false);
+                }
+            } catch (e) {
+                alert('❌ Error spawning test process: ' + e.message);
+                if (DOM.testStatusIndicator) {
+                    DOM.testStatusIndicator.textContent = 'Status: Ready';
+                    DOM.testStatusIndicator.style.color = '#94a3b8';
+                }
+                buttons.forEach(b => b.disabled = false);
+            }
+        }
+
+        /**
+         * Renders the Sparse Spatial Hash 2D Density Visualizer canvas map.
+         * @param {Array<Array<number>>} sparseGrid - Array of [gx, gy, count] tuples
+         */
+        function drawSpatialHeatmap(sparseGrid) {
+            const canvas = DOM.spatialHeatmap;
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw grid outline
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            const cols = 20;
+            const rows = 10;
+            const cellW = width / cols;
+            const cellH = height / rows;
+
+            for (let c = 0; c <= cols; c++) {
+                ctx.beginPath();
+                ctx.moveTo(c * cellW, 0);
+                ctx.lineTo(c * cellW, height);
+                ctx.stroke();
+            }
+            for (let r = 0; r <= rows; r++) {
+                ctx.beginPath();
+                ctx.moveTo(0, r * cellH);
+                ctx.lineTo(width, r * cellH);
+                ctx.stroke();
+            }
+
+            if (!Array.isArray(sparseGrid) || sparseGrid.length === 0) {
+                if (DOM.spatialBucketCount) DOM.spatialBucketCount.textContent = 'Active Buckets: 0';
+                ctx.fillStyle = '#64748b';
+                ctx.font = '12px sans-serif';
+                ctx.fillText('No active spatial hash buckets detected in sample.', width / 2 - 130, height / 2);
+                return;
+            }
+
+            if (DOM.spatialBucketCount) DOM.spatialBucketCount.textContent = `Active Buckets: ${sparseGrid.length}`;
+
+            // Normalize coordinate offsets to center on canvas
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            sparseGrid.forEach(([gx, gy]) => {
+                if (gx < minX) minX = gx;
+                if (gx > maxX) maxX = gx;
+                if (gy < minY) minY = gy;
+                if (gy > maxY) maxY = gy;
+            });
+
+            const spanX = Math.max(1, maxX - minX + 1);
+            const spanY = Math.max(1, maxY - minY + 1);
+
+            sparseGrid.forEach(([gx, gy, count]) => {
+                const nx = Math.floor(((gx - minX) / spanX) * (cols - 1));
+                const ny = Math.floor(((gy - minY) / spanY) * (rows - 1));
+                const px = nx * cellW;
+                const py = ny * cellH;
+
+                const alpha = Math.min(1.0, 0.3 + (count * 0.15));
+                ctx.fillStyle = count > 10 ? `rgba(239, 68, 68, ${alpha})` : (count > 3 ? `rgba(245, 158, 11, ${alpha})` : `rgba(59, 130, 246, ${alpha})`);
+                ctx.fillRect(px + 1, py + 1, cellW - 2, cellH - 2);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '10px monospace';
+                ctx.fillText(count.toString(), px + cellW / 2 - 4, py + cellH / 2 + 3);
+            });
         }
 
         /**
@@ -590,9 +786,35 @@
         /**
          * Updates all UI elements, metric cards, tables, and history charts from telemetry JSON.
          * OPTIMIZATION: Uses optional chaining for null-safety and lazy JSON dump stringification.
-         * @param {Object} data - Server telemetry payload from /stats
+         * @param {Object} data - Server telemetry payload from /stats or SSE stream
          */
         async function updateStatsUI(data) {
+            if (!data) return;
+
+            // Update DB Resilience Connection State Banner
+            if (DOM.dbResilienceBanner && DOM.dbStatusText && DOM.dbStatusDot) {
+                const status = data.dbStatus || 'online';
+                if (status === 'online') {
+                    DOM.dbResilienceBanner.style.background = 'rgba(16, 185, 129, 0.15)';
+                    DOM.dbResilienceBanner.style.borderColor = '#10b981';
+                    DOM.dbResilienceBanner.style.color = '#10b981';
+                    DOM.dbStatusDot.style.backgroundColor = '#10b981';
+                    DOM.dbStatusText.textContent = 'Database Connection: 🟢 ONLINE (Write-Behind Cache Active)';
+                } else if (status === 'buffering') {
+                    DOM.dbResilienceBanner.style.background = 'rgba(245, 158, 11, 0.15)';
+                    DOM.dbResilienceBanner.style.borderColor = '#f59e0b';
+                    DOM.dbResilienceBanner.style.color = '#f59e0b';
+                    DOM.dbStatusDot.style.backgroundColor = '#f59e0b';
+                    DOM.dbStatusText.textContent = `Database Connection: 🟡 OFFLINE BUFFERING (${data.resilienceQueue || 0} operations queued)`;
+                } else if (status === 'dump_mode') {
+                    DOM.dbResilienceBanner.style.background = 'rgba(239, 68, 68, 0.2)';
+                    DOM.dbResilienceBanner.style.borderColor = '#ef4444';
+                    DOM.dbResilienceBanner.style.color = '#ef4444';
+                    DOM.dbStatusDot.style.backgroundColor = '#ef4444';
+                    DOM.dbStatusText.textContent = 'Database Connection: 🔴 EMERGENCY DUMP MODE (Backups written to disk)';
+                }
+            }
+
             // OPTIMIZATION: Only stringify JSON when details section is open
             if (DOM.jsonDumpDetails && DOM.jsonDumpDetails.open && DOM.jsonDump) {
                 DOM.jsonDump.textContent = JSON.stringify(data, null, 2);
@@ -671,6 +893,25 @@
                 DOM.gcStats.textContent = `${data.gcStats.count ?? 0} | ${(data.gcStats.maxDuration || 0).toFixed(1)} ms`;
             }
 
+            // Target Anatomy Combat Telemetry
+            if (data?.anatomyStats) {
+                if (DOM.anatomyLatency) {
+                    DOM.anatomyLatency.textContent = `${(data.anatomyStats.damageLatency || 0).toFixed(2)} ms`;
+                }
+                if (DOM.anatomyHits && data.anatomyStats.limbHits) {
+                    const h = data.anatomyStats.limbHits;
+                    DOM.anatomyHits.textContent = `Head: ${h.head || 0} | Torso: ${h.torso || 0} | Arms: ${h.arms || 0} | Legs: ${h.legs || 0}`;
+                }
+            }
+
+            // Client Ping & FPS Telemetry
+            if (data?.clientStats && DOM.clientPingFps) {
+                DOM.clientPingFps.textContent = `${data.clientStats.avgPing || 0} ms | ${data.clientStats.avgFps || 60} FPS`;
+            }
+
+            // Draw Sparse Spatial Hash Heatmap
+            drawSpatialHeatmap(data?.sparseSpatialHash);
+
             // Test Progress Report Table
             if (data?.actionStats && DOM.actionStatsBody) {
                 const tbody = DOM.actionStatsBody;
@@ -715,14 +956,25 @@
             // Client Errors Table
             if (data?.clientErrors && DOM.clientErrorsBody) {
                 const tbody = DOM.clientErrorsBody;
+                
+                // Preserve open details state across 1-second telemetry UI updates
+                const openKeys = new Set();
+                tbody.querySelectorAll('details[data-err-key]').forEach(el => {
+                    if (el.open) {
+                        openKeys.add(el.getAttribute('data-err-key'));
+                    }
+                });
+
                 tbody.innerHTML = '';
                 const keys = Object.keys(data.clientErrors);
                 if (keys.length > 0) {
                     keys.forEach(key => {
                         const err = data.clientErrors[key];
                         const tr = document.createElement('tr');
+                        const safeKey = encodeURIComponent(key);
+                        const isOpen = openKeys.has(safeKey);
                         const stackDrawer = err.stack ? `
-                            <details style="margin-top: 5px;">
+                            <details data-err-key="${safeKey}" ${isOpen ? 'open' : ''} style="margin-top: 5px;">
                                 <summary style="cursor: pointer; color: #ef4444; font-size: 12px; font-weight: bold; outline: none;">View Stack Trace</summary>
                                 <pre style="font-family: 'JetBrains Mono', monospace; font-size: 11px; background: #0b090f; padding: 10px; border-radius: 4px; color: #94a3b8; overflow-x: auto; margin-top: 6px; border: 1px solid rgba(255,255,255,0.06); text-align: left; white-space: pre-wrap;">${err.stack}</pre>
                             </details>
@@ -758,11 +1010,49 @@
             drawChart();
         }
 
+        /** @type {number} Timestamp of last received telemetry packet */
+        let lastPacketTime = 0;
+
         /**
-         * Main polling routine with AbortController timeout and re-entrancy lock.
-         * OPTIMIZATION: Enforces 3000ms request timeout and guards against overlapping async fetch executions.
+         * Initializes Server-Sent Events (SSE) stream for zero-overhead telemetry pushing,
+         * falling back to HTTP polling if SSE connection fails.
          */
-        async function updateStatsWithTimeout() {
+        function initSSEStream() {
+            if (window.EventSource) {
+                try {
+                    sseSource = new EventSource('/api/stats/stream');
+                    sseSource.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            consecutiveFailures = 0;
+                            lastPacketTime = Date.now();
+                            if (DOM.connectionError) DOM.connectionError.style.display = 'none';
+                            updateStatsUI(data);
+                        } catch (err) {
+                            console.error('Failed to parse SSE telemetry packet:', err);
+                        }
+                    };
+                    sseSource.onerror = (e) => {
+                        console.warn('SSE Telemetry stream error. Falling back to HTTP polling...', e);
+                        if (sseSource) sseSource.close();
+                        sseSource = null;
+                        setInterval(updateStatsWithTimeout, 1000);
+                        updateStatsWithTimeout();
+                    };
+                    return true;
+                } catch (e) {
+                    console.warn('Failed to construct EventSource:', e);
+                }
+            }
+            return false;
+        }
+
+        /**
+         * HTTP polling fallback routine with AbortController timeout and re-entrancy lock.
+         */
+        async function updateStatsWithTimeout(force = false) {
+            // Guard: don't poll if SSE is actively pushing data (within last 2500ms)
+            if (!force && sseSource && (Date.now() - lastPacketTime < 2500)) return;
             if (isUpdating) return;
             isUpdating = true;
 
@@ -776,6 +1066,7 @@
                 const data = await res.json();
 
                 consecutiveFailures = 0;
+                lastPacketTime = Date.now();
                 if (DOM.connectionError) DOM.connectionError.style.display = 'none';
 
                 await updateStatsUI(data);
@@ -792,15 +1083,21 @@
         }
 
         /**
-         * Lifecycle initialization runner preventing double-triggering across DOM states.
+         * Lifecycle initialization runner.
          */
         let started = false;
         function startLoop() {
             if (started) return;
             started = true;
             initDOMCache();
-            setInterval(updateStatsWithTimeout, 1000);
-            updateStatsWithTimeout();
+            
+            // Immediate initial fetch for instant UI population
+            updateStatsWithTimeout(true);
+
+            const sseOk = initSSEStream();
+            if (!sseOk) {
+                setInterval(updateStatsWithTimeout, 1000);
+            }
         }
 
         if (document.readyState === 'loading') {

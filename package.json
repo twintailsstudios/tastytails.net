@@ -8,6 +8,13 @@
     "test": "mocha",
     "test:load": "node scripts/load_test.js",
     "test:auto": "node scripts/automated_test.js",
+    "bench:loop": "node scripts/benchmark-gameloop.js",
+    "test:cluster": "node scripts/test_cluster_storm.js",
+    "test:bottleneck": "node scripts/test_bottleneck_taxonomy.js",
+    "test:memory": "node scripts/test_memory_leaker.js",
+    "test:chatterbox": "node scripts/test_chatterbox.js",
+    "test:db": "node scripts/test_db_heavy_lift.js",
+    "test:perf": "node scripts/check-performance.js",
     "stop:load": "powershell -Command \"Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*load_test.js*' } | Stop-Process -Force\"",
     "stop:server": "powershell -Command \"Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*src/index.js*' } | Stop-Process -Force\"",
     "stop:all": "powershell -Command \"Stop-Process -Name node -Force\""

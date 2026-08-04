@@ -3,74 +3,90 @@ name: file-refactoring-verifier-and-annotator
 description: Verifies refactored code using automated tests and load scripts, applies rich JSDoc/inline developer annotations to the target file, and produces a final Walkthrough report.
 ---
 
-# Refactoring Verifier & Inline Code Annotator
+# TastyTails Refactoring Verifier & Developer Annotator Skill
 
-This skill guides the agent in conducting final quality assurance verification on refactored code, adding clear inline developer comments/JSDoc annotations, and writing a comprehensive **Walkthrough Artifact**.
-
----
-
-### Step 1: Empirical Verification & Diagnostic Run
-
-1. Identify the target file path.
-2. Run test suites and diagnostics:
-   - Run unit/integration tests (`npm test`).
-   - Run load & diagnostic scripts (`npm run test:load` or equivalent).
-3. Validate that no tests are failing and that performance metrics meet project targets.
+> **Usage Instruction**: Reference or invoke this skill whenever completing a code refactor in **TastyTails.net**. Executes empirical test suites (`npm test`, `npm run test:auto`, `npm run test:load`), applies rich TastyTails JSDoc annotations and inline rationale comments, and generates a `walkthrough_[filename].md` artifact.
 
 ---
 
-### Step 2: Apply Inline Developer Annotations
+## 1. Mandatory Empirical Verification Protocol
 
-Use `replace_file_content` or `multi_replace_file_content` to add comprehensive, readable developer comments directly to the target file:
-
-1. **File Header JSDoc**:
-   ```javascript
-   /**
-    * @fileoverview [File Name] - [Brief Purpose]
-    * 
-    * @description
-    * High-level architectural role of this file in the project.
-    * Triggered by: [System events, routes, socket messages, tick loops]
-    */
-   ```
-2. **Function & Method JSDoc**:
-   ```javascript
-   /**
-    * [Function Purpose]
-    * @param {Type} paramName - Description of input parameter
-    * @returns {Type} Description of return value
-    */
-   ```
-3. **Rationale Annotations**:
-   ```javascript
-   // OPTIMIZATION: [Explain why pooling, debouncing, or caching is used here to help future devs maintain performance]
-   ```
+Run the project verification commands:
+1. **Unit Tests**: `npm test` (Mocha test suite passes 100%).
+2. **Scenario Simulation**: `npm run test:auto` (automated scenario simulation passes).
+3. **Load & Stress Tests**: `npm run test:load` (250-player capacity load test).
+4. **Spatial Grid Micro-Benchmark**: `npm run bench:loop` (tick duration < 33.3ms).
+5. **Targeted Subsystem Verification**:
+   - Cluster Storm: `npm run test:cluster`
+   - Taxonomy & Scaling: `npm run test:bottleneck`
+   - Memory Leak & GC: `npm run test:memory`
+   - Serialization & Bandwidth: `npm run test:chatterbox`
+   - Database Write-Behind: `npm run test:db`
+   - CI Performance Baseline: `npm run test:perf`
+6. **Dashboard Verification**: Confirm live telemetry updates at `http://localhost:3000/dashboard.html`.
 
 ---
 
-### Step 3: Produce the Walkthrough Artifact
+## 2. TastyTails Developer Annotation Standard
 
-Generate a Markdown artifact titled `walkthrough_[filename].md` formatted as follows:
+Apply rich JSDoc and inline rationale comments directly to the target file:
+
+### 1. File Header JSDoc
+```javascript
+/**
+ * @fileoverview [File Name] - [Brief Purpose]
+ * @subsystem [Server Engine / Netcode / Combat / Database / UI]
+ * @tickBudget [Budgeted microsecond execution cost per frame]
+ * @socketEvent [Socket packet names emitted/received, if applicable]
+ * @databaseResilience [Cached in DatabaseResilience.js write-behind buffer]
+ */
+```
+
+### 2. Method JSDoc & Optimization Rationale
+```javascript
+/**
+ * [Function Purpose]
+ * @param {Type} paramName - Parameter description
+ * @returns {Type} Return value description
+ */
+
+// OPTIMIZATION (30Hz Loop): Pre-allocated array pool to prevent Garbage Collection stutter.
+```
+
+---
+
+## 3. Walkthrough Artifact Blueprint
+
+Generate `walkthrough_[filename].md` structured as follows:
 
 ```markdown
-# Walkthrough: Refactored [File Name]
+# 🚀 Walkthrough: Refactored [File Name]
 
-## 1. Verification Summary
-- **Status**: 🟢 Verified & Passed
-- **Test Suite Results**: Passed `npm test`
-- **Load Benchmark Results**: Passed `npm run test:load`
+## 1. Empirical Verification Summary
+- **Status**: 🟢 Passed All Verification Gates
+- **Automated Unit Tests**: Passed `npm test`
+- **Scenario Simulation**: Passed `npm run test:auto`
+- **Load & Stress Tests**: Passed `npm run test:load`
 
 ### Empirical Performance Comparison
-| Metric | Before Refactor | After Refactor | Target Goal | Status |
+| Metric | Baseline | Refactored | Target Goal | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Avg Tick Duration** | | | $\le 20$ ms | 🟢 Pass |
-| **Peak Tick Duration** | | | $\le 33.3$ ms | 🟢 Pass |
-| **Heap Growth** | | | $\le 50$ MB | 🟢 Pass |
+| **Avg Tick Duration** | | | $\le 20\text{ ms}$ | 🟢 Pass |
+| **Peak Tick Duration** | | | $\le 33.3\text{ ms}$ | 🟢 Pass |
 
-## 2. Changes & Annotations Applied
-- **Target File**: [file basename](file:///absolute/path/to/targetfile)
-- **Inline Annotations**: JSDoc and rationale comments applied across all functions and hot loops.
+## 2. Code Annotations & File Links Applied
+- **Target File**: [`file.js`](file:///path/to/targetfile#L1-L100)
+- **Applied Annotations**: TastyTails JSDoc headers, custom `@subsystem` tags, and inline optimization comments.
 
-## 3. Developer Guidance
-- Key invariants and rules for future developers extending this file.
+## 3. Manual Feature Verification Checklist
+- [ ] **Movement & Sliding Collision**: Test diagonal movement along walls.
+- [ ] **UI & Keycap Buttons**: Test button press animations and click handlers.
+- [ ] **Combat & Target Anatomy**: Verify hitboxes and health updates.
+- [ ] **Crafting & Inventory**: Test item creation and storage.
 ```
+
+---
+
+## 4. Core Execution Rules
+- **Clean Up Debug Statements**: Remove temporary debug `console.log` statements before finalizing annotations.
+- **Clickable Links**: All file and symbol references must use clickable markdown syntax (`[file.js](file:///path/to/file.js#L10)`).

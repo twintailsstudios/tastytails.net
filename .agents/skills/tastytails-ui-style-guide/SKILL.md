@@ -3,25 +3,28 @@ name: tastytails-ui-style-guide
 description: Applies the TastyTails.net Universal Design System and Style Guide whenever creating new UI elements, designing pages, building features, or modifying existing components and stylesheets.
 ---
 
-# TastyTails Universal UI Style Guide & Design System
+# TastyTails Universal UI Style Guide & Design System Skill
 
-> **Usage Instruction**: Invoke or reference this skill whenever you are adding, modifying, or refactoring UI components, pages, forms, buttons, colors, typography, or CSS stylesheets in the **TastyTails.net** project.
-
----
-
-## 1. Core Visual Theme: "Warm Medieval Tavern & Feral Guild Registry"
-All interface designs in TastyTails.net must convey a warm, tactile, medieval fantasy environment with druidic nature elements. 
-
-### Core Aesthetic Principles
-1. **Material Realism**: Use wood pattern background textures, parchment paper grain (`cream-paper.png`), iron hardware, leather tabs, and wax seals.
-2. **Natural High Contrast**: Dark wood frames (`#3e2723`) contain cream parchment surfaces (`#f3e5ab`), punctuated by Entrance Emerald Green (`#6b8c42`) primary actions, Crimson Red (`#8b0000`) danger states, and metallic gold (`#ffc107`) active accents.
-3. **Tactile 3D Keycaps**: Action buttons must function as physical 3D keycaps with solid bottom shadows that depress (`translateY(2px)`) when pressed.
+> **Usage Instruction**: Invoke or reference this skill whenever adding, modifying, or refactoring UI components, pages, forms, buttons, colors, typography, or CSS stylesheets in **TastyTails.net**.
 
 ---
 
-## 2. Universal Design Tokens & Colors
+## 1. Core Visual Theme & Documentation Map
 
-Ensure stylesheets utilize these exact color tokens:
+Theme: **"Warm Medieval Tavern & Feral Guild Registry"** (Parchment, dark wood binders, iron rivets, entrance emerald green, crimson red, and metallic gold accents).
+
+### Authoritative Documentation Links
+- **Universal Design Guide**: [`docs/UNIVERSAL_STYLE_GUIDE.md`](file:///c:/Users/kkmcl/Documents/GitHub/tastytails.net/docs/UNIVERSAL_STYLE_GUIDE.md)
+- **Character Bank Guide**: [`docs/style_guides/character_bank_style_guide.md`](file:///c:/Users/kkmcl/Documents/GitHub/tastytails.net/docs/style_guides/character_bank_style_guide.md)
+- **Play Page Guide**: [`docs/style_guides/play_page_style_guide.md`](file:///c:/Users/kkmcl/Documents/GitHub/tastytails.net/docs/style_guides/play_page_style_guide.md)
+- **Home Page Guide**: [`docs/style_guides/home_page_style_guide.md`](file:///c:/Users/kkmcl/Documents/GitHub/tastytails.net/docs/style_guides/home_page_style_guide.md)
+- **Character Create Guide**: [`docs/style_guides/create_page_style_guide.md`](file:///c:/Users/kkmcl/Documents/GitHub/tastytails.net/docs/style_guides/create_page_style_guide.md)
+
+---
+
+## 2. Universal Design Tokens & CSS Variables
+
+Ensure all stylesheets utilize these exact color tokens:
 
 ```css
 :root {
@@ -60,122 +63,37 @@ Ensure stylesheets utilize these exact color tokens:
 
 ---
 
-## 3. Strict Typography Rules & Font Suite
+## 3. Typography & Font Suite
 
-Always include Google Fonts imports for the required font family suite:
-`Cinzel`, `Caveat Brush`, `Philosopher`, and `Crimson Pro`.
-
-```html
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Caveat+Brush&family=Crimson+Pro:ital,wght@0,400;0,700;1,400&family=Philosopher:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-```
-
-### Font Roles
-- **`Cinzel`**: Use for site logos (`2.2rem`), standalone page titles (`.page-title h2`, `3.0rem` parchment text), section headers (`h2`/`h3`, `1.5rem` red text with `2px dashed #5d4037` bottom rule), and **all button text (Tiers 1-4)**.
-- **`Caveat Brush`**: Use for in-world handwritten text, player bios, character nicknames (`2.4rem`), full names (`1.2rem`), form field labels (`<label>`), dropdown option lists, text inputs, textareas, and `.paper-note` cards.
-- **`Philosopher`**: Use for UI badges, species pills, canvas HUD readouts, and tooltips.
-- **`Crimson Pro`**: Use for narrative roleplay text and chat message logs.
+Always import required Google Fonts: `Cinzel`, `Caveat Brush`, `Philosopher`, and `Crimson Pro`.
+- **`Cinzel`**: Logos (`2.2rem`), page titles (`3.0rem`), section headers, and **all button text**.
+- **`Caveat Brush`**: In-world handwritten text, player bios, character nicknames (`2.4rem`), labels, text inputs, textareas, `.paper-note` cards.
+- **`Philosopher`**: UI badges, species pills, HUD readouts, tooltips.
+- **`Crimson Pro`**: Narrative text & chat logs.
 
 ---
 
-## 4. Standardized 4-Tier Button Component System
+## 4. Standardized Component System
 
-All buttons must use the `Cinzel` font, bold uppercase formatting, solid 3D shadows, and depress `2px` on hover.
+1. **4-Tier 3D Keycap Buttons**: All buttons use `Cinzel` font, bold uppercase, solid bottom shadow, and `transform: translateY(2px)` on hover/press.
+2. **Frames & Binders**: `.binder-container` (`10px solid #3e2723`, parchment fill `#f3e5ab`, inner vignette shadow).
+3. **Form Controls**: Signature line inputs (bottom border `2px solid #5d4037`, `Caveat Brush` font).
+4. **Custom Paw-Print Select**: `.custom-select-wrapper` with sliding gold FontAwesome paw print (`\f1b0`).
+5. **Tab Bars**: Inactive `#3e2723`, active parchment `#f3e5ab` with inset gold top underline (`box-shadow: 0 -4px 0 #ffc107 inset`).
 
-```css
-/* 1. PRIMARY ACTION BUTTON (Entrance Emerald Green) */
-.btn-primary {
-    font-family: 'Cinzel', serif;
-    font-weight: bold;
-    text-transform: uppercase;
-    background-color: #6b8c42;
-    color: #ffffff;
-    box-shadow: 0 4px 0 #3e5527;
-    border: none;
-    padding: 10px 24px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-.btn-primary:hover {
-    background-color: #7ea34f;
-    transform: translateY(2px);
-    box-shadow: 0 2px 0 #3e5527;
-}
+---
 
-/* 2. SECONDARY ACTION BUTTON (Light Wood) */
-.btn-secondary {
-    font-family: 'Cinzel', serif;
-    font-weight: bold;
-    text-transform: uppercase;
-    background-color: #5d4037;
-    color: #f3e5ab;
-    box-shadow: 0 4px 0 #3e2723;
-    border: none;
-    padding: 10px 24px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-.btn-secondary:hover {
-    background-color: #6d4c41;
-    transform: translateY(2px);
-    box-shadow: 0 2px 0 #3e2723;
-}
+## 5. UI Pre-Flight Audit Checklist
 
-/* 3. CONTROL / OUTLINE BUTTON (Parchment Outline) */
-.btn-outline {
-    font-family: 'Cinzel', serif;
-    background-color: transparent;
-    border: 1px solid #f3e5ab;
-    color: #f3e5ab;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-.btn-outline:hover {
-    background-color: #8b0000;
-    border-color: #8b0000;
-    color: #ffffff;
-}
-
-/* 4. DESTRUCTIVE / DANGER BUTTON (Crimson Red) */
-.btn-danger {
-    font-family: 'Cinzel', serif;
-    font-weight: bold;
-    text-transform: uppercase;
-    background-color: #8b0000;
-    color: #ffffff;
-    box-shadow: 0 4px 0 #500000;
-    border: none;
-    padding: 10px 24px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-.btn-danger:hover {
-    background-color: #a80000;
-    transform: translateY(2px);
-    box-shadow: 0 2px 0 #500000;
-}
+Before applying HTML/CSS edits:
+- [ ] Verify design tokens are used instead of ad-hoc hex values.
+- [ ] Confirm keycap button classes (`.btn-primary`, `.btn-secondary`, `.btn-danger`) are applied.
+- [ ] Verify ARIA accessibility labels (`aria-label`, `aria-selected`, `role="tab"`).
+- [ ] Confirm layout math is dynamic and responsive (no hardcoded pixel offsets).
 ```
 
 ---
 
-## 5. Frame & Container Architecture
-
-- **Primary Page Binders (`.binder-container`)**: `10px solid #3e2723` (`--palette-wood-dark`) with `8px` border radius, parchment fill `#f3e5ab`, and inner vignette shadow `inset 0 0 60px rgba(62,39,35,0.2)`.
-- **Dossier & Content Cards (`.char-card`, `.content-card`)**: `2px solid #3e2723` border, radius `8px`, parchment paper texture background, outer drop shadow `0 10px 20px rgba(0,0,0,0.5)`.
-- **Modal Dialog Boxes (`.modal-box`)**: Standardize on `6px solid #3e2723` dark wood frames, parchment background `#f3e5ab`, `8px` radius, drop shadow `0 0 30px rgba(0,0,0,0.8)`.
-
----
-
-## 6. Form Controls & Custom Paw-Print Select
-
-- **Text Inputs, Textareas & Form Labels**: Use "signature line" styling — transparent fill, bottom border `2px solid #5d4037`, `Caveat Brush` font (`1.2rem`). On focus: gold tint fill (`rgba(255, 193, 7, 0.1)`) with `#6b8c42` Entrance Green bottom border.
-- **Custom Paw-Print Select (`.custom-select-wrapper`)**: Standardize custom select dropdowns across all forms with `Caveat Brush` text (`1.1rem`). Hovering options shifts padding right (`25px`) and reveals a sliding gold FontAwesome paw print (`\f1b0`).
-
----
-
-## 7. Tab Indicators
-
-- **Tab Bar (`.menuTabs`, `.button.main`)**: Inactive tab background `#3e2723`, text `#e6d598`. Active tab switches to parchment background `#f3e5ab`, dark wood text `#3e2723`, and an **inset top gold underline** (`box-shadow: 0 -4px 0 #ffc107 inset`).
+## 6. Core Execution Rules
+- **No Generic Styling**: Ad-hoc RGB/hex colors or browser default fonts are strictly forbidden.
+- **Clickable Links**: All file and symbol references must use clickable markdown syntax (`[file.js](file:///path/to/file.js#L10)`).

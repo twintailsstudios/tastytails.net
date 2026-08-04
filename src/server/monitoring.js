@@ -14,10 +14,12 @@
  */
 
 const { performance, PerformanceObserver } = require('perf_hooks');
+const os = require('os');
 const logger = require('../logger');
 
 // OPTIMIZATION: Maximum unique client error entries to prevent memory leaks during error bursts
 const MAX_CLIENT_ERRORS = 100;
+const NUM_CPUS = os.cpus().length || 1;
 
 const monitoring = {
     /**
@@ -35,6 +37,8 @@ const monitoring = {
         eventLoopLag: 0,
         cpuUsage: 0, // %
         dbLatency: 0, // ms
+        dbStatus: 'online', // 'online' | 'buffering' | 'dump_mode'
+        sparseSpatialHash: [], // [[x, y, count], ...]
         gcStats: {
             count: 0,
             totalDuration: 0,
@@ -42,6 +46,17 @@ const monitoring = {
         },
         // Detailed Profiling
         tickBreakdown: { logic: 0, physics: 0, shadowcasting: 0, animalAI: 0, serialize: 0 },
+        // Target Anatomy & Combat Telemetry
+        anatomyStats: {
+            damageLatency: 0, // ms
+            remediesUsed: 0,
+            limbHits: { head: 0, torso: 0, arms: 0, legs: 0 }
+        },
+        // Client Performance Aggregation
+        clientStats: {
+            avgFps: 60,
+            avgPing: 0
+        },
         // Entity Counts
         entities: { clients: 0, items: 0, corpses: 0 },
         // Network
@@ -70,9 +85,15 @@ const monitoring = {
     accumulatedBytes: 0,
 
     peakTickInSample: 0,
-    // OPTIMIZATION: Use scalar running sum and count instead of allocating arrays per DB operation to eliminate GC churn
+    // OPTIMIZATION: Use scalar running sums and counts to eliminate GC churn
     dbLatencySum: 0,
     dbLatencyCount: 0,
+    anatomyLatencySum: 0,
+    anatomyLatencyCount: 0,
+    clientPingSum: 0,
+    clientPingCount: 0,
+    clientFpsSum: 0,
+    clientFpsCount: 0,
 
     /**
      * Initializes background timers for Event Loop Lag, CPU usage polling, and V8 GC observation.
@@ -90,7 +111,7 @@ const monitoring = {
             lastLoop = now;
         }, 100);
 
-        // CPU Tracking Setup (measures process CPU time delta over 1000ms intervals)
+        // CPU Tracking Setup (measures process CPU time delta normalized by CPU cores over 1000ms intervals)
         let startCpu = process.cpuUsage();
         let startTime = performance.now();
         this.cpuInterval = setInterval(() => {
@@ -99,7 +120,8 @@ const monitoring = {
             const timeDiff = endTime - startTime; // ms
             if (timeDiff > 0) {
                 const cpuTime = (endCpu.user + endCpu.system) / 1000; // convert to ms
-                this.metrics.cpuUsage = (cpuTime / timeDiff) * 100;
+                // OPTIMIZATION: Normalize CPU load across all available CPU cores (cap at 100%)
+                this.metrics.cpuUsage = Math.min(100, Math.max(0, (cpuTime / (timeDiff * NUM_CPUS)) * 100));
             }
             startCpu = process.cpuUsage();
             startTime = endTime;
@@ -119,6 +141,82 @@ const monitoring = {
         } catch (e) {
             console.warn('[Monitoring] Failed to initialize GC observer:', e);
         }
+    },
+
+    /**
+     * Updates Mongoose resilience state ('online' | 'buffering' | 'dump_mode')
+     * @param {string} status - Database resilience state
+     */
+    setDbStatus(status) {
+        if (['online', 'buffering', 'dump_mode'].includes(status)) {
+            this.metrics.dbStatus = status;
+        }
+    },
+
+    /**
+     * Records damage calculation execution time and limb target distribution.
+     * @param {number} ms - Calculation duration in ms
+     * @param {string} [limbName] - Targeted limb ('head', 'torso', 'arms', 'legs')
+     */
+    recordAnatomyDamage(ms, limbName) {
+        if (typeof ms === 'number' && !isNaN(ms)) {
+            this.anatomyLatencySum += ms;
+            this.anatomyLatencyCount++;
+        }
+        if (limbName && this.metrics.anatomyStats.limbHits[limbName] !== undefined) {
+            this.metrics.anatomyStats.limbHits[limbName]++;
+        }
+    },
+
+    /**
+     * Increments total medical remedy application counter.
+     */
+    recordRemedyUse() {
+        this.metrics.anatomyStats.remediesUsed++;
+    },
+
+    /**
+     * Accumulates client-reported round-trip ping and Phaser render FPS telemetry.
+     * @param {number} [ping] - RTT latency in ms
+     * @param {number} [fps] - Client render frame rate
+     */
+    recordClientPingFps(ping, fps) {
+        if (typeof ping === 'number' && !isNaN(ping)) {
+            this.clientPingSum += ping;
+            this.clientPingCount++;
+        }
+        if (typeof fps === 'number' && !isNaN(fps)) {
+            this.clientFpsSum += fps;
+            this.clientFpsCount++;
+        }
+    },
+
+    /**
+     * Extracts sparse non-zero spatial hash grid buckets for telemetry visualizer.
+     * OPTIMIZATION: Transmits sparse tuple arrays [[x, y, count], ...] to compress payload size by >95%.
+     * @param {Object} spatialHash - Grid hash object from server loop
+     */
+    updateSparseSpatialHash(spatialHash) {
+        if (!spatialHash || typeof spatialHash !== 'object') {
+            this.metrics.sparseSpatialHash = [];
+            return;
+        }
+        const sparse = [];
+        for (const cellKey in spatialHash) {
+            const bucket = spatialHash[cellKey];
+            const count = Array.isArray(bucket) ? bucket.length : (typeof bucket === 'number' ? bucket : 0);
+            if (count > 0) {
+                const parts = cellKey.includes('_') ? cellKey.split('_') : cellKey.split(',');
+                if (parts.length === 2) {
+                    const gx = parseInt(parts[0], 10);
+                    const gy = parseInt(parts[1], 10);
+                    if (!isNaN(gx) && !isNaN(gy)) {
+                        sparse.push([gx, gy, count]);
+                    }
+                }
+            }
+        }
+        this.metrics.sparseSpatialHash = sparse;
     },
 
     /**
@@ -191,14 +289,19 @@ const monitoring = {
      * @param {Object} [entities={}] - Entity snapshot counts
      * @param {Object} [network={}] - Network packets/bytes snapshot
      * @param {number} [queueSize=0] - Database write buffer queue size
+     * @param {Object} [spatialHash] - Spatial hash grid object
      */
-    recordTick(duration, breakdown = {}, entities = {}, network = {}, queueSize = 0) {
+    recordTick(duration, breakdown = {}, entities = {}, network = {}, queueSize = 0, spatialHash = null) {
         const now = performance.now();
         this.ticksInCurrentSample++;
         this.accumulatedDuration += duration;
         this.metrics.tickDuration = duration; // Instantaneous
 
         this.peakTickInSample = Math.max(this.peakTickInSample, duration);
+
+        if (spatialHash) {
+            this.updateSparseSpatialHash(spatialHash);
+        }
 
         // OPTIMIZATION: Generic type-checked iteration for dynamic subsystem profiling breakdown
         if (breakdown && typeof breakdown === 'object') {
@@ -229,10 +332,28 @@ const monitoring = {
             this.metrics.avgTickDuration = this.accumulatedDuration / totalTicks;
             this.metrics.maxTickDuration = this.peakTickInSample;
 
-            // Derive Avg DB Latency from scalar sum and count
+            // Derive Avg DB Latency & Anatomy Latency
             this.metrics.dbLatency = this.dbLatencyCount > 0 ? this.dbLatencySum / this.dbLatencyCount : 0;
             this.dbLatencySum = 0;
             this.dbLatencyCount = 0;
+
+            if (this.anatomyLatencyCount > 0) {
+                this.metrics.anatomyStats.damageLatency = this.anatomyLatencySum / this.anatomyLatencyCount;
+                this.anatomyLatencySum = 0;
+                this.anatomyLatencyCount = 0;
+            }
+
+            if (this.clientPingCount > 0) {
+                this.metrics.clientStats.avgPing = Math.round(this.clientPingSum / this.clientPingCount);
+                this.clientPingSum = 0;
+                this.clientPingCount = 0;
+            }
+
+            if (this.clientFpsCount > 0) {
+                this.metrics.clientStats.avgFps = Math.round(this.clientFpsSum / this.clientFpsCount);
+                this.clientFpsSum = 0;
+                this.clientFpsCount = 0;
+            }
 
             this.metrics.tickBreakdown = {
                 logic: (this.accumulatedBreakdown.logic || 0) / totalTicks,

@@ -430,8 +430,13 @@ router.post('/createcharacter', async (req, res) => {
             "bleedingRate": 0,
             "sensory": { "eyeDamage": 0, "earDamage": 0 },
             "bodyParts": {
+              "leftEar": { "brute": 0, "burn": 0, "bleeding": 0 },
+              "rightEar": { "brute": 0, "burn": 0, "bleeding": 0 },
               "head": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0, "toxin": 0, "suffocation": 0 },
+              "eyes": { "brute": 0, "burn": 0, "bleeding": 0 },
+              "mouth": { "brute": 0, "burn": 0, "bleeding": 0 },
               "torso": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0, "toxin": 0, "suffocation": 0 },
+              "groin": { "brute": 0, "burn": 0, "bleeding": 0 },
               "leftArm": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0, "fractured": false },
               "rightArm": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0, "fractured": false },
               "leftHand": { "hp": 100, "maxHp": 100, "brute": 0, "burn": 0 },

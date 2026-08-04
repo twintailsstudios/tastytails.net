@@ -126,6 +126,7 @@ class DatabaseResilience {
 
         this.isOnline = true;
         this.disconnectTime = null;
+        monitoring.setDbStatus('online');
         log.success('MongoDB Connected! Resuming normal operations.');
 
         // Stop the guard interval if running
@@ -156,6 +157,7 @@ class DatabaseResilience {
 
         this.isOnline = false;
         this.disconnectTime = Date.now();
+        monitoring.setDbStatus('buffering');
         log.warn('MongoDB Disconnected! Entering resilient mode...');
 
         // Emit Unstable Event to connected clients

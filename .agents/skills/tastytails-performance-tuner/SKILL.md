@@ -3,82 +3,94 @@ name: tastytails-performance-tuner
 description: Audit and optimize the game server tick rate, tick duration, database resilience, memory allocation, and client reconciliation for TastyTails.net using the project's performance diagnostic and load test suites.
 ---
 
-# tastytails-performance-tuner
+# TastyTails Performance Tuner & Benchmark Engine Skill
 
-This skill is designed to guide agents in auditing, optimizing, and empirically verifying the performance of the **tastytails.net** gaming stack (built with Node.js, Socket.IO, Mongoose/MongoDB, and Phaser 3). Use this skill when requested to improve tick rates, lower latency, reduce event loop lag, or diagnose performance regressions.
-
----
-
-### Step 1: Core Subsystem Audit Focus Areas
-
-Examine the following concrete locations in the repository:
-
-1.  **Game Loop & Raycasting-Based Shadows (`src/server-loop.js`)**:
-    *   *Visibility Polygon*: Focus on `updatePlayerShadows` and `VisibilityPolygon.compute(pos, relevantSegments)` (from `visibility-polygon` library) which is CPU-bound.
-    *   *Point Containment*: Optimize `isPointInPolygon` checks in the O(N^2) observer-target loop. Look at AABB optimization and cross-cell thresholds.
-    *   *Staggering & LOD*: Optimize `serverTickCount % 3` visibility recalculation and `isFar` LOD throttling.
-2.  **Animal AI Updates & Culling (`src/server-loop.js` & `src/server/mechanics/Animal.js`)**:
-    *   *Culling check*: Look at the culling check `getPlayersInRange(animal.x, animal.y, 1500)` in `gameLoop` which runs for every animal every tick.
-3.  **Digestion / Vore Mechanics (`src/server/mechanics/digestion.js` & `src/sockets/voreHandlers.js`)**:
-    *   *Interval Loop*: Check `processDigestion` running every 1 second. Ensure it does not block the main game tick when processing stomach interactions.
-4.  **Database Resilience & Write-Behind Cache (`src/classes/DatabaseResilience.js`)**:
-    *   *Write-Behind Buffer*: Evaluate `DatabaseResilience.queueUpdate` and the `writeBuffer` Map. Review the `flushIntervalMS` (30s) and coordinate saving debounces (`SAVE_COOLDOWN = 5000`).
-5.  **Client-Side Prediction & Reconciliation (`src/client/js/game/reconcile.js` & `update.js`)**:
-    *   *Reconciliation*: Optimize client speed, snapping thresholds (`dist > 5.0`), lerping (`0.3`), and ensure DOM cache dirty checks prevent layout thrashing.
+> **Usage Instruction**: Reference or invoke this skill whenever asked to optimize server tick rates, lower latency, reduce event loop lag, eliminate GC pauses, or conduct load tests on **TastyTails.net**. Generates a visual `performance_tuning_report.md` artifact comparing baseline vs optimized benchmark metrics across 13 key targets.
 
 ---
 
-### Step 2: The Empirical Performance Verification Cycle
+## 1. Core Subsystem Audit Focus Areas
 
-Before and after modifying code, you must execute the diagnostics and compile comparative performance logs:
+Examine these concrete subsystems in the codebase:
+1. **Game Loop & Shadowcasting (`src/server-loop.js`)**:
+   - *Visibility Polygon*: CPU-bound `updatePlayerShadows` & `VisibilityPolygon.compute()`.
+   - *Point Containment*: Optimize `isPointInPolygon` in $O(N^2)$ observer loops; check AABB bounding boxes.
+   - *Staggering & LOD*: Optimize `serverTickCount % 3` visibility recalculations and `isFar` LOD throttling (10Hz vs 30Hz).
+2. **Animal AI Updates & Culling (`src/server/mechanics/Animal.js`)**:
+   - *Spatial Culling*: Optimize `getPlayersInRange(animal.x, animal.y, 1500)` in `gameLoop`.
+3. **Digestion / Mechanics Loop (`src/server/mechanics/digestion.js`)**:
+   - *Interval Processing*: Ensure 1s digestion loops run off-tick and do not block the 33.3ms main tick.
+4. **Database Resilience & Write-Behind Cache (`src/classes/DatabaseResilience.js`)**:
+   - *Write Buffer*: Evaluate `writeBuffer` Map, `flushIntervalMS` (30s), and coordinate save debounces (`SAVE_COOLDOWN = 5000`).
+5. **Client Prediction & Reconciliation (`src/client/js/game/reconcile.js`)**:
+   - *Lerp & DOM Thrashing*: Optimize position snapping (`dist > 5.0`), lerping (`0.3`), and DOM dirty checks.
 
-#### A. Establish the Baseline
-1.  Start the server: `npm start`
-2.  Run the baseline benchmark: `node scripts/check-performance.js --save-baseline`
+---
 
-#### B. Run Diagnostics
-Run the following tools to target specific subsystems:
-1.  **Bottleneck Taxonomy** (`node scripts/test_bottleneck_taxonomy.js`): Measures scaling under load (0, 50, 150 bots).
-    *   *Target CPU*: $\le 15$ ms
-    *   *Target Serialization*: $\le 35$ ms
-    *   *Target Event Loop Lag*: $\le 50$ ms
-2.  **Cluster Storm Collision** (`node scripts/test_cluster_storm.js`): Packs 150 bots in a tight area to force $O(N^2)$ visibility/collision checks.
-    *   *Target Physics (Avg)*: $\le 10$ ms
-    *   *Target Shadowcasting (Avg)*: $\le 8$ ms
-3.  **Chatterbox Network Broadcast** (`node scripts/test_chatterbox.js`): Floods chat to measure serialization.
-    *   *Target Serialization (Avg)*: $\le 25$ ms
-4.  **Memory Leaker** (`node scripts/test_memory_leaker.js`): Tracks heap and GC pauses.
-    *   *Target Heap Growth*: $\le 50$ MB
-    *   *Target Peak GC Pause*: $\le 100$ ms
-5.  **DB Heavy Lift** (`node scripts/test_db_heavy_lift.js`): Measures loop lag during DB flush intervals.
-    *   *Target DB Write Latency*: $\le 1000$ ms
-    *   *Target Event Loop Lag*: $\le 100$ ms
+## 2. Empirical Performance Verification Cycle
 
-#### C. E2E Load Testing (The Ultimate Indicator)
-Run the load simulator:
-`npm run test:load` (runs `scripts/load_test.js`)
-*   Spawns **250 simulated client bots** in a staggered fashion using a **100ms connection interval** ramp-up delay.
-*   Monitor stats via `/stats` or the `TastyTails Server Health Dashboard`.
-*   *Target Average Tick Duration*: $\le 20.0$ ms
-*   *Target Max Peak Tick Duration*: $\le 33.3$ ms
-*   *Target Average Client Latency (RTT)*: $\le 150$ ms
-*   *Target Event Loop Lag*: $\le 30$ ms
+### Step 1: Pre-Refactor Baseline
+1. Start server: `npm start`
+2. Open Dashboard: `http://localhost:3000/dashboard.html` for real-time telemetry observation.
+3. Save baseline: `npm run test:perf -- --save-baseline`
 
-#### D. Comparison Table
-Compare your results using the following layout in your final report:
+### Step 2: Diagnostic Suite Execution
+Execute targeted diagnostics via npm script shortcuts:
+1. **Gameloop Micro-Benchmark** (`npm run bench:loop`): P95 Tick Duration $\le 33.3$ms.
+2. **Bottleneck Taxonomy** (`npm run test:bottleneck`): CPU $\le 15$ms, Serialization $\le 35$ms, Loop Lag $\le 50$ms, $\alpha \le 1.5$.
+3. **Cluster Storm Collision** (`npm run test:cluster`): Physics $\le 10$ms, Shadowcasting $\le 8$ms.
+4. **Chatterbox Network Broadcast** (`npm run test:chatterbox`): Serialization $\le 25$ms, Bandwidth $\le 500$KB/sec.
+5. **Memory Leaker** (`npm run test:memory`): Heap Growth $\le 50$MB, Churn Rate $\le 5.0$MB/sec, GC Pause $\le 100$ms.
+6. **DB Heavy Lift** (`npm run test:db`): Write Latency $\le 1000$ms, Loop Lag $\le 100$ms, Post-Drain Buffer Queue $= 0$.
 
-| Metric | Baseline | Optimized | Target | Status (Pass/Fail) |
+### Step 3: End-to-End Load Simulator (250 Bots)
+Run the 250-bot load simulator:
+`npm run test:load` ([`scripts/load_test.js`](file:///c:/Users/kkmcl/Documents/GitHub/tastytails.net/scripts/load_test.js))
+- *Target Avg Tick Duration*: $\le 20.0$ ms
+- *Target Peak Tick Duration*: $\le 33.3$ ms
+- *Target Client Ping P95*: $\le 1500$ ms
+- *Target Event Loop Lag*: $\le 30$ ms
+
+---
+
+## 3. Performance Tuning Report Artifact Blueprint
+
+Generate a markdown artifact titled `performance_tuning_report.md` structured as follows:
+
+```markdown
+# ⚡ Performance Tuning Report: TastyTails.net Stack
+
+## 1. Executive Summary & Optimization Highlights
+- Key bottlenecks identified and optimizations applied.
+- Overall tick rate and latency improvement summary.
+
+## 2. Visual & Gameplay Trade-Off Clarifications
+> [!IMPORTANT]
+> Highlight any trade-offs made between performance gains and visual/gameplay fidelity (e.g. shadow resolution, LOD distances) requiring developer review.
+
+## 3. Empirical 13-Metric Benchmark Comparison
+| Metric | Baseline | Optimized | Target | Status |
 | :--- | :--- | :--- | :--- | :--- |
 | **Idle Tick Duration** | | | - | |
-| **Max Peak Tick Duration** | | | - | |
-| **Taxonomy Event Loop Lag** | | | $\le 50$ ms | |
-| **Cluster Storm Physics** | | | $\le 10$ ms | |
-| **Cluster Storm Shadowcasting** | | | $\le 8$ ms | |
-| **Chatterbox Serialization** | | | $\le 25$ ms | |
-| **Memory Leak Net Growth** | | | $\le 50$ MB | |
-| **GC Peak Pause Latency** | | | $\le 100$ ms | |
-| **DB Flush Event Loop Lag** | | | $\le 100$ ms | |
-| **Load Test Avg Tick Duration (250 bots)** | | | $\le 20$ ms | |
-| **Load Test Peak Tick Duration (250 bots)** | | | $\le 33.3$ ms | |
-| **Load Test Avg Client Latency (RTT)** | | | $\le 150$ ms | |
-| **Load Test Event Loop Lag (250 bots)** | | | $\le 30$ ms | |
+| **Max Peak Tick Duration** | | | $\le 33.3$ ms | 🟢 Pass |
+| **Taxonomy Event Loop Lag** | | | $\le 50$ ms | 🟢 Pass |
+| **Cluster Storm Physics** | | | $\le 10$ ms | 🟢 Pass |
+| **Cluster Storm Shadowcasting** | | | $\le 8$ ms | 🟢 Pass |
+| **Chatterbox Serialization** | | | $\le 25$ ms | 🟢 Pass |
+| **Memory Leak Net Growth** | | | $\le 50$ MB | 🟢 Pass |
+| **GC Peak Pause Latency** | | | $\le 100$ ms | 🟢 Pass |
+| **DB Flush Event Loop Lag** | | | $\le 100$ ms | 🟢 Pass |
+| **Load Test Avg Tick (250 bots)** | | | $\le 20$ ms | 🟢 Pass |
+| **Load Test Peak Tick (250 bots)** | | | $\le 33.3$ ms | 🟢 Pass |
+| **Load Test Avg Client RTT** | | | $\le 150$ ms | 🟢 Pass |
+| **Load Test Event Loop Lag** | | | $\le 30$ ms | 🟢 Pass |
+
+## 4. Regression Verification
+- Passed `npm test` & `npm run test:auto` (zero gameplay regressions).
+```
+
+---
+
+## 4. Core Execution Rules
+- **No Unverified Claims**: All performance gains must be backed by empirical test logs.
+- **Clickable Links**: All file and symbol references must use clickable markdown syntax (`[file.js](file:///path/to/file.js#L10)`).

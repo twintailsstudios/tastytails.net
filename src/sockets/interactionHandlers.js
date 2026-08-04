@@ -72,8 +72,14 @@ function resolveWeaponAction(player, hand, intent, targetZone) {
         penaltyMultiplier = 1.20; // +20% damage bonus when wielding versatile 1-handed weapon with off-hand free!
     }
 
-    // Target Zone Multiplier
-    const zoneMult = (w.targetZoneModifiers && w.targetZoneModifiers[targetZone] && w.targetZoneModifiers[targetZone].damageMultiplier) || 1.0;
+    // Target Zone Multiplier (Supports individual limb keys with fallback to grouped zone modifiers)
+    const groupedFallback = targetZone.includes('Arm') ? 'arms'
+        : targetZone.includes('Hand') ? 'hands'
+        : targetZone.includes('Leg') ? 'legs'
+        : targetZone.includes('Foot') ? 'feet' : null;
+    const zoneMult = (w.targetZoneModifiers && w.targetZoneModifiers[targetZone] && w.targetZoneModifiers[targetZone].damageMultiplier)
+        || (w.targetZoneModifiers && groupedFallback && w.targetZoneModifiers[groupedFallback] && w.targetZoneModifiers[groupedFallback].damageMultiplier)
+        || 1.0;
 
     const baseDmg = intentConfig.damage || 0;
     const finalDamage = Math.round(baseDmg * penaltyMultiplier * zoneMult);
@@ -383,6 +389,44 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
     socket.on('releaseClicked', (data) => {
         handleRelease(io, socket, players, messageSystem, saveCharacter, data);
+    });
+
+    /**
+     * Handles 'triggerSecondWind' for downed players clicking [Catch Breath & Stand Up].
+     */
+    socket.on('triggerSecondWind', () => {
+        try {
+            const player = players[socket.id];
+            if (!player || player.isDead || !player.isDowned) return;
+
+            if (player.secondWindReady) {
+                player.isDowned = false;
+                player.secondWindReady = false;
+                player.downedTimer = 0;
+                if (!player.stats) player.stats = { health: 10, bloodVolume: 500 };
+                player.stats.health = Math.max(10, player.stats.health || 10);
+                player.stats.bloodVolume = Math.max(500, player.stats.bloodVolume || 500);
+
+                const { recalculateTotalHealth } = require('../server/mechanics/anatomyDamage');
+                recalculateTotalHealth(player);
+
+                log.info(`[SecondWind] ${player.firstName || player.Username} caught their second wind and stood up.`);
+
+                const msg = `${player.firstName || player.Username} catches their second wind and slowly stands back up!`;
+                if (messageSystem) {
+                    messageSystem.sendSystemMessage('Interactional', msg, socket, [], 'local');
+                }
+
+                socket.emit('anatomyStatsUpdate', {
+                    stats: player.stats,
+                    isDead: player.isDead,
+                    isDowned: false,
+                    secondWindReady: false
+                });
+            }
+        } catch (e) {
+            log.error(`${logPrefix} Error handling triggerSecondWind:`, e);
+        }
     });
 
     // =========================================================================
@@ -1513,6 +1557,20 @@ function resolveTargetLimb(targetPlayer, targetZone = 'torso') {
     const parts = (targetPlayer && targetPlayer.stats && targetPlayer.stats.bodyParts) ? targetPlayer.stats.bodyParts : null;
 
     switch (targetZone) {
+        case 'leftArm':
+        case 'rightArm':
+        case 'leftHand':
+        case 'rightHand':
+        case 'leftLeg':
+        case 'rightLeg':
+        case 'leftFoot':
+        case 'rightFoot':
+            return targetZone;
+        case 'leftEar':
+        case 'rightEar':
+        case 'eyes':
+        case 'mouth':
+            return 'head'; // Cat ears, eyes, and mouth map to head HP on the server
         case 'arms': {
             const leftHp = parts?.leftArm?.hp ?? 100;
             const rightHp = parts?.rightArm?.hp ?? 100;
@@ -1599,17 +1657,56 @@ function handleFriendlyAction(io, socket, player, target, itemData, saveCharacte
             case 'head':
                 msg = `${player.firstName} patted ${getFullName(target)}'s head and ruffled their hair.`;
                 break;
-            case 'hands':
-                msg = `${player.firstName} shook ${getFullName(target)}'s hand warmly.`;
+            case 'leftEar':
+                msg = `${player.firstName} gently scratched ${getFullName(target)}'s left cat ear.`;
+                break;
+            case 'rightEar':
+                msg = `${player.firstName} gently scratched ${getFullName(target)}'s right cat ear.`;
+                break;
+            case 'eyes':
+                msg = `${player.firstName} playfully covered ${getFullName(target)}'s eyes!`;
+                break;
+            case 'mouth':
+                msg = `${player.firstName} playfully booped ${getFullName(target)}'s cute snout!`;
+                break;
+            case 'leftArm':
+                msg = `${player.firstName} linked left arms with ${getFullName(target)}.`;
+                break;
+            case 'rightArm':
+                msg = `${player.firstName} linked right arms with ${getFullName(target)}.`;
                 break;
             case 'arms':
                 msg = `${player.firstName} linked arms with ${getFullName(target)}.`;
                 break;
-            case 'tail':
-                msg = `${player.firstName} gently petted and fluffed ${getFullName(target)}'s tail.`;
+            case 'leftHand':
+                msg = `${player.firstName} warmly took ${getFullName(target)}'s left hand.`;
+                break;
+            case 'rightHand':
+                msg = `${player.firstName} shook ${getFullName(target)}'s right hand warmly.`;
+                break;
+            case 'hands':
+                msg = `${player.firstName} shook ${getFullName(target)}'s hand warmly.`;
+                break;
+            case 'leftLeg':
+                msg = `${player.firstName} playfully nudged ${getFullName(target)}'s left leg.`;
+                break;
+            case 'rightLeg':
+                msg = `${player.firstName} playfully nudged ${getFullName(target)}'s right leg.`;
+                break;
+            case 'legs':
+                msg = `${player.firstName} playfully nudged ${getFullName(target)}'s leg.`;
+                break;
+            case 'leftFoot':
+                msg = `${player.firstName} playfully tapped ${getFullName(target)}'s left foot.`;
+                break;
+            case 'rightFoot':
+                msg = `${player.firstName} playfully tapped ${getFullName(target)}'s right foot.`;
                 break;
             case 'feet':
                 msg = `${player.firstName} playfully tapped ${getFullName(target)}'s foot.`;
+                break;
+            case 'tail':
+                msg = `${player.firstName} gently petted and fluffed ${getFullName(target)}'s tail.`;
                 break;
             case 'groin':
                 msg = `${player.firstName} performed friendly intimate contact with ${getFullName(target)}.`;
@@ -1656,14 +1753,50 @@ function handleGrabbingAction(socket, player, target, messageSystem, targetZone 
             case 'head':
                 msg = `${player.firstName} grabbed ${getFullName(target)} by the head and scruff!`;
                 break;
+            case 'leftEar':
+                msg = `${player.firstName} tugged ${getFullName(target)} by their left cat ear!`;
+                break;
+            case 'rightEar':
+                msg = `${player.firstName} tugged ${getFullName(target)} by their right cat ear!`;
+                break;
+            case 'eyes':
+                msg = `${player.firstName} covered and held ${getFullName(target)}'s eyes!`;
+                break;
+            case 'mouth':
+                msg = `${player.firstName} held a hand firmly over ${getFullName(target)}'s mouth!`;
+                break;
+            case 'leftArm':
+                msg = `${player.firstName} grabbed ${getFullName(target)} firmly by their left arm!`;
+                break;
+            case 'rightArm':
+                msg = `${player.firstName} grabbed ${getFullName(target)} firmly by their right arm!`;
+                break;
             case 'arms':
                 msg = `${player.firstName} grabbed ${getFullName(target)} firmly by their arm.`;
+                break;
+            case 'leftHand':
+                msg = `${player.firstName} grabbed ${getFullName(target)} by the left wrist and hand!`;
+                break;
+            case 'rightHand':
+                msg = `${player.firstName} grabbed ${getFullName(target)} by the right wrist and hand!`;
                 break;
             case 'hands':
                 msg = `${player.firstName} grabbed ${getFullName(target)} by the wrist and hand!`;
                 break;
+            case 'leftLeg':
+                msg = `${player.firstName} grabbed ${getFullName(target)} by their left leg!`;
+                break;
+            case 'rightLeg':
+                msg = `${player.firstName} grabbed ${getFullName(target)} by their right leg!`;
+                break;
             case 'legs':
                 msg = `${player.firstName} grabbed ${getFullName(target)} by their leg!`;
+                break;
+            case 'leftFoot':
+                msg = `${player.firstName} grabbed ${getFullName(target)} by their left ankle!`;
+                break;
+            case 'rightFoot':
+                msg = `${player.firstName} grabbed ${getFullName(target)} by their right ankle!`;
                 break;
             case 'feet':
                 msg = `${player.firstName} grabbed ${getFullName(target)} by their ankle!`;
@@ -1698,21 +1831,69 @@ function handleHostileAction(io, socket, player, target, messageSystem, targetZo
             amount = 20;
             msg = `${player.firstName || player.Username} struck ${getFullName(target)} directly in the head!`;
             break;
+        case 'leftEar':
+            amount = 15;
+            msg = `${player.firstName || player.Username} twisted ${getFullName(target)}'s left cat ear!`;
+            break;
+        case 'rightEar':
+            amount = 15;
+            msg = `${player.firstName || player.Username} twisted ${getFullName(target)}'s right cat ear!`;
+            break;
+        case 'eyes':
+            amount = 18;
+            msg = `${player.firstName || player.Username} gouged at ${getFullName(target)}'s eyes!`;
+            break;
+        case 'mouth':
+            amount = 15;
+            msg = `${player.firstName || player.Username} struck ${getFullName(target)} across the mouth!`;
+            break;
         case 'torso':
             amount = 15;
             msg = `${player.firstName || player.Username} punched ${getFullName(target)} in the chest and ribs!`;
+            break;
+        case 'leftArm':
+            amount = 15;
+            msg = `${player.firstName || player.Username} struck ${getFullName(target)}'s left arm!`;
+            break;
+        case 'rightArm':
+            amount = 15;
+            msg = `${player.firstName || player.Username} struck ${getFullName(target)}'s right arm!`;
             break;
         case 'arms':
             amount = 15;
             msg = `${player.firstName || player.Username} struck ${getFullName(target)}'s arm!`;
             break;
+        case 'leftHand':
+            amount = 15;
+            msg = `${player.firstName || player.Username} crushed ${getFullName(target)}'s left hand!`;
+            break;
+        case 'rightHand':
+            amount = 15;
+            msg = `${player.firstName || player.Username} crushed ${getFullName(target)}'s right hand!`;
+            break;
         case 'hands':
             amount = 15;
             msg = `${player.firstName || player.Username} crushed ${getFullName(target)}'s hand!`;
             break;
+        case 'leftLeg':
+            amount = 15;
+            msg = `${player.firstName || player.Username} kicked ${getFullName(target)}'s left leg!`;
+            break;
+        case 'rightLeg':
+            amount = 15;
+            msg = `${player.firstName || player.Username} kicked ${getFullName(target)}'s right leg!`;
+            break;
         case 'legs':
             amount = 15;
             msg = `${player.firstName || player.Username} kicked ${getFullName(target)}'s leg!`;
+            break;
+        case 'leftFoot':
+            amount = 15;
+            msg = `${player.firstName || player.Username} stomped ${getFullName(target)}'s left foot!`;
+            break;
+        case 'rightFoot':
+            amount = 15;
+            msg = `${player.firstName || player.Username} stomped ${getFullName(target)}'s right foot!`;
             break;
         case 'feet':
             amount = 15;

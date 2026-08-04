@@ -23,13 +23,26 @@ const VALID_INTENTS = ['friendly', 'grabbing', 'hostile'];
  */
 const ZONE_PREVIEWS = {
     head: { name: 'Head', friendly: 'HEADPAT / RUFFLE', grabbing: 'SCRUFF GRAB', hostile: 'HEAD STRIKE' },
+    leftEar: { name: 'Ear (L)', friendly: 'SCRATCH LEFT EAR', grabbing: 'LEFT EAR TUG', hostile: 'LEFT EAR TWIST' },
+    rightEar: { name: 'Ear (R)', friendly: 'SCRATCH RIGHT EAR', grabbing: 'RIGHT EAR TUG', hostile: 'RIGHT EAR TWIST' },
+    eyes: { name: 'Eyes', friendly: 'COVER EYES', grabbing: 'BLINDFOLD HOLD', hostile: 'EYE GOUGE' },
+    mouth: { name: 'Snout', friendly: 'BOOP SNOUT', grabbing: 'COVER MOUTH', hostile: 'MOUTH STRIKE' },
     torso: { name: 'Torso', friendly: 'WARM HUG', grabbing: 'WAIST HOLD', hostile: 'CHEST PUNCH' },
     groin: { name: 'Groin', friendly: 'FRIENDLY PAT', grabbing: 'RESTRAINT HOLD', hostile: 'LOW BLOW' },
+    leftArm: { name: 'Arm (L)', friendly: 'LINK LEFT ARM', grabbing: 'LEFT ARM GRAB', hostile: 'LEFT ARM STRIKE' },
+    rightArm: { name: 'Arm (R)', friendly: 'LINK RIGHT ARM', grabbing: 'RIGHT ARM GRAB', hostile: 'RIGHT ARM STRIKE' },
+    leftHand: { name: 'Hand (L)', friendly: 'LEFT HANDSHAKE', grabbing: 'LEFT WRIST GRAB', hostile: 'LEFT HAND CRUSH' },
+    rightHand: { name: 'Hand (R)', friendly: 'RIGHT HANDSHAKE', grabbing: 'RIGHT WRIST GRAB', hostile: 'RIGHT HAND CRUSH' },
+    leftLeg: { name: 'Leg (L)', friendly: 'LEFT LEG NUDGE', grabbing: 'LEFT LEG TACKLE', hostile: 'LEFT LEG KICK' },
+    rightLeg: { name: 'Leg (R)', friendly: 'RIGHT LEG NUDGE', grabbing: 'RIGHT LEG TACKLE', hostile: 'RIGHT LEG KICK' },
+    leftFoot: { name: 'Foot (L)', friendly: 'LEFT FOOT TAP', grabbing: 'LEFT ANKLE GRAB', hostile: 'LEFT FOOT STOMP' },
+    rightFoot: { name: 'Foot (R)', friendly: 'RIGHT FOOT TAP', grabbing: 'RIGHT ANKLE GRAB', hostile: 'RIGHT FOOT STOMP' },
+    tail: { name: 'Tail', friendly: 'PET TAIL', grabbing: 'CATCH TAIL', hostile: 'TAIL YANK' },
+    // Legacy fallback keys
     arms: { name: 'Arms', friendly: 'LINK ARMS', grabbing: 'ARM GRAB', hostile: 'ARM STRIKE' },
     hands: { name: 'Hands', friendly: 'HANDSHAKE', grabbing: 'WRIST GRAB', hostile: 'HAND CRUSH' },
     legs: { name: 'Legs', friendly: 'LEG NUDGE', grabbing: 'LEG TACKLE', hostile: 'LEG KICK' },
-    feet: { name: 'Feet', friendly: 'FOOT TAP', grabbing: 'ANKLE GRAB', hostile: 'FOOT STOMP' },
-    tail: { name: 'Tail', friendly: 'PET TAIL', grabbing: 'CATCH TAIL', hostile: 'TAIL YANK' }
+    feet: { name: 'Feet', friendly: 'FOOT TAP', grabbing: 'ANKLE GRAB', hostile: 'FOOT STOMP' }
 };
 
 /** Module-scoped handle for popout lens hide auto-dismissal timer */
@@ -40,6 +53,9 @@ let cachedWidget = null;
 let cachedLabel = null;
 let cachedLensTitle = null;
 let cachedLensHint = null;
+let cachedTooltip = null;
+let cachedTooltipTitle = null;
+let cachedTooltipHint = null;
 
 /**
  * Helper to fetch and cache DOM element references safely.
@@ -52,8 +68,69 @@ function getDOMElements() {
         cachedLabel = document.getElementById('target-zone-label');
         cachedLensTitle = document.getElementById('lens-zone-title');
         cachedLensHint = document.getElementById('lens-action-hint');
+        cachedTooltip = document.getElementById('target-anatomy-tooltip');
+        cachedTooltipTitle = document.getElementById('anatomy-tooltip-title');
+        cachedTooltipHint = document.getElementById('anatomy-tooltip-hint');
     }
     return Boolean(cachedWidget);
+}
+
+/**
+ * Updates floating mouse-following parchment tooltip content and position.
+ */
+function updateTooltip(zoneKey, e) {
+    if (!getDOMElements() || !cachedTooltip) return;
+    const info = ZONE_PREVIEWS[zoneKey] || ZONE_PREVIEWS.torso;
+    let intent = window.currentIntent || 'friendly';
+    if (!VALID_INTENTS.includes(intent)) intent = 'friendly';
+
+    const actionPreview = info[intent] || info.friendly;
+
+    if (cachedTooltipTitle) cachedTooltipTitle.innerText = info.name.toUpperCase();
+    if (cachedTooltipHint) cachedTooltipHint.innerText = actionPreview;
+
+    if (e && typeof e.clientX === 'number' && typeof e.clientY === 'number') {
+        const posX = Math.min(window.innerWidth - 140, Math.max(10, e.clientX + 14));
+        const posY = Math.max(10, e.clientY - 45);
+        cachedTooltip.style.left = `${posX}px`;
+        cachedTooltip.style.top = `${posY}px`;
+    }
+    cachedTooltip.style.display = 'block';
+}
+
+function hideTooltip() {
+    if (cachedTooltip) cachedTooltip.style.display = 'none';
+}
+
+/**
+ * Previews hovered anatomy zone title & hint on popout lens footer without mutating active target selection.
+ */
+function previewHoverZone(zoneKey) {
+    if (!getDOMElements() || !ZONE_PREVIEWS[zoneKey]) return;
+    let intent = window.currentIntent || 'friendly';
+    if (!VALID_INTENTS.includes(intent)) intent = 'friendly';
+
+    const info = ZONE_PREVIEWS[zoneKey];
+    const actionPreview = info[intent] || info.friendly;
+
+    if (cachedLensTitle) cachedLensTitle.innerText = info.name.toUpperCase();
+    if (cachedLensHint) cachedLensHint.innerText = actionPreview;
+}
+
+/**
+ * Restores popout lens footer title & hint to the active target zone.
+ */
+function restoreActiveZonePreview() {
+    if (!getDOMElements()) return;
+    const activeZone = window.currentTargetZone || 'torso';
+    const info = ZONE_PREVIEWS[activeZone] || ZONE_PREVIEWS.torso;
+    let intent = window.currentIntent || 'friendly';
+    if (!VALID_INTENTS.includes(intent)) intent = 'friendly';
+
+    const actionPreview = info[intent] || info.friendly;
+
+    if (cachedLensTitle) cachedLensTitle.innerText = info.name.toUpperCase();
+    if (cachedLensHint) cachedLensHint.innerText = actionPreview;
 }
 
 /**
@@ -83,6 +160,7 @@ export function initTargetSelection() {
 
     const hideLens = () => {
         if (popout) popout.style.display = 'none';
+        hideTooltip();
     };
 
     const scheduleHideLens = () => {
@@ -108,7 +186,7 @@ export function initTargetSelection() {
             const zone = node.getAttribute('data-zone');
             if (zone) {
                 setTargetZone(zone);
-                scheduleHideLens();
+                showLens(); // Keep lens open while hovering
             }
         }
     };
@@ -120,29 +198,84 @@ export function initTargetSelection() {
         }
     });
 
-    // Attach direct listeners on all SVG zone nodes for maximum hit-test accuracy
+    // Container-level Event Delegation for Hover Previews & Parchment Tooltips
+    cachedWidget.addEventListener('mouseover', (e) => {
+        const node = e.target && typeof e.target.closest === 'function' ? e.target.closest('.target-zone-node') : null;
+        if (node) {
+            const zone = node.getAttribute('data-zone');
+            if (zone) {
+                previewHoverZone(zone);
+                updateTooltip(zone, e);
+            }
+        }
+    }, true);
+
+    cachedWidget.addEventListener('mousemove', (e) => {
+        const node = e.target && typeof e.target.closest === 'function' ? e.target.closest('.target-zone-node') : null;
+        if (node) {
+            const zone = node.getAttribute('data-zone');
+            if (zone) {
+                updateTooltip(zone, e);
+            }
+        } else {
+            restoreActiveZonePreview();
+            hideTooltip();
+        }
+    }, true);
+
+    cachedWidget.addEventListener('mouseout', (e) => {
+        const relatedNode = e.relatedTarget && typeof e.relatedTarget.closest === 'function' ? e.relatedTarget.closest('.target-zone-node') : null;
+        if (!relatedNode) {
+            restoreActiveZonePreview();
+            hideTooltip();
+        }
+    }, true);
+
+    // Direct click listeners on SVG zone nodes
     const zoneNodes = cachedWidget.querySelectorAll('.target-zone-node');
     zoneNodes.forEach(node => {
+        const zone = node.getAttribute('data-zone');
         ['pointerdown', 'mousedown', 'click'].forEach(evtType => {
             node.addEventListener(evtType, (e) => {
                 e.stopPropagation();
                 window.isPointerDownOnUI = true;
-                const zone = node.getAttribute('data-zone');
                 if (zone) {
                     setTargetZone(zone);
-                    scheduleHideLens();
+                    showLens(); // Keep lens open while hovering
                 }
             }, true);
         });
     });
 
     // Hover & Click triggers on mini widget & popout lens
-    cachedWidget.addEventListener('mouseenter', showLens);
-    cachedWidget.addEventListener('mouseleave', scheduleHideLens);
-
+    // NOTE: Popout lens only expands when clicking mini button (#target-dock-mini-btn), not on hover
     if (popout) {
         popout.addEventListener('mouseenter', showLens);
         popout.addEventListener('mouseleave', scheduleHideLens);
+    }
+    cachedWidget.addEventListener('mouseleave', scheduleHideLens);
+
+    const miniBtn = document.getElementById('target-dock-mini-btn');
+    const toggleLens = () => {
+        if (popout) {
+            if (popout.style.display === 'none' || !popout.style.display) {
+                showLens();
+            } else {
+                hideLens();
+            }
+        }
+    };
+
+    if (miniBtn) {
+        ['pointerdown', 'mousedown', 'click'].forEach(evtType => {
+            miniBtn.addEventListener(evtType, (e) => {
+                e.stopPropagation();
+                window.isPointerDownOnUI = true;
+                if (evtType === 'click') {
+                    toggleLens();
+                }
+            }, true);
+        });
     }
 
     // Hardened Event Delegation: Handles clicks on all present and future .target-zone-node SVG paths and widget elements
@@ -154,12 +287,12 @@ export function initTargetSelection() {
             const zone = node.getAttribute('data-zone');
             if (zone) {
                 setTargetZone(zone);
-                scheduleHideLens();
+                showLens(); // Keep lens open while selecting target nodes
             }
         } else {
-            // Clicking mini button or non-node background of lens toggles/shows lens
-            if (popout && popout.style.display === 'none') {
-                showLens();
+            const clickedMini = e.target && typeof e.target.closest === 'function' ? e.target.closest('#target-dock-mini-btn') : null;
+            if (clickedMini) {
+                toggleLens();
             }
         }
     }, true);
@@ -176,7 +309,7 @@ export function initTargetSelection() {
 
 /**
  * Sets the active target body zone, updates text labels, toggles SVG path active state, and updates intent theme styling.
- * @param {string} zoneKey - 'head' | 'torso' | 'groin' | 'arms' | 'hands' | 'legs' | 'feet' | 'tail'
+ * @param {string} zoneKey - Active anatomical zone key
  * @param {string|null} [overrideIntent=null] - Optional intent override ('friendly' | 'grabbing' | 'hostile')
  */
 export function setTargetZone(zoneKey, overrideIntent = null) {
@@ -203,7 +336,7 @@ export function setTargetZone(zoneKey, overrideIntent = null) {
         cachedLensHint.innerText = actionPreview;
     }
 
-    cachedWidget.setAttribute('title', `Target Zone: ${info.name} (${actionPreview})`);
+    cachedWidget.removeAttribute('title'); // Ensure native browser title tooltip is cleared
 
     // Dynamically query matching SVG paths to guarantee correctness across fresh SVG node renders
     const nodes = cachedWidget.querySelectorAll('.target-zone-node');

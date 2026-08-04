@@ -528,16 +528,20 @@ function initializeMap() {
                             const derivedTexture = props.texture || combinedProps.texture || (derivedItemId !== 'unknown_item' ? itemData[derivedItemId].texture : 'default_item');
 
                             // It's an Item! Add to worldItems and Skip collision (unless isSolid)
-                            worldItems.push({
+                            const loadedWorldItem = {
                                 uid: `item_${obj.id}`, // Unique ID from Tiled
                                 x: obj.x,
                                 y: obj.y,
+                                width: obj.width || 32,
+                                height: obj.height || 32,
                                 name: itemData[derivedItemId]?.name || props.name || obj.name || 'Unknown Item',
                                 itemId: derivedItemId,
                                 itemType: props.itemType || combinedProps.itemType || 'misc',
                                 texture: derivedTexture,
                                 properties: { ...props, ...combinedProps } // Store all props just in case
-                            });
+                            };
+                            worldItems.push(loadedWorldItem);
+                            addItemToGrid(loadedWorldItem);
 
                             if (!props.isSolid && !combinedProps.isSolid) {
                                 return; // Skip adding to staticObjects
@@ -616,17 +620,21 @@ function initializeMap() {
         });
 
         // --- TEST ITEM FOR VERIFICATION ---
-        worldItems.push({
+        const testScrollItem = {
             uid: 'test_scroll_unique',
             x: 3350, // Near player start
             y: 4300,
+            width: 32,
+            height: 32,
             name: 'Test Scroll',
             itemId: 'scroll_01',
             itemType: 'clothing', // Changed for test
             texture: 'scroll2',
             equipSlot: 'head', // Add equip slot for testing
             properties: { isItem: true, equipSlot: 'head' }
-        });
+        };
+        worldItems.push(testScrollItem);
+        addItemToGrid(testScrollItem);
         log.success(`Loaded ${staticObjects.length} static objects and ${worldItems.length} world items from ${objectLayers.length} layers.`);
 
         // --- Spatial Partitioning: Populate Grid ---
@@ -1091,7 +1099,7 @@ function checkGroundItemHazards(player, io) {
     const now = Date.now();
     if (!player.hazardCooldowns) player.hazardCooldowns = {};
 
-    const nearbyItems = module.exports.getWorldItemsInArea(player.position.x, player.position.y, 64);
+    const nearbyItems = module.exports.getWorldItemsInArea(player.position.x, player.position.y, 128);
     for (let i = 0; i < nearbyItems.length; i++) {
         const worldItem = nearbyItems[i];
         if (!worldItem) continue;
@@ -1102,12 +1110,19 @@ function checkGroundItemHazards(player, io) {
             const cooldown = stepConfig.cooldownMs || 1500;
             const itemKey = worldItem.uid || `${worldItem.x}_${worldItem.y}`;
 
-            // Check distance (within 36px radius of item center)
-            const dx = player.position.x - worldItem.x;
-            const dy = player.position.y - worldItem.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            // Check bounding box / proximity overlap for 32x32 or 64x64 hazard tiles
+            const itemW = worldItem.width || 32;
+            const itemH = worldItem.height || 32;
 
-            if (dist <= 36) {
+            const minX = worldItem.x - 10;
+            const maxX = worldItem.x + itemW + 10;
+            const minY = Math.min(worldItem.y, worldItem.y - itemH) - 10;
+            const maxY = Math.max(worldItem.y, worldItem.y + itemH) + 10;
+
+            const isPlayerOnItem = player.position.x >= minX && player.position.x <= maxX &&
+                                   player.position.y >= minY && player.position.y <= maxY;
+
+            if (isPlayerOnItem) {
                 const lastStepTime = player.hazardCooldowns[itemKey] || 0;
                 if (now - lastStepTime >= cooldown) {
                     player.hazardCooldowns[itemKey] = now;
@@ -3734,9 +3749,9 @@ module.exports.start = (io, _messageSystem) => {
             }
 
             if (stats) {
-                monitoring.recordTick(end - start, stats.breakdown, stats.entities, stats.network, queueSize);
+                monitoring.recordTick(end - start, stats.breakdown, stats.entities, stats.network, queueSize, playerGrid);
             } else {
-                monitoring.recordTick(end - start, {}, {}, {}, queueSize);
+                monitoring.recordTick(end - start, {}, {}, {}, queueSize, playerGrid);
             }
         } catch (e) {
             log.error('CRITICAL ERROR in Game Loop Tick:', e);
@@ -3789,11 +3804,18 @@ module.exports.start = (io, _messageSystem) => {
                     if (!p.isDowned) {
                         p.isDowned = true;
                         p.downedTimer = 90; // 90 seconds downed grace timer for RP/revival
+                        p.secondWindReady = false;
                         statsChanged = true;
                         log.info(`[ServerLoop] ${p.firstName || p.Username} entered Downed RP State (Timer: 90s).`);
                     } else {
                         p.downedTimer = Math.max(0, (p.downedTimer || 90) - 1);
                         statsChanged = true;
+
+                        // After 45 seconds of un-attacked downed state (timer <= 45), Second Wind prompt becomes ready
+                        if (p.downedTimer <= 45 && !p.secondWindReady) {
+                            p.secondWindReady = true;
+                            log.info(`[ServerLoop] ${p.firstName || p.Username} second wind prompt is ready!`);
+                        }
 
                         if (p.downedTimer <= 0) {
                             // Downed timer expired -> trigger true death
@@ -3801,6 +3823,12 @@ module.exports.start = (io, _messageSystem) => {
                             await applyDamage(players, User, socketId, 100, null, 'suffocation', module.exports.addCorpse, io, 'torso', messageSystem);
                         }
                     }
+                }
+
+                // 1c. Process Passive Natural Regeneration (Blood & Limb HP)
+                const { processPassiveRegeneration } = require('./server/mechanics/anatomyDamage');
+                if (processPassiveRegeneration(p)) {
+                    statsChanged = true;
                 }
 
                 // 2. Stamina handling: Active clench drain vs natural stamina recovery
@@ -3875,7 +3903,8 @@ module.exports.start = (io, _messageSystem) => {
                             stats: p.stats,
                             isDead: p.isDead,
                             isDowned: !!p.isDowned,
-                            downedTimer: p.downedTimer || 0
+                            downedTimer: p.downedTimer || 0,
+                            secondWindReady: !!p.secondWindReady
                         });
                     }
                 }

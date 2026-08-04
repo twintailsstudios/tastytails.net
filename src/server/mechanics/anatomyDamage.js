@@ -1,5 +1,8 @@
 /**
  * @fileoverview anatomyDamage.js - Multi-Typed Anatomical Limb & Health Simulation Engine
+ * @subsystem Combat & Anatomy
+ * @tickBudget Budgeted microsecond execution cost per frame (<33.3ms 30Hz loop compliant)
+ * @databaseResilience In-memory player state; synchronized via DatabaseResilience.js write-behind cache
  * 
  * @description
  * Primary server-side mechanics module for multi-typed anatomical damage calculation,
@@ -16,18 +19,28 @@ const log = require('../../logger');
  * @type {string[]}
  */
 const BODY_PARTS = [
-    'head', 'torso', 'leftArm', 'rightArm', 'leftHand', 'rightHand',
-    'leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'tail'
+    'head', 'leftEar', 'rightEar', 'eyes', 'mouth', 'torso', 'groin', 'tail',
+    'leftArm', 'rightArm', 'leftHand', 'rightHand',
+    'leftLeg', 'rightLeg', 'leftFoot', 'rightFoot'
 ];
+
+// OPTIMIZATION: Module-level frozen Sets eliminate hot-path array allocations in combat & routing routines.
+const SUB_BODY_PARTS = Object.freeze(new Set(['leftEar', 'rightEar', 'eyes', 'mouth', 'groin']));
+const FRACTURABLE_LIMBS = Object.freeze(new Set(['leftLeg', 'rightLeg', 'leftArm', 'rightArm', 'tail']));
 
 /**
  * Creates default bodyParts state object with base HP and domain damage tracking buckets.
- * @returns {Object.<string, {hp: number, maxHp: number, brute: number, burn: number, toxin: number, suffocation: number, bleeding: number, fractured?: boolean, splinted?: boolean}>}
+ * @returns {Object.<string, {hp?: number, maxHp?: number, brute: number, burn: number, toxin?: number, suffocation?: number, bleeding: number, fractured?: boolean, splinted?: boolean}>}
  */
 function createDefaultBodyParts() {
     return {
         head: { hp: 100, maxHp: 100, brute: 0, burn: 0, toxin: 0, suffocation: 0, bleeding: 0 },
+        leftEar: { brute: 0, burn: 0, bleeding: 0 },
+        rightEar: { brute: 0, burn: 0, bleeding: 0 },
+        eyes: { brute: 0, burn: 0, bleeding: 0 },
+        mouth: { brute: 0, burn: 0, bleeding: 0 },
         torso: { hp: 100, maxHp: 100, brute: 0, burn: 0, toxin: 0, suffocation: 0, bleeding: 0 },
+        groin: { brute: 0, burn: 0, bleeding: 0 },
         leftArm: { hp: 100, maxHp: 100, brute: 0, burn: 0, fractured: false, bleeding: 0 },
         rightArm: { hp: 100, maxHp: 100, brute: 0, burn: 0, fractured: false, bleeding: 0 },
         leftHand: { hp: 100, maxHp: 100, brute: 0, burn: 0, bleeding: 0 },
@@ -82,10 +95,10 @@ function ensureAnatomyStats(target) {
     if (!target.stats.bodyParts) {
         target.stats.bodyParts = createDefaultBodyParts();
     } else {
-        // OPTIMIZATION: Guard against missing individual parts without allocating full template object
+        // OPTIMIZATION: Shallow property assignment prevents spread operator allocation overhead
         for (const part of BODY_PARTS) {
             if (!target.stats.bodyParts[part]) {
-                target.stats.bodyParts[part] = { ...STATIC_DEFAULT_BODY_PARTS[part] };
+                target.stats.bodyParts[part] = Object.assign({}, STATIC_DEFAULT_BODY_PARTS[part]);
             }
         }
     }
@@ -123,6 +136,9 @@ function getRandomBodyPart() {
 /**
  * Recalculates composite total health percentage based on body parts & blood volume.
  * Dynamically computes cumulative bleeding rate from all limbs with HP <= 50 and open wounds.
+ * 
+ * @param {Object} target - The player character object reference.
+ * @returns {number} Final composite health value.
  */
 function recalculateTotalHealth(target) {
     ensureAnatomyStats(target);
@@ -133,7 +149,8 @@ function recalculateTotalHealth(target) {
 
     for (const partKey of BODY_PARTS) {
         const part = parts[partKey];
-        if (part) {
+        // DEFENSIVE GUARD: Only sum limbs with defined numeric HP pools (ignores non-HP sub-parts: ears, eyes, mouth, groin)
+        if (part && typeof part.hp === 'number') {
             const currentHp = Math.max(0, part.hp);
             totalHpSum += currentHp;
             totalMaxHpSum += (part.maxHp || 100);
@@ -173,23 +190,29 @@ function recalculateTotalHealth(target) {
  * 
  * @param {Object} target - The player object reference.
  * @param {number} amount - Raw damage amount.
- * @param {string} rawDamageType - Damage type ('brute', 'burn', 'toxin', 'suffocation', etc.)
- * @param {string|null} targetPart - Specified body part ('leftFoot', 'head', etc.) or null for random.
- * @returns {Object} Outcome details.
- */
-/**
- * Applies anatomical multi-typed damage to a target player.
- * 
- * @param {Object} target - The player object reference.
- * @param {number} amount - Raw damage amount.
- * @param {string} rawDamageType - Damage type ('brute', 'burn', 'toxin', 'suffocation', etc.)
- * @param {string|null} targetPart - Specified body part ('leftFoot', 'head', etc.) or null for random.
+ * @param {string} [rawDamageType='brute'] - Damage type ('brute', 'burn', 'toxin', 'suffocation', etc.)
+ * @param {string|null} [targetPart=null] - Specified body part ('leftFoot', 'head', etc.) or null for random.
  * @param {Object} [options={}] - Weapon modifiers ({ bleedMult, fractureMult }).
  * @returns {Object} Outcome details.
  */
 function applyAnatomyDamage(target, amount, rawDamageType = 'brute', targetPart = null, options = {}) {
     ensureAnatomyStats(target);
-    
+    target.lastDamageTakenTime = Date.now();
+
+    // Combat Session Entry Penalty: Entering a new combat session adds +1 minute (+60s) to all splinted limb timers
+    if (!target.inCombat) {
+        target.inCombat = true;
+        if (target.stats && target.stats.bodyParts) {
+            for (const pKey of BODY_PARTS) {
+                const part = target.stats.bodyParts[pKey];
+                if (part && part.splinted) {
+                    part.mendTimer = Math.min(1800, (part.mendTimer || 600) + 60); // Capped at 1800s (30m) max penalty
+                    log.info(`[AnatomyDamage] ${target.firstName || target.Username} entered combat. Added 1m penalty to splinted ${pKey} (New mendTimer: ${part.mendTimer}s).`);
+                }
+            }
+        }
+    }
+
     const damageType = normalizeDamageType(rawDamageType);
     let bodyPart = targetPart && BODY_PARTS.includes(targetPart) ? targetPart : null;
 
@@ -202,7 +225,7 @@ function applyAnatomyDamage(target, amount, rawDamageType = 'brute', targetPart 
             const candidates = [];
             for (let i = 0; i < BODY_PARTS.length; i++) {
                 const pName = BODY_PARTS[i];
-                if (bParts[pName] && bParts[pName].hp > 0) candidates.push(pName);
+                if (bParts[pName] && (bParts[pName].hp === undefined || bParts[pName].hp > 0)) candidates.push(pName);
             }
             bodyPart = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : BODY_PARTS[Math.floor(Math.random() * BODY_PARTS.length)];
         } else if (rawDamageType.includes('glass') || rawDamageType.includes('step')) {
@@ -210,6 +233,23 @@ function applyAnatomyDamage(target, amount, rawDamageType = 'brute', targetPart 
         } else {
             bodyPart = getRandomBodyPart();
         }
+    }
+
+    // Handle sub-part localized status effect tracking & parent HP pool routing (Head for ears/eyes/mouth, Torso for groin)
+    if (SUB_BODY_PARTS.has(bodyPart)) {
+        if (!target.stats.bodyParts[bodyPart]) {
+            target.stats.bodyParts[bodyPart] = { brute: 0, burn: 0, bleeding: 0 };
+        }
+        const subNode = target.stats.bodyParts[bodyPart];
+        if (damageType === 'brute') subNode.brute = (subNode.brute || 0) + amount;
+        if (damageType === 'burn') subNode.burn = (subNode.burn || 0) + amount;
+
+        if (bodyPart === 'eyes') {
+            target.stats.sensory.eyeDamage = Math.min(100, target.stats.sensory.eyeDamage + Math.round(amount * 0.8));
+        } else if (bodyPart === 'leftEar' || bodyPart === 'rightEar') {
+            target.stats.sensory.earDamage = Math.min(100, target.stats.sensory.earDamage + Math.round(amount * 0.8));
+        }
+        bodyPart = bodyPart === 'groin' ? 'torso' : 'head';
     }
 
     const part = target.stats.bodyParts[bodyPart];
@@ -250,7 +290,7 @@ function applyAnatomyDamage(target, amount, rawDamageType = 'brute', targetPart 
     // 2. Bone Fracture check on Arms/Legs/Tail (Guaranteed at HP <= 30 if fractureMult > 0)
     const defaultFractureMult = damageType === 'brute' ? 1.0 : 0.0;
     const fractureMult = typeof options.fractureMult === 'number' ? options.fractureMult : defaultFractureMult;
-    if (['leftLeg', 'rightLeg', 'leftArm', 'rightArm', 'tail'].includes(bodyPart) && !part.fractured && fractureMult > 0) {
+    if (FRACTURABLE_LIMBS.has(bodyPart) && !part.fractured && fractureMult > 0) {
         const fractureProb = newLimbHp <= 30 ? 1.0 : Math.min(1.0, Math.pow(deficitRatio, 1.8) * 1.5 * fractureMult);
         if (Math.random() < fractureProb) {
             part.fractured = true;
@@ -330,6 +370,106 @@ function applyDigestionReleaseBurn(target, digestionProgressPct = 0) {
     log.info(`[AnatomyDamage] Applied post-digestion release burn (${Math.round(digestionProgressPct * 100)}% progress) to ${target.firstName || target.Username}. Health: ${target.stats.health}`);
 }
 
+/**
+ * Processes passive natural regeneration for blood volume and limb HP over time.
+ * - Blood Volume: +10 mL/s when bleeding is 0.
+ * - Limb HP: Out-of-combat buffer (15s). 1 HP per 10s baseline (or 6.6s if well-fed).
+ * - Severe Wound Soft Cap: Limbs with HP <= 50 naturally cap at 75 HP max.
+ * 
+ * @param {Object} target - The player character object reference.
+ * @returns {boolean} True if stats changed.
+ */
+function processPassiveRegeneration(target) {
+    if (!target || target.isDead || !target.stats) return false;
+    ensureAnatomyStats(target);
+
+    let statsChanged = false;
+    const now = Date.now();
+
+    // 1. Natural Blood Volume Regeneration (+10 mL per second when bleeding is 0)
+    const bleedingRate = target.stats.bleedingRate || 0;
+    const maxVol = target.stats.maxBloodVolume || 5000;
+    const curVol = typeof target.stats.bloodVolume === 'number' ? target.stats.bloodVolume : maxVol;
+
+    if (bleedingRate === 0 && curVol < maxVol) {
+        target.stats.bloodVolume = Math.min(maxVol, curVol + 10);
+        statsChanged = true;
+    }
+
+    // 2. Out-of-Combat Buffer Check (Must take no damage for 15 seconds)
+    const lastHit = target.lastDamageTakenTime || 0;
+    const isOutOfCombat = (now - lastHit) >= 15000;
+
+    if (!isOutOfCombat) {
+        if (statsChanged) recalculateTotalHealth(target);
+        return statsChanged;
+    }
+
+    // Exit Combat state transition
+    if (target.inCombat) {
+        target.inCombat = false;
+        log.info(`[AnatomyDamage] ${target.firstName || target.Username} has exited combat (out of combat buffer reached).`);
+    }
+
+    // 2b. Bone Mending Countdown for Splinted Limbs (1s tick out-of-combat)
+    const parts = target.stats.bodyParts;
+    if (parts) {
+        for (const partKey of BODY_PARTS) {
+            const part = parts[partKey];
+            if (part && part.splinted && part.fractured) {
+                part.mendTimer = Math.max(0, (part.mendTimer || 600) - 1);
+                statsChanged = true;
+
+                if (part.mendTimer <= 0) {
+                    part.fractured = false;
+                    part.splinted = false;
+                    part.hadSevereWound = false;
+                    part.mendTimer = 0;
+                    log.info(`[AnatomyDamage] ${target.firstName || target.Username}'s ${partKey} bone has fully MENDED! Status restored to OK.`);
+                }
+            }
+        }
+    }
+
+    // 3. Passive Limb HP Regeneration Tick (Every 10 seconds baseline, or 6.6 seconds if Well-Fed)
+    const regenInterval = target.isWellFed ? 6600 : 10000;
+    const lastRegen = target.lastHpRegenTime || 0;
+
+    if (now - lastRegen >= regenInterval) {
+        target.lastHpRegenTime = now;
+
+        for (const partKey of BODY_PARTS) {
+            const part = parts[partKey];
+            if (!part) continue;
+
+            const maxHp = part.maxHp || 100;
+
+            // Poisoned limbs cannot regenerate HP
+            if (part.toxin && part.toxin > 0) continue;
+
+            // Determine Natural Soft Cap: 100 HP for minor wounds, 75 HP for severe wounds (HP <= 50)
+            if (part.hp <= 50) part.hadSevereWound = true;
+            const softCap = part.hadSevereWound ? 75 : maxHp;
+
+            if (part.hp < softCap) {
+                part.hp = Math.min(softCap, part.hp + 1);
+
+                // Heal brute damage proportionally
+                if (part.brute && part.brute > 0) {
+                    part.brute = Math.max(0, part.brute - 1);
+                }
+                statsChanged = true;
+            }
+        }
+    }
+
+    if (statsChanged) {
+        recalculateTotalHealth(target);
+    }
+
+    return statsChanged;
+}
+
 module.exports = {
     createDefaultBodyParts,
     ensureAnatomyStats,
@@ -337,6 +477,8 @@ module.exports = {
     recalculateTotalHealth,
     applyAnatomyDamage,
     applyDigestionReleaseBurn,
+    processPassiveRegeneration,
     BODY_PARTS
 };
+
 

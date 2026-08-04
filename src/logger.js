@@ -85,7 +85,7 @@ const ANSI_REGEX = /\x1b\[[0-9;]*m/g;
 // --- Internal State for Advanced Features ---
 let currentIndentLevel = 0;
 const timers = new Map();
-const MAX_LOGS = 200;
+const MAX_LOGS = process.env.MAX_LOGS ? (parseInt(process.env.MAX_LOGS, 10) || 1000) : 1000;
 const logBuffer = new Array(MAX_LOGS);
 let logHead = 0;
 let logCount = 0;
