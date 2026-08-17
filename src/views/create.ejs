@@ -54,18 +54,11 @@
       <!-- TABS -->
       <div id="primaryButtons">
         <ul>
-          <li><button type="button" id="gender" class="button main active-tab"><span><i class="fa-solid fa-shirt"></i>
-                Style </span></button></li>
-          <li><button type="button" id="about" class="button main"><span><i class="fa-solid fa-feather-pointed"></i>
-                About </span></button></li>
-          <li><button type="button" id="kinks" class="button main"><span><i class="fa-solid fa-heart"></i> Kinks
-              </span></button></li>
-          <li><button type="button" id="vore" class="button main"
-              onclick="if(window.AnatomyForge) window.AnatomyForge.refreshLayout()"><span><i
-                  class="fa-solid fa-utensils"></i> Vore
-              </span></button></li>
-          <li><button type="button" id="voice" class="button main"><span><i class="fa-solid fa-microphone"></i>
-                Voice </span></button></li>
+          <li><button type="button" id="identity" class="button main active-tab"><span><i class="fa-solid fa-id-card"></i> Identity </span></button></li>
+          <li><button type="button" id="gender" class="button main"><span><i class="fa-solid fa-palette"></i> Appearance </span></button></li>
+          <li><button type="button" id="about" class="button main"><span><i class="fa-solid fa-feather-pointed"></i> About </span></button></li>
+          <li><button type="button" id="kinks" class="button main"><span><i class="fa-solid fa-heart"></i> Kinks </span></button></li>
+          <li><button type="button" id="vore" class="button main" onclick="if(window.AnatomyForge) window.AnatomyForge.refreshLayout()"><span><i class="fa-solid fa-utensils"></i> Vore </span></button></li>
         </ul>
       </div>
 
@@ -79,318 +72,344 @@
                 <% } %>
                   <%}%>
 
-                    <div id="genderPullout" class="pullout">
-                      <!-- Body Shape -->
-                      <button type="button" class="collapsible"><span><i class="fa-solid fa-venus-mars"></i> Base
-                          Shape</span> <i class="fa-solid fa-chevron-down"></i></button>
-                      <div class="style-grid active">
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Shape:</label>
-                            <select name="bodyShape" id="bodyShape">
-                              <option value="F-">Feminine</option>
-                              <option value="M-">Masculine (unavailable)</option>
-                            </select>
-                          </div>
+                    <!-- 1. IDENTITY TAB (NEW 1st TAB) -->
+                    <div id="identityPullout" class="pullout" style="display:block;">
+                      <h2 class="section-heading"><i class="fa-solid fa-dna"></i> Identity & Core Archetype</h2>
+                      <p class="section-sub">Define your character's gender presentation, reproductive anatomy, body plan, and vocal profile.</p>
+
+                      <!-- Presentation & Shape -->
+                      <div class="identity-card-section">
+                        <div class="card-section-title"><i class="fa-solid fa-venus-mars"></i> Presentation & Shape</div>
+                        <div class="pill-toggle-group" data-target="bodyShape">
+                          <button type="button" class="pill-btn active" data-value="F-"><i class="fa-solid fa-venus"></i> Feminine</button>
+                          <button type="button" class="pill-btn" data-value="M-"><i class="fa-solid fa-mars"></i> Masculine</button>
                         </div>
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Anatomy:</label>
-                            <select name="genitals" id="genitals">
-                              <option value="empty">Vagina (unavailable)</option>
-                              <option value="empty">Penis (unavailable)</option>
-                              <option value="empty">Both (unavailable)</option>
-                            </select>
-                          </div>
+                        <select name="bodyShape" id="bodyShape" style="display:none;">
+                          <option value="F-">Feminine</option>
+                          <option value="M-">Masculine</option>
+                        </select>
+                      </div>
+
+                      <!-- Reproductive Anatomy -->
+                      <div class="identity-card-section">
+                        <div class="card-section-title"><i class="fa-solid fa-shield-heart"></i> Reproductive Anatomy</div>
+                        <div class="pill-toggle-group" data-target="genitals">
+                          <button type="button" class="pill-btn active" data-value="empty"><i class="fa-solid fa-venus"></i> Vagina</button>
+                          <button type="button" class="pill-btn" data-value="penis"><i class="fa-solid fa-mars"></i> Penis</button>
+                          <button type="button" class="pill-btn" data-value="both"><i class="fa-solid fa-venus-mars"></i> Both</button>
+                        </div>
+                        <select name="genitals" id="genitals" style="display:none;">
+                          <option value="empty">Vagina</option>
+                          <option value="penis">Penis</option>
+                          <option value="both">Both</option>
+                        </select>
+                      </div>
+
+                      <!-- Body Plan & Archetype -->
+                      <div class="identity-card-section">
+                        <div class="card-section-title"><i class="fa-solid fa-person-running"></i> Body Plan & Archetype</div>
+                        <div class="archetype-grid-cards" data-target="mainBodyType">
+                          <button type="button" class="archetype-card active" data-value="body_01">
+                            <div class="archetype-icon"><i class="fa-solid fa-user-ninja"></i></div>
+                            <div class="archetype-title">Anthropomorphic</div>
+                            <div class="archetype-sub">Bipedal animal form</div>
+                          </button>
+                          <button type="button" class="archetype-card" data-value="body_02">
+                            <div class="archetype-icon"><i class="fa-solid fa-horse"></i></div>
+                            <div class="archetype-title">Taur</div>
+                            <div class="archetype-sub">Quadrupedal lower body</div>
+                          </button>
+                          <button type="button" class="archetype-card" data-value="body_03">
+                            <div class="archetype-icon"><i class="fa-solid fa-staff-snake"></i></div>
+                            <div class="archetype-title">Naga</div>
+                            <div class="archetype-sub">Serpentine lower body</div>
+                          </button>
+                          <button type="button" class="archetype-card" data-value="body_04">
+                            <div class="archetype-icon"><i class="fa-solid fa-spider"></i></div>
+                            <div class="archetype-title">Drider</div>
+                            <div class="archetype-sub">Arachnid lower body</div>
+                          </button>
+                        </div>
+                        <select name="mainBodyType" id="mainBodyType" style="display:none;">
+                          <option value="body_01">Anthropomorphic</option>
+                          <option value="body_02">Taur</option>
+                          <option value="body_03">Naga</option>
+                          <option value="body_04">Drider</option>
+                        </select>
+                      </div>
+
+                      <!-- Voice Synthesizer Studio -->
+                      <div class="identity-card-section">
+                        <div class="card-section-title"><i class="fa-solid fa-microphone-lines"></i> Voice Synthesizer Studio</div>
+                        <div id="voiceStudioContainer"></div>
+                        <input type="hidden" name="voiceProfile" id="voiceProfileInput" value='<%= charList && charList.voiceProfile ? JSON.stringify(charList.voiceProfile) : "" %>'>
+                      </div>
+                    </div>
+
+                    <!-- 2. APPEARANCE TAB (FORMERLY STYLE) -->
+                    <div id="genderPullout" class="pullout" style="display:none;">
+                      <!-- Color Sync Toolbar -->
+                      <div class="appearance-toolbar">
+                        <div class="color-sync-wrapper">
+                          <label class="color-sync-label" title="When enabled, changing body color automatically updates Head, Ears, and Tail colors in unison">
+                            <input type="checkbox" id="colorSyncToggle" checked>
+                            <span class="sync-slider"></span>
+                            <span class="sync-text"><i class="fa-solid fa-link"></i> Sync Feature Colors</span>
+                          </label>
                         </div>
                       </div>
 
-
-
-                      <!-- Head Section -->
-                      <button type="button" class="collapsible"><span><i class="fa-solid fa-face-smile"></i> Head</span>
-                        <i class="fa-solid fa-chevron-down"></i></button>
-                      <div class="style-grid">
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Type:</label>
-                            <select name="head" id="head">
-                              <option value="head_01">Vulpine</option>
-                              <option value="head_02">Canine</option>
-                              <option value="head_03">Feline</option>
-                              <option value="head_04">Bunny</option>
-                              <option value="head_05">Avian</option>
-                              <option value="head_06">Reptile</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="headColorBtn" class="pcr-button"></button>
-                            </div>
-                            <!-- <input id="primaryHeadHex" name="primaryHeadColor" type="hidden" value="#8b0000"> -->
-                          </div>
-                        </div>
-
-                        <!-- Dynamic Beak -->
-                        <div class="selectionContainer" id="sneakyBeak" style="display:none;">
-                          <div class="input-group">
-                            <label>Beak Color:</label>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="beakColorBtn" class="pcr-button"></button>
-                            </div>
-                            <!-- <input id="beakHex" name="beakHex" type="hidden" value="#e75480"> -->
-                          </div>
-                          <input id="beakSprite" name="beakSprite" type="hidden">
-                        </div>
-
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Secondary Fur:</label>
-                            <select name="headSecondaryFur" id="headSecondaryFur">
-                              <option value="empty">None</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="secondaryHeadColorBtn"
-                                class="pcr-button"></button>
-                            </div>
-                            <!-- <input id="secondaryHeadHex" name="secondaryHeadColor" type="hidden" value="#ffb6c1"> -->
-                          </div>
-                        </div>
-
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Accent Fur:</label>
-                            <select name="headAccentFur" id="headAccentFur">
-                              <option value="empty">None</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="accentHeadColorBtn"
-                                class="pcr-button"></button>
-                            </div>
-                            <!-- <input id="accentHeadHex" name="accentHeadColor" type="hidden" value="#e75480"> -->
-                          </div>
-                        </div>
-
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Hair:</label>
-                            <select name="hair" id="hair">
-                              <option value="empty">None</option>
-                              <option value="hair-front_01">Short Bob</option>
-                              <option value="hair-front_02">Pony Tail</option>
-                              <option value="hair-front_03">Covers Eye</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="hairColorBtn" class="pcr-button"></button>
-                            </div>
-                            <!-- <input id="hairHex" name="hairColor" type="hidden" value="#5c4033"> -->
-                          </div>
-                        </div>
-
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Ears:</label>
-                            <select name="outerEar" id="outerEar">
-                              <option value="empty">None</option>
-                              <option value="ears_01-outer">Perky and Pointy</option>
-                              <option value="ears_02-outer">Floppy</option>
-                              <option value="ears_03-outer">Smol and Pointy</option>
-                              <option value="ears_04-outer">Long and Loppy</option>
-                              <option value="ears_05-outer">Long and Tall</option>
-                              <option value="ears_06-outer">Split Tip</option>
-                              <option value="ears_07-outer">From Sides</option>
-                              <option value="ears_08-outer">Deer/Cow</option>
-                              <option value="ears_09-outer">Mouse/Rat</option>
-                              <option value="ears_10-outer">Squirrel</option>
-                              <option value="ears_11-outer">Lynx</option>
-                            </select>
-                            <input id="innerEar" name="innerEar" type="hidden" value="ears_01-inner">
-                          </div>
-                          <div style="display:flex; gap:5px;">
-                            <div class="pickr"><button type="button" id="outerEarColorBtn" class="pcr-button"
-                                title="Outer Ear Color"></button></div>
-                            <!-- <input id="outerEarHex" name="outerEarColor" type="hidden" value="#8b0000"> -->
-
-                            <div class="pickr"><button type="button" id="innerEarColorBtn" class="pcr-button"
-                                title="Inner Ear Color"></button></div>
-                            <!-- <input id="innerEarHex" name="innerEarColor" type="hidden" value="#ffb6c1"> -->
-                          </div>
-                        </div>
-
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Eye Color:</label>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="eyeColorBtn" class="pcr-button"></button></div>
-                            <!-- <input id="eyesHex" name="eyesColor" type="hidden" value="#ffbf00"> -->
-                            <input id="eyesIris" name="eyesIris" type="hidden" value="eyes_01">
-                            <input id="eyesOuter" name="eyesOuter" type="hidden" value="eyes_02">
-                          </div>
-                        </div>
-
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Accessories:</label>
-                            <select name="headAccessories" id="headAccessories">
-                              <option value="empty">None</option>
-                              <option value="headAccessories_01">Nubby horns</option>
-                              <option value="headAccessories_02">Antlers</option>
-                              <option value="headAccessories_03">Dragon Horns</option>
-                              <option value="headAccessories_04">Antenna</option>
-                              <option value="headAccessories_05">Unicorn Horn</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="headAccessoriesColorBtn"
-                                class="pcr-button"></button>
-                            </div>
-                            <!-- <input id="headAccessoriesHex" name="headAccessoriesColor" type="hidden" value="#e75480"> -->
-                          </div>
-                        </div>
+                      <!-- Sub-Category Navigation Bar -->
+                      <div class="appearance-sub-nav">
+                        <button type="button" class="sub-nav-btn active" data-sub="subTabHead"><i class="fa-solid fa-face-smile"></i> Head & Face</button>
+                        <button type="button" class="sub-nav-btn" data-sub="subTabBody"><i class="fa-solid fa-child"></i> Body & Coat</button>
+                        <button type="button" class="sub-nav-btn" data-sub="subTabTail"><i class="fa-solid fa-feather"></i> Tail & Markings</button>
+                        <button type="button" class="sub-nav-btn" data-sub="subTabHair"><i class="fa-solid fa-sparkles"></i> Hair & Horns</button>
                       </div>
 
+                      <!-- Sub-Category Content Panes -->
+                      <div class="appearance-sub-content">
 
-                      <!-- Body Section -->
-                      <button type="button" class="collapsible"><span><i class="fa-solid fa-child"></i> Body</span> <i
-                          class="fa-solid fa-chevron-down"></i></button>
-                      <div class="style-grid">
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Body Type:</label>
-                            <select name="mainBodyType" id="mainBodyType">
-                              <option value="body_01">Anthropomorphic</option>
-                              <option value="body_02">Taur</option>
-                              <option value="body_03">Naga</option>
-                              <option value="body_04">Drider</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="bodyColorBtn" class="pcr-button"></button>
+                        <!-- 1. HEAD & FACE SUB-TAB -->
+                        <div id="subTabHead" class="sub-tab-pane active">
+                          <div class="style-grid active">
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Head Species:</label>
+                                <select name="head" id="head">
+                                  <option value="head_01">Vulpine</option>
+                                  <option value="head_02">Canine</option>
+                                  <option value="head_03">Feline</option>
+                                  <option value="head_04">Bunny</option>
+                                  <option value="head_05">Avian</option>
+                                  <option value="head_06">Reptile</option>
+                                </select>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="headColorBtn" class="pcr-button" title="Head Primary Color"></button></div>
+                              </div>
                             </div>
-                            <!-- <input id="bodyHex" name="bodyColor" type="hidden" value="#8b0000"> -->
+
+                            <!-- Dynamic Beak -->
+                            <div class="selectionContainer" id="sneakyBeak" style="display:none;">
+                              <div class="input-group">
+                                <label>Beak Color:</label>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="beakColorBtn" class="pcr-button" title="Beak Color"></button></div>
+                              </div>
+                              <input id="beakSprite" name="beakSprite" type="hidden">
+                            </div>
+
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Head Secondary Fur:</label>
+                                <select name="headSecondaryFur" id="headSecondaryFur">
+                                  <option value="empty">None</option>
+                                </select>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="secondaryHeadColorBtn" class="pcr-button" title="Head Secondary Color"></button></div>
+                              </div>
+                            </div>
+
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Head Accent Fur:</label>
+                                <select name="headAccentFur" id="headAccentFur">
+                                  <option value="empty">None</option>
+                                </select>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="accentHeadColorBtn" class="pcr-button" title="Head Accent Color"></button></div>
+                              </div>
+                            </div>
+
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Ears:</label>
+                                <select name="outerEar" id="outerEar">
+                                  <option value="empty">None</option>
+                                  <option value="ears_01-outer">Perky and Pointy</option>
+                                  <option value="ears_02-outer">Floppy</option>
+                                  <option value="ears_03-outer">Smol and Pointy</option>
+                                  <option value="ears_04-outer">Long and Loppy</option>
+                                  <option value="ears_05-outer">Long and Tall</option>
+                                  <option value="ears_06-outer">Split Tip</option>
+                                  <option value="ears_07-outer">From Sides</option>
+                                  <option value="ears_08-outer">Deer/Cow</option>
+                                  <option value="ears_09-outer">Mouse/Rat</option>
+                                  <option value="ears_10-outer">Squirrel</option>
+                                  <option value="ears_11-outer">Lynx</option>
+                                </select>
+                                <input id="innerEar" name="innerEar" type="hidden" value="ears_01-inner">
+                              </div>
+                              <div style="display:flex; gap:5px;">
+                                <div class="pickr"><button type="button" id="outerEarColorBtn" class="pcr-button" title="Outer Ear Color"></button></div>
+                                <div class="pickr"><button type="button" id="innerEarColorBtn" class="pcr-button" title="Inner Ear Color"></button></div>
+                              </div>
+                            </div>
+
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Eye Color:</label>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="eyeColorBtn" class="pcr-button" title="Eye Iris Color"></button></div>
+                                <input id="eyesIris" name="eyesIris" type="hidden" value="eyes_01">
+                                <input id="eyesOuter" name="eyesOuter" type="hidden" value="eyes_02">
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Secondary Fur:</label>
-                            <select name="bodySecondaryFur" id="bodySecondaryFur">
-                              <option value="body_01-empty">None</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="secondaryBodyColorBtn"
-                                class="pcr-button"></button>
+                        <!-- 2. BODY & COAT SUB-TAB -->
+                        <div id="subTabBody" class="sub-tab-pane">
+                          <div class="style-grid active">
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Primary Body Color:</label>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="bodyColorBtn" class="pcr-button" title="Primary Body Color"></button></div>
+                              </div>
                             </div>
-                            <!-- <input id="secondaryBodyHex" name="secondaryBodyColor" type="hidden" value="#ffb6c1"> -->
+
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Secondary Fur:</label>
+                                <select name="bodySecondaryFur" id="bodySecondaryFur">
+                                  <option value="body_01-empty">None</option>
+                                </select>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="secondaryBodyColorBtn" class="pcr-button" title="Body Secondary Color"></button></div>
+                              </div>
+                            </div>
+
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Accent Fur:</label>
+                                <select name="bodyAccentFur" id="bodyAccentFur">
+                                  <option value="body_01-empty">None</option>
+                                </select>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="accentBodyColorBtn" class="pcr-button" title="Body Accent Color"></button></div>
+                              </div>
+                            </div>
+
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Hands Markings:</label>
+                                <select name="handsFur" id="handsFur">
+                                  <option value="body_01-empty">None</option>
+                                </select>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="handsColorBtn" class="pcr-button" title="Hands Color"></button></div>
+                              </div>
+                            </div>
+
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Feet Markings:</label>
+                                <select name="feetFur" id="feetFur">
+                                  <option value="body_01-empty">None</option>
+                                </select>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="feetColorBtn" class="pcr-button" title="Feet Color"></button></div>
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Accent Fur:</label>
-                            <select name="bodyAccentFur" id="bodyAccentFur">
-                              <option value="body_01-empty">None</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="accentBodyColorBtn"
-                                class="pcr-button"></button>
+                        <!-- 3. TAIL & MARKINGS SUB-TAB -->
+                        <div id="subTabTail" class="sub-tab-pane">
+                          <div class="style-grid active">
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Tail Type:</label>
+                                <select name="tail" id="tail">
+                                  <option value="tail_01">Vulpine</option>
+                                  <option value="tail_02">Canine</option>
+                                  <option value="tail_03">Feline</option>
+                                  <option value="tail_04">Rabbit</option>
+                                  <option value="tail_05">Avian</option>
+                                  <option value="tail_06">Reptile</option>
+                                  <option value="tail_07">Equine</option>
+                                </select>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="tailColorBtn" class="pcr-button" title="Tail Primary Color"></button></div>
+                              </div>
                             </div>
-                            <!-- <input id="accentBodyHex" name="accentBodyColor" type="hidden" value="#e75480"> -->
+
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Tail Secondary Fur:</label>
+                                <select name="tailSecondaryFur" id="tailSecondaryFur">
+                                  <option value="empty">None</option>
+                                </select>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="secondaryTailColorBtn" class="pcr-button" title="Tail Secondary Color"></button></div>
+                              </div>
+                            </div>
+
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Tail Accent Fur:</label>
+                                <select name="tailAccentFur" id="tailAccentFur">
+                                  <option value="empty">None</option>
+                                </select>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="accentTailColorBtn" class="pcr-button" title="Tail Accent Color"></button></div>
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Hands:</label>
-                            <select name="handsFur" id="handsFur">
-                              <option value="body_01-empty">None</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="handsColorBtn" class="pcr-button"></button>
+                        <!-- 4. HAIR & HORNS SUB-TAB -->
+                        <div id="subTabHair" class="sub-tab-pane">
+                          <div class="style-grid active">
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Hair Style:</label>
+                                <select name="hair" id="hair">
+                                  <option value="empty">None</option>
+                                  <option value="hair-front_01">Short Bob</option>
+                                  <option value="hair-front_02">Pony Tail</option>
+                                  <option value="hair-front_03">Covers Eye</option>
+                                </select>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="hairColorBtn" class="pcr-button" title="Hair Color"></button></div>
+                              </div>
                             </div>
-                            <!-- <input id="handsHex" name="handsColor" type="hidden" value="0xffb6c1"> -->
+
+                            <div class="selectionContainer">
+                              <div class="input-group">
+                                <label>Accessories & Horns:</label>
+                                <select name="headAccessories" id="headAccessories">
+                                  <option value="empty">None</option>
+                                  <option value="headAccessories_01">Nubby horns</option>
+                                  <option value="headAccessories_02">Antlers</option>
+                                  <option value="headAccessories_03">Dragon Horns</option>
+                                  <option value="headAccessories_04">Antenna</option>
+                                  <option value="headAccessories_05">Unicorn Horn</option>
+                                </select>
+                              </div>
+                              <div>
+                                <div class="pickr"><button type="button" id="headAccessoriesColorBtn" class="pcr-button" title="Accessories Color"></button></div>
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Feet:</label>
-                            <select name="feetFur" id="feetFur">
-                              <option value="body_01-empty">None</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="feetColorBtn" class="pcr-button"></button>
-                            </div>
-                            <!-- <input id="feetHex" name="feetColor" type="hidden" value="0xffb6c1"> -->
-                          </div>
-                        </div>
                       </div>
-
-
-                      <!-- Tail Section -->
-                      <button type="button" class="collapsible"><span><i class="fa-solid fa-feather"></i> Tail</span> <i
-                          class="fa-solid fa-chevron-down"></i></button>
-                      <div class="style-grid">
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Tail Type:</label>
-                            <select name="tail" id="tail">
-                              <option value="tail_01">Vulpine</option>
-                              <option value="tail_02">Canine</option>
-                              <option value="tail_03">Feline</option>
-                              <option value="tail_04">Rabbit</option>
-                              <option value="tail_05">Avian</option>
-                              <option value="tail_06">Reptile</option>
-                              <option value="tail_07">Equine</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="tailColorBtn" class="pcr-button"></button>
-                            </div>
-                            <!-- <input id="tailHex" name="tailColor" type="hidden" value="#8b0000"> -->
-                          </div>
-                        </div>
-
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Secondary Fur:</label>
-                            <select name="tailSecondaryFur" id="tailSecondaryFur">
-                              <option value="empty">None</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="secondaryTailColorBtn"
-                                class="pcr-button"></button>
-                            </div>
-                            <!-- <input id="secondaryTailHex" name="secondaryTailColor" type="hidden" value="#ffb6c1"> -->
-                          </div>
-                        </div>
-
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Accent Fur:</label>
-                            <select name="tailAccentFur" id="tailAccentFur">
-                              <option value="empty">None</option>
-                            </select>
-                          </div>
-                          <div>
-                            <div class="pickr"><button type="button" id="accentTailColorBtn"
-                                class="pcr-button"></button>
-                            </div>
-                            <!-- <input id="accentTailHex" name="accentTailColor" type="hidden" value="#e75480"> -->
-                          </div>
-                        </div>
-                      </div>
-
-
 
                       <div class="colorContainer">
                         <!-- <canvas id="color-picker"></canvas>
@@ -549,219 +568,166 @@
                       </div>
                     </div>
 
-                    <!-- 2. ABOUT TAB -->
+                    <!-- 3. ABOUT TAB (PROFILE STUDIO) -->
                     <div id="aboutPullout" class="pullout">
-                      <h2
-                        style="font-family:'Cinzel', serif; border-bottom: 2px dashed var(--wood-dark); margin-bottom:20px;">
-                        Personal
-                        Details</h2>
+                      <h2 class="section-heading"><i class="fa-solid fa-feather-pointed"></i> Character Profile Studio</h2>
+                      <p class="section-sub">Design your character's identity, visual impression, and roleplay boundaries as seen when players examine you in-game.</p>
 
-                      <div class="style-grid active">
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label for="firstName">First Name:</label>
-                            <input id="firstName" name="firstName" type="text" placeholder="First Name"
-                              autocomplete="off">
+                      <!-- 1. PERSONAL DETAILS CARD -->
+                      <div class="identity-card-section">
+                        <div class="card-section-title"><i class="fa-solid fa-address-card"></i> Personal Details</div>
+                        <div class="bio-fields-grid">
+                          <div class="bio-field">
+                            <label for="firstName"><i class="fa-solid fa-signature"></i> First Name:</label>
+                            <input id="firstName" name="firstName" type="text" placeholder="e.g. Shela" autocomplete="off">
+                          </div>
+                          <div class="bio-field">
+                            <label for="lastName"><i class="fa-solid fa-signature"></i> Last Name:</label>
+                            <input id="lastName" name="lastName" type="text" placeholder="e.g. Vulpis" autocomplete="off">
+                          </div>
+                          <div class="bio-field">
+                            <label for="nickName"><i class="fa-solid fa-tag"></i> Nickname / Alias:</label>
+                            <input id="nickName" name="nickName" type="text" placeholder="e.g. Red" autocomplete="off">
+                          </div>
+                          <div class="bio-field">
+                            <label for="speciesName"><i class="fa-solid fa-paw"></i> Species:</label>
+                            <input id="speciesName" name="speciesName" type="text" placeholder="e.g. Red Fox" autocomplete="off">
                           </div>
                         </div>
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label for="lastName">Last Name:</label>
-                            <input id="lastName" name="lastName" type="text" placeholder="Last Name" autocomplete="off">
+
+                        <!-- Pronouns Pill Toggles -->
+                        <div class="bio-pronouns-wrapper">
+                          <label class="pronouns-label"><i class="fa-solid fa-venus-mars"></i> Pronouns:</label>
+                          <div class="pill-toggle-group" id="pronounPillGroup">
+                            <button type="button" class="pill-btn active" data-value="1"><i class="fa-solid fa-venus"></i> She / Her</button>
+                            <button type="button" class="pill-btn" data-value="2"><i class="fa-solid fa-mars"></i> He / Him</button>
+                            <button type="button" class="pill-btn" data-value="3"><i class="fa-solid fa-genderless"></i> They / Them</button>
+                          </div>
+                          <div style="display:none;">
+                            <input type="radio" name="pronouns" value="1" id="she/her" checked>
+                            <input type="radio" name="pronouns" value="2" id="he/his">
+                            <input type="radio" name="pronouns" value="3" id="they/them">
                           </div>
                         </div>
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label for="nickName">Nick Name:</label>
-                            <input id="nickName" name="nickName" type="text" placeholder="Nick Name" autocomplete="off">
+                      </div>
+
+                      <!-- 2. AUTHENTIC IN-GAME EXAMINE MODAL PREVIEW -->
+                      <div class="examine-modal-preview-wrapper">
+                        <div class="examine-modal-window">
+                          <div class="examine-modal-topbar">
+                            <div class="examine-modal-title"><i class="fa-solid fa-magnifying-glass"></i> Examine Window Preview</div>
+                            <span class="preview-badge"><i class="fa-solid fa-eye"></i> In-Game View</span>
                           </div>
-                        </div>
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label for="speciesName">Species:</label>
-                            <input id="speciesName" name="speciesName" type="text" placeholder="e.g. Fox"
-                              autocomplete="off">
-                          </div>
-                        </div>
-                        <div class="selectionContainer">
-                          <div class="input-group">
-                            <label>Pronouns:</label>
-                            <div style="display:flex; gap:15px;">
-                              <label style="color:var(--text-dark); font-family:'Lato';"><input type="radio"
-                                  name="pronouns" value="1" id="she/her"> She/Her</label>
-                              <label style="color:var(--text-dark); font-family:'Lato';"><input type="radio"
-                                  name="pronouns" value="2" id="he/his"> He/Him</label>
+
+                          <div class="examine-modal-content">
+                            <!-- Character Header Banner -->
+                            <div class="examine-char-header">
+                              <div class="examine-char-name" id="previewCharName">Shela Vulpis</div>
+                              <div class="examine-char-meta">
+                                <span class="meta-pill" id="previewSpecies" data-tooltip="Species"><i class="fa-solid fa-paw"></i> Red Fox</span>
+                                <span class="meta-pill" id="previewPronouns" data-tooltip="Pronouns"><i class="fa-solid fa-venus"></i> She / Her</span>
+                                <span class="meta-pill alias-pill" id="previewAlias" data-tooltip="Nickname"><i class="fa-solid fa-tag"></i> "Red"</span>
+                              </div>
+                            </div>
+
+                            <!-- Examine Modal Tabs (Look vs OOC Notes) -->
+                            <div class="examine-modal-tabs">
+                              <button type="button" class="examine-tab-btn active" data-tab="examineLookPane"><i class="fa-solid fa-eye"></i> Look</button>
+                              <button type="button" class="examine-tab-btn" data-tab="examineOocPane"><i class="fa-solid fa-user-shield"></i> OOC Notes</button>
+                            </div>
+
+                            <!-- Tab Panes -->
+                            <div class="examine-tab-content">
+                              <div id="examineLookPane" class="examine-pane active">
+                                <div class="examine-content-box" id="previewIcContent">
+                                  <em>Your character's physical impression will appear here...</em>
+                                </div>
+                              </div>
+
+                              <div id="examineOocPane" class="examine-pane">
+                                <div class="examine-content-box ooc-box" id="previewOocContent">
+                                  <em>OOC guidelines and roleplay boundaries will appear here...</em>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      <button type="button" class="collapsible active"><span>In Character Description</span> <i
-                          class="fa-solid fa-chevron-down"></i></button>
-                      <div class="content active" style="display:block; padding:15px;">
-                        <textarea id="icDescrip" name="icDescrip"
-                          placeholder="Describe your character's appearance and personality..."></textarea>
+                      <!-- 3. DESCRIPTION & BOUNDARIES EDITORS -->
+                      <div class="editors-2col-grid">
+                        <!-- In-Character (IC) Description Studio -->
+                        <div class="identity-card-section">
+                          <div class="card-section-title"><i class="fa-solid fa-eye"></i> In-Character (IC) Description</div>
+                          
+                          <div class="bio-guide-banner ic-banner">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span><strong>What players physically see:</strong> Describe gait, posture, expressions, scent, clothing style, and immediate physical presence when standing in front of your character.</span>
+                          </div>
+
+                          <div class="editor-toolbar">
+                            <div class="format-btn-group">
+                              <button type="button" class="format-btn" data-format="bold" data-target="icDescrip" title="Bold Text"><i class="fa-solid fa-bold"></i></button>
+                              <button type="button" class="format-btn" data-format="italic" data-target="icDescrip" title="Italic Text"><i class="fa-solid fa-italic"></i></button>
+                              <button type="button" class="format-btn" data-format="quote" data-target="icDescrip" title="Quote Card"><i class="fa-solid fa-quote-left"></i></button>
+                              <button type="button" class="format-btn" data-format="list" data-target="icDescrip" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                              <button type="button" class="format-btn" data-format="heading" data-target="icDescrip" title="Section Header"><i class="fa-solid fa-heading"></i></button>
+                            </div>
+                            <button type="button" class="template-btn" id="insertIcTemplate"><i class="fa-solid fa-wand-magic-sparkles"></i> Smart Impression Template</button>
+                          </div>
+
+                          <textarea id="icDescrip" name="icDescrip" class="profile-textarea" rows="7" placeholder="Describe your character's physical gait, posture, scent, clothing, and presence..."></textarea>
+                        </div>
+
+                        <!-- Out-of-Character (OOC) Notes & Boundaries Studio -->
+                        <div class="identity-card-section">
+                          <div class="card-section-title"><i class="fa-solid fa-user-shield"></i> Out-of-Character (OOC) Notes & Boundaries</div>
+                          
+                          <div class="bio-guide-banner ooc-banner">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span><strong>Player boundaries & meta notes:</strong> Include roleplay limits, communication preferences, and scene guidelines that cannot be known just by looking at your character.</span>
+                          </div>
+
+                          <div class="editor-toolbar">
+                            <div class="format-btn-group">
+                              <button type="button" class="format-btn" data-format="bold" data-target="oocDescrip" title="Bold Text"><i class="fa-solid fa-bold"></i></button>
+                              <button type="button" class="format-btn" data-format="italic" data-target="oocDescrip" title="Italic Text"><i class="fa-solid fa-italic"></i></button>
+                              <button type="button" class="format-btn" data-format="warning" data-target="oocDescrip" title="Boundary Warning Box"><i class="fa-solid fa-triangle-exclamation"></i></button>
+                              <button type="button" class="format-btn" data-format="list" data-target="oocDescrip" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                            </div>
+                            <button type="button" class="template-btn" id="insertOocTemplate"><i class="fa-solid fa-shield"></i> Smart Boundaries Template</button>
+                          </div>
+
+                          <textarea id="oocDescrip" name="oocDescrip" class="profile-textarea" rows="7" placeholder="Include roleplay boundaries, OOC preferences, and player guidelines..."></textarea>
+                        </div>
                       </div>
 
-                      <button type="button" class="collapsible"><span>Out of Character Notes</span> <i
-                          class="fa-solid fa-chevron-down"></i></button>
-                      <div class="content" style="padding:15px;">
-                        <textarea id="oocDescrip" name="oocDescrip" placeholder="Notes for other players..."></textarea>
-                      </div>
                     </div>
 
 
 
-                    <!-- 3. KINKS TAB (FULLY RESTORED) -->
+                    <!-- 3. KINKS TAB (REBUILT & REDESIGNED) -->
                     <div id="kinksPullout" class="pullout">
-                      <h2 style="font-family:'Cinzel', serif; margin-bottom:20px;">Preferences</h2>
-                      <p style="font-style:italic; margin-bottom:20px;">Rate your interest from 1 to 5 stars.</p>
+                      <h2 style="font-family:'Cinzel', serif; margin-bottom: 8px;">Preferences & Kinks</h2>
+                      <p style="font-family: var(--font-handwriting, 'Caveat Brush', cursive); font-size: 1.15rem; margin-bottom: 20px; color: var(--wood-dark);">Rate your roleplay preferences from <strong>Hate It (-2)</strong> to <strong>Love It (+2)</strong> using heart ratings.</p>
 
-                      <div id="kinksInput">
-                        <ul>
-                          <li>Oral Vore <div class="rating"><input type="radio" name="ovStar" id="ovStar5"
-                                value="5"><label for="ovStar5"></label><input type="radio" name="ovStar" id="ovStar4"
-                                value="4"><label for="ovStar4"></label><input type="radio" name="ovStar" id="ovStar3"
-                                value="3"><label for="ovStar3"></label><input type="radio" name="ovStar" id="ovStar2"
-                                value="2"><label for="ovStar2"></label><input type="radio" name="ovStar" id="ovStar1"
-                                value="1"><label for="ovStar1"></label></div>
-                          </li>
-                          <li>Anal Vore <div class="rating"><input type="radio" name="avStar" id="avStar5"
-                                value="5"><label for="avStar5"></label><input type="radio" name="avStar" id="avStar4"
-                                value="4"><label for="avStar4"></label><input type="radio" name="avStar" id="avStar3"
-                                value="3"><label for="avStar3"></label><input type="radio" name="avStar" id="avStar2"
-                                value="2"><label for="avStar2"></label><input type="radio" name="avStar" id="avStar1"
-                                value="1"><label for="avStar1"></label></div>
-                          </li>
-                          <li>Cock Vore <div class="rating"><input type="radio" name="cvStar" id="cvStar5"
-                                value="5"><label for="cvStar5"></label><input type="radio" name="cvStar" id="cvStar4"
-                                value="4"><label for="cvStar4"></label><input type="radio" name="cvStar" id="cvStar3"
-                                value="3"><label for="cvStar3"></label><input type="radio" name="cvStar" id="cvStar2"
-                                value="2"><label for="cvStar2"></label><input type="radio" name="cvStar" id="cvStar1"
-                                value="1"><label for="cvStar1"></label></div>
-                          </li>
-                          <li>Unbirth <div class="rating"><input type="radio" name="ubStar" id="ubStar5"
-                                value="5"><label for="ubStar5"></label><input type="radio" name="ubStar" id="ubStar4"
-                                value="4"><label for="ubStar4"></label><input type="radio" name="ubStar" id="ubStar3"
-                                value="3"><label for="ubStar3"></label><input type="radio" name="ubStar" id="ubStar2"
-                                value="2"><label for="ubStar2"></label><input type="radio" name="ubStar" id="ubStar1"
-                                value="1"><label for="ubStar1"></label></div>
-                          </li>
-                          <li>Tail Vore <div class="rating"><input type="radio" name="tvStar" id="tvStar5"
-                                value="5"><label for="tvStar5"></label><input type="radio" name="tvStar" id="tvStar4"
-                                value="4"><label for="tvStar4"></label><input type="radio" name="tvStar" id="tvStar3"
-                                value="3"><label for="tvStar3"></label><input type="radio" name="tvStar" id="tvStar2"
-                                value="2"><label for="tvStar2"></label><input type="radio" name="tvStar" id="tvStar1"
-                                value="1"><label for="tvStar1"></label></div>
-                          </li>
-                          <li>Absorption <div class="rating"><input type="radio" name="absStar" id="absStar5"
-                                value="5"><label for="absStar5"></label><input type="radio" name="absStar" id="absStar4"
-                                value="4"><label for="absStar4"></label><input type="radio" name="absStar" id="absStar3"
-                                value="3"><label for="absStar3"></label><input type="radio" name="absStar" id="absStar2"
-                                value="2"><label for="absStar2"></label><input type="radio" name="absStar" id="absStar1"
-                                value="1"><label for="absStar1"></label></div>
-                          </li>
-                          <li>Soul Vore <div class="rating"><input type="radio" name="svStar" id="svStar5"
-                                value="5"><label for="svStar5"></label><input type="radio" name="svStar" id="svStar4"
-                                value="4"><label for="svStar4"></label><input type="radio" name="svStar" id="svStar3"
-                                value="3"><label for="svStar3"></label><input type="radio" name="svStar" id="svStar2"
-                                value="2"><label for="svStar2"></label><input type="radio" name="svStar" id="svStar1"
-                                value="1"><label for="svStar1"></label></div>
-                          </li>
-                          <li>Being Pred <div class="rating"><input type="radio" name="predStar" id="predStar5"
-                                value="5"><label for="predStar5"></label><input type="radio" name="predStar"
-                                id="predStar4" value="4"><label for="predStar4"></label><input type="radio"
-                                name="predStar" id="predStar3" value="3"><label for="predStar3"></label><input
-                                type="radio" name="predStar" id="predStar2" value="2"><label
-                                for="predStar2"></label><input type="radio" name="predStar" id="predStar1"
-                                value="1"><label for="predStar1"></label></div>
-                          </li>
-                          <li>Being Prey <div class="rating"><input type="radio" name="preyStar" id="preyStar5"
-                                value="5"><label for="preyStar5"></label><input type="radio" name="preyStar"
-                                id="preyStar4" value="4"><label for="preyStar4"></label><input type="radio"
-                                name="preyStar" id="preyStar3" value="3"><label for="preyStar3"></label><input
-                                type="radio" name="preyStar" id="preyStar2" value="2"><label
-                                for="preyStar2"></label><input type="radio" name="preyStar" id="preyStar1"
-                                value="1"><label for="preyStar1"></label></div>
-                          </li>
-                          <li>Soft Vore <div class="rating"><input type="radio" name="softStar" id="softStar5"
-                                value="5"><label for="softStar5"></label><input type="radio" name="softStar"
-                                id="softStar4" value="4"><label for="softStar4"></label><input type="radio"
-                                name="softStar" id="softStar3" value="3"><label for="softStar3"></label><input
-                                type="radio" name="softStar" id="softStar2" value="2"><label
-                                for="softStar2"></label><input type="radio" name="softStar" id="softStar1"
-                                value="1"><label for="softStar1"></label></div>
-                          </li>
-                          <li>Hard Vore <div class="rating"><input type="radio" name="hardStar" id="hardStar5"
-                                value="5"><label for="hardStar5"></label><input type="radio" name="hardStar"
-                                id="hardStar4" value="4"><label for="hardStar4"></label><input type="radio"
-                                name="hardStar" id="hardStar3" value="3"><label for="hardStar3"></label><input
-                                type="radio" name="hardStar" id="hardStar2" value="2"><label
-                                for="hardStar2"></label><input type="radio" name="hardStar" id="hardStar1"
-                                value="1"><label for="hardStar1"></label></div>
-                          </li>
-                          <li>Digestion <div class="rating"><input type="radio" name="digestionStar" id="digestionStar5"
-                                value="5"><label for="digestionStar5"></label><input type="radio" name="digestionStar"
-                                id="digestionStar4" value="4"><label for="digestionStar4"></label><input type="radio"
-                                name="digestionStar" id="digestionStar3" value="3"><label
-                                for="digestionStar3"></label><input type="radio" name="digestionStar"
-                                id="digestionStar2" value="2"><label for="digestionStar2"></label><input type="radio"
-                                name="digestionStar" id="digestionStar1" value="1"><label for="digestionStar1"></label>
-                            </div>
-                          </li>
-                          <li>Disposal <div class="rating"><input type="radio" name="disposalStar" id="disposalStar5"
-                                value="5"><label for="disposalStar5"></label><input type="radio" name="disposalStar"
-                                id="disposalStar4" value="4"><label for="disposalStar4"></label><input type="radio"
-                                name="disposalStar" id="disposalStar3" value="3"><label
-                                for="disposalStar3"></label><input type="radio" name="disposalStar" id="disposalStar2"
-                                value="2"><label for="disposalStar2"></label><input type="radio" name="disposalStar"
-                                id="disposalStar1" value="1"><label for="disposalStar1"></label></div>
-                          </li>
-                          <li>Transformation <div class="rating"><input type="radio" name="tfStar" id="tfStar5"
-                                value="5"><label for="tfStar5"></label><input type="radio" name="tfStar" id="tfStar4"
-                                value="4"><label for="tfStar4"></label><input type="radio" name="tfStar" id="tfStar3"
-                                value="3"><label for="tfStar3"></label><input type="radio" name="tfStar" id="tfStar2"
-                                value="2"><label for="tfStar2"></label><input type="radio" name="tfStar" id="tfStar1"
-                                value="1"><label for="tfStar1"></label></div>
-                          </li>
-                          <li>Body Part Trans <div class="rating"><input type="radio" name="btfStar" id="btfStar5"
-                                value="5"><label for="btfStar5"></label><input type="radio" name="btfStar" id="btfStar4"
-                                value="4"><label for="btfStar4"></label><input type="radio" name="btfStar" id="btfStar3"
-                                value="3"><label for="btfStar3"></label><input type="radio" name="btfStar" id="btfStar2"
-                                value="2"><label for="btfStar2"></label><input type="radio" name="btfStar" id="btfStar1"
-                                value="1"><label for="btfStar1"></label></div>
-                          </li>
-                          <li>Body Swap <div class="rating"><input type="radio" name="bsStar" id="bsStar5"
-                                value="5"><label for="bsStar5"></label><input type="radio" name="bsStar" id="bsStar4"
-                                value="4"><label for="bsStar4"></label><input type="radio" name="bsStar" id="bsStar3"
-                                value="3"><label for="bsStar3"></label><input type="radio" name="bsStar" id="bsStar2"
-                                value="2"><label for="bsStar2"></label><input type="radio" name="bsStar" id="bsStar1"
-                                value="1"><label for="bsStar1"></label></div>
-                          </li>
-                          <li>Gender Trans <div class="rating"><input type="radio" name="gStar" id="gStar5"
-                                value="5"><label for="gStar5"></label><input type="radio" name="gStar" id="gStar4"
-                                value="4"><label for="gStar4"></label><input type="radio" name="gStar" id="gStar3"
-                                value="3"><label for="gStar3"></label><input type="radio" name="gStar" id="gStar2"
-                                value="2"><label for="gStar2"></label><input type="radio" name="gStar" id="gStar1"
-                                value="1"><label for="gStar1"></label>
-                            </div>
-                          </li>
-                          <li>Species Trans <div class="rating"><input type="radio" name="sStar" id="sStar5"
-                                value="5"><label for="sStar5"></label><input type="radio" name="sStar" id="sStar4"
-                                value="4"><label for="sStar4"></label><input type="radio" name="sStar" id="sStar3"
-                                value="3"><label for="sStar3"></label><input type="radio" name="sStar" id="sStar2"
-                                value="2"><label for="sStar2"></label><input type="radio" name="sStar" id="sStar1"
-                                value="1"><label for="sStar1"></label>
-                            </div>
-                          </li>
-                          <li>Inanimate Object <div class="rating"><input type="radio" name="iaoStar" id="iaoStar5"
-                                value="5"><label for="iaoStar5"></label><input type="radio" name="iaoStar" id="iaoStar4"
-                                value="4"><label for="iaoStar4"></label><input type="radio" name="iaoStar" id="iaoStar3"
-                                value="3"><label for="iaoStar3"></label><input type="radio" name="iaoStar" id="iaoStar2"
-                                value="2"><label for="iaoStar2"></label><input type="radio" name="iaoStar" id="iaoStar1"
-                                value="1"><label for="iaoStar1"></label></div>
-                          </li>
-                        </ul>
+                      <!-- Filter & Search Toolbar -->
+                      <div class="kink-toolbar">
+                        <div class="kink-search-wrapper">
+                          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                          <input type="text" id="kinkSearch" placeholder="Search kinks or descriptions..." autocomplete="off">
+                        </div>
+                        <div class="kink-filter-chips" id="kinkFilterChips">
+                          <button type="button" class="filter-chip active" data-category="all">All</button>
+                          <button type="button" class="filter-chip" data-category="vore">Vore</button>
+                          <button type="button" class="filter-chip" data-category="transformation">Transformation</button>
+                          <button type="button" class="filter-chip" data-category="roleplay">Roleplay</button>
+                        </div>
+                      </div>
+
+                      <!-- Kinks Container -->
+                      <div id="kinksContainer" class="kinks-grid">
+                        <!-- Rendered dynamically by CharacterCreatorApp.js -->
                       </div>
                     </div>
 
@@ -778,11 +744,7 @@
                       <div id="legacy-shim-container"></div>
                     </div>
 
-                    <!-- 5. VOICE TAB -->
-                    <div id="voicePullout" class="pullout" style="display:none;">
-                      <div id="voiceStudioContainer"></div>
-                      <input type="hidden" name="voiceProfile" id="voiceProfileInput" value='<%= charList && charList.voiceProfile ? JSON.stringify(charList.voiceProfile) : "" %>'>
-                    </div>
+
 
                     <!-- NAVIGATION BUTTONS -->
                     <div id="buttonHolder">
@@ -869,6 +831,7 @@
 </script>
 <script src="/js/creator/CharacterPreviewScene.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
 <script src="/js/creator/ColorPickerManager.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
+<script src="/js/creator/UnavailableAssetKey.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
 <script type="module" src="/js/creator/CharacterCreatorApp.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>"></script>
 
 <!-- UTILITIES (Moved to Body Root for Z-Index Safety) -->

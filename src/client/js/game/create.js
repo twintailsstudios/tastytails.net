@@ -613,7 +613,11 @@ export function create() {
     this.socket.on('currentPlayers', function (players) {
         console.log('players = ', players);
         Object.keys(players).forEach(function (id) {
-            if (players[id].playerId === self.socket.id) {
+            const isLocalPlayer = (id === self.socket.id) || 
+                                  (players[id] && players[id].playerId === self.socket.id) || 
+                                  (self.playerInfo && players[id] && players[id]._id && self.playerInfo._id && players[id]._id.toString() === self.playerInfo._id.toString());
+
+            if (isLocalPlayer) {
                 displayPlayers(self, players[id]);
 
                 // Evaluate spawn location audio gains and start BGM BEFORE loading overlay fades out
@@ -680,6 +684,13 @@ export function create() {
     });
 
     this.socket.on('newPlayer', function (playerInfo) {
+        if (!playerInfo) return;
+        const isLocalPlayer = (playerInfo.playerId === self.socket.id) || 
+                              (self.playerInfo && playerInfo._id && self.playerInfo._id && playerInfo._id.toString() === self.playerInfo._id.toString());
+        if (isLocalPlayer) {
+            console.log('[Client] Ignoring newPlayer broadcast for local player identity');
+            return;
+        }
         console.log('newPlayer = ', playerInfo);
         const otherPlayer = displayOtherPlayers(self, playerInfo);
         if (otherPlayer) {
@@ -709,7 +720,11 @@ export function create() {
 
         // 1. Update received players
         receivedPlayerIds.forEach(function (id) {
-            if (players[id].playerId === self.socket.id) {
+            const isLocalPlayer = (id === self.socket.id) || 
+                                  (players[id] && players[id].playerId === self.socket.id) || 
+                                  (self.playerInfo && players[id] && players[id]._id && self.playerInfo._id && players[id]._id.toString() === self.playerInfo._id.toString());
+
+            if (isLocalPlayer) {
                 if (self.playerContainer) {
                     // console.log('[Client] Calling reconcile for local player');
 
@@ -1066,32 +1081,264 @@ export function create() {
     this.socket.on('examinedInfo', (info) => {
         console.log('Received examined info:', info);
         const lookDisplay = document.getElementById('lookDisplay');
-        if (lookDisplay) {
-            const note = lookDisplay.querySelector('.paper-note');
-            if (note) {
-                const displayName = info.name || (info.firstName ? `${info.firstName} ${info.lastName}` : 'Unknown');
-                const displayDesc = info.description || info.icDescrip || 'No description available.';
+        if (!lookDisplay) return;
 
-                // SECURITY: Construct DOM text nodes safely to prevent XSS script execution
-                note.textContent = '';
-                const h3 = document.createElement('h3');
-                h3.textContent = `Inspection: ${displayName}`;
-                const pDesc = document.createElement('p');
-                pDesc.textContent = displayDesc;
-                note.appendChild(h3);
-                note.appendChild(pDesc);
+        const defaultNotice = document.getElementById('defaultLookNotice');
+        const playerCard = document.getElementById('playerExamineCard');
+        const genericCard = document.getElementById('genericExamineCard');
 
-                if (info.flavor) {
-                    const pFlavor = document.createElement('p');
-                    pFlavor.style.cssText = 'font-style:italic; color:#aaa; margin-top:5px;';
-                    pFlavor.textContent = info.flavor;
-                    note.appendChild(pFlavor);
+        if (info && (info.Identifier === 'player' || info.firstName)) {
+            // Hide default notice & generic card
+            if (defaultNotice) defaultNotice.style.display = 'none';
+            if (genericCard) genericCard.style.display = 'none';
+            if (playerCard) playerCard.style.display = 'block';
+
+            // 1. Populate Character Header
+            const fn = info.firstName || '';
+            const ln = info.lastName || '';
+            const fullName = (fn || ln) ? `${fn} ${ln}`.trim() : 'Unknown Character';
+            const playNameEl = document.getElementById('playExamineName');
+            if (playNameEl) playNameEl.textContent = fullName;
+
+            const playSpeciesEl = document.getElementById('playExamineSpecies');
+            if (playSpeciesEl) {
+                playSpeciesEl.setAttribute('data-tooltip', 'Species');
+                playSpeciesEl.innerHTML = `<i class="fa-solid fa-paw"></i> ${info.speciesName || 'Unknown Species'}`;
+            }
+
+            const playPronounsEl = document.getElementById('playExaminePronouns');
+            if (playPronounsEl) {
+                let pVal = info.pronouns !== undefined ? info.pronouns : 1;
+                let pText = 'She / Her';
+                let pIcon = 'fa-venus';
+                if (pVal === 2 || pVal === '2') { pText = 'He / Him'; pIcon = 'fa-mars'; }
+                else if (pVal === 3 || pVal === '3') { pText = 'They / Them'; pIcon = 'fa-genderless'; }
+                playPronounsEl.setAttribute('data-tooltip', 'Pronouns');
+                playPronounsEl.innerHTML = `<i class="fa-solid ${pIcon}"></i> ${pText}`;
+            }
+
+            const playAliasEl = document.getElementById('playExamineAlias');
+            if (playAliasEl) {
+                playAliasEl.setAttribute('data-tooltip', 'Nickname');
+                if (info.nickName && info.nickName.trim() !== '') {
+                    playAliasEl.style.display = 'inline-flex';
+                    playAliasEl.innerHTML = `<i class="fa-solid fa-tag"></i> "${info.nickName.trim()}"`;
+                } else {
+                    playAliasEl.style.display = 'none';
                 }
             }
-            // Switch to Look tab
-            const lookTab = document.getElementById('lookTab');
-            if (lookTab) lookTab.click();
+
+            // 2. Parse Simple Markdown helper
+            const parseMarkdown = (text) => {
+                if (!text || text.trim() === '') return '';
+
+                // 1. Escape HTML special characters first so user input is safe
+                let html = text
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\r\n/g, '\n');
+
+                // 2. Extract &gt; [!WARNING] callout box (matches ONLY non-empty &gt; lines immediately following &gt; [!WARNING])
+                html = html.replace(/(?:^|\n)&gt;\s*\[!WARNING\]\s*\n((?:&gt;\s*\S+.*(?:\n|$))+)/gi, (match, body) => {
+                    const content = body.split('\n')
+                        .map(line => line.replace(/^&gt;\s*/, '').trim())
+                        .filter(Boolean)
+                        .join(' ');
+                    return `\n<div class="warning-box"><i class="fa-solid fa-triangle-exclamation"></i> <strong>WARNING:</strong> ${content}</div>\n`;
+                });
+
+                // 3. Strip leftover leading blockquote markers (&gt; ) from non-warning content lines
+                html = html.replace(/^&gt;\s?/gm, '');
+
+                // 4. Format Markdown elements into trusted HTML
+                html = html
+                    .replace(/### (.*)/g, '<strong style="color:var(--gold,#d4af37); display:block; margin-top:10px; margin-bottom:4px; font-size:0.9rem;">$1</strong>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/^- (.*)/gm, '<li>$1</li>');
+
+                if (html.includes('<li>')) {
+                    html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+                }
+                return html;
+            };
+
+            // 3. Populate Look (IC Description)
+            const icEl = document.getElementById('playExamineIcContent');
+            if (icEl) {
+                const parsedIc = parseMarkdown(info.icDescrip);
+                icEl.innerHTML = parsedIc || '<em>No IC description available.</em>';
+            }
+
+            // 4. Populate OOC Notes
+            const oocEl = document.getElementById('playExamineOocContent');
+            if (oocEl) {
+                const parsedOoc = parseMarkdown(info.oocDescrip);
+                oocEl.innerHTML = parsedOoc || '<em>No OOC notes available.</em>';
+            }
+
+            // 5. Populate Kinks Grid (Non-Zero Ratings, Sorted Highest First: +2, +1, -1, -2)
+            const kinksContainer = document.getElementById('playExamineKinksContent');
+            if (kinksContainer) {
+                kinksContainer.innerHTML = '';
+                const kinksList = window.KINKS_CONFIG || [
+                    { key: 'ovStar', title: 'Oral Vore', category: 'vore' },
+                    { key: 'avStar', title: 'Anal Vore', category: 'vore' },
+                    { key: 'cvStar', title: 'Cock Vore', category: 'vore' },
+                    { key: 'ubStar', title: 'Unbirth', category: 'vore' },
+                    { key: 'tvStar', title: 'Tail Vore', category: 'vore' },
+                    { key: 'absStar', title: 'Absorption', category: 'vore' },
+                    { key: 'svStar', title: 'Soul Vore', category: 'vore' },
+                    { key: 'predStar', title: 'Being Pred', category: 'roleplay' },
+                    { key: 'preyStar', title: 'Being Prey', category: 'roleplay' },
+                    { key: 'softStar', title: 'Soft Vore', category: 'vore' },
+                    { key: 'hardStar', title: 'Hard Vore', category: 'vore' },
+                    { key: 'digestionStar', title: 'Digestion', category: 'vore' },
+                    { key: 'disposalStar', title: 'Disposal', category: 'vore' },
+                    { key: 'tfStar', title: 'Transformation', category: 'transformation' },
+                    { key: 'btfStar', title: 'Body Part Trans', category: 'transformation' },
+                    { key: 'bsStar', title: 'Body Swap', category: 'transformation' },
+                    { key: 'gStar', title: 'Gender Trans', category: 'transformation' },
+                    { key: 'sStar', title: 'Species Trans', category: 'transformation' },
+                    { key: 'iaoStar', title: 'Inanimate Object', category: 'transformation' },
+                    { key: 'shvStar', title: 'Sheath Vore', category: 'vore' },
+                    { key: 'bvStar', title: 'Breast Vore', category: 'vore' },
+                    { key: 'pvStar', title: 'Pouch Vore', category: 'vore' },
+                    { key: 'uvStar', title: 'Udder Vore', category: 'vore' },
+                    { key: 'sfStar', title: 'Sentient Fat', category: 'transformation' },
+                    { key: 'tatStar', title: 'Tattooification', category: 'transformation' },
+                    { key: 'wgStar', title: 'Weight Gain', category: 'transformation' },
+                    { key: 'microStar', title: 'Microphilia', category: 'roleplay' },
+                    { key: 'macroStar', title: 'Macrophilia', category: 'roleplay' },
+                    { key: 'pawStar', title: 'Paw Play', category: 'roleplay' },
+                    { key: 'burpStar', title: 'Belching / Burping', category: 'roleplay' },
+                    { key: 'fartStar', title: 'Farting', category: 'roleplay' },
+                    { key: 'wsStar', title: 'Watersports', category: 'roleplay' }
+                ];
+
+                const parseRating = (val) => {
+                    if (val === undefined || val === null) return 0;
+                    const num = Number(val);
+                    if (isNaN(num)) return 0;
+                    // Current rating scale (-2 to +2) takes precedence
+                    if (num >= -2 && num <= 2) return num;
+                    // Legacy 1-to-5 star scale conversion fallback
+                    if (num === 3) return 0;
+                    if (num === 4) return 1;
+                    if (num === 5) return 2;
+                    return 0;
+                };
+
+                const userRatings = info.ratings || {};
+                const activeKinks = [];
+
+                kinksList.forEach(k => {
+                    const ratingScore = parseRating(userRatings[k.key]);
+                    if (ratingScore !== 0) { // Exclude neutral score 0
+                        activeKinks.push({
+                            title: k.title,
+                            category: k.category,
+                            score: ratingScore
+                        });
+                    }
+                });
+
+                // Sort: Highest preference (+2) -> (+1) -> (-1) -> (-2) (Hate)
+                activeKinks.sort((a, b) => b.score - a.score);
+
+                const favorites = activeKinks.filter(k => k.score === 2);
+                const likes = activeKinks.filter(k => k.score === 1);
+                const maybes = activeKinks.filter(k => k.score === -1);
+                const hates = activeKinks.filter(k => k.score === -2);
+
+                if (activeKinks.length === 0) {
+                    kinksContainer.innerHTML = '<div class="no-kinks-notice"><em>No active kink preferences listed for this character.</em></div>';
+                } else {
+                    const grid = document.createElement('div');
+                    grid.className = 'play-kinks-4col-grid';
+
+                    const cols = [
+                        { title: 'Favorites', key: 'love', items: favorites, colorClass: 'col-love', icon: '<i class="fa-solid fa-heart"></i>' },
+                        { title: 'Likes', key: 'like', items: likes, colorClass: 'col-like', icon: '<i class="fa-regular fa-heart-half-stroke"></i>' },
+                        { title: 'Maybe', key: 'maybe', items: maybes, colorClass: 'col-maybe', icon: '<i class="fa-solid fa-heart-crack"></i>' },
+                        { title: 'Hate', key: 'hate', items: hates, colorClass: 'col-hate', icon: '<i class="fa-solid fa-heart-crack"></i>' }
+                    ];
+
+                    cols.forEach(col => {
+                        const colEl = document.createElement('div');
+                        colEl.className = `kink-column ${col.colorClass}`;
+
+                        const headerEl = document.createElement('div');
+                        headerEl.className = 'kink-col-header';
+                        headerEl.innerHTML = `${col.icon} ${col.title}`;
+                        colEl.appendChild(headerEl);
+
+                        const listEl = document.createElement('div');
+                        listEl.className = 'kink-col-list';
+
+                        if (col.items.length === 0) {
+                            listEl.innerHTML = '<span class="kink-empty-col">-</span>';
+                        } else {
+                            col.items.forEach(k => {
+                                const item = document.createElement('div');
+                                item.className = 'kink-compact-item';
+                                item.innerHTML = `<span class="kink-inline-icon">${col.icon}</span><span class="kink-inline-title">${k.title}</span>`;
+                                listEl.appendChild(item);
+                            });
+                        }
+                        colEl.appendChild(listEl);
+                        grid.appendChild(colEl);
+                    });
+                    kinksContainer.appendChild(grid);
+                }
+            }
+
+            // 6. Sub-Tab Switcher Event Delegation & Diagnostic Instrumentation
+            const tabBtns = playerCard.querySelectorAll('.examine-tab-btn');
+            tabBtns.forEach(btn => {
+                btn.onclick = function () {
+                    playerCard.querySelectorAll('.examine-tab-btn').forEach(b => b.classList.remove('active'));
+                    playerCard.querySelectorAll('.examine-pane').forEach(p => p.classList.remove('active'));
+                    this.classList.add('active');
+                    const targetPane = document.getElementById(this.dataset.tab);
+                    if (targetPane) targetPane.classList.add('active');
+
+                    if (typeof window.debugExamineKinks === 'function') {
+                        setTimeout(() => window.debugExamineKinks(), 50);
+                    }
+                };
+            });
+
+            if (typeof window.debugExamineKinks === 'function') {
+                setTimeout(() => window.debugExamineKinks(), 100);
+            }
+        } else {
+            // Generic Object / Non-Player Item Examination
+            if (defaultNotice) defaultNotice.style.display = 'none';
+            if (playerCard) playerCard.style.display = 'none';
+            if (genericCard) {
+                genericCard.style.display = 'block';
+                const titleEl = document.getElementById('genericExamineTitle');
+                const descEl = document.getElementById('genericExamineDesc');
+                const flavorEl = document.getElementById('genericExamineFlavor');
+
+                if (titleEl) titleEl.textContent = `Inspection: ${info.name || info.firstName || 'Object'}`;
+                if (descEl) descEl.textContent = info.description || info.icDescrip || 'No details available.';
+                if (flavorEl) {
+                    if (info.flavor) {
+                        flavorEl.style.display = 'block';
+                        flavorEl.textContent = info.flavor;
+                    } else {
+                        flavorEl.style.display = 'none';
+                    }
+                }
+            }
         }
+
+        // Switch to Look tab automatically
+        const lookTab = document.getElementById('lookTab');
+        if (lookTab) lookTab.click();
     });
 
     this.socket.on('typing', (data) => {
@@ -1277,6 +1524,64 @@ export function create() {
 
     // Force initial resize to fit container immediately (avoids jump)
     windowResize();
+}
 
+window.debugExamineKinks = function() {
+    const ids = [
+        'sidePanel',
+        'menu',
+        'menuDisplay',
+        'lookDisplay',
+        'playerExamineCard',
+        'playExamineKinksPane',
+        'playExamineKinksContent'
+    ];
+    console.log('=== EXAMINE KINKS DIAGNOSTICS ===');
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) {
+            console.log(`[${id}] -> NOT FOUND`);
+        } else {
+            const cs = window.getComputedStyle(el);
+            const rect = el.getBoundingClientRect();
+            console.log(`[${id}]`, {
+                display: cs.display,
+                overflowY: cs.overflowY,
+                height: cs.height,
+                maxHeight: cs.maxHeight,
+                minHeight: cs.minHeight,
+                clientHeight: el.clientHeight,
+                scrollHeight: el.scrollHeight,
+                offsetHeight: el.offsetHeight,
+                rectHeight: Math.round(rect.height)
+            });
+        }
+    });
+    const grid = document.querySelector('.play-kinks-4col-grid');
+    if (grid) {
+        const cs = window.getComputedStyle(grid);
+        console.log('[.play-kinks-4col-grid]', {
+            height: cs.height,
+            minHeight: cs.minHeight,
+            clientHeight: grid.clientHeight,
+            scrollHeight: grid.scrollHeight
+        });
+    }
+};
 
+if (!window.__kinksWheelDebugAttached) {
+    window.__kinksWheelDebugAttached = true;
+    window.addEventListener('wheel', (e) => {
+        const kinksContainer = document.getElementById('playExamineKinksContent');
+        if (kinksContainer && kinksContainer.contains(e.target)) {
+            console.log('[WHEEL EVENT ON KINKS CONTAINER]', {
+                target: e.target.className || e.target.tagName,
+                deltaY: e.deltaY,
+                defaultPrevented: e.defaultPrevented,
+                scrollTop: kinksContainer.scrollTop,
+                scrollHeight: kinksContainer.scrollHeight,
+                clientHeight: kinksContainer.clientHeight
+            });
+        }
+    }, { passive: false });
 }

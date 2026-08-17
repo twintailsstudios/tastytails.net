@@ -1,47 +1,74 @@
 <% const currentMode=(typeof mode !=='undefined' ) ? mode : 'create' ; %>
 
-    <!-- SIDEBAR (Tools) -->
+    <!-- SIDEBAR (Organ Vault & Palette) -->
     <div class="af-sidebar">
-        <div class="af-logo" style="font-size: 0.9rem;">✦ Anatomy Forge ✦</div>
+        <div class="af-logo">✦ Organ Vault ✦</div>
         <div class="af-tool-category">
-            <div class="af-category-title">System Nodes</div>
+            <div class="af-category-title"><i class="fa-solid fa-dna"></i> Organ Chambers</div>
 
             <div class="af-node-btn" onmousedown="AnatomyForge.startDragNewNode(event, 'entrance')">
-                <div class="af-dot" style="background: var(--node-entrance)"></div> Entrance
+                <div class="af-dot" style="background: var(--node-entrance)"></div> Entrance Organ
             </div>
             <div class="af-node-btn" onmousedown="AnatomyForge.startDragNewNode(event, 'path')">
-                <div class="af-dot" style="background: var(--node-path)"></div> Path
+                <div class="af-dot" style="background: var(--node-path)"></div> Path Organ
             </div>
             <div class="af-node-btn" onmousedown="AnatomyForge.startDragNewNode(event, 'destination')">
-                <div class="af-dot" style="background: var(--node-dest)"></div> Destination
+                <div class="af-dot" style="background: var(--node-dest)"></div> Digestive Chamber
             </div>
             <div class="af-node-btn" onmousedown="AnatomyForge.startDragNewNode(event, 'exit')">
-                <div class="af-dot" style="background: var(--node-exit)"></div> Exit
+                <div class="af-dot" style="background: var(--node-exit)"></div> Exit Organ
             </div>
         </div>
 
-        <div
-            style="margin-top:auto; font-size: 0.6rem; color: var(--wood-light); text-align: center; opacity: 0.7; padding: 5px;">
-            Right-Click/Drag to Pan.<br>Scroll to Zoom.<br><strong>Right-Click lines to cut.</strong>
+        <div class="af-drag-hint-banner">
+            <i class="fa-solid fa-hand-pointer"></i>
+            <span><strong>Organ Palette:</strong> Drag any organ chamber onto the canvas to expand your custom anatomy path.</span>
+        </div>
+
+        <div class="af-canvas-guide">
+            Right-Click & Drag to Pan.<br>Scroll to Zoom.<br><strong>Right-Click lines to cut flow.</strong>
         </div>
     </div>
 
     <!-- MAIN WORKSPACE -->
     <div class="af-canvas-container" id="af-canvas-container" oncontextmenu="return false;"
         style="flex: 1; position: relative; overflow: hidden;">
+        
+        <!-- Top Toolbar Actions -->
+        <div class="af-workspace-topbar">
+            <div class="af-topbar-left">
+                <button type="button" class="af-top-btn" title="Restore Default Anatomy Topology" onclick="AnatomyForge.restoreDefault()">
+                    <i class="fa-solid fa-rotate-left"></i> Restore Default
+                </button>
+                <button type="button" class="af-top-btn" title="Undo (Ctrl+Z)" onclick="AnatomyForge.undo()">
+                    <i class="fa-solid fa-arrow-rotate-left"></i> Undo
+                </button>
+                <button type="button" class="af-top-btn" title="Redo (Ctrl+Y)" onclick="AnatomyForge.redo()">
+                    <i class="fa-solid fa-arrow-rotate-right"></i> Redo
+                </button>
+                <button type="button" class="af-top-btn" title="Open Replacement Tag Cheat Sheet" onclick="AnatomyForge.openTagGuideModal()">
+                    <i class="fa-solid fa-tags"></i> Tag Guide
+                </button>
+            </div>
+
+            <div class="af-topbar-right">
+                <div class="af-save-badge" id="af-save-status" title="Your anatomy configuration is automatically staged and will be saved when you click Finish Character Creation at the bottom of the form.">
+                    <span class="status-dot green"></span> Staged for Creation
+                </div>
+            </div>
+        </div>
+
         <div id="af-world" style="position: absolute; top:0; left:0; width:100%; height:100%; transform-origin: 0 0;">
             <svg id="af-connections-layer"
                 style="position: absolute; top:-5000px; left:-5000px; width:10000px; height:10000px; pointer-events: none;"></svg>
             <!-- Node DIVs via JS -->
         </div>
 
-        <div class="af-hint-text"
-            style="position: absolute; bottom: 10px; left: 10px; color: rgba(255,255,255,0.2); font-style: italic; font-family: 'Cinzel'; pointer-events: none;">
+        <div class="af-hint-text">
             "The map of the body is the map of the soul..."
         </div>
 
-        <div class="af-zoom-controls"
-            style="position: absolute; bottom: 10px; right: 10px; display: flex; flex-direction: column; gap: 5px;">
+        <div class="af-zoom-controls">
             <button type="button" class="af-zoom-btn" title="Fit to Screen (R)"
                 onclick="AnatomyForge.resetView()">R</button>
 
@@ -50,34 +77,38 @@
                     onclick="window.saveAnatomyChanges(true)">
                     <i class="fa-solid fa-floppy-disk"></i>
                 </button>
-                <% } else { %>
-                    <button type="button" class="af-zoom-btn" title="Clear Map" style="margin-top:5px; color: #ff6b6b;"
-                        onclick="AnatomyForge.clearMap()">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                    <% } %>
+            <% } else { %>
+                <button type="button" class="af-zoom-btn" title="Clear Canvas" style="margin-top:5px; color: #ff6b6b;"
+                    onclick="AnatomyForge.clearMap()">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            <% } %>
         </div>
     </div>
 
     <!-- INSPECTOR PANEL -->
     <div class="af-inspector" id="af-inspector">
         <div class="af-inspector-header">
-            <span id="af-inspector-title">Properties</span>
-            <span class="af-close-inspector" style="cursor:pointer; float:right;"
-                onclick="document.getElementById('af-inspector').classList.remove('visible')">&times;</span>
+            <span id="af-inspector-title">Organ Properties</span>
+            <span class="af-header-actions">
+                <button type="button" class="af-hdr-btn delete-btn" title="Delete Organ Chamber" onclick="AnatomyForge.requestDeleteNode()"><i class="fa-solid fa-trash-can"></i></button>
+                <span class="af-close-inspector" onclick="document.getElementById('af-inspector').classList.remove('visible')">&times;</span>
+            </span>
         </div>
         <div id="af-inspector-content"></div>
     </div>
 
     <!-- UTILITIES & MODALS -->
-    <!-- Note: af-toast-container is expected to be provided by the parent view to avoid ID conflicts -->
+    <div id="af-connection-tooltip" class="af-connection-tooltip">Right-click to delete flow</div>
 
-    <div id="af-connection-tooltip" class="af-connection-tooltip">Right-click to delete</div>
-
+    <!-- Hardened Organ Delete Confirmation Modal -->
     <div id="af-confirm-modal" class="af-modal-overlay">
         <div class="af-modal-box" id="af-modal-box">
-            <div class="af-modal-title" id="af-modal-title">Destroy Node?</div>
-            <div class="af-modal-msg" id="af-modal-msg">Permanently remove this node?</div>
+            <div class="af-modal-title" id="af-modal-title"><i class="fa-solid fa-triangle-exclamation"></i> Destroy Organ Chamber?</div>
+            <div class="af-modal-msg" id="af-modal-msg">
+                Permanently remove this organ chamber from your anatomy path?<br><br>
+                <strong style="color: var(--accent-red,#a84a4a);">⚠️ WARNING:</strong> Deleting this organ will permanently erase all custom descriptions, struggle messages, and digestion settings attached to this organ.
+            </div>
 
             <div class="af-modal-checkbox-container" id="af-modal-checkbox-container" style="display:none;">
                 <input type="checkbox" id="af-modal-confirm-check">
@@ -87,7 +118,56 @@
             <div class="af-modal-actions">
                 <button type="button" class="af-btn-cancel"
                     onclick="document.getElementById('af-confirm-modal').classList.remove('active')">Cancel</button>
-                <button type="button" class="af-btn-confirm" id="af-btn-confirm-delete">Yes, Proceed</button>
+                <button type="button" class="af-btn-confirm" id="af-btn-confirm-delete">Yes, Delete Organ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Replacement Tag Cheat Sheet Modal -->
+    <div id="af-tag-guide-modal" class="af-modal-overlay">
+        <div class="af-modal-box tag-guide-box">
+            <div class="af-modal-title"><i class="fa-solid fa-book-bookmark"></i> Replacement Tag Library</div>
+            <div class="tag-guide-content">
+                <p>Use these special tags in your descriptions and struggle messages. The game server automatically replaces them with real character details during roleplay!</p>
+                <table class="tag-guide-table">
+                    <thead>
+                        <tr>
+                            <th>Tag</th>
+                            <th>Replaced With</th>
+                            <th>Example In Game</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>&lt;pred&gt;</code> / <code>&lt;pred_name&gt;</code></td>
+                            <td>Predator's full character name</td>
+                            <td>"You slide down <strong>Shela</strong>'s gullet..."</td>
+                        </tr>
+                        <tr>
+                            <td><code>&lt;prey&gt;</code> / <code>&lt;prey_name&gt;</code></td>
+                            <td>Prey's full character name</td>
+                            <td>"<strong>Felix</strong> squirms helplessly inside..."</td>
+                        </tr>
+                        <tr>
+                            <td><code>&lt;organ&gt;</code></td>
+                            <td>Name of current organ chamber</td>
+                            <td>"The walls of the <strong>Primary Stomach</strong> pulse..."</td>
+                        </tr>
+                        <tr>
+                            <td><code>&lt;pred_pronouns&gt;</code></td>
+                            <td>Predator's active pronouns (She/Her, He/Him, They/Them)</td>
+                            <td>"<strong>She</strong> swallows smoothly as her stomach churns..."</td>
+                        </tr>
+                        <tr>
+                            <td><code>&lt;prey_pronouns&gt;</code></td>
+                            <td>Prey's active pronouns (She/Her, He/Him, They/Them)</td>
+                            <td>"The digestive juices coat <strong>him</strong>..."</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="af-modal-actions">
+                <button type="button" class="af-btn-cancel" onclick="document.getElementById('af-tag-guide-modal').classList.remove('active')">Close Tag Guide</button>
             </div>
         </div>
     </div>

@@ -279,6 +279,18 @@ window.CharacterPreviewScene.rotationfunct = function (self, rotation) {
   playSafeAnimation(self.feet, self, pInfo.feet.sprite, direction, masterSync);
 };
 
+function parseColor(c) {
+  if (typeof c === 'number') return c;
+  if (!c) return 0xffffff;
+  if (typeof c === 'string') {
+    let str = c.trim();
+    if (str.startsWith('#')) return parseInt(str.slice(1), 16);
+    if (str.startsWith('0x') || str.startsWith('0X')) return parseInt(str.slice(2), 16);
+    return parseInt(str, 16) || 0xffffff;
+  }
+  return 0xffffff;
+}
+
 /**
  * Updates sprite tints when localPlayerInfo changes.
  */
@@ -288,23 +300,23 @@ window.CharacterPreviewScene.characterUpdated = function (playerInfo) {
 
   window.CharacterPreviewScene.rotationfunct(self, window.CharacterPreviewScene.rotation);
 
-  if (self.head) self.head.setTint(playerInfo.head.color);
-  if (self.beak) self.beak.setTint(playerInfo.beak.color);
-  if (self.secondaryHead) self.secondaryHead.setTint(playerInfo.head.secondaryColor);
-  if (self.accentHead) self.accentHead.setTint(playerInfo.head.accentColor);
-  if (self.headAccessories) self.headAccessories.setTint(playerInfo.headAccessories.color);
-  if (self.body) self.body.setTint(playerInfo.body.color);
-  if (self.secondaryBody) self.secondaryBody.setTint(playerInfo.body.secondaryColor);
-  if (self.accentBody) self.accentBody.setTint(playerInfo.body.accentColor);
-  if (self.hands) self.hands.setTint(playerInfo.hands.color);
-  if (self.feet) self.feet.setTint(playerInfo.feet.color);
-  if (self.tail) self.tail.setTint(playerInfo.tail.color);
-  if (self.secondaryTail) self.secondaryTail.setTint(playerInfo.tail.secondaryColor);
-  if (self.accentTail) self.accentTail.setTint(playerInfo.tail.accentColor);
-  if (self.hair) self.hair.setTint(playerInfo.hair.color);
-  if (self.outerEar) self.outerEar.setTint(playerInfo.ear.outerColor);
-  if (self.innerEar) self.innerEar.setTint(playerInfo.ear.innerColor);
-  if (self.iris) self.iris.setTint(playerInfo.eyes.color);
+  if (self.head) self.head.setTint(parseColor(playerInfo.head.color));
+  if (self.beak) self.beak.setTint(parseColor(playerInfo.beak.color));
+  if (self.secondaryHead) self.secondaryHead.setTint(parseColor(playerInfo.head.secondaryColor));
+  if (self.accentHead) self.accentHead.setTint(parseColor(playerInfo.head.accentColor));
+  if (self.headAccessories) self.headAccessories.setTint(parseColor(playerInfo.headAccessories.color));
+  if (self.body) self.body.setTint(parseColor(playerInfo.body.color));
+  if (self.secondaryBody) self.secondaryBody.setTint(parseColor(playerInfo.body.secondaryColor));
+  if (self.accentBody) self.accentBody.setTint(parseColor(playerInfo.body.accentColor));
+  if (self.hands) self.hands.setTint(parseColor(playerInfo.hands.color));
+  if (self.feet) self.feet.setTint(parseColor(playerInfo.feet.color));
+  if (self.tail) self.tail.setTint(parseColor(playerInfo.tail.color));
+  if (self.secondaryTail) self.secondaryTail.setTint(parseColor(playerInfo.tail.secondaryColor));
+  if (self.accentTail) self.accentTail.setTint(parseColor(playerInfo.tail.accentColor));
+  if (self.hair) self.hair.setTint(parseColor(playerInfo.hair.color));
+  if (self.outerEar) self.outerEar.setTint(parseColor(playerInfo.ear.outerColor));
+  if (self.innerEar) self.innerEar.setTint(parseColor(playerInfo.ear.innerColor));
+  if (self.iris) self.iris.setTint(parseColor(playerInfo.eyes.color));
 };
 
 function addPlayer(self, playerInfo) {
@@ -313,45 +325,45 @@ function addPlayer(self, playerInfo) {
   self.container = self.add.container(0, 0).setSize(70, 170).setInteractive().setScale(1.5);
 
   self.head = self.physics.add.sprite(0, 0, pInfo.head.sprite).setInteractive();
-  self.head.setTint(pInfo.head.color);
+  self.head.setTint(parseColor(pInfo.head.color));
   self.beak = self.physics.add.sprite(0, 0, pInfo.beak.sprite).setInteractive();
-  self.beak.setTint(pInfo.beak.color);
+  self.beak.setTint(parseColor(pInfo.beak.color));
   self.secondaryHead = self.physics.add.sprite(0, 0, pInfo.head.secondarySprite).setInteractive();
-  self.secondaryHead.setTint(pInfo.head.secondaryColor);
+  self.secondaryHead.setTint(parseColor(pInfo.head.secondaryColor));
   self.accentHead = self.physics.add.sprite(0, 0, pInfo.head.accentSprite).setInteractive();
-  self.accentHead.setTint(pInfo.head.accentColor);
+  self.accentHead.setTint(parseColor(pInfo.head.accentColor));
   self.headAccessories = self.physics.add.sprite(0, 0, pInfo.headAccessories.sprite).setInteractive();
-  self.headAccessories.setTint(pInfo.headAccessories.color);
+  self.headAccessories.setTint(parseColor(pInfo.headAccessories.color));
 
   self.body = self.physics.add.sprite(0, 0, pInfo.body.sprite).setInteractive();
-  self.body.setTint(pInfo.body.color);
+  self.body.setTint(parseColor(pInfo.body.color));
   self.secondaryBody = self.physics.add.sprite(0, 0, pInfo.body.secondarySprite).setInteractive();
-  self.secondaryBody.setTint(pInfo.body.secondaryColor);
+  self.secondaryBody.setTint(parseColor(pInfo.body.secondaryColor));
   self.accentBody = self.physics.add.sprite(0, 0, pInfo.body.accentSprite).setInteractive();
-  self.accentBody.setTint(pInfo.body.accentColor);
+  self.accentBody.setTint(parseColor(pInfo.body.accentColor));
   self.hands = self.physics.add.sprite(0, 0, pInfo.hands.sprite).setInteractive();
-  self.hands.setTint(pInfo.hands.color);
+  self.hands.setTint(parseColor(pInfo.hands.color));
   self.feet = self.physics.add.sprite(0, 0, pInfo.feet.sprite).setInteractive();
-  self.feet.setTint(pInfo.feet.color);
+  self.feet.setTint(parseColor(pInfo.feet.color));
 
   self.tail = self.physics.add.sprite(0, 0, pInfo.tail.sprite).setInteractive();
-  self.tail.setTint(pInfo.tail.color);
+  self.tail.setTint(parseColor(pInfo.tail.color));
   self.secondaryTail = self.physics.add.sprite(0, 0, pInfo.tail.secondarySprite).setInteractive();
-  self.secondaryTail.setTint(pInfo.tail.secondaryColor);
+  self.secondaryTail.setTint(parseColor(pInfo.tail.secondaryColor));
   self.accentTail = self.physics.add.sprite(0, 0, pInfo.tail.accentSprite).setInteractive();
-  self.accentTail.setTint(pInfo.tail.accentColor);
+  self.accentTail.setTint(parseColor(pInfo.tail.accentColor));
 
   self.hair = self.physics.add.sprite(0, 0, pInfo.hair.sprite).setInteractive();
-  self.hair.setTint(pInfo.hair.color);
+  self.hair.setTint(parseColor(pInfo.hair.color));
 
   self.outerEar = self.physics.add.sprite(0, 0, pInfo.ear.outerSprite).setInteractive();
-  self.outerEar.setTint(pInfo.ear.outerColor);
+  self.outerEar.setTint(parseColor(pInfo.ear.outerColor));
   self.innerEar = self.physics.add.sprite(0, 0, pInfo.ear.innerSprite).setInteractive();
-  self.innerEar.setTint(pInfo.ear.innerColor);
+  self.innerEar.setTint(parseColor(pInfo.ear.innerColor));
 
   self.eyes = self.physics.add.sprite(0, 0, pInfo.eyes.outer).setInteractive();
   self.iris = self.physics.add.sprite(0, 0, pInfo.eyes.iris).setInteractive();
-  self.iris.setTint(pInfo.eyes.color);
+  self.iris.setTint(parseColor(pInfo.eyes.color));
 
   self.genitals = self.physics.add.sprite(0, 0, (pInfo.genitals?.sprite || 'empty')).setInteractive();
 

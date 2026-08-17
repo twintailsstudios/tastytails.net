@@ -1994,6 +1994,16 @@ function handleRelease(io, socket, players, messageSystem, saveCharacter, data) 
     }
 }
 
+/**
+ * Handles a player's request to examine another player character.
+ * Transmits full profile data to the client, including IC description,
+ * OOC notes, species, pronouns, nickname, and roleplay/kink preference ratings.
+ *
+ * @param {import('socket.io').Socket} socket - The observer's active socket.
+ * @param {Object} observer - Observing player character data.
+ * @param {Object} target - Examined target player character data.
+ * @param {Object} messageSystem - Server MessageSystem instance for chat notifications.
+ */
 function handleExaminePlayer(socket, observer, target, messageSystem) {
     if (!target) return;
 
@@ -2016,7 +2026,12 @@ function handleExaminePlayer(socket, observer, target, messageSystem) {
         Identifier: 'player',
         firstName: target.firstName || 'Unknown',
         lastName: target.lastName || '',
+        nickName: target.nickName || '',
+        speciesName: target.speciesName || 'Unknown Species',
+        pronouns: target.pronouns !== undefined ? target.pronouns : 1,
         icDescrip: target.icDescrip || target.Description || 'No description available.',
+        oocDescrip: target.oocDescrip || '',
+        ratings: target.ratings || {}
     });
 }
 

@@ -230,6 +230,9 @@ export class CraftingUI {
     }
 
     open(data) {
+        if (typeof window.hideGameTooltip === 'function') {
+            window.hideGameTooltip();
+        }
         this.isOpen = true;
         this.currentStationId = data.stationId;
         if (window.game && window.game.objectGroup) {

@@ -276,6 +276,14 @@ export function getPlayerSprite(playerId, group) {
  * @param {Object} playerInfo - Initialized player state payload from server
  */
 export function displayPlayers(self, playerInfo) {
+    if (self.playerContainer) {
+        console.log('[Client] Evicting existing player container before recreating.');
+        if (typeof self.playerContainer.destroy === 'function') {
+            self.playerContainer.destroy();
+        }
+        self.playerContainer = null;
+    }
+
     let visualData = playerInfo;
     const isDead = playerInfo.isDead && playerInfo.spiritSprite;
 

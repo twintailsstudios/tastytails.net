@@ -13,5 +13,11 @@ export const config = {
             debug: true
         }
     },
+    pixelArt: true, // Disables antialiasing and enables crisp nearest-neighbor filtering
+    render: {
+        antialias: false,
+        pixelArt: true,
+        roundPixels: true // Snaps drawing to whole integer pixels
+    },
     disableVisibilityChange: true
 };

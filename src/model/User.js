@@ -139,7 +139,20 @@ const userSchema = new mongoose.Schema({
         bsStar: { type: Number },
         gStar: { type: Number },
         sStar: { type: Number },
-        iaoStar: { type: Number }
+        iaoStar: { type: Number },
+        shvStar: { type: Number },
+        bvStar: { type: Number },
+        pvStar: { type: Number },
+        uvStar: { type: Number },
+        sfStar: { type: Number },
+        tatStar: { type: Number },
+        wgStar: { type: Number },
+        microStar: { type: Number },
+        macroStar: { type: Number },
+        pawStar: { type: Number },
+        burpStar: { type: Number },
+        fartStar: { type: Number },
+        wsStar: { type: Number }
       },
 
       // Vore Engine Organ Graph Configuration

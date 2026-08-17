@@ -2077,6 +2077,29 @@ module.exports.start = (io, _messageSystem) => {
 
         const charId = socket.handshake.query.charId;
 
+        // [SESSION DEDUPLICATION] Evict any existing lingering session for the same character ID to prevent duplicate ghost avatars
+        if (charId) {
+            const charIdStr = charId.toString();
+            Object.keys(players).forEach(existingSocketId => {
+                if (existingSocketId !== socket.id) {
+                    const existingPlayer = players[existingSocketId];
+                    if (existingPlayer && existingPlayer._id && existingPlayer._id.toString() === charIdStr) {
+                        log.info(`[Server] Evicting previous lingering socket ${existingSocketId} for charId ${charIdStr}`);
+                        const oldSocket = io.sockets.sockets.get(existingSocketId);
+                        if (oldSocket) {
+                            oldSocket.disconnect(true);
+                        }
+                        if (typeof removePlayerFromGrid === 'function') {
+                            removePlayerFromGrid(existingPlayer);
+                        }
+                        untrackVictim(existingSocketId);
+                        delete players[existingSocketId];
+                        io.emit('removePlayer', existingSocketId);
+                    }
+                }
+            });
+        }
+
         // [SYNC INIT] Initialize minimal player object immediately so listeners don't fail
         players[socket.id] = {
             socketId: socket.id,
@@ -2147,6 +2170,8 @@ module.exports.start = (io, _messageSystem) => {
                 nickName: characterData ? characterData.nickName : "",
                 Description: characterData ? characterData.icDescrip : "",
                 icDescrip: characterData ? characterData.icDescrip : "",
+                oocDescrip: characterData ? characterData.oocDescrip : "",
+                ratings: characterData ? (characterData.ratings || {}) : {},
                 // New flag to filter visibility
                 isInGame: !!characterData || (socket.handshake.query.isBot === 'true'),
                 // Semantic State Fields

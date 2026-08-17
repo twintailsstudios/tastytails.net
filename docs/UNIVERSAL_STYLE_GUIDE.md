@@ -226,6 +226,39 @@ Replaces native `<select>` dropdowns across all forms.
 * **Options Dropdown**: Parchment `#f3e5ab` background with `2px solid #3e2723` border and drop shadow.
 * **Option Items**: Text in `Caveat Brush` font (`1.1rem`). Hovering option text turns crimson red (`#8b0000`), padding shifts right (`25px`), and a gold FontAwesome paw print (`\f1b0`) scales into view on the left.
 
+### 6.3 Tactile Pill Toggle Groups (`.pill-toggle-group`, `.pill-btn`)
+Replaces basic radio buttons for binary or short option toggles (e.g. presentation shape, genitals, pronouns).
+* **Container**: Flex row with rounded border `4px`, background `rgba(62, 39, 35, 0.1)`, padding `4px`.
+* **Pill Button (`.pill-btn`)**: `'Cinzel'` bold `0.95rem`, dark text `#3e2723`, padding `6px 16px`, border-radius `20px`, border `none`, 3D shadow `0 2px 4px rgba(0,0,0,0.2)`.
+* **Active Pill (`.pill-btn.active`)**: Background `#ffc107` (Gilded Gold), text `#3e2723`, box shadow `0 3px 0 #b38600`.
+
+### 6.4 Archetype Selection Grid Cards (`.archetype-grid-cards`, `.archetype-card`)
+Used for primary body plan and class archetype choices (Anthropomorphic, Taur, Naga, Drider).
+* **Grid Container**: Responsive grid layout with `15px` gap.
+* **Card (`.archetype-card`)**: Parchment background `#f3e5ab`, border `2px solid #5d4037`, radius `8px`, padding `14px`, flex column centered.
+* **Icon & Text**: Top FontAwesome icon (`1.8rem`), Title (`'Cinzel'` bold `1.1rem`), Subtitle (`'Philosopher'` `0.9rem` muted `#5d4037`).
+* **Active Card State (`.archetype-card.active`)**: Golden frame border `3px solid #ffc107`, highlight fill `#fff8e7`, drop shadow `0 4px 12px rgba(255, 193, 7, 0.3)`.
+
+### 6.5 Color Sync Engine & Slider Controls (`.color-sync-wrapper`, `#colorSyncToggle`)
+Quick-sync toolbar linking body feature colors in unison.
+* **Wrapper**: Flex row with dark wood accent background, rounded border `4px`, padding `8px 14px`.
+* **Toggle Switch**: Sliding gold toggle knob (`.sync-slider`), emerald active glow when checked. Label in `'Cinzel'` `0.95rem` with link icon (`<i class="fa-solid fa-link"></i>`).
+
+### 6.6 Voice Synthesizer Studio Component System (`#voiceStudioContainer`)
+Audio profile configuration panel allowing real-time vocal previewing.
+* **Control Sliders**: Range inputs styled with wood track (`#5d4037`) and gold keycap thumb (`#ffc107`). Labels in `'Cinzel'` bold (`Pitch`, `Speed`, `Timbre`, `Cadence`).
+* **Utterance Action Buttons**: Emerald Green (`.btn-primary`) or Light Wood (`.btn-secondary`) keycap buttons for audio preview tests ("Greetings traveler!", "Chuckle", "Exclaim").
+
+### 6.7 Authentic Examine Modal Preview Window (`.examine-modal-window`)
+Live in-game examine mirror embedded in character configuration views.
+* **Header Banner**: Character full name in `'Cinzel'` (`1.3rem`), species pill (`.meta-pill`), pronouns pill, and alias pill (`.alias-pill`).
+* **Examine Panes**: Tab buttons for **Look** (`examineLookPane`) and **OOC Notes** (`examineOocPane`). Paragraph text rendered in `'Crimson Pro'` serif (`1.05rem`).
+
+### 6.8 Rich Text Formatting Toolbar & Bio Templates (`.editor-toolbar`)
+Formatting toolbar attached to in-character bio and OOC boundary textareas.
+* **Format Buttons (`.format-btn`)**: Dark wood buttons with FontAwesome icons (Bold, Italic, Quote Card, Bullet List, Warning Box, Heading).
+* **Smart Template CTAs**: Emerald Green / Gold buttons (`#insertIcTemplate`, `#insertOocTemplate`) injecting structured impression & boundary guidelines.
+
 ---
 
 ## 7. Navigation & Tab Systems
@@ -252,4 +285,7 @@ When implementing new pages or refactoring existing components, ensure:
 - [x] **RP Narrative & Chat**: Use `Crimson Pro` font.
 - [x] **Modal Boxes**: Bounded by `6px solid #3e2723` dark wood frames.
 - [x] **Form Selects**: Converted to the custom Paw-Print Select component with `Caveat Brush` text.
+- [x] **Pill Toggle Groups**: Applied for binary / multi-choice options (`.pill-btn.active`).
+- [x] **Archetype Selection Cards**: Bounded by gold active borders (`#ffc107`) with `Cinzel` headers.
+- [x] **Examine Modal Preview**: Structured with Look vs OOC Notes panes and `'Crimson Pro'` text.
 - [x] **Active Tabs**: Feature a parchment background with an inset top gold line (`0 -4px 0 #ffc107 inset`).

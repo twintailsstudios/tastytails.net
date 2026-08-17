@@ -55,7 +55,20 @@ const starRatingSchemaMap = {
   bsStar: Joi.number().optional().allow(null),
   gStar: Joi.number().optional().allow(null),
   sStar: Joi.number().optional().allow(null),
-  iaoStar: Joi.number().optional().allow(null)
+  iaoStar: Joi.number().optional().allow(null),
+  shvStar: Joi.number().optional().allow(null),
+  bvStar: Joi.number().optional().allow(null),
+  pvStar: Joi.number().optional().allow(null),
+  uvStar: Joi.number().optional().allow(null),
+  sfStar: Joi.number().optional().allow(null),
+  tatStar: Joi.number().optional().allow(null),
+  wgStar: Joi.number().optional().allow(null),
+  microStar: Joi.number().optional().allow(null),
+  macroStar: Joi.number().optional().allow(null),
+  pawStar: Joi.number().optional().allow(null),
+  burpStar: Joi.number().optional().allow(null),
+  fartStar: Joi.number().optional().allow(null),
+  wsStar: Joi.number().optional().allow(null)
 };
 
 /**

@@ -149,10 +149,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(expressLayouts);
-// Serve static files from 'client' and 'public' directories
+// Serve static files from 'client' directory
 const ONE_HOUR_MS = 3600000;
 app.use(express.static(path.join(__dirname, 'client'), { maxAge: ONE_HOUR_MS }));
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: ONE_HOUR_MS }));
 
 // --- Routes ---
 const authRoute = require('./routes/auth');

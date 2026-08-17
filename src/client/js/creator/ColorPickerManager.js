@@ -45,7 +45,17 @@ window.ColorPickerManager = {
     { id: 33, primary: '#ff8c00', secondary: '#ffff99', accent: '#C00A0A', hair: '#ff5722', eyes: '#daa520', description: 'Solar Flare' },
     { id: 34, primary: '#ffb6c1', secondary: '#fff0f5', accent: '#ff69b4', hair: '#db7093', eyes: '#d2b48c', description: 'Sugar Plum Dream' },
     { id: 35, primary: '#d2b48c', secondary: '#ffffcc', accent: '#734F2C', hair: '#8b7355', eyes: '#b0e0e6', description: 'Espresso' },
-    { id: 36, primary: '#FF7F00', secondary: '#00FF7F', accent: '#800080', hair: '#F5F5F5', eyes: '#FFFFAA', description: 'Neon Nightmare' }
+    { id: 36, primary: '#FF7F00', secondary: '#00FF7F', accent: '#800080', hair: '#F5F5F5', eyes: '#FFFFAA', description: 'Neon Nightmare' },
+    { id: 37, primary: '#e07a5f', secondary: '#f4a261', accent: '#264653', hair: '#264653', eyes: '#f4a261', description: 'Amber Fox' },
+    { id: 38, primary: '#3d405b', secondary: '#81b29a', accent: '#e07a5f', hair: '#3d405b', eyes: '#e07a5f', description: 'Midnight Wolf' },
+    { id: 39, primary: '#2a9d8f', secondary: '#e76f51', accent: '#f4a261', hair: '#e76f51', eyes: '#f4a261', description: 'Emerald Dragon' },
+    { id: 40, primary: '#f2cc8f', secondary: '#e07a5f', accent: '#3d405b', hair: '#3d405b', eyes: '#e07a5f', description: 'Pastel Fawn' },
+    { id: 41, primary: '#2b2d42', secondary: '#8d99ae', accent: '#d90429', hair: '#2b2d42', eyes: '#d90429', description: 'Shadow Panther' },
+    { id: 42, primary: '#1b4332', secondary: '#2d6a4f', accent: '#d4af37', hair: '#081c15', eyes: '#ffb703', description: 'Jade Obsidian' },
+    { id: 43, primary: '#6b0f1a', secondary: '#b91c1c', accent: '#f59e0b', hair: '#1e1b4b', eyes: '#f43f5e', description: 'Crimson Eclipse' },
+    { id: 44, primary: '#2e1065', secondary: '#06b6d4', accent: '#d946ef', hair: '#4c1d95', eyes: '#22d3ee', description: 'Cosmic Aurora' },
+    { id: 45, primary: '#b45309', secondary: '#fef3c7', accent: '#78350f', hair: '#451a03', eyes: '#f59e0b', description: 'Honey Amber' },
+    { id: 46, primary: '#e2e8f0', secondary: '#93c5fd', accent: '#1d4ed8', hair: '#1e293b', eyes: '#38bdf8', description: 'Glacial Frost' }
   ]
 };
 
@@ -123,57 +133,217 @@ window.ColorPickerManager.init = function () {
     notifyUpdated();
   });
 
+  const isSyncOn = () => {
+    const toggle = document.getElementById('colorSyncToggle');
+    return toggle ? toggle.checked : true;
+  };
+
   p.primaryHead = createColorPicker('#headColorBtn', (gameColor, rawColor) => {
-    info.head.color = gameColor; document.getElementById('primaryHeadHex').value = rawColor; notifyUpdated();
+    info.head.color = gameColor;
+    if (document.getElementById('primaryHeadHex')) document.getElementById('primaryHeadHex').value = rawColor;
+    if (isSyncOn()) {
+      info.body.color = gameColor; info.ear.outerColor = gameColor; info.tail.color = gameColor;
+      if (p.body) p.body.setColor(rawColor);
+      if (p.outerEar) p.outerEar.setColor(rawColor);
+      if (p.tail) p.tail.setColor(rawColor);
+    }
+    notifyUpdated();
   });
+
   p.beak = createColorPicker('#beakColorBtn', (gameColor, rawColor) => {
-    info.beak.color = gameColor; document.getElementById('beakHex').value = gameColor; notifyUpdated();
+    info.beak.color = gameColor;
+    if (document.getElementById('beakHex')) document.getElementById('beakHex').value = gameColor;
+    notifyUpdated();
   });
+
   p.secondaryHead = createColorPicker('#secondaryHeadColorBtn', (gameColor, rawColor) => {
-    info.head.secondaryColor = gameColor; document.getElementById('secondaryHeadHex').value = rawColor; notifyUpdated();
+    info.head.secondaryColor = gameColor;
+    if (document.getElementById('secondaryHeadHex')) document.getElementById('secondaryHeadHex').value = rawColor;
+    if (isSyncOn()) {
+      info.body.secondaryColor = gameColor; info.ear.innerColor = gameColor; info.tail.secondaryColor = gameColor;
+      if (p.secondaryBody) p.secondaryBody.setColor(rawColor);
+      if (p.innerEar) p.innerEar.setColor(rawColor);
+      if (p.secondaryTail) p.secondaryTail.setColor(rawColor);
+    }
+    notifyUpdated();
   });
+
   p.accentHead = createColorPicker('#accentHeadColorBtn', (gameColor, rawColor) => {
-    info.head.accentColor = gameColor; document.getElementById('accentHeadHex').value = rawColor; notifyUpdated();
+    info.head.accentColor = gameColor;
+    if (document.getElementById('accentHeadHex')) document.getElementById('accentHeadHex').value = rawColor;
+    if (isSyncOn()) {
+      info.body.accentColor = gameColor; info.tail.accentColor = gameColor;
+      if (p.accentBody) p.accentBody.setColor(rawColor);
+      if (p.accentTail) p.accentTail.setColor(rawColor);
+    }
+    notifyUpdated();
   });
+
   p.hair = createColorPicker('#hairColorBtn', (gameColor, rawColor) => {
-    info.hair.color = gameColor; document.getElementById('hairHex').value = rawColor; notifyUpdated();
+    info.hair.color = gameColor;
+    if (document.getElementById('hairHex')) document.getElementById('hairHex').value = rawColor;
+    notifyUpdated();
   });
+
   p.outerEar = createColorPicker('#outerEarColorBtn', (gameColor, rawColor) => {
-    info.ear.outerColor = gameColor; document.getElementById('outerEarHex').value = rawColor; notifyUpdated();
+    info.ear.outerColor = gameColor;
+    if (document.getElementById('outerEarHex')) document.getElementById('outerEarHex').value = rawColor;
+    notifyUpdated();
   });
+
   p.innerEar = createColorPicker('#innerEarColorBtn', (gameColor, rawColor) => {
-    info.ear.innerColor = gameColor; document.getElementById('innerEarHex').value = rawColor; notifyUpdated();
+    info.ear.innerColor = gameColor;
+    if (document.getElementById('innerEarHex')) document.getElementById('innerEarHex').value = rawColor;
+    notifyUpdated();
   });
+
   p.eyes = createColorPicker('#eyeColorBtn', (gameColor, rawColor) => {
-    info.eyes.color = gameColor; document.getElementById('eyesHex').value = rawColor; notifyUpdated();
+    info.eyes.color = gameColor;
+    if (document.getElementById('eyesHex')) document.getElementById('eyesHex').value = rawColor;
+    notifyUpdated();
   });
+
   p.headAccessories = createColorPicker('#headAccessoriesColorBtn', (gameColor, rawColor) => {
-    info.headAccessories.color = gameColor; document.getElementById('headAccessoriesHex').value = rawColor; notifyUpdated();
+    info.headAccessories.color = gameColor;
+    if (document.getElementById('headAccessoriesHex')) document.getElementById('headAccessoriesHex').value = rawColor;
+    notifyUpdated();
   });
+
   p.body = createColorPicker('#bodyColorBtn', (gameColor, rawColor) => {
-    info.body.color = gameColor; document.getElementById('bodyHex').value = rawColor; notifyUpdated();
+    info.body.color = gameColor;
+    if (document.getElementById('bodyHex')) document.getElementById('bodyHex').value = rawColor;
+    if (isSyncOn()) {
+      info.head.color = gameColor; info.ear.outerColor = gameColor; info.tail.color = gameColor;
+      if (p.primaryHead) p.primaryHead.setColor(rawColor);
+      if (p.outerEar) p.outerEar.setColor(rawColor);
+      if (p.tail) p.tail.setColor(rawColor);
+    }
+    notifyUpdated();
   });
+
   p.secondaryBody = createColorPicker('#secondaryBodyColorBtn', (gameColor, rawColor) => {
-    info.body.secondaryColor = gameColor; document.getElementById('secondaryBodyHex').value = rawColor; notifyUpdated();
+    info.body.secondaryColor = gameColor;
+    if (document.getElementById('secondaryBodyHex')) document.getElementById('secondaryBodyHex').value = rawColor;
+    if (isSyncOn()) {
+      info.head.secondaryColor = gameColor; info.ear.innerColor = gameColor; info.tail.secondaryColor = gameColor;
+      if (p.secondaryHead) p.secondaryHead.setColor(rawColor);
+      if (p.innerEar) p.innerEar.setColor(rawColor);
+      if (p.secondaryTail) p.secondaryTail.setColor(rawColor);
+    }
+    notifyUpdated();
   });
+
   p.accentBody = createColorPicker('#accentBodyColorBtn', (gameColor, rawColor) => {
-    info.body.accentColor = gameColor; document.getElementById('accentBodyHex').value = rawColor; notifyUpdated();
+    info.body.accentColor = gameColor;
+    if (document.getElementById('accentBodyHex')) document.getElementById('accentBodyHex').value = rawColor;
+    if (isSyncOn()) {
+      info.head.accentColor = gameColor; info.tail.accentColor = gameColor;
+      if (p.accentHead) p.accentHead.setColor(rawColor);
+      if (p.accentTail) p.accentTail.setColor(rawColor);
+    }
+    notifyUpdated();
   });
+
   p.hands = createColorPicker('#handsColorBtn', (gameColor, rawColor) => {
-    info.hands.color = gameColor; document.getElementById('handsHex').value = gameColor; notifyUpdated();
+    info.hands.color = gameColor;
+    if (document.getElementById('handsHex')) document.getElementById('handsHex').value = gameColor;
+    notifyUpdated();
   });
+
   p.feet = createColorPicker('#feetColorBtn', (gameColor, rawColor) => {
-    info.feet.color = gameColor; document.getElementById('feetHex').value = gameColor; notifyUpdated();
+    info.feet.color = gameColor;
+    if (document.getElementById('feetHex')) document.getElementById('feetHex').value = gameColor;
+    notifyUpdated();
   });
+
   p.tail = createColorPicker('#tailColorBtn', (gameColor, rawColor) => {
-    info.tail.color = gameColor; document.getElementById('tailHex').value = rawColor; notifyUpdated();
+    info.tail.color = gameColor;
+    if (document.getElementById('tailHex')) document.getElementById('tailHex').value = rawColor;
+    if (isSyncOn()) {
+      info.body.color = gameColor; info.head.color = gameColor; info.ear.outerColor = gameColor;
+      if (p.body) p.body.setColor(rawColor);
+      if (p.primaryHead) p.primaryHead.setColor(rawColor);
+      if (p.outerEar) p.outerEar.setColor(rawColor);
+    }
+    notifyUpdated();
   });
+
   p.secondaryTail = createColorPicker('#secondaryTailColorBtn', (gameColor, rawColor) => {
-    info.tail.secondaryColor = gameColor; document.getElementById('secondaryTailHex').value = rawColor; notifyUpdated();
+    info.tail.secondaryColor = gameColor;
+    if (document.getElementById('secondaryTailHex')) document.getElementById('secondaryTailHex').value = rawColor;
+    if (isSyncOn()) {
+      info.head.secondaryColor = gameColor; info.body.secondaryColor = gameColor; info.ear.innerColor = gameColor;
+      if (p.secondaryHead) p.secondaryHead.setColor(rawColor);
+      if (p.secondaryBody) p.secondaryBody.setColor(rawColor);
+      if (p.innerEar) p.innerEar.setColor(rawColor);
+    }
+    notifyUpdated();
   });
+
   p.accentTail = createColorPicker('#accentTailColorBtn', (gameColor, rawColor) => {
-    info.tail.accentColor = gameColor; document.getElementById('accentTailHex').value = rawColor; notifyUpdated();
+    info.tail.accentColor = gameColor;
+    if (document.getElementById('accentTailHex')) document.getElementById('accentTailHex').value = rawColor;
+    if (isSyncOn()) {
+      info.head.accentColor = gameColor; info.body.accentColor = gameColor;
+      if (p.accentHead) p.accentHead.setColor(rawColor);
+      if (p.accentBody) p.accentBody.setColor(rawColor);
+    }
+    notifyUpdated();
   });
+};
+
+window.ColorPickerManager.paletteWeights = {};
+window.ColorPickerManager.seenSetIds = new Set();
+
+window.ColorPickerManager.getWeightedRandomChoice = function () {
+  const sets = window.ColorPickerManager.bodyColorSets;
+  if (!sets || sets.length === 0) return null;
+
+  const weights = window.ColorPickerManager.paletteWeights;
+  const seen = window.ColorPickerManager.seenSetIds;
+
+  // Ensure every color set has a starting weight of 1.0 (100%)
+  sets.forEach(set => {
+    if (weights[set.id] === undefined) {
+      weights[set.id] = 1.0;
+    }
+  });
+
+  // Calculate sum of current weights
+  let totalWeight = 0;
+  sets.forEach(set => {
+    totalWeight += (weights[set.id] || 1.0);
+  });
+
+  // Weighted random pick
+  let randomVal = Math.random() * totalWeight;
+  let chosenSet = sets[0];
+
+  for (let i = 0; i < sets.length; i++) {
+    const set = sets[i];
+    const w = weights[set.id] || 1.0;
+    if (randomVal < w) {
+      chosenSet = set;
+      break;
+    }
+    randomVal -= w;
+  }
+
+  // Record that chosenSet was presented
+  seen.add(chosenSet.id);
+
+  // Decrease odds by 10% (multiply weight by 0.9) for subsequent selections
+  weights[chosenSet.id] = (weights[chosenSet.id] || 1.0) * 0.9;
+
+  // When every option has been presented at least once, restore all weights to 100% (1.0)
+  if (seen.size >= sets.length) {
+    sets.forEach(set => {
+      weights[set.id] = 1.0;
+    });
+    seen.clear();
+  }
+
+  return chosenSet;
 };
 
 function getSafeOptionValue(selectId, index) {
@@ -186,8 +356,7 @@ function getSafeOptionValue(selectId, index) {
 window.ColorPickerManager.randomizeColors = function () {
   const p = window.ColorPickerManager.pickers;
   const sets = window.ColorPickerManager.bodyColorSets;
-  const randomChoice = Math.floor(Math.random() * sets.length);
-  const choice = sets[randomChoice];
+  const choice = window.ColorPickerManager.getWeightedRandomChoice() || sets[0];
 
   const randomBody = 0;
   const randomGenitals = Math.floor(Math.random() * 2);
@@ -267,7 +436,8 @@ window.ColorPickerManager.randomizeColors = function () {
     const outerEarVal = getSafeOptionValue('outerEar', randomEars);
     if (outerEarVal) {
       u('outerEar', outerEarVal);
-      const innerVal = (typeof getInnerEarSprite === 'function') ? getInnerEarSprite(outerEarVal) : 'ears_01-inner';
+      const getInnerEar = window.getInnerEarSprite || window.CharacterCreatorApp?.getInnerEarSprite || (typeof getInnerEarSprite === 'function' ? getInnerEarSprite : null);
+      const innerVal = getInnerEar ? getInnerEar(outerEarVal) : (outerEarVal && outerEarVal.includes('-outer') ? outerEarVal.replace('-outer', '-inner') : 'ears_01-inner');
       if (window.localPlayerInfo?.ear) {
         window.localPlayerInfo.ear.outerSprite = outerEarVal;
         window.localPlayerInfo.ear.innerSprite = innerVal;
@@ -329,6 +499,36 @@ window.ColorPickerManager.randomizeColors = function () {
       u('tailAccentFur', accTailVal);
       if (window.localPlayerInfo?.tail) window.localPlayerInfo.tail.accentSprite = accTailVal;
     }
+  }
+
+  const toGameColor = (hex) => hex ? hex.replace('#', '0x') : '0xffffff';
+  const info = window.localPlayerInfo;
+  if (info) {
+    if (info.head) {
+      info.head.color = toGameColor(choice.primary);
+      info.head.secondaryColor = toGameColor(choice.secondary);
+      info.head.accentColor = toGameColor(choice.accent);
+    }
+    if (info.beak) info.beak.color = toGameColor(choice.accent);
+    if (info.headAccessories) info.headAccessories.color = toGameColor(choice.accent);
+    if (info.body) {
+      info.body.color = toGameColor(choice.primary);
+      info.body.secondaryColor = toGameColor(choice.secondary);
+      info.body.accentColor = toGameColor(choice.accent);
+    }
+    if (info.hands) info.hands.color = toGameColor(choice.secondary);
+    if (info.feet) info.feet.color = toGameColor(choice.secondary);
+    if (info.tail) {
+      info.tail.color = toGameColor(choice.primary);
+      info.tail.secondaryColor = toGameColor(choice.secondary);
+      info.tail.accentColor = toGameColor(choice.accent);
+    }
+    if (info.hair) info.hair.color = toGameColor(choice.hair);
+    if (info.ear) {
+      info.ear.outerColor = toGameColor(choice.primary);
+      info.ear.innerColor = toGameColor(choice.secondary);
+    }
+    if (info.eyes) info.eyes.color = toGameColor(choice.eyes);
   }
 
   if (p.mainPrimary) p.mainPrimary.setColor(choice.primary);

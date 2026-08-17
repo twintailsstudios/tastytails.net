@@ -13,10 +13,65 @@
     <!-- Content (Pinned Notes) -->
     <div id="menuDisplay">
         <div id="lookDisplay" class="tabDisplay">
-            <div class="paper-note">
+            <!-- Default Inspection Callout -->
+            <div id="defaultLookNotice" class="paper-note">
                 <h3>Inspection</h3>
                 <p>Hold down space and click on an object or character to examine it closely.</p>
                 <p><em>"Look closer, there is always more to see..."</em></p>
+            </div>
+
+            <!-- Authentic In-Game Player Examine Window Card -->
+            <div id="playerExamineCard" class="examine-modal-window play-examine-card" style="display: none;">
+                <div class="examine-modal-content">
+                    <!-- Character Header Banner -->
+                    <div class="examine-char-header">
+                        <div class="examine-char-name" id="playExamineName">Character Name</div>
+                        <div class="examine-char-meta">
+                            <span class="meta-pill" id="playExamineSpecies" data-tooltip="Species"><i class="fa-solid fa-paw"></i> Species</span>
+                            <span class="meta-pill" id="playExaminePronouns" data-tooltip="Pronouns"><i class="fa-solid fa-venus"></i> Pronouns</span>
+                            <span class="meta-pill alias-pill" id="playExamineAlias" style="display: none;" data-tooltip="Nickname"><i class="fa-solid fa-tag"></i> Nickname</span>
+                            <button type="button" id="closePlayerExamineBtn" class="examine-close-btn" title="Close Examine Window"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Examine Sub-Tabs (Look vs OOC Notes vs Kinks) -->
+                    <div class="examine-modal-tabs">
+                        <button type="button" class="examine-tab-btn active" data-tab="playExamineLookPane"><i class="fa-solid fa-eye"></i> Look</button>
+                        <button type="button" class="examine-tab-btn" data-tab="playExamineOocPane"><i class="fa-solid fa-user-shield"></i> OOC Notes</button>
+                        <button type="button" class="examine-tab-btn" data-tab="playExamineKinksPane"><i class="fa-solid fa-heart"></i> Kinks</button>
+                    </div>
+
+                    <!-- Sub-Tab Content Panes -->
+                    <div class="examine-tab-content">
+                        <!-- Look Pane (IC Description) -->
+                        <div id="playExamineLookPane" class="examine-pane active">
+                            <div class="examine-content-box" id="playExamineIcContent">
+                                <em>No IC description available.</em>
+                            </div>
+                        </div>
+
+                        <!-- OOC Notes Pane (Out-of-Character Description & Boundaries) -->
+                        <div id="playExamineOocPane" class="examine-pane">
+                            <div class="examine-content-box ooc-box" id="playExamineOocContent">
+                                <em>No OOC notes available.</em>
+                            </div>
+                        </div>
+
+                        <!-- Kinks Pane (Roleplay & Preference Ratings) -->
+                        <div id="playExamineKinksPane" class="examine-pane">
+                            <div class="kinks-examine-container" id="playExamineKinksContent">
+                                <em>No active kink preferences listed.</em>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generic Non-Player Examine Box -->
+            <div id="genericExamineCard" class="paper-note" style="display: none;">
+                <h3 id="genericExamineTitle">Inspection</h3>
+                <p id="genericExamineDesc"></p>
+                <p id="genericExamineFlavor" style="font-style: italic; color: #aaa; margin-top: 5px; display: none;"></p>
             </div>
         </div>
 

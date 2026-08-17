@@ -2,7 +2,7 @@
  * @fileoverview index.js - Primary Page View Controller for TastyTails.net
  * 
  * @description
- * Server-side route handler for HTML page views (home, character bank, job demos, chat archives).
+ * Server-side route handler for HTML page views (home, character bank, chat archives).
  * Decodes and validates JWT cookies, fetches user character data, and dispatches to EJS view templates.
  * 
  * Triggered by:
@@ -23,33 +23,32 @@ const log = require('../logger');
  * 
  * @optimization DRY CONSOLIDATION: Prevents repeating JWT cookie parsing and 400 error handling across optional-auth page routes.
  * 
- * @param {import('express').Request} req - Express request object.
- * @param {import('express').Response} res - Express response object.
- * @param {string} viewName - EJS template name to render.
- * @param {Object} [viewParams={}] - Additional template variables.
+ * @param {express.Request} req - Express incoming request
+ * @param {express.Response} res - Express response object
+ * @param {string} viewName - EJS template name to render
+ * @param {object} [extraData={}] - Additional template variables
  */
-function renderOptionalAuthView(req, res, viewName, viewParams = {}) {
+function renderOptionalAuthView(req, res, viewName, extraData = {}) {
   const token = req.cookies.TastyTails;
   if (!token) {
     return res.render(viewName, {
       token: null,
       loginForm: 0,
-      ...viewParams
+      ...extraData
     });
   }
 
   try {
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-    req.user = verified;
-    return res.render(viewName, {
+    res.render(viewName, {
       token: token,
       loginForm: 0,
-      ...viewParams
+      user: verified,
+      ...extraData
     });
   } catch (err) {
-    return res.status(400).render('error', {
-      token: null,
-      loginForm: 0,
+    log.error(`[IndexRoute] JWT verification failed on ${viewName} page load: ${err.message}`);
+    res.status(400).render('error', {
       error: 'Invalid Token',
       errDescrip: "Try logging out and logging back in. If you are still having issues, you can try clearing your browser's cache and cookies and then logging back in."
     });
@@ -130,32 +129,9 @@ router.get('/chat-archives', verify, async (req, res) => {
   });
 });
 
-/** GET /job-demos - Protected job demo selection view handler */
-router.get('/job-demos', verify, (req, res) => {
-  const token = req.cookies.TastyTails;
-  res.render('job-demos', {
-    token: token,
-    loginForm: 0
-  });
-});
-
-/** GET /job-demos/:jobName - Dynamic job demo mini-game route */
-router.get('/job-demos/:jobName', verify, (req, res) => {
-  const token = req.cookies.TastyTails;
-  const jobName = req.params.jobName;
-
-  if (jobName.toLowerCase() === 'blacksmith') {
-    return res.render('job-blacksmith', {
-      token: token,
-      loginForm: 0
-    });
-  }
-
-  res.render('job-play', {
-    token: token,
-    loginForm: 0,
-    jobName: jobName
-  });
+/** GET /job-demos & /job-demos/* - Legacy route redirect to home */
+router.get(['/job-demos', '/job-demos/*'], (req, res) => {
+  res.redirect('/');
 });
 
 module.exports = router;

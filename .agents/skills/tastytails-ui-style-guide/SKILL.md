@@ -79,7 +79,13 @@ Always import required Google Fonts: `Cinzel`, `Caveat Brush`, `Philosopher`, an
 2. **Frames & Binders**: `.binder-container` (`10px solid #3e2723`, parchment fill `#f3e5ab`, inner vignette shadow).
 3. **Form Controls**: Signature line inputs (bottom border `2px solid #5d4037`, `Caveat Brush` font).
 4. **Custom Paw-Print Select**: `.custom-select-wrapper` with sliding gold FontAwesome paw print (`\f1b0`).
-5. **Tab Bars**: Inactive `#3e2723`, active parchment `#f3e5ab` with inset gold top underline (`box-shadow: 0 -4px 0 #ffc107 inset`).
+5. **Tactile Pill Toggle Groups**: `.pill-toggle-group` with `.pill-btn.active` (Gilded Gold `#ffc107` fill with `Cinzel` font).
+6. **Archetype Selection Cards**: `.archetype-card` with gold active borders (`#ffc107`), FontAwesome icons, and `'Philosopher'` subtitles.
+7. **Color Sync Engine**: `.color-sync-wrapper` with `#colorSyncToggle` gold slider switch linking feature colors in unison.
+8. **Voice Synthesizer Studio**: `#voiceStudioContainer` with Web Audio pitch, speed, timbre, cadence sliders and preview buttons.
+9. **Authentic Examine Modal Preview**: `.examine-modal-window` with Look vs OOC Notes panes rendering `'Crimson Pro'` text.
+10. **Bio Formatting Toolbars**: `.editor-toolbar` with formatting buttons and smart template CTAs (`#insertIcTemplate`, `#insertOocTemplate`).
+11. **Tab Bars**: Inactive `#3e2723`, active parchment `#f3e5ab` with inset gold top underline (`box-shadow: 0 -4px 0 #ffc107 inset`).
 
 ---
 

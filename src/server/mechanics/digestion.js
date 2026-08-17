@@ -394,10 +394,21 @@ async function processDigestionDeath(victim, predator, players, User, io, addCor
 
         const processTags = (text, isPrey, isPred) => {
             let processed = text || '';
+            const predPronouns = predator.pronouns || 'She/Her';
+            const preyPronouns = victim.pronouns || 'He/Him';
             processed = processed
                 .replace(/<pred>/gi, isPred ? 'You' : predName)
+                .replace(/<pred_name>/gi, isPred ? 'You' : predName)
                 .replace(/<prey>/gi, isPrey ? 'you' : preyName)
-                .replace(/<node>/gi, nodeName);
+                .replace(/<prey_name>/gi, isPrey ? 'you' : preyName)
+                .replace(/<node>/gi, nodeName)
+                .replace(/<organ>/gi, nodeName)
+                .replace(/<pred_pronouns>/gi, isPred ? 'your' : predPronouns)
+                .replace(/<prey_pronouns>/gi, isPrey ? 'your' : preyPronouns)
+                .replace(/<pronouns>/gi, isPred ? 'your' : predPronouns)
+                .replace(/<he\/she>/gi, isPred ? 'You' : (predator.pronounSubject || 'she'))
+                .replace(/<his\/her>/gi, isPred ? 'your' : (predator.pronounPossessive || 'her'))
+                .replace(/<him\/her>/gi, isPred ? 'you' : (predator.pronounObject || 'her'));
 
             if (isPred) {
                 const safePredName = escapeRegExp(predName);

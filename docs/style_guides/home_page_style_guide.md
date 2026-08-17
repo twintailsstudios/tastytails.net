@@ -64,7 +64,7 @@ The Home Page embodies a **"Warm Medieval Tavern & Guild Registry"** aesthetic. 
   * Background: `rgba(0, 0, 0, 0.3)` with `backdrop-filter: blur(5px)`.
   * Bottom Separator: `1px solid rgba(255, 215, 0, 0.3)`.
   * Container: Flex layout, max width `1200px`, space-between alignment.
-  * Nav Tabs (`Home`, `Character Bank`, `Chat Archives`, `Job Demos`):
+  * Nav Tabs (`Home`, `TileWeaver`, `Character Bank`, `Chat Archives`):
     * Font: `'Cinzel', serif`, size `1.1rem`.
     * Default State: Color `--palette-parchment` (`#f3e5ab`), no underline.
     * Hover State: Color changes to `--palette-gold` (`#ffc107`) with `text-shadow: 0 0 8px #ffc107`, `0.3s` ease transition.

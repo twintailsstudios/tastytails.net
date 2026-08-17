@@ -25,6 +25,29 @@
 export function initializeTabs() {
     const tabs = ['look', 'apparel', 'spells', 'map', 'vore', 'options'];
 
+    // Helper function to remove/close examined character screen and restore default notice
+    const resetExamineCards = () => {
+        const defaultNotice = document.getElementById('defaultLookNotice');
+        const playerCard = document.getElementById('playerExamineCard');
+        const genericCard = document.getElementById('genericExamineCard');
+
+        if (playerCard) playerCard.style.display = 'none';
+        if (genericCard) genericCard.style.display = 'none';
+        if (defaultNotice) defaultNotice.style.display = 'block';
+    };
+
+    window.resetExamineCards = resetExamineCards;
+
+    // Bind close button on examine card
+    const closeBtn = document.getElementById('closePlayerExamineBtn');
+    if (closeBtn && closeBtn.dataset.tabBound !== 'true') {
+        closeBtn.dataset.tabBound = 'true';
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resetExamineCards();
+        });
+    }
+
     tabs.forEach(tab => {
         const btn = document.getElementById(tab + 'Tab');
         if (btn) {
@@ -33,13 +56,18 @@ export function initializeTabs() {
             btn.dataset.tabBound = 'true';
 
             btn.addEventListener('click', () => {
+                // When switching to tabs other than Look, remove/reset examined character screen
+                if (tab !== 'look') {
+                    resetExamineCards();
+                }
+
                 // Hide all tab display containers
                 document.querySelectorAll('.tabDisplay').forEach(el => el.style.display = 'none');
 
                 // Show selected tab display container
                 const display = document.getElementById(tab + 'Display');
                 if (display) {
-                    display.style.display = 'block';
+                    display.style.display = (tab === 'look') ? 'flex' : 'block';
                 }
 
                 // Update active tab button style

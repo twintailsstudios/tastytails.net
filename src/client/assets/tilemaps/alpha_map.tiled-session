@@ -3,7 +3,7 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "alpha_map.tmx",
+    "activeFile": "alpha_ground_set.tsx",
     "automapping.whileDrawing": false,
     "expandedProjectPaths": [
         "."
@@ -69,15 +69,15 @@
         },
         "alpha_map.tmx": {
             "expandedObjectLayers": [
-                6,
+                3,
                 5,
-                3
+                6
             ],
             "scale": 0.5,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 3272,
-                "y": 3550
+                "x": 3772,
+                "y": 3548
             }
         },
         "alpha_map.tmx#alpha_ground_set": {
@@ -132,6 +132,9 @@
                 "y": 260
             }
         },
+        "music_zones.tsx": {
+            "scaleInDock": 1
+        },
         "rock_iron.tsx": {
             "scaleInDock": 1,
             "scaleInEditor": 1
@@ -161,23 +164,24 @@
         "tree_orange.tsx",
         "sheep.tsx",
         "rock_iron.tsx",
-        "alpha_tileset..tsx"
+        "alpha_tileset..tsx",
+        "alpha_ground_set.tsx"
     ],
     "project": "alpha_map.tiled-project",
     "property.type": "int",
     "recentFiles": [
-        "alpha_tileset..tsx",
-        "rock_iron.tsx",
-        "sheep.tsx",
-        "tree_orange.tsx",
-        "alpha_objects.tsx",
         "alpha_map.tmx",
+        "alpha_objects.tsx",
+        "tree_orange.tsx",
+        "sheep.tsx",
+        "rock_iron.tsx",
+        "alpha_tileset..tsx",
+        "alpha_ground_set.tsx",
         "alpha_objects..tsx",
         "alpha_dye.tsx",
         "alpha_door.tsx",
         "auto_tile_rules.tmx",
-        "alpha_items.tsx",
-        "alpha_ground_set.tsx"
+        "alpha_items.tsx"
     ],
     "tileset.lastUsedFilter": "Tiled tileset files (*.tsx *.xml)",
     "tileset.lastUsedFormat": "tsx",

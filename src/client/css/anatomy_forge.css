@@ -248,7 +248,7 @@ path.af-connector-draft {
     border-radius: 12px;
     box-shadow: 3px 3px 0 rgba(44, 36, 27, 0.2);
     z-index: 2;
-    cursor: pointer;
+    cursor: grab;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -256,6 +256,14 @@ path.af-connector-draft {
     transition: box-shadow 0.2s, transform 0.2s, background-color 0.2s;
     font-family: 'Cinzel', serif;
     font-size: 0.9rem;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+    touch-action: none;
+}
+
+.af-node:active {
+    cursor: grabbing;
 }
 
 .af-node:hover {
@@ -896,4 +904,347 @@ path.af-connector-draft {
 .af-modal-checkbox-container input[type="checkbox"] {
     width: 20px;
     height: 20px;
+}
+
+/* Sidebar Drag Hint & Guide */
+.af-drag-hint-banner {
+    background: rgba(139, 115, 85, 0.18);
+    border: 1px dashed rgba(212, 163, 86, 0.5);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-top: 15px;
+    font-size: 0.72rem;
+    color: var(--bg-parchment);
+    line-height: 1.35;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.af-drag-hint-banner i {
+    font-size: 0.95rem;
+    color: var(--node-path);
+    margin-top: 1px;
+}
+
+.af-canvas-guide {
+    margin-top: auto;
+    font-size: 0.65rem;
+    color: var(--wood-light);
+    text-align: center;
+    opacity: 0.8;
+    padding: 6px;
+    line-height: 1.4;
+}
+
+/* Workspace Topbar */
+.af-workspace-topbar {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 40;
+    pointer-events: none;
+}
+
+.af-topbar-left, .af-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+.af-top-btn {
+    background: rgba(44, 36, 27, 0.88);
+    border: 1px solid var(--wood-light);
+    color: var(--bg-parchment);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.76rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(4px);
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.af-top-btn:hover {
+    background: var(--wood-dark);
+    border-color: var(--node-path);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.af-save-badge {
+    background: rgba(44, 36, 27, 0.88);
+    border: 1px solid rgba(107, 140, 66, 0.5);
+    color: var(--bg-parchment);
+    border-radius: 12px;
+    padding: 4px 12px;
+    font-family: 'Philosopher', sans-serif;
+    font-size: 0.78rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-dot.green {
+    background: #4cd137;
+    box-shadow: 0 0 6px #4cd137;
+}
+
+.status-dot.yellow {
+    background: #fbc531;
+    box-shadow: 0 0 6px #fbc531;
+}
+
+/* Wider Inspector Panel & Tabs */
+.af-inspector {
+    width: 380px;
+}
+
+.af-inspector-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.af-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.af-hdr-btn.delete-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent-red);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.af-hdr-btn.delete-btn:hover {
+    background: rgba(168, 74, 74, 0.15);
+}
+
+.af-tab-bar {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--ink-secondary);
+    margin-bottom: 12px;
+    padding-bottom: 4px;
+}
+
+.af-tab-btn {
+    background: rgba(93, 74, 58, 0.1);
+    border: 1px solid var(--wood-light);
+    border-radius: 6px 6px 0 0;
+    padding: 5px 9px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.72rem;
+    font-weight: bold;
+    color: var(--ink-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.af-tab-btn:hover {
+    background: rgba(93, 74, 58, 0.2);
+}
+
+.af-tab-btn.active {
+    background: var(--ink-primary);
+    color: var(--bg-parchment);
+    border-color: var(--ink-primary);
+}
+
+.af-tab-pane {
+    display: none;
+    animation: afFadeIn 0.2s ease;
+}
+
+.af-tab-pane.active {
+    display: block;
+}
+
+@keyframes afFadeIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Field Help Tooltips */
+.af-field-help {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 0.74rem;
+    color: var(--ink-secondary);
+    line-height: 1.3;
+    margin-top: 3px;
+    margin-bottom: 6px;
+}
+
+/* Replacement Tag Chips Bar */
+.af-tag-chip-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 5px;
+}
+
+.af-tag-chip {
+    background: rgba(74, 111, 168, 0.15);
+    border: 1px solid rgba(74, 111, 168, 0.4);
+    color: #2b4c7e;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-family: monospace;
+    font-size: 0.72rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.af-tag-chip:hover {
+    background: var(--accent-blue);
+    color: #fff;
+}
+
+/* Dynamic Multi-Struggle Lists & Character Counters */
+.af-struggle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.af-struggle-item {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(93, 74, 58, 0.25);
+    border-radius: 8px;
+    padding: 8px;
+    position: relative;
+}
+
+.af-struggle-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.af-char-counter {
+    font-family: monospace;
+    font-size: 0.7rem;
+    color: var(--ink-secondary);
+}
+
+.af-char-counter.warning {
+    color: var(--accent-red);
+    font-weight: bold;
+}
+
+.af-item-remove-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent-red);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0 4px;
+}
+
+.af-add-struggle-btn {
+    background: rgba(107, 140, 66, 0.15);
+    border: 1px dashed var(--accent-green);
+    color: #3b5c1c;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-family: 'Philosopher', sans-serif;
+    font-size: 0.78rem;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.af-add-struggle-btn:hover {
+    background: var(--accent-green);
+    color: #fff;
+}
+
+/* Bezier Canvas Flow Line Pulse Animation */
+.af-connector {
+    stroke-dasharray: 8 6;
+    animation: flowPulse 2.5s linear infinite;
+}
+
+@keyframes flowPulse {
+    from { stroke-dashoffset: 28; }
+    to { stroke-dashoffset: 0; }
+}
+
+/* Replacement Tag Guide Modal */
+.tag-guide-box {
+    max-width: 540px;
+    width: 90%;
+    text-align: left;
+}
+
+.tag-guide-content p {
+    font-family: 'Lora', serif;
+    font-size: 0.84rem;
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.tag-guide-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+}
+
+.tag-guide-table th, .tag-guide-table td {
+    border: 1px solid var(--wood-light);
+    padding: 6px 10px;
+    text-align: left;
+}
+
+.tag-guide-table th {
+    background: var(--wood-dark);
+    color: var(--bg-parchment);
+    font-family: 'Cinzel', serif;
+}
+
+.tag-guide-table code {
+    background: rgba(74, 111, 168, 0.15);
+    color: #2b4c7e;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-weight: bold;
 }

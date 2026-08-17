@@ -5,7 +5,7 @@ description: Deep-dive root-cause investigator and troubleshooting engine for Ta
 
 # TastyTails Technical Troubleshooting & Root-Cause Remediation Skill
 
-> **Usage Instruction**: Reference or activate this skill whenever you need to investigate, troubleshoot, debug, or repair an issue in **TastyTails.net**. It enforces a 5-phase lifecycle: Codebase Investigation → Diagnostic Breakdown Report → Implementation Plan & Comprehensive Safety Impact Audit → Execution & Verification → Diagnostic Logging & Root-Cause Reset Loop.
+> **Usage Instruction**: Reference or activate this skill whenever you need to investigate, troubleshoot, debug, or repair an issue in **TastyTails.net**. It enforces a 5-phase lifecycle: Codebase Investigation -> Diagnostic Breakdown Report -> Implementation Plan & Comprehensive Safety Impact Audit -> Execution & Verification -> Diagnostic Logging & Root-Cause Reset Loop.
 
 ---
 
@@ -31,19 +31,19 @@ When investigating issues across TastyTails.net, keep these core systems in mind
 
 ```
  Phase 1: Deep Codebase Investigation & Mapping
-    │
-    ▼
+    |
+    v
  Phase 2: Diagnostic Breakdown Report & Clarification Callouts
-    │  (Requires User Approval to Proceed)
-    ▼
+    |  (Requires User Approval to Proceed)
+    v
  Phase 3: Implementation Plan & Comprehensive Safety Impact Audit
-    │  (Requires Pre-Execution Safety Audit & User Approval)
-    ▼
+    |  (Requires Pre-Execution Safety Audit & User Approval)
+    v
  Phase 4: Code Execution, Automated Testing & Verification Walkthrough
-    │
-    ├──► [If Fixed] ──► DONE!
-    │
-    └──► [If Bug Persists] ──► Phase 5: Diagnostic Logging & Root-Cause Reset Loop
+    |
+    +---> [If Fixed] ---> DONE!
+    |
+    +---> [If Bug Persists] ---> Phase 5: Diagnostic Logging & Root-Cause Reset Loop
 ```
 
 ---
@@ -61,14 +61,14 @@ When presented with a bug report or symptom description (e.g., "there is an issu
 Create a markdown report artifact named `diagnostic_report.md` structured as follows:
 
 ```markdown
-# 🔍 Diagnostic Breakdown Report: [Issue Summary]
+# Diagnostic Breakdown Report: [Issue Summary]
 
 ## 1. Problem Understanding & System Mapping
 - Detailed description of the reported symptom and mapped codebase workflow.
 - Component Interaction Matrix (showing how affected modules communicate).
 
 ## 2. Root Cause Analysis & Potential Triggers
-- Primary suspected root cause with clickable file links (`file:///path/to/file.js#LXX`).
+- Primary suspected root cause with clickable file links ([`file.js:LXX`](file:///path/to/file.js#LXX)).
 - Secondary contributing factors (race conditions, tick budget overruns, unhandled state edge cases, desync).
 
 ## 3. Clarifying Questions & Open Ambiguities
@@ -90,7 +90,7 @@ Create a markdown report artifact named `diagnostic_report.md` structured as fol
 ### PHASE 3: IMPLEMENTATION PLAN & COMPREHENSIVE SAFETY IMPACT AUDIT
 Upon receiving user approval, create or update `implementation_plan.md` detailing exact file changes, functions to modify, new unit tests to write, and validation procedures.
 
-#### 🛡️ Mandatory Pre-Execution Safety & Feature Regression Audit
+#### Mandatory Pre-Execution Safety & Feature Regression Audit
 Before touching any code, perform a comprehensive safety audit against all surrounding systems and document the results in `implementation_plan.md`:
 
 1. **Frontend UI & Visual Experience**:
@@ -139,11 +139,11 @@ If the user reports that the issue persists after testing:
      - New insights revealed by the diagnostic logs.
      - Why the initial fix was insufficient.
      - The updated root cause and proposed new fixes.
-5. Proceed back through Phase 3 (Implementation Plan & Safety Audit → Approval → Execution → Verification Walkthrough).
+5. Proceed back through Phase 3 (Implementation Plan & Safety Audit -> Approval -> Execution -> Verification Walkthrough).
 
 ---
 
 ## 3. Core Execution Rules
 - **No Symptom Masking**: Never swallow exceptions or return dummy defaults to mask bugs.
 - **Preserve Contracts & Features**: Preserving UI button listeners, CSS design tokens, gameplay mechanics, API contracts, and tick loop budgets is mandatory.
-- **Clickable Markdown Links**: Always include clickable markdown links for all modified files using standard file URI notation (`[basename.js](file:///path/to/basename.js#L10)`).
+- **Clickable Markdown Links**: Always include clickable markdown links for all modified files using standard file URI notation ([`basename.js`](file:///path/to/basename.js#L10)).

@@ -66,7 +66,7 @@ The Play Page transitions the application into **"Full-Screen RPG Immersion"**. 
 * **Top Navigation Bar (`body.play-mode.nav-visible nav`)**:
   * Display: Fixed overlay across top (`top: 0; left: 0; width: 100%; z-index: 9999`).
   * Styling: Dark semi-transparent background `rgba(44, 36, 27, 0.95)` with `backdrop-filter: blur(5px)` and a `4px solid #3e2723` bottom border.
-  * Links (`Home`, `Character Bank`, `Chat Archives`, `Job Demos`, `Logout`): Fully functional nav controls allowing players to leave play mode.
+  * Links (`Home`, `TileWeaver`, `Character Bank`, `Chat Archives`, `Logout`): Fully functional nav controls allowing players to leave play mode.
 
 ---
 

@@ -654,19 +654,55 @@ const AnatomyForge = (function () {
     // 4. INTERACTION
     // ==========================================
 
-    function checkConnectionValidity(sourceType, targetType) {
+    function hasPrecedingDestination(startNodeId, visited = new Set()) {
+        if (!startNodeId || visited.has(startNodeId)) return false;
+        visited.add(startNodeId);
+
+        const startNode = nodes.find(n => String(n.id) === String(startNodeId));
+        if (!startNode) return false;
+
+        if (startNode.type === 'destination') return true;
+
+        const incoming = connections.filter(c => String(c.to) === String(startNodeId));
+        for (const conn of incoming) {
+            const parentNode = nodes.find(n => String(n.id) === String(conn.from));
+            if (!parentNode) continue;
+            if (parentNode.type === 'destination') return true;
+            if (hasPrecedingDestination(parentNode.id, visited)) return true;
+        }
+
+        return false;
+    }
+
+    function checkConnectionValidity(sourceType, targetType, sourceNodeId = null, targetNodeId = null) {
         if (sourceType === 'entrance') {
             if (targetType === 'path') return { valid: true };
-            return { valid: false, reason: "Entrances must lead to a Path." };
+            if (targetType === 'destination') return { valid: false, reason: "Entrance organs must connect to a Path organ first (e.g. Esophagus)." };
+            if (targetType === 'exit') return { valid: false, reason: "Entrance organs cannot connect directly to an Exit." };
+            return { valid: false, reason: "Entrance organs must connect to a Path organ." };
         }
+
         if (sourceType === 'destination') {
-            if (targetType === 'path' || targetType === 'exit') return { valid: true };
-            return { valid: false, reason: "Destinations must lead to a Path or Exit." };
+            if (targetType === 'destination' || targetType === 'path' || targetType === 'exit') {
+                return { valid: true };
+            }
+            return { valid: false, reason: "Destination organs can only connect to a Path, Destination, or Exit." };
         }
+
         if (sourceType === 'path') {
-            if (targetType === 'path' || targetType === 'destination' || targetType === 'exit') return { valid: true };
-            return { valid: false, reason: "Paths cannot lead to an Entrance." };
+            if (targetType === 'path' || targetType === 'destination') {
+                return { valid: true };
+            }
+            if (targetType === 'exit') {
+                if (sourceNodeId && hasPrecedingDestination(sourceNodeId)) {
+                    return { valid: true };
+                } else {
+                    return { valid: false, reason: "Anatomy path must pass through a Destination organ (e.g. Stomach) before connecting to an Exit." };
+                }
+            }
+            return { valid: false, reason: "Path organs cannot connect to an Entrance." };
         }
+
         return { valid: false, reason: "Invalid connection." };
     }
 
@@ -702,7 +738,7 @@ const AnatomyForge = (function () {
         }
         if (isDraggingNode && draggedNodeId) {
             const worldPos = screenToWorld(clientX, clientY);
-            const node = nodes.find(n => n.id === draggedNodeId);
+            const node = nodes.find(n => String(n.id) === String(draggedNodeId));
             if (node) {
                 node.x = worldPos.x - dragOffset.x;
                 node.y = worldPos.y - dragOffset.y;
@@ -779,7 +815,8 @@ const AnatomyForge = (function () {
             }
         });
 
-        window.addEventListener('mouseup', (e) => {
+        function handleGlobalMouseUp(e) {
+            console.log('[AF-DEBUG] handleGlobalMouseUp triggered:', { type: e.type, isDraggingNode, draggedNodeId, target: e.target ? (e.target.className || e.target.tagName) : 'none' });
             if (mouseRafId) {
                 cancelAnimationFrame(mouseRafId);
                 mouseRafId = null;
@@ -787,12 +824,12 @@ const AnatomyForge = (function () {
             }
 
             view.isPanning = false;
-            container.style.cursor = 'grab';
+            if (container) container.style.cursor = 'grab';
 
             let didChange = false;
 
             if (isDraggingNewNode) {
-                const rect = canvasContainer.getBoundingClientRect();
+                const rect = canvasContainer ? canvasContainer.getBoundingClientRect() : { left: 0, right: window.innerWidth, top: 0, bottom: window.innerHeight };
                 if (e.clientX > rect.left && e.clientX < rect.right &&
                     e.clientY > rect.top && e.clientY < rect.bottom) {
                     const worldPos = screenToWorld(e.clientX, e.clientY);
@@ -808,7 +845,11 @@ const AnatomyForge = (function () {
             }
 
             if (isDraggingNode) {
-                serializeSystem();
+                try {
+                    serializeSystem();
+                } catch (err) {
+                    console.error('AnatomyForge: Error during serialization on drag release:', err);
+                }
                 didChange = true;
             }
 
@@ -816,26 +857,47 @@ const AnatomyForge = (function () {
             draggedNodeId = null;
 
             if (isDrawingLine) {
-                isDrawingLine = false;
-                connectionStartNodeId = null;
-                updateConnections();
+                const hitElement = document.elementFromPoint(e.clientX, e.clientY);
+                const targetNodeEl = hitElement ? hitElement.closest('.af-node') : null;
+                if (targetNodeEl && targetNodeEl.dataset && targetNodeEl.dataset.id) {
+                    finishConnection(targetNodeEl.dataset.id);
+                } else {
+                    isDrawingLine = false;
+                    connectionStartNodeId = null;
+                    updateConnections();
+                }
                 document.querySelectorAll('.af-node').forEach(n => {
                     n.classList.remove('target-glow');
                     n.classList.remove('target-error');
                 });
-                // Assuming finishConnection sets flag, but we check here
-                if (connections.length > 0) didChange = true; // Heuristic, better to track if line was actually added
             }
 
             if (didChange) triggerSave();
+        }
+
+        // Use capture phase (true) to guarantee release even if child elements call stopPropagation()
+        window.addEventListener('mouseup', handleGlobalMouseUp, true);
+        window.addEventListener('pointerup', handleGlobalMouseUp, true);
+        window.addEventListener('blur', () => {
+            isDraggingNode = false;
+            draggedNodeId = null;
+            isDraggingNewNode = false;
+            isDrawingLine = false;
+            view.isPanning = false;
         });
     }
 
     function setupKeyboardEvents() {
         window.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); redo(); }
-            if (e.key === 'r') { resetView(); }
+            if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+                return; // Don't trigger canvas hotkeys while typing in fields
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                if (e.shiftKey) { e.preventDefault(); redo(); }
+                else { e.preventDefault(); undo(); }
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+            if (e.key.toLowerCase() === 'r') { resetView(); }
         });
     }
 
@@ -915,7 +977,9 @@ const AnatomyForge = (function () {
         `;
 
         el.addEventListener('mousedown', (e) => {
+            console.log('[AF-DEBUG] mousedown on node:', nodeData.id, { eButton: e.button });
             if (e.button !== 0) return;
+            e.preventDefault();
             e.stopPropagation();
             saveState();
             isDraggingNode = true;
@@ -926,7 +990,10 @@ const AnatomyForge = (function () {
         });
 
         const editBtn = el.querySelector('.af-node-edit-btn');
-        editBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+        editBtn.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
         editBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             selectNode(nodeData.id);
@@ -946,7 +1013,7 @@ const AnatomyForge = (function () {
         el.addEventListener('mouseenter', () => {
             if (isDrawingLine && nodeData.type !== 'entrance' && nodeData.id !== connectionStartNodeId) {
                 const sourceNode = nodes.find(n => n.id === connectionStartNodeId);
-                const validation = checkConnectionValidity(sourceNode.type, nodeData.type);
+                const validation = checkConnectionValidity(sourceNode.type, nodeData.type, sourceNode.id, nodeData.id);
                 if (validation.valid) el.classList.add('target-glow');
                 else el.classList.add('target-error');
             }
@@ -993,22 +1060,29 @@ const AnatomyForge = (function () {
     }
 
     function finishConnection(targetNodeId) {
-        const targetNode = nodes.find(n => n.id === targetNodeId);
-        if (!targetNode || targetNode.type === 'entrance') return;
+        const targetNode = nodes.find(n => String(n.id) === String(targetNodeId));
+        if (!targetNode || targetNode.type === 'entrance') {
+            isDrawingLine = false;
+            connectionStartNodeId = null;
+            updateConnections();
+            return;
+        }
 
-        if (isDrawingLine && connectionStartNodeId && connectionStartNodeId !== targetNodeId) {
-            const sourceNode = nodes.find(n => n.id === connectionStartNodeId);
-            const validation = checkConnectionValidity(sourceNode.type, targetNode.type);
+        if (isDrawingLine && connectionStartNodeId && String(connectionStartNodeId) !== String(targetNodeId)) {
+            const sourceNode = nodes.find(n => String(n.id) === String(connectionStartNodeId));
+            if (sourceNode) {
+                const validation = checkConnectionValidity(sourceNode.type, targetNode.type, sourceNode.id, targetNode.id);
 
-            if (!validation.valid) {
-                showToast(validation.reason, 'error');
-            } else {
-                const exists = connections.some(c => c.from === connectionStartNodeId && c.to === targetNodeId);
-                if (!exists) {
-                    saveState();
-                    connections.push({ from: connectionStartNodeId, to: targetNodeId });
-                    updateConnections();
-                    serializeSystem();
+                if (!validation.valid) {
+                    showToast(validation.reason, 'error');
+                } else {
+                    const exists = connections.some(c => String(c.from) === String(connectionStartNodeId) && String(c.to) === String(targetNodeId));
+                    if (!exists) {
+                        saveState();
+                        connections.push({ from: sourceNode.id, to: targetNode.id });
+                        updateConnections();
+                        serializeSystem();
+                    }
                 }
             }
         }
@@ -1114,6 +1188,16 @@ const AnatomyForge = (function () {
     // 7. INSPECTOR & SERIALIZATION
     // ==========================================
 
+    const FIELD_HELP = {
+        destinationDescrip: 'Sent internally to the prey player when entering this organ chamber (what prey sees & feels).',
+        examineMsgDescrip: 'Broadcast to other players who examine the predator while prey is inside this organ.',
+        digestionInsideMsgDescrip: 'Sent internally to the prey player when they succumb to digestion in this chamber.',
+        digestionOutsideMsgDescrip: 'Broadcast to nearby players & predator when prey digestion completes in this chamber.',
+        releaseMsgDescrip: 'Sent to players when prey escapes or is released from this organ chamber.',
+        name: 'Label for this organ chamber in your anatomy map.',
+        verb: 'Action verb used when swallowing prey into this entrance organ.'
+    };
+
     function selectNode(id) {
         selectedNodeId = id;
         document.querySelectorAll('.af-node').forEach(n => n.classList.remove('selected'));
@@ -1125,14 +1209,119 @@ const AnatomyForge = (function () {
         inspector.classList.add('visible');
     }
 
+    function createTagChipBar(onInsert) {
+        const bar = document.createElement('div');
+        bar.className = 'af-tag-chip-bar';
+
+        const tags = [
+            { label: '<pred>', tag: '<pred>' },
+            { label: '<prey>', tag: '<prey>' },
+            { label: '<organ>', tag: '<organ>' },
+            { label: '<pred_pronouns>', tag: '<pred_pronouns>' },
+            { label: '<prey_pronouns>', tag: '<prey_pronouns>' }
+        ];
+
+        tags.forEach(t => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'af-tag-chip';
+            chip.innerText = t.label;
+            chip.title = `Insert ${t.tag} tag`;
+            chip.onclick = (e) => {
+                e.preventDefault();
+                onInsert(t.tag);
+            };
+            bar.appendChild(chip);
+        });
+
+        return bar;
+    }
+
+    function createPane(id, isActive) {
+        const pane = document.createElement('div');
+        pane.id = id;
+        pane.className = `af-tab-pane ${isActive ? 'active' : ''}`;
+        inspectorContent.appendChild(pane);
+        return pane;
+    }
+
     function renderInspector(node) {
-        inspectorTitle.innerText = node.type.toUpperCase();
+        inspectorTitle.innerText = `${node.properties.name || node.type} (${node.type})`;
         inspectorContent.innerHTML = '';
 
-        addSectionHeader('Core Identity');
-        addInputField(node, 'name', 'Node Name (Label)', 'text');
+        // Tab Bar Navigation
+        const tabBar = document.createElement('div');
+        tabBar.className = 'af-tab-bar';
 
-        addSectionHeader('Visual Sigil');
+        const tabs = [
+            { id: 'afSensoryTab', label: '🧠 Sensory' },
+            { id: 'afStruggleTab', label: '🥊 Struggle' },
+            { id: 'afDigestionTab', label: '☠️ Digestion' },
+            { id: 'afSettingsTab', label: '⚙️ Settings' }
+        ];
+
+        if (node.type !== 'destination') {
+            tabs.splice(2, 1); // Hide Digestion tab for non-destination nodes
+        }
+
+        tabs.forEach((tab, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `af-tab-btn ${idx === 0 ? 'active' : ''}`;
+            btn.innerText = tab.label;
+            btn.onclick = function () {
+                tabBar.querySelectorAll('.af-tab-btn').forEach(b => b.classList.remove('active'));
+                inspectorContent.querySelectorAll('.af-tab-pane').forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+                const pane = document.getElementById(tab.id);
+                if (pane) pane.classList.add('active');
+            };
+            tabBar.appendChild(btn);
+        });
+
+        inspectorContent.appendChild(tabBar);
+
+        // Tab Panes
+        const sensoryPane = createPane('afSensoryTab', true);
+        const strugglePane = createPane('afStruggleTab', false);
+        const digestionPane = node.type === 'destination' ? createPane('afDigestionTab', false) : null;
+        const settingsPane = createPane('afSettingsTab', false);
+
+        // --- SENSORY PANE ---
+        addInputField(node, 'destinationDescrip', 'Arrival Description (Internal)', 'textarea', sensoryPane);
+        addInputField(node, 'examineMsgDescrip', 'Examine Message (External)', 'textarea', sensoryPane);
+
+        // --- STRUGGLE PANE ---
+        addStruggleListField(node, 'struggleInsideList', 'struggleInsideMsgDescrip', 'Internal Feedback Messages', 'Sent internally to prey when they struggle inside this organ chamber.', strugglePane);
+        addStruggleListField(node, 'struggleOutsideList', 'struggleOutsideMsgDescrip', 'External Observation Messages', 'Broadcast to nearby players & predator when prey struggles.', strugglePane);
+
+        // --- DIGESTION PANE ---
+        if (digestionPane) {
+            addInputField(node, 'digestionInsideMsgDescrip', 'Internal Fate', 'textarea', digestionPane);
+            addInputField(node, 'digestionOutsideMsgDescrip', 'External Outcome', 'textarea', digestionPane);
+            addInputField(node, 'releaseMsgDescrip', 'Release / Escape Message', 'textarea', digestionPane);
+        }
+
+        // --- SETTINGS PANE ---
+        addInputField(node, 'name', 'Organ Name (Label)', 'text', settingsPane);
+
+        if (node.type === 'entrance') {
+            addInputField(node, 'verb', 'Action Verb', 'text', settingsPane);
+        }
+
+        if (node.type === 'destination') {
+            addSelectField(node, 'digestivePower', 'Digestive Power', DIGESTIVE_POWER_OPTIONS, settingsPane);
+            addSelectField(node, 'enterSound', 'Enter Sound', AUDIO_OPTIONS, settingsPane);
+            addSelectField(node, 'ambientSound', 'Ambient Loop', AUDIO_OPTIONS, settingsPane);
+            addSelectField(node, 'struggleSound', 'Struggle Sound', AUDIO_OPTIONS, settingsPane);
+            addSelectField(node, 'exitSound', 'Exit Sound', AUDIO_OPTIONS, settingsPane);
+        }
+
+        const iconHeader = document.createElement('div');
+        iconHeader.className = 'af-section-header';
+        iconHeader.innerText = 'Visual Sigil Icon';
+        settingsPane.appendChild(iconHeader);
+
         const iconGrid = document.createElement('div');
         iconGrid.className = 'af-icon-grid';
 
@@ -1153,71 +1342,172 @@ const AnatomyForge = (function () {
             };
             iconGrid.appendChild(iconOption);
         });
-        inspectorContent.appendChild(iconGrid);
-
-        if (node.type === 'entrance') {
-            addSectionHeader('Interaction');
-            addInputField(node, 'verb', 'Action Verb', 'text');
-        }
-
-        if (node.type === 'destination') {
-            addSelectField(node, 'digestivePower', 'Digestive Power', DIGESTIVE_POWER_OPTIONS);
-
-            addSectionHeader('Audio Atmosphere');
-            addSelectField(node, 'enterSound', 'Enter Sound', AUDIO_OPTIONS);
-            addSelectField(node, 'ambientSound', 'Ambient Loop', AUDIO_OPTIONS);
-            addSelectField(node, 'struggleSound', 'Struggle Sound', AUDIO_OPTIONS);
-            addSelectField(node, 'exitSound', 'Exit Sound', AUDIO_OPTIONS);
-        }
-
-        // Shared Fields for All Nodes (Sensory & Struggle)
-        addSectionHeader('Sensory Experience');
-        addInputField(node, 'destinationDescrip', 'Arrival Description', 'textarea');
-        addInputField(node, 'examineMsgDescrip', 'Examine Message (External)', 'textarea');
-
-        addSectionHeader('The Struggle');
-        addInputField(node, 'struggleInsideMsgDescrip', 'Internal Feedback', 'textarea');
-        addInputField(node, 'struggleOutsideMsgDescrip', 'External Observation', 'textarea');
-
-        // Destination Specific Messages (Digestion & Alt Endings) - Rendered Last
-        if (node.type === 'destination') {
-            addSectionHeader('Digestion Events');
-            addInputField(node, 'digestionInsideMsgDescrip', 'Internal Fate', 'textarea');
-            addInputField(node, 'digestionOutsideMsgDescrip', 'External Outcome', 'textarea');
-
-            addSectionHeader('Alternative Endings');
-            addInputField(node, 'releaseMsgDescrip', 'Release/Escape Message', 'textarea');
-        }
+        settingsPane.appendChild(iconGrid);
 
         const btnDel = document.createElement('button');
         btnDel.type = 'button';
         btnDel.className = 'af-btn-delete';
-        btnDel.innerText = 'Delete Node';
+        btnDel.style.marginTop = '15px';
+        btnDel.innerText = 'Delete Organ Chamber';
         btnDel.onclick = requestDeleteNode;
-        inspectorContent.appendChild(btnDel);
+        settingsPane.appendChild(btnDel);
     }
 
-    function addSectionHeader(text) {
-        const h = document.createElement('div');
-        h.className = 'af-section-header';
-        h.innerText = text;
-        inspectorContent.appendChild(h);
-    }
-
-    function addInputField(node, key, label, type, parent = null, useCol = false) {
-        const group = document.createElement('div');
-        if (useCol) {
-            group.className = 'af-inspector-col'; // Column wrapper
-        } else {
-            group.className = 'af-form-group';
+    function addStruggleListField(node, listKey, fallbackKey, labelText, helpText, parentPane) {
+        if (!node.properties[listKey] || !Array.isArray(node.properties[listKey])) {
+            const fallbackVal = node.properties[fallbackKey] || '';
+            node.properties[listKey] = fallbackVal ? [fallbackVal] : [''];
         }
+
+        const group = document.createElement('div');
+        group.className = 'af-form-group';
+
+        const lbl = document.createElement('label');
+        lbl.className = 'af-form-label';
+        lbl.innerHTML = `<i class="fa-solid fa-comments"></i> ${labelText}`;
+        group.appendChild(lbl);
+
+        if (helpText) {
+            const help = document.createElement('div');
+            help.className = 'af-field-help';
+            help.innerText = helpText;
+            group.appendChild(help);
+        }
+
+        const listContainer = document.createElement('div');
+        listContainer.className = 'af-struggle-list';
+
+        function renderListItems() {
+            listContainer.innerHTML = '';
+            const items = node.properties[listKey];
+
+            items.forEach((itemText, idx) => {
+                const itemBox = document.createElement('div');
+                itemBox.className = 'af-struggle-item';
+
+                const header = document.createElement('div');
+                header.className = 'af-struggle-header';
+
+                const counter = document.createElement('span');
+                counter.className = 'af-char-counter';
+                const len = itemText.length;
+                counter.innerText = `${len} / 250 chars`;
+                if (len >= 240) counter.classList.add('warning');
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'af-item-remove-btn';
+                removeBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+                removeBtn.title = 'Delete struggle message';
+                removeBtn.onclick = () => {
+                    if (items.length <= 1) {
+                        showToast('Must keep at least 1 struggle message option', 'error');
+                        return;
+                    }
+                    saveState();
+                    items.splice(idx, 1);
+                    node.properties[fallbackKey] = items[0] || '';
+                    renderListItems();
+                    serializeSystem();
+                    triggerSave();
+                };
+
+                header.appendChild(counter);
+                header.appendChild(removeBtn);
+                itemBox.appendChild(header);
+
+                // Add Tag Chips
+                const chipBar = createTagChipBar((tag) => {
+                    const start = textarea.selectionStart || 0;
+                    const end = textarea.selectionEnd || 0;
+                    const val = textarea.value;
+                    if (val.length + tag.length > 250) {
+                        showToast('Message exceeds 250 character limit!', 'error');
+                        return;
+                    }
+                    textarea.value = val.substring(0, start) + tag + val.substring(end);
+                    textarea.dispatchEvent(new Event('input'));
+                });
+                itemBox.appendChild(chipBar);
+
+                const textarea = document.createElement('textarea');
+                textarea.className = 'af-form-textarea';
+                textarea.rows = 2;
+                textarea.maxLength = 250;
+                textarea.value = itemText;
+
+                textarea.addEventListener('input', (e) => {
+                    let val = e.target.value;
+                    if (val.length > 250) {
+                        val = val.substring(0, 250);
+                        e.target.value = val;
+                    }
+                    items[idx] = val;
+                    node.properties[fallbackKey] = items[0] || '';
+                    const currentLen = val.length;
+                    counter.innerText = `${currentLen} / 250 chars`;
+                    if (currentLen >= 240) counter.classList.add('warning');
+                    else counter.classList.remove('warning');
+                });
+
+                textarea.addEventListener('change', () => {
+                    saveState();
+                    serializeSystem();
+                    triggerSave();
+                });
+
+                itemBox.appendChild(textarea);
+                listContainer.appendChild(itemBox);
+            });
+        }
+
+        renderListItems();
+        group.appendChild(listContainer);
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'af-add-struggle-btn';
+        addBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Struggle Message Option';
+        addBtn.onclick = () => {
+            saveState();
+            node.properties[listKey].push('');
+            renderListItems();
+            serializeSystem();
+            triggerSave();
+        };
+
+        group.appendChild(addBtn);
+        parentPane.appendChild(group);
+    }
+
+    function addInputField(node, key, label, type, parentPane = null) {
+        const group = document.createElement('div');
+        group.className = 'af-form-group';
 
         const lbl = document.createElement('label');
         lbl.className = 'af-form-label';
         lbl.innerText = label;
+        group.appendChild(lbl);
+
+        if (FIELD_HELP[key]) {
+            const help = document.createElement('div');
+            help.className = 'af-field-help';
+            help.innerText = FIELD_HELP[key];
+            group.appendChild(help);
+        }
 
         let elem;
         if (type === 'textarea') {
+            const chipBar = createTagChipBar((tag) => {
+                const start = elem.selectionStart || 0;
+                const end = elem.selectionEnd || 0;
+                const val = elem.value;
+                elem.value = val.substring(0, start) + tag + val.substring(end);
+                elem.dispatchEvent(new Event('input'));
+                elem.dispatchEvent(new Event('change'));
+            });
+            group.appendChild(chipBar);
+
             elem = document.createElement('textarea');
             elem.className = 'af-form-textarea';
             elem.rows = 3;
@@ -1249,22 +1539,11 @@ const AnatomyForge = (function () {
             triggerSave();
         };
 
-        if (useCol) {
-            // For columns, we assume generic layout, but labels should be block?
-            // af-inspector-col handles width. Inside we want standard stacking.
-            // Let's wrap standard label+input inside the col div
-            group.appendChild(lbl);
-            group.appendChild(elem);
-        } else {
-            group.appendChild(lbl);
-            group.appendChild(elem);
-        }
-
-        // If parent is provided (e.g. a row), append there. Else default to inspectorContent
-        (parent || inspectorContent).appendChild(group);
+        group.appendChild(elem);
+        (parentPane || inspectorContent).appendChild(group);
     }
 
-    function addSelectField(node, key, label, options) {
+    function addSelectField(node, key, label, options, parentPane = null) {
         const group = document.createElement('div');
         group.className = 'af-form-group';
         const lbl = document.createElement('label');
@@ -1291,7 +1570,7 @@ const AnatomyForge = (function () {
 
         group.appendChild(lbl);
         group.appendChild(select);
-        inspectorContent.appendChild(group);
+        (parentPane || inspectorContent).appendChild(group);
     }
 
     function requestDeleteNode() {
@@ -1439,6 +1718,8 @@ const AnatomyForge = (function () {
         // 2. Generate Legacy Hidden Inputs for the Backend
         generateLegacyInputs(nodes);
 
+        updateSaveStatus(true);
+
         return jsonStr;
     }
 
@@ -1488,6 +1769,101 @@ const AnatomyForge = (function () {
         parent.appendChild(i);
     }
 
+    function saveState() {
+        historyStack.push(JSON.stringify({ nodes, connections, nextId }));
+        if (historyStack.length > MAX_HISTORY) historyStack.shift();
+        redoStack = [];
+        updateSaveStatus(false);
+    }
+
+    function updateSaveStatus(isStaged = true) {
+        const badge = document.getElementById('af-save-status');
+        if (badge) {
+            if (isStaged) {
+                badge.innerHTML = '<span class="status-dot green"></span> Staged for Creation';
+                badge.title = 'Your anatomy configuration is automatically staged. It will be saved when you click Finish Character Creation at the bottom of the form.';
+            } else {
+                badge.innerHTML = '<span class="status-dot yellow"></span> Staging Changes...';
+                badge.title = 'Updating anatomy configuration...';
+            }
+        }
+    }
+
+    function undo() {
+        if (historyStack.length === 0) {
+            showToast('Nothing to undo', 'error');
+            return;
+        }
+        redoStack.push(JSON.stringify({ nodes, connections, nextId }));
+        const state = JSON.parse(historyStack.pop());
+        nodes = state.nodes;
+        connections = state.connections;
+        nextId = state.nextId;
+        rebuildWorld();
+        updateConnections();
+        serializeSystem();
+        showToast('Undo successful', 'success');
+    }
+
+    function redo() {
+        if (redoStack.length === 0) {
+            showToast('Nothing to redo', 'error');
+            return;
+        }
+        historyStack.push(JSON.stringify({ nodes, connections, nextId }));
+        const state = JSON.parse(redoStack.pop());
+        nodes = state.nodes;
+        connections = state.connections;
+        nextId = state.nextId;
+        rebuildWorld();
+        updateConnections();
+        serializeSystem();
+        showToast('Redo successful', 'success');
+    }
+
+    function requestRestoreDefault() {
+        if (!confirmModal || !modalBox) return;
+
+        confirmModal.classList.add('active');
+        modalBox.classList.add('danger-mode');
+        if (modalCheckboxContainer) modalCheckboxContainer.style.display = 'flex';
+        if (modalCheck) modalCheck.checked = false;
+        if (btnConfirmDelete) {
+            btnConfirmDelete.disabled = true;
+            btnConfirmDelete.innerText = 'Reset All Anatomy to Default';
+        }
+
+        if (modalTitle) {
+            modalTitle.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-red,#a84a4a);"></i> RESTORE DEFAULT ANATOMY?';
+        }
+
+        if (modalMsg) {
+            modalMsg.innerHTML = `
+                <div style="font-size:0.95rem; line-height:1.5;">
+                    <strong style="color: var(--accent-red,#a84a4a);">⚠️ CRITICAL WARNING: RESTORING DEFAULTS WILL ERASE ALL CUSTOMIZATIONS!</strong><br><br>
+                    This action will completely reset your anatomy map back to the initial 4 default anatomy paths (<strong>Oral Vore</strong>, <strong>Anal Vore</strong>, <strong>Unbirth</strong>, and <strong>Cock Vore</strong>).<br><br>
+                    <span style="color: var(--accent-red,#a84a4a); font-weight:bold;">All custom organ chambers, organ names, sensory descriptions, struggle feedback messages, and digestion outcomes will be PERMANENTLY ERASED and lost.</span>
+                </div>
+            `;
+        }
+
+        if (btnConfirmDelete) {
+            btnConfirmDelete.onclick = () => {
+                restoreDefaultAnatomy();
+                closeModal();
+            };
+        }
+    }
+
+    function restoreDefaultAnatomy() {
+        saveState();
+        setupDefaultAnatomy();
+        updateConnections();
+        serializeSystem();
+        resetView();
+        showToast('Default 4-path anatomy topology restored!', 'success');
+    }
+
     // Public API
     return {
         init: init,
@@ -1525,6 +1901,14 @@ const AnatomyForge = (function () {
         },
         resetView: resetView,
         clearMap: requestClearMap,
+        restoreDefault: requestRestoreDefault,
+        undo: undo,
+        redo: redo,
+        requestDeleteNode: requestDeleteNode,
+        openTagGuideModal: function () {
+            const modal = document.getElementById('af-tag-guide-modal');
+            if (modal) modal.classList.add('active');
+        },
         refreshLayout: function () {
             // Force recalculation of node dimensions and connections
             // Use timeout to ensure browser layout has processed the display:block change

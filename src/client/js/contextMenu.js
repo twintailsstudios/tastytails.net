@@ -1122,6 +1122,99 @@ function initializeContextMenu(scene, socket) {
         document.body.appendChild(tooltipEl);
     }
 
+    const HOVER_DELAY_MS = 220;
+    let hoverTimer = null;
+    let activeHoverTarget = null;
+    let activeHoverPointer = null;
+    let pendingTooltipFrame = null;
+
+    function cancelPendingTooltip() {
+        if (pendingTooltipFrame !== null) {
+            cancelAnimationFrame(pendingTooltipFrame);
+            pendingTooltipFrame = null;
+        }
+    }
+
+    function hideTooltip() {
+        if (hoverTimer !== null) {
+            clearTimeout(hoverTimer);
+            hoverTimer = null;
+        }
+        cancelPendingTooltip();
+        activeHoverTarget = null;
+        activeHoverPointer = null;
+        if (tooltipEl) {
+            tooltipEl.style.display = 'none';
+            tooltipEl.style.opacity = '0';
+        }
+    }
+
+    // Expose globally so external UI managers (e.g. CraftingUI) can dismiss tooltips
+    window.hideGameTooltip = hideTooltip;
+
+    function isPointerOverUI(pointer) {
+        if (!pointer) return false;
+        const clientX = pointer.event ? pointer.event.clientX : pointer.x;
+        const clientY = pointer.event ? pointer.event.clientY : pointer.y;
+        if (clientX === undefined || clientY === undefined) return false;
+
+        // Check if pointer is outside the browser viewport
+        if (clientX < 0 || clientY < 0 || clientX >= window.innerWidth || clientY >= window.innerHeight) {
+            return true;
+        }
+
+        const el = document.elementFromPoint(clientX, clientY);
+        if (!el) return true;
+
+        // Check if element is outside #phaserApp container (e.g. in #sidePanel or top nav bar)
+        const phaserApp = document.getElementById('phaserApp');
+        if (phaserApp && !phaserApp.contains(el)) {
+            return true;
+        }
+
+        // If element is not the canvas or is inside a modal/window container, pointer is over UI
+        if (el.tagName !== 'CANVAS' || el.closest('#crafting-window, #crafting-overlay, .modal-overlay, #contextMenu, .window-panel, .radial-outer-arc')) {
+            return true;
+        }
+        return false;
+    }
+
+    // Attach DOM and Phaser input listeners for mouse leaving #phaserApp container or window
+    const phaserAppEl = document.getElementById('phaserApp');
+    if (phaserAppEl) {
+        phaserAppEl.addEventListener('mouseleave', hideTooltip);
+        phaserAppEl.addEventListener('mouseout', (e) => {
+            if (!phaserAppEl.contains(e.relatedTarget)) {
+                hideTooltip();
+            }
+        });
+    }
+    window.addEventListener('mouseleave', hideTooltip);
+    window.addEventListener('blur', hideTooltip);
+
+    if (scene && scene.input) {
+        scene.input.on('gameout', hideTooltip);
+        scene.input.on('pointerout', function (pointer) {
+            if (isPointerOverUI(pointer)) {
+                hideTooltip();
+            }
+        });
+    }
+
+    function updateTooltipPosition(pointer) {
+        if (!tooltipEl || !pointer) return;
+        const clientX = (pointer.event ? pointer.event.clientX : pointer.x) + 15;
+        const clientY = (pointer.event ? pointer.event.clientY : pointer.y) + 15;
+        if (!pendingTooltipFrame) {
+            pendingTooltipFrame = requestAnimationFrame(() => {
+                tooltipEl.style.left = '0px';
+                tooltipEl.style.top = '0px';
+                tooltipEl.style.transform = `translate3d(${clientX}px, ${clientY}px, 0)`;
+                pendingTooltipFrame = null;
+            });
+        }
+    }
+
     let cachedIngredientMap = null;
     let cachedItemDataRef = null;
 
@@ -1151,26 +1244,31 @@ function initializeContextMenu(scene, socket) {
         return stationSet ? stationSet.has(itemId) : false;
     }
 
-
-    scene.input.on('gameobjectover', function (pointer, gameObject) {
-        // Prevent tooltip while radial/context menu is open
-        if (contextMenu && contextMenu.style.display === 'block') {
-            tooltipEl.style.display = 'none';
-            return;
-        }
-
-        if (!gameObject || (!gameObject.objectInfo && !gameObject.playerInfo)) {
-            tooltipEl.style.display = 'none';
-            return;
-        }
-
+    function renderTooltipContent(gameObject) {
+        if (!gameObject) return null;
         let titleText = '';
         let descText = '';
         let actionText = '';
+        let metaHtml = '';
 
         if (gameObject.playerInfo) {
-            titleText = gameObject.playerInfo.Username || 'Player';
-            descText = gameObject.playerInfo.icDescrip || '';
+            const pInfo = gameObject.playerInfo;
+            titleText = pInfo.Username || (pInfo.firstName ? (pInfo.firstName + ' ' + (pInfo.lastName || '')) : 'Player');
+            
+            const speciesStr = pInfo.speciesName || 'Unknown Species';
+            let pVal = pInfo.pronouns !== undefined ? pInfo.pronouns : 1;
+            let pText = 'She / Her';
+            let pIcon = 'fa-venus';
+            if (pVal === 2 || pVal === '2') { pText = 'He / Him'; pIcon = 'fa-mars'; }
+            else if (pVal === 3 || pVal === '3') { pText = 'They / Them'; pIcon = 'fa-genderless'; }
+
+            metaHtml += `<div class="context-tooltip-meta"><i class="fa-solid fa-paw"></i> ${speciesStr}</div>`;
+            metaHtml += `<div class="context-tooltip-meta"><i class="fa-solid ${pIcon}"></i> ${pText}</div>`;
+
+            if (pInfo.nickName && pInfo.nickName.trim() !== '') {
+                metaHtml += `<div class="context-tooltip-meta"><i class="fa-solid fa-tag"></i> "${pInfo.nickName.trim()}"</div>`;
+            }
+
             actionText = '<i class="fa-solid fa-hand-fist"></i> Hold Shift & click to Grab';
         } else if (gameObject.objectInfo) {
             const info = gameObject.objectInfo;
@@ -1219,50 +1317,119 @@ function initializeContextMenu(scene, socket) {
             }
         }
 
-        if (titleText) {
-            let html = `<div class="context-tooltip-title">${titleText}</div>`;
-            if (descText) {
-                html += `<div class="context-tooltip-desc">${descText}</div>`;
-            }
-            if (actionText) {
-                html += `<div class="context-tooltip-action">${actionText}</div>`;
-            }
-            tooltipEl.innerHTML = html;
-            tooltipEl.style.display = 'block';
-            tooltipEl.style.opacity = '1';
-        } else {
-            tooltipEl.style.display = 'none';
-        }
-    });
+        if (!titleText) return null;
 
-    let pendingTooltipFrame = null;
-
-    function cancelPendingTooltip() {
-        if (pendingTooltipFrame !== null) {
-            cancelAnimationFrame(pendingTooltipFrame);
-            pendingTooltipFrame = null;
+        let html = `<div class="context-tooltip-title">${titleText}</div>`;
+        if (metaHtml) {
+            html += metaHtml;
         }
+        if (descText) {
+            html += `<div class="context-tooltip-desc">${descText}</div>`;
+        }
+        if (actionText) {
+            html += `<div class="context-tooltip-action">${actionText}</div>`;
+        }
+        return html;
     }
 
-    scene.input.on('pointermove', function (pointer) {
-        if (tooltipEl && tooltipEl.style.display === 'block') {
-            const clientX = (pointer.event ? pointer.event.clientX : pointer.x) + 15;
-            const clientY = (pointer.event ? pointer.event.clientY : pointer.y) + 15;
-            if (!pendingTooltipFrame) {
-                pendingTooltipFrame = requestAnimationFrame(() => {
-                    tooltipEl.style.left = '0px';
-                    tooltipEl.style.top = '0px';
-                    tooltipEl.style.transform = `translate3d(${clientX}px, ${clientY}px, 0)`;
-                    pendingTooltipFrame = null;
-                });
+    scene.input.on('gameobjectover', function (pointer, gameObject) {
+        // Prevent tooltip while radial/context menu is open or pointer is over UI
+        if ((contextMenu && contextMenu.style.display === 'block') || isPointerOverUI(pointer)) {
+            hideTooltip();
+            return;
+        }
+
+        if (!gameObject || (!gameObject.objectInfo && !gameObject.playerInfo)) {
+            hideTooltip();
+            return;
+        }
+
+        // Cancel existing pending timer if hovering over a new target
+        if (activeHoverTarget !== gameObject) {
+            hideTooltip();
+        }
+
+        activeHoverTarget = gameObject;
+        activeHoverPointer = pointer;
+
+        // Schedule hover delay
+        hoverTimer = setTimeout(() => {
+            if (activeHoverTarget !== gameObject) return;
+            if ((contextMenu && contextMenu.style.display === 'block') || isPointerOverUI(pointer)) {
+                hideTooltip();
+                return;
             }
+
+            const html = renderTooltipContent(gameObject);
+            if (html && tooltipEl) {
+                tooltipEl.innerHTML = html;
+                updateTooltipPosition(pointer);
+                tooltipEl.style.display = 'block';
+                requestAnimationFrame(() => {
+                    if (tooltipEl && activeHoverTarget === gameObject) {
+                        tooltipEl.style.opacity = '1';
+                    }
+                });
+            } else {
+                hideTooltip();
+            }
+        }, HOVER_DELAY_MS);
+    });
+
+    scene.input.on('pointermove', function (pointer) {
+        activeHoverPointer = pointer;
+        if (activeHoverTarget && tooltipEl && tooltipEl.style.display === 'block') {
+            if (isPointerOverUI(pointer)) {
+                hideTooltip();
+                return;
+            }
+            updateTooltipPosition(pointer);
         }
     });
 
     scene.input.on('gameobjectout', function (pointer, gameObject) {
-        cancelPendingTooltip();
-        if (tooltipEl) {
-            tooltipEl.style.display = 'none';
+        if (activeHoverTarget === gameObject) {
+            hideTooltip();
+        }
+    });
+
+    scene.input.on('pointerdown', function () {
+        hideTooltip();
+    });
+
+    // Frame-tick verification: dismiss tooltip if target object leaves mouse cursor due to player movement or camera scrolling
+    scene.events.on('update', function () {
+        if (activeHoverTarget && activeHoverPointer) {
+            if (contextMenu && contextMenu.style.display === 'block') {
+                hideTooltip();
+                return;
+            }
+            if (isPointerOverUI(activeHoverPointer)) {
+                hideTooltip();
+                return;
+            }
+
+            // Verify if activeHoverTarget is still under cursor
+            let isStillHovered = false;
+            if (typeof scene.input.hitTestPointer === 'function') {
+                const hits = scene.input.hitTestPointer(activeHoverPointer);
+                if (hits && hits.includes(activeHoverTarget)) {
+                    isStillHovered = true;
+                }
+            } else if (activeHoverTarget.getBounds) {
+                const bounds = activeHoverTarget.getBounds();
+                const worldX = activeHoverPointer.worldX;
+                const worldY = activeHoverPointer.worldY;
+                if (bounds && bounds.contains(worldX, worldY)) {
+                    isStillHovered = true;
+                }
+            } else {
+                isStillHovered = true; // Fallback
+            }
+
+            if (!isStillHovered) {
+                hideTooltip();
+            }
         }
     });
 }

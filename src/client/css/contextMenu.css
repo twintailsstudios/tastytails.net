@@ -585,6 +585,21 @@
     margin-top: 4px;
 }
 
+.context-tooltip-meta {
+    font-size: 0.78rem;
+    color: #4e342e;
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.context-tooltip-meta i {
+    width: 14px;
+    text-align: center;
+    color: var(--wood-dark, #3e2723);
+}
+
 /* === TUTORIAL CHECKLIST WIDGET === */
 .tutorial-widget {
     position: absolute;

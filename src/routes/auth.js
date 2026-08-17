@@ -83,27 +83,46 @@ const generateSpiritColor = (originalHex) => {
  * @param {Object} body - HTTP POST request body
  * @returns {Object} Extracted character customization data payload
  */
+const parseRatingInput = (val) => {
+  if (val === undefined || val === null || val === '') return 0;
+  const num = Number(val);
+  return isNaN(num) ? 0 : num;
+};
+
 const parseCharacterCustomization = (body) => {
   const ratings = {
-    ovStar: body.ovStar ? body.ovStar : null,
-    avStar: body.avStar ? body.avStar : null,
-    cvStar: body.cvStar ? body.cvStar : null,
-    ubStar: body.ubStar ? body.ubStar : null,
-    tvStar: body.tvStar ? body.tvStar : null,
-    absStar: body.absStar ? body.absStar : null,
-    svStar: body.svStar ? body.svStar : null,
-    predStar: body.predStar ? body.predStar : null,
-    preyStar: body.preyStar ? body.preyStar : null,
-    softStar: body.softStar ? body.softStar : null,
-    hardStar: body.hardStar ? body.hardStar : null,
-    digestionStar: body.digestionStar ? body.digestionStar : null,
-    disposalStar: body.disposalStar ? body.disposalStar : null,
-    tfStar: body.tfStar ? body.tfStar : null,
-    btfStar: body.btfStar ? body.btfStar : null,
-    bsStar: body.bsStar ? body.bsStar : null,
-    gStar: body.gStar ? body.gStar : null,
-    sStar: body.sStar ? body.sStar : null,
-    iaoStar: body.iaoStar ? body.iaoStar : null
+    ovStar: parseRatingInput(body.ovStar),
+    avStar: parseRatingInput(body.avStar),
+    cvStar: parseRatingInput(body.cvStar),
+    ubStar: parseRatingInput(body.ubStar),
+    tvStar: parseRatingInput(body.tvStar),
+    absStar: parseRatingInput(body.absStar),
+    svStar: parseRatingInput(body.svStar),
+    predStar: parseRatingInput(body.predStar),
+    preyStar: parseRatingInput(body.preyStar),
+    softStar: parseRatingInput(body.softStar),
+    hardStar: parseRatingInput(body.hardStar),
+    digestionStar: parseRatingInput(body.digestionStar),
+    disposalStar: parseRatingInput(body.disposalStar),
+    tfStar: parseRatingInput(body.tfStar),
+    btfStar: parseRatingInput(body.btfStar),
+    bsStar: parseRatingInput(body.bsStar),
+    gStar: parseRatingInput(body.gStar),
+    sStar: parseRatingInput(body.sStar),
+    iaoStar: parseRatingInput(body.iaoStar),
+    shvStar: parseRatingInput(body.shvStar),
+    bvStar: parseRatingInput(body.bvStar),
+    pvStar: parseRatingInput(body.pvStar),
+    uvStar: parseRatingInput(body.uvStar),
+    sfStar: parseRatingInput(body.sfStar),
+    tatStar: parseRatingInput(body.tatStar),
+    wgStar: parseRatingInput(body.wgStar),
+    microStar: parseRatingInput(body.microStar),
+    macroStar: parseRatingInput(body.macroStar),
+    pawStar: parseRatingInput(body.pawStar),
+    burpStar: parseRatingInput(body.burpStar),
+    fartStar: parseRatingInput(body.fartStar),
+    wsStar: parseRatingInput(body.wsStar)
   };
 
   let voreTypes = [];
