@@ -26,6 +26,8 @@ import { inventoryUI } from './inventory.js';
 import { CraftingUI } from './crafting.js'; // NEW
 import { initCorpses } from './corpses.js';
 import { Animal } from './entity/Animal.js'; // NEW
+import { EnemySprite } from './entity/EnemySprite.js'; // Modular Enemy System
+import { TelegraphRenderer } from './TelegraphRenderer.js'; // Combat Telegraph Decal Engine
 import { initMedicalUI } from './medicalUI.js';
 import { initTargetSelection } from './targetSelection.js';
 import { MidiEngine } from './audio/MidiEngine.js';
@@ -79,6 +81,8 @@ export function create() {
     // OPTIMIZATION: Fast O(1) lookup Maps for map objects and animal entities
     this.mapObjectsMap = new Map();
     this.animalsMap = new Map();
+    this.enemiesMap = new Map();
+    this.telegraphRenderer = new TelegraphRenderer(this);
 
     // --- LOADING SCREEN HANDOVER ---
     // Initialize Loading State
@@ -196,6 +200,9 @@ export function create() {
     this.socket = io({ query: { charId: charId } });
     window.gameSocket = this.socket; // Expose globally for UI interactions
     initMedicalUI(this.socket);
+    if (this.telegraphRenderer) {
+        this.telegraphRenderer.init(this.socket);
+    }
     console.log('this.socket = ', this.socket);
 
     // Cleanly disconnect socket when leaving the /play page or closing the tab
@@ -681,6 +688,50 @@ export function create() {
                 animal.serverUpdate(data);
             }
         });
+    });
+
+    // --- Enemy Mob Updates & Decals ---
+    this.socket.on('enemySpawn', (enemyData) => {
+        if (!enemyData || !enemyData.id) return;
+        let enemy = this.enemiesMap.get(enemyData.id);
+        if (!enemy) {
+            enemy = new EnemySprite(this, enemyData.x, enemyData.y, enemyData.texture || 'idle_test', enemyData);
+            this.enemiesMap.set(enemyData.id, enemy);
+        } else {
+            enemy.serverUpdate(enemyData);
+        }
+    });
+
+    this.socket.on('enemyUpdates', (updates) => {
+        if (!this.enemiesMap) return;
+        Object.keys(updates).forEach(id => {
+            const data = updates[id];
+            let enemy = this.enemiesMap.get(id) || this.enemiesMap.get(id.toLowerCase());
+            if (!enemy && this.enemiesMap.size > 0) {
+                const searchId = id.toLowerCase();
+                for (const e of this.enemiesMap.values()) {
+                    if (e && e.id && e.id.toLowerCase() === searchId) {
+                        enemy = e;
+                        break;
+                    }
+                }
+            }
+            if (enemy && enemy.active) {
+                enemy.serverUpdate(data);
+            } else if (!enemy && data.x !== undefined && data.y !== undefined) {
+                enemy = new EnemySprite(this, data.x, data.y, data.texture || 'idle_test', data);
+                this.enemiesMap.set(id, enemy);
+            }
+        });
+    });
+
+    this.socket.on('enemyDied', (data) => {
+        if (!this.enemiesMap || !data || !data.mobId) return;
+        const enemy = this.enemiesMap.get(data.mobId);
+        if (enemy) {
+            enemy.destroy();
+            this.enemiesMap.delete(data.mobId);
+        }
     });
 
     this.socket.on('newPlayer', function (playerInfo) {

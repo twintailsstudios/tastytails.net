@@ -193,6 +193,44 @@ function initializeGame(io) {
     monitoring.init(io); // Ensure IO is passed
     initializeSpells();
     initializeMap();
+    EnemyManager.init({
+        io,
+        players,
+        collisionMap,
+        isTileSolid: (x, y) => checkPointCollision(x, y),
+        addCorpse: module.exports.addCorpse,
+        worldItems,
+        addItemToGrid,
+        removeItemFromGrid,
+        activeAnimals,
+        activeResourceNodes,
+        messageSystem
+    });
+
+    // Initialize Authoritative Ecology System (Dynamic Flora & Fauna Zones)
+    try {
+        const mapPath = path.join(__dirname, 'client/assets/tilemaps', mapConfig.mapFilename);
+        const tilemapData = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+        EcologyManager.init({
+            io,
+            tilemapData,
+            activeResourceNodes,
+            worldItems,
+            addItemToGrid,
+            removeItemFromGrid,
+            enemyManager: EnemyManager,
+            isTileSolid: (x, y) => checkPointCollision(x, y)
+        });
+    } catch (err) {
+        log.error('[Server] Failed to initialize EcologyManager:', err);
+    }
+
+    // Spawn Default Test Enemies into the World
+    EnemyManager.spawnEnemy('training_dummy_hub', 'test', 3350, 4320);
+    EnemyManager.spawnEnemy('training_dummy_1', 'test', 1450, 1400);
+    EnemyManager.spawnEnemy('training_dummy_2', 'test', 1550, 1450);
+    EnemyManager.spawnEnemy('forest_bunny_1', 'bunny', 1600, 1500);
+    EnemyManager.spawnEnemy('forest_bunny_2', 'bunny', 1650, 1520);
 }
 
 /**
@@ -202,6 +240,10 @@ function initializeGame(io) {
  */
 const mapConfig = require('./server/mapConfig');
 const Animal = require('./server/mechanics/Animal'); // NEW
+const EnemyManager = require('./server/mechanics/EnemyManager'); // Modular Enemy Engine
+const EcologyManager = require('./server/mechanics/EcologyManager'); // Dynamic Ecology & Flora Spawner
+const WaterSourceRegistry = require('./server/mechanics/WaterSourceRegistry'); // Water Tile Ingestion & Spatial Query
+const Pathfinder = require('./server/mechanics/Pathfinder'); // Authoritative A* Grid Pathfinder
 
 function initializeMap() {
     // developer_note:
@@ -218,6 +260,9 @@ function initializeMap() {
 
         mapWidth = tilemapData.width;
         const mapHeight = tilemapData.height;
+
+        // Initialize Water Source Registry from map data
+        WaterSourceRegistry.initFromMap(tilemapData, 32);
 
         // --- 1. Tile-based Collision & Shadows ---
         // Stores Global GIDs for property lookup (Handling multiple tilesets)
@@ -486,6 +531,24 @@ function initializeMap() {
                             return; // SKIP adding detailed "body" static object logic below, we handled it.
                         }
 
+                        // --- Enemy System Check ---
+                        if (props.isEnemy || props.enemyType || combinedProps.isEnemy || combinedProps.enemyType) {
+                            const enemyDefId = props.enemyType || combinedProps.enemyType || 'test';
+                            const enemyId = `${objectLayer.name}_${obj.id}`;
+                            const spawnX = obj.x + (obj.width ? obj.width / 2 : 24);
+                            const spawnY = obj.y + (obj.height ? obj.height / 2 : 24);
+
+                            EnemyManager.spawnEnemy(
+                                enemyId,
+                                enemyDefId,
+                                spawnX,
+                                spawnY,
+                                (x, y) => checkPointCollision(x, y)
+                            );
+                            log.info(`[Server] Spawning Enemy: ${enemyDefId} (${enemyId}) at (${spawnX}, ${spawnY})`);
+                            return; // Skip static object creation
+                        }
+
                         // --- Animal System Check ---
                         if (props.isAnimal || combinedProps.isAnimal) {
                             const animalId = `${objectLayer.name}_${obj.id}`;
@@ -498,7 +561,8 @@ function initializeMap() {
                                 spawnX,
                                 spawnY,
                                 combinedProps,
-                                (x, y) => checkPointCollision(x, y) // Pass point collision function
+                                (x, y) => checkPointCollision(x, y), // Pass point collision function
+                                WaterSourceRegistry
                             );
 
                             activeAnimals[animalId] = animal;
@@ -1471,11 +1535,13 @@ function gameLoop(io) {
                 const oldY = animal.y;
                 const oldState = animal.state;
                 const oldSheared = animal.isSheared;
+                const oldHydration = animal.needs ? animal.needs.hydration.current : 100;
 
-                animal.update(delta);
+                animal.update(delta, WaterSourceRegistry, collisionMap);
 
-                // Check for changes (position, AI state, or wool regrowth state)
-                if (animal.x !== oldX || animal.y !== oldY || animal.state !== oldState || animal.isSheared !== oldSheared) {
+                // Check for changes (position, AI state, wool regrowth state, or hydration change)
+                const hydrationChanged = animal.needs && Math.abs(animal.needs.hydration.current - oldHydration) >= 1.0;
+                if (animal.x !== oldX || animal.y !== oldY || animal.state !== oldState || animal.isSheared !== oldSheared || hydrationChanged) {
                     animalUpdates[animal.id] = animal.getData();
                 }
             }
@@ -1508,6 +1574,13 @@ function gameLoop(io) {
             }
         });
     }
+    
+    // --- ENEMY COMBAT AI UPDATES ---
+    EnemyManager.update(delta);
+
+    // --- DYNAMIC ECOLOGY & FLORA RESPAWN UPDATES ---
+    EcologyManager.update(delta);
+    
     tAi = performance.now() - tAiStart;
 
     // --- CROP GROWTH TICK ---
@@ -2402,6 +2475,12 @@ module.exports.start = (io, _messageSystem) => {
             if (Object.keys(initialAnimalData).length > 0) {
                 socket.emit('animalUpdates', initialAnimalData);
             }
+        }
+
+        // Send initial active enemies snapshot to newly connected player
+        const initialEnemyData = EnemyManager.getAllEnemiesSnapshot();
+        if (Object.keys(initialEnemyData).length > 0) {
+            socket.emit('enemyUpdates', initialEnemyData);
         }
 
         // Register new player in playerGrid for immediate spatial AOI queries
@@ -3507,6 +3586,26 @@ module.exports.start = (io, _messageSystem) => {
                             flavor: flavor,
                             availableActions: actions
                         });
+                    }
+
+                    // --- Check if the clicked item is an ENEMY MOB ---
+                    else if (clickedItem.Identifier === 'enemy') {
+                        const EnemyManager = require('./server/mechanics/EnemyManager');
+                        const enemyDefinitions = require('./data/enemyDefinitions');
+                        const enemyTarget = EnemyManager.getEnemy(clickedItem.uniqueId || clickedItem.enemyId);
+
+                        if (enemyTarget) {
+                            const def = enemyDefinitions[enemyTarget.defId] || {};
+                            responseInfo.push({
+                                name: enemyTarget.name,
+                                Identifier: 'enemy',
+                                uniqueId: enemyTarget.id,
+                                enemyId: enemyTarget.id,
+                                defId: enemyTarget.defId,
+                                description: def.description || `${enemyTarget.name} (${enemyTarget.stats.health}/${enemyTarget.stats.maxHealth} HP)`,
+                                availableActions: ['Examine']
+                            });
+                        }
                     }
                 }
 

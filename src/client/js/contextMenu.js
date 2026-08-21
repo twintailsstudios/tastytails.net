@@ -246,6 +246,16 @@ function initializeContextMenu(scene, socket) {
                     description: gameObject.objectInfo.description
                 };
                 clickedList.push(objectClicked);
+            } else if (gameObject.isEnemy || gameObject.enemyInfo || (gameObject.defId && gameObject.id && typeof gameObject.updateHUD === 'function')) {
+                var enemyClicked = {
+                    Identifier: 'enemy',
+                    uniqueId: gameObject.id,
+                    enemyId: gameObject.id,
+                    defId: gameObject.defId,
+                    name: gameObject.mobName || 'Enemy',
+                    description: gameObject.description || ''
+                };
+                clickedList.push(enemyClicked);
             }
         });
         return clickedList;

@@ -279,6 +279,16 @@ export const assets = {
         // Animals
         { key: 'sheep', path: '/assets/animals/sheep.png', frameWidth: 215, frameHeight: 198 },
 
+        // Enemy Multi-State Spritesheets (/assets/enemies/{enemyName}/{status}_{enemyName}.png)
+        { key: 'idle_bunny', path: '/assets/enemies/bunny/idle_bunny.png', frameWidth: 215, frameHeight: 198, animate: true },
+        { key: 'idle_tiger', path: '/assets/enemies/tiger/idle_tiger.png', frameWidth: 215, frameHeight: 198, animate: true },
+        { key: 'idle_test', path: '/assets/enemies/test/idle_test.png', frameWidth: 215, frameHeight: 198, animate: true },
+        { key: 'orbit_test', path: '/assets/enemies/test/orbit_test.png', frameWidth: 215, frameHeight: 198, animate: true },
+        { key: 'windup_test', path: '/assets/enemies/test/windup_test.png', frameWidth: 215, frameHeight: 198, animate: true },
+        { key: 'flash_test', path: '/assets/enemies/test/flash_test.png', frameWidth: 215, frameHeight: 198, animate: true },
+        { key: 'active_test', path: '/assets/enemies/test/active_test.png', frameWidth: 215, frameHeight: 198, animate: true },
+        { key: 'recovery_test', path: '/assets/enemies/test/recovery_test.png', frameWidth: 215, frameHeight: 198, animate: true },
+
         // Dynamic resource nodes (skip layered crop nodes that load individual layer textures)
         ...Object.entries(resourceNodeData)
             .filter(([key, def]) => {

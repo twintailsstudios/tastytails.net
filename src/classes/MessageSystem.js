@@ -528,6 +528,57 @@ class MessageSystem {
                 return;
             }
 
+            // 2.9 Spawn Enemy / Mob Command (Developer / GM Tool)
+            const rawMsgLower = (data && data.message ? data.message.trim().toLowerCase() : '');
+            const cleanMsgLower = cleanMessage.trim().toLowerCase();
+            if (rawMsgLower.startsWith('/spawnenemy') || rawMsgLower.startsWith('/spawnmob') || rawMsgLower.startsWith('/spawn') ||
+                cleanMsgLower.startsWith('/spawnenemy') || cleanMsgLower.startsWith('/spawnmob') || cleanMsgLower.startsWith('/spawn')) {
+                const parts = (rawMsgLower.startsWith('/') ? data.message.trim() : cleanMessage.trim()).split(/\s+/).filter(Boolean);
+                const enemyType = (parts[1] || 'bunny').toLowerCase();
+                const players = serverGame.getAllPlayers() || {};
+                
+                // Multi-tier player lookup
+                let player = players[socket.id];
+                if (!player && data.charId) {
+                    const sId = serverGame.getSocketIdByCharId(data.charId);
+                    if (sId && players[sId]) {
+                        player = players[sId];
+                    }
+                }
+                if (!player) {
+                    player = Object.values(players).find(p => 
+                        p.socketId === socket.id || 
+                        p.playerId === socket.id || 
+                        (data.charId && p._id && p._id.toString() === data.charId.toString())
+                    );
+                }
+
+                // Coordinate resolution with player location or hub fallback
+                const fallbackX = player && player.position && typeof player.position.x === 'number' ? player.position.x : (player && typeof player.x === 'number' ? player.x : 3291);
+                const fallbackY = player && player.position && typeof player.position.y === 'number' ? player.position.y : (player && typeof player.y === 'number' ? player.y : 4287);
+                const spawnX = (!isNaN(parseFloat(parts[2]))) ? parseFloat(parts[2]) : fallbackX;
+                const spawnY = (!isNaN(parseFloat(parts[3]))) ? parseFloat(parts[3]) : fallbackY;
+
+                const EnemyManager = require('../server/mechanics/EnemyManager');
+                const mobId = `${enemyType}_${Date.now().toString().slice(-4)}`;
+                const spawned = EnemyManager.spawnEnemy(mobId, enemyType, spawnX, spawnY);
+
+                if (spawned) {
+                    this.sendSystemMessage(
+                        'Combat',
+                        `Spawned ${spawned.name} (${mobId}) at (${Math.round(spawnX)}, ${Math.round(spawnY)})!`,
+                        socket
+                    );
+                } else {
+                    this.sendSystemMessage(
+                        'Combat',
+                        `Failed to spawn enemy type '${enemyType}'.`,
+                        socket
+                    );
+                }
+                return;
+            }
+
             // 3. Classify Message (using the CLEAN parsed version for safety in logs, but maybe raw for command checks?)
             // Actually, commands like /me should be checked on the raw text BEFORE parsing markdown.
             // But 'data.message' is the raw input.

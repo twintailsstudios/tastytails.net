@@ -350,6 +350,25 @@ const itemData = {
     'plant_weld': { size: 1, name: 'Weld Plant Texture', icon: 'fa-seedling', texture: 'plant_weld', preventPickup: true },
     'plant_potato': { size: 1, name: 'Potato Plant Texture', icon: 'fa-seedling', texture: 'plant_potato', preventPickup: true },
 
+    // Wild Flora Harvest Items
+    'fiber_plant': { size: 1, name: 'Plant Fiber', icon: 'fa-solid fa-seedling', texture: 'fiber_plant', flavor: 'Coarse and earthy', description: 'Fibrous wild grass strands suitable for weaving and crafting.', verb: 'use', maxUses: 1, playerUse: false },
+    'clover_leaf': { size: 1, name: 'Clover Leaf', icon: 'fa-solid fa-clover', texture: 'clover_leaf', flavor: 'Sweet and fresh', description: 'A fresh white clover sprig eaten by herbivores.', verb: 'eat', maxUses: 1, playerUse: true },
+    'four_leaf_clover': { size: 1, name: 'Four-Leaf Clover', icon: 'fa-solid fa-clover', texture: 'four_leaf_clover', flavor: 'Tastes lucky', description: 'An exceptionally rare four-leaf clover believed to bring fortune.', verb: 'use', maxUses: 1, playerUse: false },
+    'flower_dandelion': { size: 1, name: 'Dandelion Bloom', icon: 'fa-solid fa-spa', texture: 'flower_dandelion', flavor: 'Bitter herbal', description: 'A bright dandelion head used in herbal dyes and teas.', verb: 'use', maxUses: 1, playerUse: false },
+    'petal_red': { size: 1, name: 'Crimson Poppy Petal', icon: 'fa-solid fa-spa', texture: 'petal_red', flavor: 'Velvety fragrant', description: 'A delicate red poppy petal rich in crimson dye pigment.', verb: 'use', maxUses: 1, playerUse: false },
+    'petal_blue': { size: 1, name: 'Azure Starflower Petal', icon: 'fa-solid fa-spa', texture: 'petal_blue', flavor: 'Cool and sweet', description: 'A shimmering blue flower petal used in artisan dyes.', verb: 'use', maxUses: 1, playerUse: false },
+    'petal_yellow': { size: 1, name: 'Golden Marigold Petal', icon: 'fa-solid fa-spa', texture: 'petal_yellow', flavor: 'Citrus spice', description: 'A sunny golden marigold petal prized for herbal extracts.', verb: 'use', maxUses: 1, playerUse: false },
+    'food_berry': { size: 1, name: 'Sweet Wild Berries', icon: 'fa-solid fa-apple-whole', texture: 'food_berry', flavor: 'Tart and juicy', description: 'A handful of fresh sweet wild berries.', verb: 'eat', maxUses: 1, playerUse: true, isDynamic: true },
+
+    // Wild Flora Node World Textures
+    'flora_tall_grass': { size: 1, name: 'Wild Tall Grass', icon: 'fa-solid fa-seedling', texture: 'flora_tall_grass', preventPickup: true, isGround: true },
+    'flora_clover': { size: 1, name: 'White Clover Patch', icon: 'fa-solid fa-clover', texture: 'flora_clover', preventPickup: true, isGround: true },
+    'flora_dandelion': { size: 1, name: 'Yellow Dandelion', icon: 'fa-solid fa-spa', texture: 'flora_dandelion', preventPickup: true, isGround: true },
+    'flora_flower_1': { size: 1, name: 'Red Poppy', icon: 'fa-solid fa-spa', texture: 'flora_flower_1', preventPickup: true, isGround: true },
+    'flora_flower_2': { size: 1, name: 'Blue Starflower', icon: 'fa-solid fa-spa', texture: 'flora_flower_2', preventPickup: true, isGround: true },
+    'flora_flower_3': { size: 1, name: 'Yellow Marigold', icon: 'fa-solid fa-spa', texture: 'flora_flower_3', preventPickup: true, isGround: true },
+    'flora_berry_bush': { size: 1, name: 'Sweet Berry Bush', icon: 'fa-solid fa-tree', texture: 'flora_berry_bush', preventPickup: true, isGround: false },
+
 
     // Special
     'alpha_bottle': {

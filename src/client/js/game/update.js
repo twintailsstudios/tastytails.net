@@ -158,6 +158,11 @@ export function update(time, delta) {
         }
     }
 
+    // --- COMBAT TELEGRAPH RENDERER TICK ---
+    if (this.telegraphRenderer) {
+        this.telegraphRenderer.update(time, delta);
+    }
+
     // Always update UI even if chat is focused
     if (this.playerContainer && this.playerContainer.playerInfo) {
         // --- STATE CACHE (DIRTY FLAG) ---

@@ -39,7 +39,8 @@ router.get('/:charId', async (req, res) => {
   if (!token) {
     return res.render('create', {
       token: null,
-      loginForm: 0
+      loginForm: 0,
+      charList: 'new'
     });
   }
 

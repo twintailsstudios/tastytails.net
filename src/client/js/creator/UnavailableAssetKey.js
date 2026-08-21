@@ -51,8 +51,7 @@
 
     // 5. Body Accent Fur
     bodyAccentFur: [
-      { suffix: 'accent_01', label: 'Spots' },
-      { suffix: 'accent_03', label: 'Stripe Down Back' }
+
     ],
 
     // 6. Tail Secondary Fur
@@ -102,8 +101,8 @@
       return list.some(item => {
         // Match All Except Rule (e.g., for Hair Styles)
         if (item.matchAllExcept) {
-          const isAllowed = item.matchAllExcept.some(allowed => 
-            normVal.toLowerCase() === allowed.toLowerCase() || 
+          const isAllowed = item.matchAllExcept.some(allowed =>
+            normVal.toLowerCase() === allowed.toLowerCase() ||
             normLabel === allowed.toLowerCase()
           );
           if (!isAllowed) return true;

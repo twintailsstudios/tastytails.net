@@ -15,6 +15,10 @@
  */
 const modulesToTest = [
     { name: 'server-loop', path: './server-loop' },
+    { name: 'Pathfinder', path: './server/mechanics/Pathfinder' },
+    { name: 'WaterSourceRegistry', path: './server/mechanics/WaterSourceRegistry' },
+    { name: 'NeedsManager', path: './server/mechanics/NeedsManager' },
+    { name: 'Animal', path: './server/mechanics/Animal' },
     { name: 'craftingHandlers', path: './sockets/craftingHandlers' },
     { name: 'inventoryHandlers', path: './sockets/inventoryHandlers' },
     { name: 'voreHandlers', path: './sockets/voreHandlers' },

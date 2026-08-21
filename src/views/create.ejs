@@ -17,6 +17,7 @@
  * - /js/creator/CharacterCreatorApp.js (Form UI & Sync Controller)
  */
 -%>
+<% var charList = (typeof charList !== 'undefined' && charList) ? charList : 'new'; %>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css" />
 <link rel="stylesheet" href="/css/create.css?v=<%= typeof appVersion !== 'undefined' ? appVersion : '0.1.0' %>">

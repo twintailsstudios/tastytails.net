@@ -185,5 +185,114 @@ export default Object.freeze({
                 { texture: 'plant_potato' }
             ]
         }
+    },
+
+    // =========================================================================
+    // WILD VEGETATION & FLORA (Dynamic plantZone Ecological Nodes)
+    // =========================================================================
+    'flora_tall_grass': {
+        name: 'Wild Tall Grass',
+        description: 'Lush, fibrous meadow grass favored by grazing woodland animals.',
+        interactType: 'gather',
+        gatherItem: 'fiber_plant',
+        gatherTool: 'none',
+        maxCapacity: 1,
+        regrowTime: 999999, // Managed by EcologyManager relocation respawn
+        regrowable: false,
+        isDynamicFlora: true,
+        capacityFrames: { 1: 0, 0: 0 },
+        preventPickup: true,
+        isGround: true,
+        gatherable: true
+    },
+    'flora_clover': {
+        name: 'White Clover Patch',
+        description: 'A cluster of sweet clover blossoms rich in nutrients.',
+        interactType: 'gather',
+        gatherItem: 'clover_leaf',
+        gatherTool: 'none',
+        maxCapacity: 1,
+        regrowTime: 999999,
+        regrowable: false,
+        isDynamicFlora: true,
+        capacityFrames: { 1: 0, 0: 0 },
+        preventPickup: true,
+        isGround: true,
+        gatherable: true
+    },
+    'flora_dandelion': {
+        name: 'Yellow Dandelion',
+        description: 'A bright yellow bloom edible by herbivores and prized for yellow pigments.',
+        interactType: 'gather',
+        gatherItem: 'flower_dandelion',
+        gatherTool: 'none',
+        maxCapacity: 1,
+        regrowTime: 999999,
+        regrowable: false,
+        isDynamicFlora: true,
+        capacityFrames: { 1: 0, 0: 0 },
+        preventPickup: true,
+        isGround: true,
+        gatherable: true
+    },
+    'flora_flower_1': {
+        name: 'Red Poppy',
+        description: 'A delicate crimson wildflower containing vibrant red dye pigments.',
+        interactType: 'gather',
+        gatherItem: 'petal_red',
+        gatherTool: 'none',
+        maxCapacity: 1,
+        regrowTime: 999999,
+        regrowable: false,
+        isDynamicFlora: true,
+        capacityFrames: { 1: 0, 0: 0 },
+        preventPickup: true,
+        isGround: true,
+        gatherable: true
+    },
+    'flora_flower_2': {
+        name: 'Blue Starflower',
+        description: 'A rare indigo-blue wildflower that flourishes in shaded clearings.',
+        interactType: 'gather',
+        gatherItem: 'petal_blue',
+        gatherTool: 'none',
+        maxCapacity: 1,
+        regrowTime: 999999,
+        regrowable: false,
+        isDynamicFlora: true,
+        capacityFrames: { 1: 0, 0: 0 },
+        preventPickup: true,
+        isGround: true,
+        gatherable: true
+    },
+    'flora_flower_3': {
+        name: 'Yellow Marigold',
+        description: 'A sunny golden marigold known for sweet nectar and herbal remedies.',
+        interactType: 'gather',
+        gatherItem: 'petal_yellow',
+        gatherTool: 'none',
+        maxCapacity: 1,
+        regrowTime: 999999,
+        regrowable: false,
+        isDynamicFlora: true,
+        capacityFrames: { 1: 0, 0: 0 },
+        preventPickup: true,
+        isGround: true,
+        gatherable: true
+    },
+    'flora_berry_bush': {
+        name: 'Sweet Berry Bush',
+        description: 'A hardy woodland bush laden with ripe, sweet wild berries.',
+        interactType: 'gather',
+        gatherItem: 'food_berry',
+        gatherTool: 'none',
+        maxCapacity: 2,
+        regrowTime: 999999,
+        regrowable: false,
+        isDynamicFlora: true,
+        capacityFrames: { 2: 0, 1: 0, 0: 0 },
+        preventPickup: true,
+        isGround: false,
+        gatherable: true
     }
 });

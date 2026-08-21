@@ -262,15 +262,23 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
         try {
             const { targetId, intent, targetZone } = data;
             const player = players[socket.id];
+            if (!player || player.isDead) return;
+
+            // 0. Check for Enemy Mob Target
+            const EnemyManager = require('../server/mechanics/EnemyManager');
+            const enemyTarget = EnemyManager.getEnemy(targetId);
+            if (enemyTarget) {
+                const activeHandSlot = (data.hand === 'right') ? 'right' : 'left';
+                const sanitizedIntent = (intent || 'hostile').replace(/[^a-zA-Z0-9]/g, '');
+                const weaponAction = resolveWeaponAction(player, activeHandSlot, sanitizedIntent, targetZone || 'torso');
+                const handled = EnemyManager.handlePlayerAttackEnemy(socket, player, enemyTarget.id, targetZone || 'torso', sanitizedIntent, weaponAction);
+                if (handled) return;
+            }
+
             const targetPlayer = players[targetId];
 
             if (!player || !targetPlayer) {
                 log.warn(`${logPrefix} Action failed: Player or Target not found.`);
-                require('../server/monitoring').recordAction('grapple', false);
-                return;
-            }
-
-            if (player.isDead) {
                 require('../server/monitoring').recordAction('grapple', false);
                 return;
             }
@@ -444,6 +452,8 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                 handleExamineHeldItem(socket, user, data, messageSystem);
             } else if (data.Identifier === 'mapObject') {
                 handleExamineMapObject(socket, user, data, messageSystem);
+            } else if (data.Identifier === 'enemy') {
+                handleExamineEnemy(socket, user, data, messageSystem);
             }
         } catch (e) {
             log.error(`${logPrefix} Error handling examineClicked:`, e);
@@ -689,12 +699,18 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
                     addItemToGrid(spawnedItem);
                     io.emit('itemSpawned', spawnedItem);
 
-                    // Broadcast node update
-                    io.emit('resourceNodeUpdate', {
-                        id: node.uid,
-                        capacity: node.capacity,
-                        frame: nodeDef.capacityFrames[node.capacity]
-                    });
+                    // Check for dynamic flora depletion and relocation respawn
+                    if (node.capacity <= 0 && (node.isDynamicFlora || nodeDef.isDynamicFlora)) {
+                        const EcologyManager = require('../server/mechanics/EcologyManager');
+                        EcologyManager.handleFloraDepleted(node.uid);
+                    } else {
+                        // Broadcast node update
+                        io.emit('resourceNodeUpdate', {
+                            id: node.uid,
+                            capacity: node.capacity,
+                            frame: (nodeDef.capacityFrames && nodeDef.capacityFrames[node.capacity]) !== undefined ? nodeDef.capacityFrames[node.capacity] : 0
+                        });
+                    }
 
                     sendSystemMsg(socket, messageSystem, `You harvest a ${spawnedItem.name} from the ${nodeDef.name}.`);
                 } else {
@@ -704,6 +720,93 @@ module.exports = function (io, socket, players, messageSystem, collisionMap, TIL
 
         } catch (e) {
             log.error(`${logPrefix} Error handling objectInteract:`, e);
+        }
+    });
+
+    // =========================================================================
+    // 3.6 NPC VITALS & HYDRATION DEBUG / TESTING HANDLER
+    // =========================================================================
+    socket.on('debugSetHydration', (debugPayload) => {
+        try {
+            const { entityId, hydration } = debugPayload || {};
+            if (!entityId || typeof hydration !== 'number') return;
+
+            const targetHydration = Math.max(0, Math.min(100, hydration));
+            
+            // Check activeAnimals
+            let anim = activeAnimals[entityId] || activeAnimals[entityId?.toLowerCase()] || Object.values(activeAnimals).find(a => a.id === entityId || a.id.toLowerCase() === entityId.toLowerCase());
+            if (anim && anim.needs) {
+                anim.needs.hydration.current = targetHydration;
+                if (targetHydration <= anim.needs.hydration.desireThreshold && (anim.state === 'IDLE' || anim.state === 'MOVE')) {
+                    anim.startSeekingWater();
+                }
+                io.emit('animalUpdates', { [anim.id]: anim.getData() });
+                sendSystemMsg(socket, messageSystem, `💧 Set ${anim.properties.name || anim.id} hydration to ${targetHydration}%`);
+                return;
+            }
+
+            // Check EnemyManager
+            const EnemyManager = require('../server/mechanics/EnemyManager');
+            const enemy = EnemyManager.getEnemy(entityId);
+            if (enemy && enemy.needs) {
+                enemy.needs.hydration.current = targetHydration;
+                if (targetHydration <= enemy.needs.hydration.desireThreshold && (enemy.state === 'IDLE' || enemy.state === 'MOVE')) {
+                    enemy.startSeekingWater();
+                }
+                io.emit('enemyUpdates', { [enemy.id]: enemy.getData() });
+                sendSystemMsg(socket, messageSystem, `💧 Set ${enemy.name} (${enemy.id}) hydration to ${targetHydration}%`);
+                return;
+            }
+        } catch (err) {
+            log.error(`[debugSetHydration] Error: ${err.message}`);
+        }
+    });
+
+    socket.on('debugSetHunger', (debugPayload) => {
+        try {
+            const { entityId, hunger } = debugPayload || {};
+            if (!entityId || typeof hunger !== 'number') return;
+
+            const targetHunger = Math.max(0, Math.min(100, hunger));
+
+            // Check activeAnimals
+            let anim = activeAnimals[entityId] || activeAnimals[entityId?.toLowerCase()] || Object.values(activeAnimals).find(a => a.id === entityId || a.id.toLowerCase() === entityId.toLowerCase());
+            if (anim && anim.needs) {
+                anim.needs.hunger.current = targetHunger;
+                io.emit('animalUpdates', { [anim.id]: anim.getData() });
+                sendSystemMsg(socket, messageSystem, `🍗 Set ${anim.properties.name || anim.id} hunger to ${targetHunger}%`);
+                return;
+            }
+
+            // Check EnemyManager
+            const EnemyManager = require('../server/mechanics/EnemyManager');
+            const enemy = EnemyManager.getEnemy(entityId);
+            if (enemy && enemy.needs) {
+                enemy.needs.hunger.current = targetHunger;
+                if (targetHunger <= enemy.needs.hunger.desireThreshold && enemy.diet !== 'none' && enemy.state === 'IDLE') {
+                    const envContext = {
+                        worldItems: EnemyManager.worldItems,
+                        activeResourceNodes: EnemyManager.activeResourceNodes,
+                        activeAnimals: EnemyManager.activeAnimals,
+                        activeEnemies: EnemyManager.activeEnemies,
+                        removeItem: (item) => {
+                            if (Array.isArray(EnemyManager.worldItems)) {
+                                const idx = EnemyManager.worldItems.indexOf(item);
+                                if (idx > -1) EnemyManager.worldItems.splice(idx, 1);
+                            }
+                            if (typeof EnemyManager.removeItemFromGrid === 'function') {
+                                EnemyManager.removeItemFromGrid(item);
+                            }
+                        }
+                    };
+                    enemy.startSeekingFood(envContext);
+                }
+                io.emit('enemyUpdates', { [enemy.id]: enemy.getData() });
+                sendSystemMsg(socket, messageSystem, `🍗 Set ${enemy.name} (${enemy.id}) hunger to ${targetHunger}%`);
+                return;
+            }
+        } catch (err) {
+            log.error(`[debugSetHunger] Error: ${err.message}`);
         }
     });
 
@@ -2074,6 +2177,47 @@ function handleExamineMapObject(socket, observer, data, messageSystem) {
         Identifier: 'mapObject',
         name: data.name,
         description: data.description || ''
+    });
+}
+
+function handleExamineEnemy(socket, observer, data, messageSystem) {
+    const EnemyManager = require('../server/mechanics/EnemyManager');
+    const enemyDefinitions = require('../data/enemyDefinitions');
+
+    const enemy = EnemyManager.getEnemy(data.uniqueId || data.enemyId || data.id);
+    if (!enemy) {
+        const msg = `You examined ${data.name || 'Enemy'}. It is no longer here.`;
+        sendSystemMsg(socket, messageSystem, msg);
+        socket.emit('examinedInfo', {
+            Identifier: 'enemy',
+            name: data.name || 'Enemy',
+            description: 'A defeated or departed creature.'
+        });
+        return;
+    }
+
+    const def = enemyDefinitions[enemy.defId] || {};
+    const fracturedLimbs = Object.keys(enemy.anatomy.limbs).filter(l => enemy.anatomy.limbs[l].fractured);
+    const fracturedNote = fracturedLimbs.length > 0 ? `\n\n**Fractured Weak-Points**: ${fracturedLimbs.join(', ')}` : '';
+    const enrageNote = enemy.isEnraged ? ' ⚡ **ENRAGED FRENZY** ⚡' : '';
+
+    const desc = `${def.description || 'A combatant in the world.'}\n\n**Health**: ${enemy.stats.health}/${enemy.stats.maxHealth} HP\n**Base Armor**: ${enemy.stats.baseArmor} | **Move Speed**: ${enemy.stats.moveSpeed}${enrageNote}${fracturedNote}`;
+
+    const msg = `You examined ${enemy.name}. ${def.description || ''}`;
+    sendSystemMsg(socket, messageSystem, msg);
+
+    socket.emit('examinedInfo', {
+        Identifier: 'enemy',
+        name: enemy.name,
+        description: desc,
+        flavor: def.description || '',
+        stats: {
+            health: enemy.stats.health,
+            maxHealth: enemy.stats.maxHealth,
+            baseArmor: enemy.stats.baseArmor,
+            isEnraged: enemy.isEnraged,
+            fracturedLimbs: fracturedLimbs
+        }
     });
 }
 
